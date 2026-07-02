@@ -7,13 +7,8 @@ st.title(T["nav_learning"])
 st.write(T["learning_phase2"])
 st.caption("Preview — illustrative data, not yet live")
 
-mock_counts = {
-    T["themes"][0]: 7,
-    T["themes"][1]: 9,
-    T["themes"][2]: 4,
-    T["themes"][3]: 6,
-    T["themes"][4]: 5,
-}
+mock_values = [7, 9, 4, 6, 3, 8, 5, 6]
+mock_counts = {T["themes"][i]: mock_values[i] for i in range(len(T["themes"]))}
 
 for theme, count in mock_counts.items():
     st.write(f"**{theme}**")
