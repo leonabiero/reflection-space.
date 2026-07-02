@@ -18,7 +18,7 @@ def generate_reflection(text: str, lang: str = "Español"):
 
     message = client.messages.create(
         model="claude-sonnet-5",
-        max_tokens=1200,
+        max_tokens=3000,
         system=full_system_prompt,
         messages=[
             {
