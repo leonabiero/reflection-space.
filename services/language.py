@@ -203,3 +203,14 @@ def init_language():
     )
 
     return get_lang(st.session_state.lang)
+
+
+def render_nav(T):
+    # Call on every page (after init_language) to keep the sidebar
+    # navigation links visible. Streamlit does not persist sidebar
+    # content across pages automatically, so this must be called
+    # explicitly on each page file.
+    st.sidebar.success(T["nav_header"])
+    st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
+    st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
+    st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])
