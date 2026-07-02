@@ -29,7 +29,7 @@ if st.button(T["begin_reflection"]):
 if "reflection" in st.session_state:
     r = st.session_state["reflection"]
     if "error" in r:
-        st.error(r["error"])
+        st.error(T["error_parsing"])
         st.text(r["raw"])
         st.stop()
 
