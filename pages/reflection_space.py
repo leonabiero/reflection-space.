@@ -3,8 +3,10 @@ from services.draft_storage import get_drafts, update_draft, mark_completed
 from services.reflection_service import generate_reflection
 from services.anonymizer import anonymize
 from services.language import init_language
+from services.visit_log import log_visit
 
 T = init_language()
+log_visit("reflection_space", st.session_state.lang)
 
 st.title(T["nav_reflection"])
 

@@ -1,8 +1,10 @@
 import streamlit as st
 from services.draft_storage import save_draft
 from services.language import init_language
+from services.visit_log import log_visit
 
 T = init_language()
+log_visit("documentation", st.session_state.lang)
 
 st.title(T["doc"])
 

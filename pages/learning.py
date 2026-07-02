@@ -1,7 +1,9 @@
 import streamlit as st
 from services.language import init_language
+from services.visit_log import log_visit
 
 T = init_language()
+log_visit("learning", st.session_state.lang)
 
 st.title(T["nav_learning"])
 st.write(T["learning_phase2"])
