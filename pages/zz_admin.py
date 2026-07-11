@@ -26,11 +26,11 @@ if not visits:
     st.info("No visits logged yet.")
 else:
     st.write(f"**{len(visits)} total page views**")
-    st.dataframe(
-        [{"Page": p, "Language": lang, "Visited at": ts} for p, lang, ts in visits],
-        use_container_width=True,
-        hide_index=True,
-    )
+    # Plain text rendering instead of st.dataframe(), to test whether
+    # pyarrow-based dataframe rendering is what's causing the segfault
+    # on this page specifically.
+    for page, lang, ts in visits:
+        st.write(f"- **{page}** | {lang} | {ts}")
 
 if st.button("Clear log"):
     clear_visits()
