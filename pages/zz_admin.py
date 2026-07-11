@@ -57,4 +57,4 @@ demo_text = st.text_area("Sample text (fake details only)", value=sample_default
 if st.button("Run anonymizer"):
     result = anonymize(demo_text)
     st.markdown("**Anonymized output (what is sent to Claude):**")
-    st.code(result, language=None)
+    st.code(result, language=None, wrap_lines=True)
