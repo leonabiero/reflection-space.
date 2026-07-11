@@ -213,4 +213,12 @@ def render_nav(T):
     st.sidebar.success(T["nav_header"])
     st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
     st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
-    st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])
+
+    # Learning dashboard link is only shown for roles it's meant for.
+    # NOTE: this hides the link, it does not block direct URL access —
+    # real access control still depends on FR-001/NFR-011 authentication,
+    # which doesn't exist yet.
+    visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
+    current_role = st.session_state.get("user_role", "")
+    if current_role in visible_roles:
+        st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])

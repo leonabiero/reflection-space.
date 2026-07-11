@@ -4,9 +4,11 @@ from services.reflection_service import generate_reflection
 from services.anonymizer import anonymize
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
+from services.identity import init_identity
 
 T = init_language()
 log_visit("reflection_space", st.session_state.lang)
+init_identity()
 render_nav(T)
 
 st.title(T["nav_reflection"])
@@ -16,10 +18,19 @@ if not drafts:
     st.info(T["no_drafts"])
     st.stop()
 
+
+def _format_draft(x):
+    # x: id, case_ref, doc_type, content, created_at, created_by, created_by_role
+    creator = x[5] or "Unknown"
+    role = x[6] or ""
+    role_suffix = f", {role}" if role else ""
+    return f"{x[1]} - {x[2]} ({x[4]}) — by {creator}{role_suffix}"
+
+
 selected = st.multiselect(
     T["select_drafts"],
     options=drafts,
-    format_func=lambda x: f"{x[1]} - {x[2]} ({x[4]})"
+    format_func=_format_draft,
 )
 
 if st.button(T["begin_reflection"]):

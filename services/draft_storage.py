@@ -23,6 +23,17 @@ def _get_conn():
         status TEXT
     )
     """)
+
+    # Migration: add identity columns for databases created before this
+    # feature existed. SQLite has no "ADD COLUMN IF NOT EXISTS", so we
+    # check PRAGMA table_info first.
+    existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(drafts)")]
+    if "created_by" not in existing_cols:
+        conn.execute("ALTER TABLE drafts ADD COLUMN created_by TEXT")
+    if "created_by_role" not in existing_cols:
+        conn.execute("ALTER TABLE drafts ADD COLUMN created_by_role TEXT")
+
+    conn.commit()
     return conn
 
 
@@ -32,13 +43,13 @@ def init_db():
     conn.close()
 
 
-def save_draft(case_ref, doc_type, language, content):
+def save_draft(case_ref, doc_type, language, content, created_by="", created_by_role=""):
     conn = _get_conn()
     c = conn.cursor()
     c.execute("""
-        INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (case_ref, doc_type, language, content, datetime.now().isoformat(), "draft"))
+        INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status, created_by, created_by_role)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (case_ref, doc_type, language, content, datetime.now().isoformat(), "draft", created_by, created_by_role))
     conn.commit()
     conn.close()
 
@@ -46,7 +57,10 @@ def save_draft(case_ref, doc_type, language, content):
 def get_drafts():
     conn = _get_conn()
     c = conn.cursor()
-    c.execute("SELECT id, case_ref, doc_type, content, created_at FROM drafts WHERE status='draft'")
+    c.execute("""
+        SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role
+        FROM drafts WHERE status='draft'
+    """)
     rows = c.fetchall()
     conn.close()
     return rows

@@ -1,9 +1,11 @@
 import streamlit as st
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
+from services.identity import init_identity
 
 T = init_language()
 log_visit("learning", st.session_state.lang)
+init_identity()
 render_nav(T)
 
 st.title(T["nav_learning"])

@@ -2,9 +2,11 @@ import streamlit as st
 from services.draft_storage import save_draft
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
+from services.identity import init_identity
 
 T = init_language()
 log_visit("documentation", st.session_state.lang)
+user_name, user_role = init_identity()
 render_nav(T)
 
 st.title(T["doc"])
@@ -28,7 +30,7 @@ text = st.text_area(T["text"], key=f"text_{st.session_state.doc_reset}")
 
 if st.button(T["save"]):
     if text.strip():
-        save_draft(case_ref, doc_type, language, text)
+        save_draft(case_ref, doc_type, language, text, user_name, user_role)
         st.session_state.doc_reset += 1
         st.session_state.doc_type_idx = 0
         st.session_state.save_status = "success"
