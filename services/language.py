@@ -58,6 +58,36 @@ LANG = {
         "submit_with_edit": "Enviar con los cambios",
         "submitted": "✔ Documento enviado",
         "error_parsing": "⚠ No se pudo procesar la respuesta de la reflexión. Inténtalo de nuevo.",
+
+        # Authentication / identity
+        "login_heading": "🔒 Espacio de Reflexión",
+        "username": "Usuario",
+        "password_label": "Contraseña",
+        "login_button": "Iniciar sesión",
+        "login_error": "Usuario o contraseña incorrectos.",
+        "no_users_configured": "Aún no hay cuentas de usuario configuradas. Añádelas en Configuración → Secretos en Streamlit Cloud.",
+        "logout": "Cerrar sesión",
+        "role_labels": {
+            "Social Worker": "Trabajador/a Social",
+            "Supervisor": "Supervisor/a",
+            "Programme Manager": "Gestor/a de Programa",
+            "System Administrator": "Administrador/a del Sistema",
+        },
+
+        # Admin page
+        "admin_title": "🔒 Admin",
+        "admin_password_label": "Contraseña",
+        "admin_enter_button": "Entrar",
+        "admin_incorrect_password": "Contraseña incorrecta.",
+        "admin_visit_log": "Registro de visitas",
+        "admin_no_visits": "Aún no hay visitas registradas.",
+        "admin_total_views_label": "vistas totales",
+        "admin_clear_log": "Borrar registro",
+        "admin_anon_header": "Demostración de anonimización",
+        "admin_anon_caption": "Pega cualquier texto de muestra (solo datos ficticios) para ver qué sale del sistema antes de llegar a Claude. Ejecuta la misma función anonymize() utilizada en reflection_service.py.",
+        "admin_sample_label": "Texto de muestra (solo datos ficticios)",
+        "admin_run_button": "Ejecutar anonimizador",
+        "admin_output_label": "Salida anonimizada (lo que se envía a Claude):",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -116,6 +146,36 @@ LANG = {
         "submit_with_edit": "Bidali aldaketekin",
         "submitted": "✔ Dokumentua bidalita",
         "error_parsing": "⚠ Ezin izan da hausnarketaren erantzuna prozesatu. Saiatu berriro.",
+
+        # Authentication / identity
+        "login_heading": "🔒 Hausnarketa Gunea",
+        "username": "Erabiltzaile-izena",
+        "password_label": "Pasahitza",
+        "login_button": "Hasi saioa",
+        "login_error": "Erabiltzaile-izena edo pasahitza okerra.",
+        "no_users_configured": "Oraindik ez dago erabiltzaile-konturik konfiguratuta. Gehitu Ezarpenak → Sekretuak atalean Streamlit Cloud-en.",
+        "logout": "Saioa itxi",
+        "role_labels": {
+            "Social Worker": "Gizarte Langilea",
+            "Supervisor": "Gainbegiralea",
+            "Programme Manager": "Programaren Kudeatzailea",
+            "System Administrator": "Sistemaren Administratzailea",
+        },
+
+        # Admin page
+        "admin_title": "🔒 Admin",
+        "admin_password_label": "Pasahitza",
+        "admin_enter_button": "Sartu",
+        "admin_incorrect_password": "Pasahitz okerra.",
+        "admin_visit_log": "Bisiten erregistroa",
+        "admin_no_visits": "Oraindik ez dago bisitarik erregistratuta.",
+        "admin_total_views_label": "ikustaldi guztira",
+        "admin_clear_log": "Erregistroa garbitu",
+        "admin_anon_header": "Anonimizazio Demoa",
+        "admin_anon_caption": "Itsatsi lagin-testu bat (datu faltsuak soilik) sistematik Claude-ra iritsi aurretik zer ateratzen den ikusteko. reflection_service.py fitxategian erabiltzen den anonymize() funtzio bera exekutatzen du.",
+        "admin_sample_label": "Lagin-testua (datu faltsuak soilik)",
+        "admin_run_button": "Anonimizatzailea exekutatu",
+        "admin_output_label": "Irteera anonimizatua (Claude-ra bidaltzen dena):",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -174,6 +234,36 @@ LANG = {
         "submit_with_edit": "Submit with edits",
         "submitted": "✔ Document submitted",
         "error_parsing": "⚠ Could not process the reflection response. Please try again.",
+
+        # Authentication / identity
+        "login_heading": "🔒 Reflection Space",
+        "username": "Username",
+        "password_label": "Password",
+        "login_button": "Log in",
+        "login_error": "Incorrect username or password.",
+        "no_users_configured": "No user accounts are configured yet. Add them under Settings → Secrets in Streamlit Cloud.",
+        "logout": "Log out",
+        "role_labels": {
+            "Social Worker": "Social Worker",
+            "Supervisor": "Supervisor",
+            "Programme Manager": "Programme Manager",
+            "System Administrator": "System Administrator",
+        },
+
+        # Admin page
+        "admin_title": "🔒 Admin",
+        "admin_password_label": "Password",
+        "admin_enter_button": "Enter",
+        "admin_incorrect_password": "Incorrect password.",
+        "admin_visit_log": "Visit Log",
+        "admin_no_visits": "No visits logged yet.",
+        "admin_total_views_label": "total page views",
+        "admin_clear_log": "Clear log",
+        "admin_anon_header": "Anonymization Demo",
+        "admin_anon_caption": "Paste sample text (fake details only) to see what leaves the system before it reaches Claude. Runs the same anonymize() function used in reflection_service.py.",
+        "admin_sample_label": "Sample text (fake details only)",
+        "admin_run_button": "Run anonymizer",
+        "admin_output_label": "Anonymized output (what is sent to Claude):",
     }
 }
 
@@ -206,19 +296,19 @@ def init_language():
 
 
 def render_nav(T):
-    # Call on every page (after init_language) to keep the sidebar
-    # navigation links visible. Streamlit does not persist sidebar
-    # content across pages automatically, so this must be called
-    # explicitly on each page file.
+    # Call on every page (after init_identity, before
+    # render_identity_footer) to keep the sidebar navigation links
+    # visible. Streamlit does not persist sidebar content across pages
+    # automatically, so this must be called explicitly on each page file.
     st.sidebar.success(T["nav_header"])
     st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
     st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
 
     # Learning dashboard link is only shown for roles it's meant for.
     # NOTE: this hides the link, it does not block direct URL access —
-    # real access control still depends on FR-001/NFR-011 authentication,
-    # which doesn't exist yet.
+    # real access control still depends on proper authentication, which
+    # is now in place via services/identity.py.
     visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
-    current_role = st.session_state.get("user_role", "")
+    current_role = st.session_state.get("user_role", "").strip()
     if current_role in visible_roles:
         st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])

@@ -4,12 +4,13 @@ from services.reflection_service import generate_reflection
 from services.anonymizer import anonymize
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
-from services.identity import init_identity
+from services.identity import init_identity, render_identity_footer
 
 T = init_language()
 log_visit("reflection_space", st.session_state.lang)
-init_identity()
+init_identity(T)
 render_nav(T)
+render_identity_footer(T)
 
 st.title(T["nav_reflection"])
 
@@ -23,7 +24,8 @@ def _format_draft(x):
     # x: id, case_ref, doc_type, content, created_at, created_by, created_by_role
     creator = x[5] or "Unknown"
     role = x[6] or ""
-    role_suffix = f", {role}" if role else ""
+    role_label = T.get("role_labels", {}).get(role, role)
+    role_suffix = f", {role_label}" if role_label else ""
     return f"{x[1]} - {x[2]} ({x[4]}) — by {creator}{role_suffix}"
 
 
