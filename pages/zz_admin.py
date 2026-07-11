@@ -1,12 +1,20 @@
 import streamlit as st
 from services.visit_log import get_visits, clear_visits
 from services.anonymizer import anonymize
-from services.language import init_language
+from services.language import get_lang
 from config import ADMIN_PASSWORD
 
 st.set_page_config(page_title="Visit Log", layout="centered")
 
-T = init_language()
+# NOTE: deliberately NOT calling init_language() here. That function's
+# sidebar selectbox reliably segfaults this specific page (confirmed by
+# testing), even though it works fine on every other page. Instead we
+# just read whichever language was already chosen elsewhere in this
+# session (the person will normally have logged in via another page
+# first), defaulting to Spanish if none is set yet. This still gives
+# localized labels without re-rendering the problematic widget here.
+current_lang = st.session_state.get("lang", "Español")
+T = get_lang(current_lang)
 
 st.title(T["admin_title"])
 
@@ -30,12 +38,31 @@ if not visits:
     st.info(T["admin_no_visits"])
 else:
     st.write(f"**{len(visits)} {T['admin_total_views_label']}**")
-    st.dataframe(
-        [{"Page": p, "Language": lang, "Visited at": ts} for p, lang, ts in visits],
-        use_container_width=True,
-        hide_index=True,
-    )
 
+    # Plain HTML table instead of st.dataframe() — avoids the pyarrow
+    # code path that was causing a segfault on this page. Do not
+    # replace this with st.dataframe() or st.table() again.
+    rows_html = "".join(
+        f"<tr><td>{page}</td><td>{lang}</td><td>{ts}</td></tr>"
+        for page, lang, ts in visits
+    )
+    table_html = f"""
+    <table style="width:100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align:left; border-bottom: 1px solid #444;">
+                <th style="padding:6px;">Page</th>
+                <th style="padding:6px;">Language</th>
+                <th style="padding:6px;">Visited at</th>
+            </tr>
+        </thead>
+        <tbody>
+            {rows_html}
+        </tbody>
+    </table>
+    """
+    st.markdown(table_html, unsafe_allow_html=True)
+
+st.write("")
 if st.button(T["admin_clear_log"]):
     clear_visits()
     st.rerun()
