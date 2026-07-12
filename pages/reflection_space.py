@@ -1,7 +1,6 @@
 import streamlit as st
-from services.draft_storage import get_drafts, update_draft, mark_completed
+from services.draft_storage import get_drafts, finalize_draft
 from services.reflection_service import generate_reflection
-from services.anonymizer import anonymize
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
@@ -39,8 +38,11 @@ if st.button(T["begin_reflection"]):
     combined_text = "\n\n".join([d[3] for d in selected])
     result = generate_reflection(combined_text, st.session_state.lang)
     st.session_state["reflection"] = result
-    st.session_state["reflected_draft_id"] = selected[0][0] if selected else None
-    st.session_state["reflected_original_text"] = combined_text
+    # FR-028 fix: store the FULL list of selected drafts, not just the
+    # first one, so every draft in this batch can be edited and saved
+    # independently afterward.
+    st.session_state["reflected_drafts"] = selected
+    st.session_state["submitted_ids"] = set()
 
 if "reflection" in st.session_state:
     r = st.session_state["reflection"]
@@ -65,31 +67,31 @@ if "reflection" in st.session_state:
 
     st.divider()
     st.subheader(T["update_document"])
-    edited_text = st.text_area(
-        T["edit_document_label"],
-        value=st.session_state.get("reflected_original_text", ""),
-        height=250,
-    )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(T["submit_no_edit"]):
-            draft_id = st.session_state.get("reflected_draft_id")
-            if draft_id:
-                mark_completed(draft_id)
-                st.session_state.pop("reflection", None)
-                st.session_state.pop("reflected_draft_id", None)
-                st.session_state.pop("reflected_original_text", None)
-                st.success(T["submitted"])
-                st.rerun()
-    with col2:
-        if st.button(T["submit_with_edit"]):
-            draft_id = st.session_state.get("reflected_draft_id")
-            if draft_id:
-                update_draft(draft_id, edited_text)
-                mark_completed(draft_id)
-                st.session_state.pop("reflection", None)
-                st.session_state.pop("reflected_draft_id", None)
-                st.session_state.pop("reflected_original_text", None)
-                st.success(T["submitted"])
-                st.rerun()
+    reflected_drafts = st.session_state.get("reflected_drafts", [])
+    submitted_ids = st.session_state.get("submitted_ids", set())
+
+    # Each draft in the batch gets its own independent edit box and
+    # submit button. finalize_draft() automatically detects whether the
+    # text actually changed — if so, it archives the original version
+    # into draft_history before saving the edit; if not, it just marks
+    # the draft completed with no extra copy stored.
+    for draft in reflected_drafts:
+        draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
+
+        if draft_id in submitted_ids:
+            st.success(f"{case_ref} - {doc_type}: {T['submitted']}")
+            continue
+
+        st.markdown(f"**{case_ref} - {doc_type}**")
+        edited_text = st.text_area(
+            T["edit_document_label"],
+            value=draft_content,
+            height=200,
+            key=f"edit_{draft_id}",
+        )
+        if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
+            finalize_draft(draft_id, edited_text)
+            submitted_ids.add(draft_id)
+            st.session_state["submitted_ids"] = submitted_ids
+            st.rerun()

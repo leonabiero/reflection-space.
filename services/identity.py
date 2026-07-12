@@ -19,6 +19,10 @@ ROLES = ["Social Worker", "Supervisor", "Programme Manager", "System Administrat
 
 LEARNING_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
 
+# FR-028: who can browse completed/reflected case history. Same tier
+# as Learning for now — supervisory and administrative roles only.
+CASE_HISTORY_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
+
 
 def _load_users():
     """
@@ -75,9 +79,6 @@ def init_identity(T):
         if user:
             st.session_state.authed = True
             st.session_state.user_name = user.get("name", username).strip()
-            # Normalize whitespace/case-sensitive matching issues from
-            # secrets so role-gated features (e.g. the Learning link)
-            # behave reliably even if a role value has stray spacing.
             st.session_state.user_role = user.get("role", ROLES[0]).strip()
             st.rerun()
         else:
@@ -108,3 +109,7 @@ def get_identity():
 
 def can_see_learning(role: str) -> bool:
     return role in LEARNING_VISIBLE_ROLES
+
+
+def can_see_case_history(role: str) -> bool:
+    return role in CASE_HISTORY_VISIBLE_ROLES
