@@ -44,5 +44,9 @@ if "save_status" not in st.session_state:
 
 if st.session_state.save_status == "success":
     st.success(T["success"])
+    # Clear immediately after showing once, so this message doesn't
+    # linger on screen while the next case note is being written.
+    st.session_state.save_status = ""
 elif st.session_state.save_status == "empty":
     st.warning(T["empty"])
+    st.session_state.save_status = ""

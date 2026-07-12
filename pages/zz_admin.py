@@ -2,6 +2,7 @@ import streamlit as st
 from services.visit_log import get_visits, clear_visits
 from services.anonymizer import anonymize
 from services.language import get_lang
+from services.settings_store import get_setting
 from config import ADMIN_PASSWORD
 
 st.set_page_config(page_title="Visit Log", layout="centered")
@@ -9,11 +10,11 @@ st.set_page_config(page_title="Visit Log", layout="centered")
 # NOTE: deliberately NOT calling init_language() here. That function's
 # sidebar selectbox reliably segfaults this specific page (confirmed by
 # testing), even though it works fine on every other page. Instead we
-# just read whichever language was already chosen elsewhere in this
-# session (the person will normally have logged in via another page
-# first), defaulting to Spanish if none is set yet. This still gives
-# localized labels without re-rendering the problematic widget here.
-current_lang = st.session_state.get("lang", "Español")
+# read the shared language setting from Neon directly — this is the
+# same value every other page saves to when the selector changes there,
+# so the admin page now stays in sync with whatever language was most
+# recently chosen anywhere in the app, not just within this one tab.
+current_lang = st.session_state.get("lang") or get_setting("global_lang", "Español")
 T = get_lang(current_lang)
 
 st.title(T["admin_title"])

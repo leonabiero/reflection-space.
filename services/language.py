@@ -1,4 +1,5 @@
 import streamlit as st
+from services.settings_store import get_setting, set_setting
 
 LANG = {
     "Español": {
@@ -353,12 +354,23 @@ def get_lang(lang):
     return LANG.get(lang, LANG["Español"])
 
 
+def _persist_lang():
+    # Called automatically whenever the sidebar language selector
+    # changes. Saves the choice to the shared Neon settings table so
+    # every tab/session (including the admin page, which doesn't call
+    # init_language() itself) sees the same current language, instead
+    # of each browser tab remembering its own separate choice.
+    set_setting("global_lang", st.session_state.lang)
+
+
 def init_language():
-    # Call at the top of every page. Sets Spanish as default on first
-    # load, and renders the sidebar switcher so the choice is visible
-    # and persists across pages via st.session_state.
+    # Call at the top of every page. On first load in a given
+    # session/tab, pulls the last globally-saved language choice from
+    # Neon (falling back to Spanish if none is saved yet), then renders
+    # the sidebar switcher. Any change is persisted immediately via
+    # the on_change callback below.
     if "lang" not in st.session_state:
-        st.session_state.lang = "Español"
+        st.session_state.lang = get_setting("global_lang", "Español")
 
     T = get_lang(st.session_state.lang)
 
@@ -367,6 +379,7 @@ def init_language():
         LANGUAGE_ORDER,
         index=LANGUAGE_ORDER.index(st.session_state.lang),
         key="lang",
+        on_change=_persist_lang,
     )
 
     return get_lang(st.session_state.lang)

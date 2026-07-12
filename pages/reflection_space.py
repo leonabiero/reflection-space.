@@ -38,9 +38,6 @@ if st.button(T["begin_reflection"]):
     combined_text = "\n\n".join([d[3] for d in selected])
     result = generate_reflection(combined_text, st.session_state.lang)
     st.session_state["reflection"] = result
-    # FR-028 fix: store the FULL list of selected drafts, not just the
-    # first one, so every draft in this batch can be edited and saved
-    # independently afterward.
     st.session_state["reflected_drafts"] = selected
     st.session_state["submitted_ids"] = set()
 
@@ -71,11 +68,6 @@ if "reflection" in st.session_state:
     reflected_drafts = st.session_state.get("reflected_drafts", [])
     submitted_ids = st.session_state.get("submitted_ids", set())
 
-    # Each draft in the batch gets its own independent edit box and
-    # submit button. finalize_draft() automatically detects whether the
-    # text actually changed — if so, it archives the original version
-    # into draft_history before saving the edit; if not, it just marks
-    # the draft completed with no extra copy stored.
     for draft in reflected_drafts:
         draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
 
@@ -93,5 +85,16 @@ if "reflection" in st.session_state:
         if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
             finalize_draft(draft_id, edited_text)
             submitted_ids.add(draft_id)
-            st.session_state["submitted_ids"] = submitted_ids
+
+            all_ids = {d[0] for d in reflected_drafts}
+            if submitted_ids >= all_ids:
+                # Every draft in this batch is done — clear the whole
+                # reflection view instead of leaving it lingering on
+                # screen until the next "Begin Reflection" click.
+                st.session_state.pop("reflection", None)
+                st.session_state.pop("reflected_drafts", None)
+                st.session_state.pop("submitted_ids", None)
+            else:
+                st.session_state["submitted_ids"] = submitted_ids
+
             st.rerun()
