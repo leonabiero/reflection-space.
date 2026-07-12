@@ -21,14 +21,12 @@ def _get_conn():
         """)
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by TEXT")
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by_role TEXT")
-        # FR-028: track whether a note was changed at the point of
-        # completing a reflection, without storing a duplicate copy
-        # unless something actually changed.
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS was_edited BOOLEAN DEFAULT FALSE")
+        # When a reflection was actually completed/submitted — separate
+        # from created_at (when the draft was first written), so Case
+        # History can filter by "which day was this worked on" correctly.
+        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS completed_at TEXT")
 
-        # History table: only ever receives a row when a draft's
-        # content is actually changed during the submit step. Stores
-        # the version that existed BEFORE the edit, so nothing is lost.
         c.execute("""
         CREATE TABLE IF NOT EXISTS draft_history (
             id SERIAL PRIMARY KEY,
@@ -80,36 +78,27 @@ def get_draft_by_id(draft_id):
 
 
 def finalize_draft(draft_id, edited_content):
-    """
-    Called once per draft when a reflection is submitted. Compares the
-    new text against what's currently stored:
-      - If unchanged: just marks the draft completed, was_edited stays False.
-      - If changed: archives the OLD content into draft_history first,
-        then updates the draft with the new content and sets was_edited=True.
-    This replaces the old update_draft()/mark_completed() pair with a
-    single, safer operation that can't accidentally destroy the
-    original without a record of it.
-    """
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("SELECT content FROM drafts WHERE id=%s", (draft_id,))
         row = c.fetchone()
         current_content = row[0] if row else ""
+        now = datetime.now().isoformat()
 
         if edited_content.strip() != (current_content or "").strip():
             c.execute("""
                 INSERT INTO draft_history (draft_id, content, saved_at)
                 VALUES (%s, %s, %s)
-            """, (draft_id, current_content, datetime.now().isoformat()))
+            """, (draft_id, current_content, now))
             c.execute("""
-                UPDATE drafts SET content=%s, status='completed', was_edited=TRUE
+                UPDATE drafts SET content=%s, status='completed', was_edited=TRUE, completed_at=%s
                 WHERE id=%s
-            """, (edited_content, draft_id))
+            """, (edited_content, now, draft_id))
         else:
             c.execute("""
-                UPDATE drafts SET status='completed'
+                UPDATE drafts SET status='completed', completed_at=%s
                 WHERE id=%s
-            """, (draft_id,))
+            """, (now, draft_id))
     conn.commit()
     conn.close()
 
@@ -118,9 +107,9 @@ def get_completed_drafts():
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("""
-            SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited
+            SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
             FROM drafts WHERE status='completed'
-            ORDER BY id DESC
+            ORDER BY completed_at DESC
         """)
         rows = c.fetchall()
     conn.close()
