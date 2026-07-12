@@ -46,13 +46,16 @@ else:
         f"<tr><td>{page}</td><td>{lang}</td><td>{ts}</td></tr>"
         for page, lang, ts in visits
     )
+    page_h = T["admin_table_page"]
+    lang_h = T["admin_table_language"]
+    visited_h = T["admin_table_visited"]
     table_html = f"""
     <table style="width:100%; border-collapse: collapse;">
         <thead>
             <tr style="text-align:left; border-bottom: 1px solid #444;">
-                <th style="padding:6px;">Page</th>
-                <th style="padding:6px;">Language</th>
-                <th style="padding:6px;">Visited at</th>
+                <th style="padding:6px;">{page_h}</th>
+                <th style="padding:6px;">{lang_h}</th>
+                <th style="padding:6px;">{visited_h}</th>
             </tr>
         </thead>
         <tbody>
@@ -72,12 +75,7 @@ st.divider()
 st.header(T["admin_anon_header"])
 st.caption(T["admin_anon_caption"])
 
-sample_default = (
-    "On 15/02/2026 the client, Sarah Kimani, of ID number 9988776655, "
-    "attended a follow-up meeting. She can be reached at "
-    "+254 722 334 455 or sarah.kimani@testmail.com. "
-    "Mr. David Otieno was the assigned caseworker."
-)
+sample_default = T["admin_sample_default"]
 
 demo_text = st.text_area(T["admin_sample_label"], value=sample_default, height=150)
 

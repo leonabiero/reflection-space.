@@ -75,7 +75,7 @@ LANG = {
         },
 
         # Admin page
-        "admin_title": "🔒 Admin",
+        "admin_title": "🔒 Administración",
         "admin_password_label": "Contraseña",
         "admin_enter_button": "Entrar",
         "admin_incorrect_password": "Contraseña incorrecta.",
@@ -88,6 +88,16 @@ LANG = {
         "admin_sample_label": "Texto de muestra (solo datos ficticios)",
         "admin_run_button": "Ejecutar anonimizador",
         "admin_output_label": "Salida anonimizada (lo que se envía a Claude):",
+        "admin_table_page": "Página",
+        "admin_table_language": "Idioma",
+        "admin_table_visited": "Visitado el",
+        "admin_sample_default": (
+            "El 15/02/2026 la clienta, Sarah Kimani, con número de identificación 9988776655, "
+            "asistió a una reunión de seguimiento. Se le puede contactar en +254 722 334 455 "
+            "o sarah.kimani@testmail.com. El Sr. David Otieno fue el trabajador social asignado."
+        ),
+        "learning_preview_caption": "Vista previa — datos ilustrativos, aún no activos",
+        "learning_flagged_caption": "Detectado en {count} de las últimas 10 reflexiones",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -163,7 +173,7 @@ LANG = {
         },
 
         # Admin page
-        "admin_title": "🔒 Admin",
+        "admin_title": "🔒 Administrazioa",
         "admin_password_label": "Pasahitza",
         "admin_enter_button": "Sartu",
         "admin_incorrect_password": "Pasahitz okerra.",
@@ -176,6 +186,17 @@ LANG = {
         "admin_sample_label": "Lagin-testua (datu faltsuak soilik)",
         "admin_run_button": "Anonimizatzailea exekutatu",
         "admin_output_label": "Irteera anonimizatua (Claude-ra bidaltzen dena):",
+        "admin_table_page": "Orria",
+        "admin_table_language": "Hizkuntza",
+        "admin_table_visited": "Bisitatze data",
+        "admin_sample_default": (
+            "2026/02/15ean, Sarah Kimani bezeroak, 9988776655 identifikazio-zenbakia duenak, "
+            "jarraipen-bilera batera joan zen. +254 722 334 455 zenbakian edo "
+            "sarah.kimani@testmail.com helbidean jar daiteke harremanetan. David Otieno jauna "
+            "izan zen esleitutako gizarte-langilea."
+        ),
+        "learning_preview_caption": "Aurrebista — datu ilustragarriak, oraindik ez daude martxan",
+        "learning_flagged_caption": "Azken 10 hausnarketetatik {count}-tan identifikatua",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -264,6 +285,17 @@ LANG = {
         "admin_sample_label": "Sample text (fake details only)",
         "admin_run_button": "Run anonymizer",
         "admin_output_label": "Anonymized output (what is sent to Claude):",
+        "admin_table_page": "Page",
+        "admin_table_language": "Language",
+        "admin_table_visited": "Visited at",
+        "admin_sample_default": (
+            "On 15/02/2026 the client, Sarah Kimani, of ID number 9988776655, "
+            "attended a follow-up meeting. She can be reached at "
+            "+254 722 334 455 or sarah.kimani@testmail.com. "
+            "Mr. David Otieno was the assigned caseworker."
+        ),
+        "learning_preview_caption": "Preview — illustrative data, not yet live",
+        "learning_flagged_caption": "Flagged in {count} of the last 10 reflections",
     }
 }
 
