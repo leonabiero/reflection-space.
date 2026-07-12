@@ -10,3 +10,6 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 APP_NAME = "Reflection Space"
 # Password to view the private visit log page (set this as a secret on Streamlit Cloud)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+# Neon PostgreSQL connection string (set as a secret on Streamlit Cloud)
+DATABASE_URL = os.getenv("DATABASE_URL", "")

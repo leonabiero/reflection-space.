@@ -2,3 +2,4 @@ streamlit==1.47.1
 anthropic>=0.40.0
 pandas==2.2.2
 qdrant-client==1.9.2
+psycopg2-binary==2.9.9
