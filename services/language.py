@@ -58,8 +58,6 @@ LANG = {
         "submit_with_edit": "Enviar con los cambios",
         "submitted": "✔ Documento enviado",
         "error_parsing": "⚠ No se pudo procesar la respuesta de la reflexión. Inténtalo de nuevo.",
-
-        # Authentication / identity
         "login_heading": "🔒 Espacio de Reflexión",
         "username": "Usuario",
         "password_label": "Contraseña",
@@ -73,8 +71,6 @@ LANG = {
             "Programme Manager": "Gestor/a de Programa",
             "System Administrator": "Administrador/a del Sistema",
         },
-
-        # Admin page
         "admin_title": "🔒 Administración",
         "admin_password_label": "Contraseña",
         "admin_enter_button": "Entrar",
@@ -171,8 +167,6 @@ LANG = {
         "submit_with_edit": "Bidali aldaketekin",
         "submitted": "✔ Dokumentua bidalita",
         "error_parsing": "⚠ Ezin izan da hausnarketaren erantzuna prozesatu. Saiatu berriro.",
-
-        # Authentication / identity
         "login_heading": "🔒 Hausnarketa Gunea",
         "username": "Erabiltzaile-izena",
         "password_label": "Pasahitza",
@@ -186,8 +180,6 @@ LANG = {
             "Programme Manager": "Programaren Kudeatzailea",
             "System Administrator": "Sistemaren Administratzailea",
         },
-
-        # Admin page
         "admin_title": "🔒 Administrazioa",
         "admin_password_label": "Pasahitza",
         "admin_enter_button": "Sartu",
@@ -214,4 +206,162 @@ LANG = {
         "admin_table_page": "Orria",
         "admin_table_language": "Hizkuntza",
         "admin_table_visited": "Bisitatze data",
-        "admin_sample_default":
+        "admin_sample_default": (
+            "2026/02/15ean, Sarah Kimani bezeroak, 9988776655 identifikazio-zenbakia duenak, "
+            "jarraipen-bilera batera joan zen. +254 722 334 455 zenbakian edo "
+            "sarah.kimani@testmail.com helbidean jar daiteke harremanetan. David Otieno jauna "
+            "izan zen esleitutako gizarte-langilea."
+        ),
+        "learning_preview_caption": "Aurrebista — datu ilustragarriak, oraindik ez daude martxan",
+        "learning_flagged_caption": "Azken 10 hausnarketetatik {count}-tan identifikatua",
+        "case_history_date_filter_label": "Historia ikusi:",
+        "case_history_toggle_label": "Erakutsi:",
+        "case_history_edited_option": "Editatuak",
+        "case_history_not_edited_option": "Editatu gabeak",
+        "case_history_no_items_for_filter": "Ez dago dokumenturik hautapen honetarako.",
+    },
+    "English": {
+        "title": "🧠 Reflection Space",
+        "doc": "Documentation",
+        "case_ref": "Case reference",
+        "doc_type": "Document type",
+        "doc_types": [
+            "Case note",
+            "Follow-up diary",
+            "Interview record",
+            "Social work report",
+            "Referral proposal",
+            "Intervention plan",
+            "Email",
+        ],
+        "language": "Language",
+        "text": "Text",
+        "save": "Save draft",
+        "success": "✔ Draft saved successfully",
+        "empty": "Please write some text",
+        "new": "New document",
+        "reflection": "Reflection space",
+        "home_subtitle": "A space for documentation and reflection in practice.",
+        "nav_hint": "Use the sidebar to navigate.",
+        "nav_header": "Navigate:",
+        "nav_doc": "📝 Documentation",
+        "nav_reflection": "🌿 Reflection Space",
+        "nav_learning": "📚 Learning",
+        "no_drafts": "No drafts available.",
+        "select_drafts": "Select drafts to reflect on",
+        "begin_reflection": "Begin Reflection",
+        "learning_phase2": "Emerging reflective themes will appear here in Phase 2.",
+        "themes": [
+            "Client's Voice",
+            "Observation vs Interpretation",
+            "Labels & Language",
+            "Possible Bias",
+            "Evidence for Decisions",
+            "Missing Information",
+            "Strengths vs Deficits",
+            "Continuity",
+        ],
+        "section_labels": {
+            "client_voice": "Client's Voice",
+            "observation_vs_interpretation": "Observation vs Interpretation",
+            "labels_and_language": "Labels & Language",
+            "possible_bias": "Possible Bias",
+            "evidence_for_decisions": "Evidence for Decisions",
+            "missing_information": "Missing Information",
+            "strengths_and_deficits": "Strengths vs Deficits",
+            "continuity": "Continuity",
+        },
+        "update_document": "Update document",
+        "edit_document_label": "Edit the document here if you'd like",
+        "submit_no_edit": "Submit without editing",
+        "submit_with_edit": "Submit with edits",
+        "submitted": "✔ Document submitted",
+        "error_parsing": "⚠ Could not process the reflection response. Please try again.",
+        "login_heading": "🔒 Reflection Space",
+        "username": "Username",
+        "password_label": "Password",
+        "login_button": "Log in",
+        "login_error": "Incorrect username or password.",
+        "no_users_configured": "No user accounts are configured yet. Add them under Settings → Secrets in Streamlit Cloud.",
+        "logout": "Log out",
+        "role_labels": {
+            "Social Worker": "Social Worker",
+            "Supervisor": "Supervisor",
+            "Programme Manager": "Programme Manager",
+            "System Administrator": "System Administrator",
+        },
+        "admin_title": "🔒 Admin",
+        "admin_password_label": "Password",
+        "admin_enter_button": "Enter",
+        "admin_incorrect_password": "Incorrect password.",
+        "admin_visit_log": "Visit Log",
+        "admin_no_visits": "No visits logged yet.",
+        "admin_total_views_label": "total page views",
+        "admin_clear_log": "Clear log",
+        "admin_anon_header": "Anonymization Demo",
+        "admin_anon_caption": "Paste sample text (fake details only) to see what leaves the system before it reaches Claude. Runs the same anonymize() function used in reflection_service.py.",
+        "admin_sample_label": "Sample text (fake details only)",
+        "admin_run_button": "Run anonymizer",
+        "admin_output_label": "Anonymized output (what is sent to Claude):",
+        "nav_case_history": "🗂️ Case History",
+        "case_history_title": "Case History",
+        "case_history_no_items": "No completed reflections yet.",
+        "case_history_original_label": "Original version",
+        "case_history_current_label": "Current version",
+        "case_history_edited_label": "Edited",
+        "case_history_not_edited_label": "Not edited",
+        "case_history_view_original_button": "View original version",
+        "case_history_all_dates": "All dates",
+        "submit_draft": "Submit",
+        "admin_table_page": "Page",
+        "admin_table_language": "Language",
+        "admin_table_visited": "Visited at",
+        "admin_sample_default": (
+            "On 15/02/2026 the client, Sarah Kimani, of ID number 9988776655, "
+            "attended a follow-up meeting. She can be reached at "
+            "+254 722 334 455 or sarah.kimani@testmail.com. "
+            "Mr. David Otieno was the assigned caseworker."
+        ),
+        "learning_preview_caption": "Preview — illustrative data, not yet live",
+        "learning_flagged_caption": "Flagged in {count} of the last 10 reflections",
+        "case_history_date_filter_label": "View history for:",
+        "case_history_toggle_label": "Show:",
+        "case_history_edited_option": "Edited",
+        "case_history_not_edited_option": "Not edited",
+        "case_history_no_items_for_filter": "No documents for this selection.",
+    }
+}
+
+LANGUAGE_ORDER = ["Español", "Euskera", "English"]
+
+
+def get_lang(lang):
+    return LANG.get(lang, LANG["Español"])
+
+
+def init_language():
+    if "lang" not in st.session_state:
+        st.session_state.lang = "Español"
+
+    T = get_lang(st.session_state.lang)
+
+    st.sidebar.selectbox(
+        T["language"],
+        LANGUAGE_ORDER,
+        index=LANGUAGE_ORDER.index(st.session_state.lang),
+        key="lang",
+    )
+
+    return get_lang(st.session_state.lang)
+
+
+def render_nav(T):
+    st.sidebar.success(T["nav_header"])
+    st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
+    st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
+
+    visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
+    current_role = st.session_state.get("user_role", "").strip()
+    if current_role in visible_roles:
+        st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])
+        st.sidebar.page_link("pages/case_history.py", label=T["nav_case_history"])
