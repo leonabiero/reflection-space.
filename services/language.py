@@ -355,29 +355,29 @@ def get_lang(lang):
 
 
 def _persist_lang():
-    # Called automatically whenever the sidebar language selector
-    # changes. Saves the choice to the shared Neon settings table so
-    # every tab/session (including the admin page, which doesn't call
-    # init_language() itself) sees the same current language, instead
-    # of each browser tab remembering its own separate choice.
     set_setting("global_lang", st.session_state.lang)
 
 
 def init_language():
     # Call at the top of every page. On first load in a given
     # session/tab, pulls the last globally-saved language choice from
-    # Neon (falling back to Spanish if none is saved yet), then renders
-    # the sidebar switcher. Any change is persisted immediately via
-    # the on_change callback below.
+    # Neon (falling back to Spanish if none is saved yet). IMPORTANT:
+    # we do NOT assign st.session_state.lang directly here — doing so
+    # while also passing index= to a widget with key="lang" triggers a
+    # Streamlit warning about the value being set two conflicting ways.
+    # Instead we compute a local default and let the widget itself own
+    # session_state.lang once created.
     if "lang" not in st.session_state:
-        st.session_state.lang = get_setting("global_lang", "Español")
+        default_lang = get_setting("global_lang", "Español")
+    else:
+        default_lang = st.session_state.lang
 
-    T = get_lang(st.session_state.lang)
+    T = get_lang(default_lang)
 
     st.sidebar.selectbox(
         T["language"],
         LANGUAGE_ORDER,
-        index=LANGUAGE_ORDER.index(st.session_state.lang),
+        index=LANGUAGE_ORDER.index(default_lang),
         key="lang",
         on_change=_persist_lang,
     )
@@ -386,18 +386,10 @@ def init_language():
 
 
 def render_nav(T):
-    # Call on every page (after init_identity, before
-    # render_identity_footer) to keep the sidebar navigation links
-    # visible. Streamlit does not persist sidebar content across pages
-    # automatically, so this must be called explicitly on each page file.
     st.sidebar.success(T["nav_header"])
     st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
     st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
 
-    # Learning dashboard link is only shown for roles it's meant for.
-    # NOTE: this hides the link, it does not block direct URL access —
-    # real access control still depends on proper authentication, which
-    # is now in place via services/identity.py.
     visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
     current_role = st.session_state.get("user_role", "").strip()
     if current_role in visible_roles:
