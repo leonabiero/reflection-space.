@@ -15,7 +15,11 @@ render_identity_footer(T)
 st.title(T["nav_reflection"])
 
 drafts = get_drafts()
-if not drafts:
+# Only show "no drafts" and stop the page if there's also no reflection
+# currently in progress. Without this check, submitting the LAST draft
+# in a batch empties get_drafts() and this would kill the page before
+# it ever reached the feedback prompt below.
+if not drafts and "reflection" not in st.session_state:
     st.info(T["no_drafts"])
     st.stop()
 
