@@ -15,10 +15,6 @@ render_identity_footer(T)
 st.title(T["nav_reflection"])
 
 drafts = get_drafts()
-# Only show "no drafts" and stop the page if there's also no reflection
-# currently in progress. Without this check, submitting the LAST draft
-# in a batch empties get_drafts() and this would kill the page before
-# it ever reached the feedback prompt below.
 if not drafts and "reflection" not in st.session_state:
     st.info(T["no_drafts"])
     st.stop()
@@ -92,10 +88,17 @@ if "reflection" in st.session_state:
                 finalize_draft(draft_id, edited_text)
                 submitted_ids.add(draft_id)
 
-                all_ids = {d[0] for d in reflected_drafts}
-                if submitted_ids >= all_ids:
-                    st.session_state["submitted_ids"] = submitted_ids
-                    st.session_state["awaiting_feedback"] = True
+                all_ids_in_batch = {d[0] for d in reflected_drafts}
+                if submitted_ids >= all_ids_in_batch:
+                    remaining = get_drafts()
+                    if not remaining:
+                        st.session_state["submitted_ids"] = submitted_ids
+                        st.session_state["awaiting_feedback"] = True
+                    else:
+                        st.session_state.pop("reflection", None)
+                        st.session_state.pop("reflected_drafts", None)
+                        st.session_state.pop("submitted_ids", None)
+                        st.session_state.pop("awaiting_feedback", None)
                 else:
                     st.session_state["submitted_ids"] = submitted_ids
 

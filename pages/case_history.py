@@ -1,6 +1,7 @@
 import streamlit as st
 from collections import defaultdict
 from services.draft_storage import get_completed_drafts, get_draft_history
+from services.feedback_store import get_all_feedback
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer, can_see_case_history
@@ -17,8 +18,31 @@ if not can_see_case_history(user_role):
     st.info(T["case_history_no_items"])
     st.stop()
 
+# --- Feedback section ---
+st.subheader(T["feedback_section_header"])
+all_feedback = get_all_feedback()
+
+if not all_feedback:
+    st.info(T["feedback_no_items"])
+else:
+    ratings = [row[2] for row in all_feedback if row[2] is not None]
+    if ratings:
+        average = sum(ratings) / len(ratings)
+        st.write(f"**{T['feedback_average_label']}:** {average:.1f} / 5  ({len(ratings)})")
+
+    for row in all_feedback:
+        fb_id, draft_ids, rating, comment, submitted_by, submitted_by_role, submitted_at = row
+        role_label = T.get("role_labels", {}).get(submitted_by_role, submitted_by_role)
+        stars = "⭐" * (rating or 0)
+        line = f"{stars} ({rating}/5) — {submitted_by or 'Unknown'}, {role_label} — {submitted_at[:16] if submitted_at else ''}"
+        st.write(line)
+        if comment:
+            st.caption(comment)
+
+st.divider()
+
+# --- Case history section ---
 completed = get_completed_drafts()
-# each row: id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
 
 if not completed:
     st.info(T["case_history_no_items"])
@@ -29,9 +53,6 @@ def _date_only(iso_str):
     return (iso_str or "")[:10]
 
 
-# Date filter: only shows dates that actually have completed documents,
-# defaulting to "All dates". Single top-level filter, applies to every
-# worker's folder below.
 all_dates = sorted({_date_only(row[8]) for row in completed if row[8]}, reverse=True)
 date_options = [T["case_history_all_dates"]] + all_dates
 selected_date = st.selectbox(T["case_history_date_filter_label"], date_options)
@@ -45,13 +66,10 @@ if not filtered:
     st.info(T["case_history_no_items_for_filter"])
     st.stop()
 
-# Group into one folder per social worker (created_by), alphabetical.
 by_worker = defaultdict(list)
 for row in filtered:
     worker = row[5] or "Unknown"
     by_worker[worker].append(row)
-
-st.divider()
 
 for worker in sorted(by_worker.keys(), key=lambda s: s.lower()):
     worker_rows = by_worker[worker]

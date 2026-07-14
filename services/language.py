@@ -115,6 +115,9 @@ LANG = {
         "feedback_submit_button": "Enviar valoración",
         "feedback_skip_button": "Omitir",
         "feedback_thanks": "✔ Gracias por tu valoración",
+        "feedback_section_header": "Comentarios de los profesionales",
+        "feedback_average_label": "Valoración media",
+        "feedback_no_items": "Aún no hay comentarios.",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -231,6 +234,9 @@ LANG = {
         "feedback_submit_button": "Balorazioa bidali",
         "feedback_skip_button": "Saltatu",
         "feedback_thanks": "✔ Eskerrik asko zure balorazioagatik",
+        "feedback_section_header": "Profesionalen iruzkinak",
+        "feedback_average_label": "Batez besteko balorazioa",
+        "feedback_no_items": "Oraindik ez dago iruzkinik.",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -347,6 +353,9 @@ LANG = {
         "feedback_submit_button": "Submit rating",
         "feedback_skip_button": "Skip",
         "feedback_thanks": "✔ Thanks for your feedback",
+        "feedback_section_header": "Practitioner Feedback",
+        "feedback_average_label": "Average rating",
+        "feedback_no_items": "No feedback yet.",
     }
 }
 
