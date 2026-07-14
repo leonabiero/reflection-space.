@@ -1,13 +1,14 @@
 import streamlit as st
 from services.draft_storage import get_drafts, finalize_draft
 from services.reflection_service import generate_reflection
+from services.feedback_store import save_feedback
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
 
 T = init_language()
 log_visit("reflection_space", st.session_state.lang)
-init_identity(T)
+user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
 
@@ -20,7 +21,6 @@ if not drafts:
 
 
 def _format_draft(x):
-    # x: id, case_ref, doc_type, content, created_at, created_by, created_by_role
     creator = x[5] or "Unknown"
     role = x[6] or ""
     role_label = T.get("role_labels", {}).get(role, role)
@@ -40,6 +40,7 @@ if st.button(T["begin_reflection"]):
     st.session_state["reflection"] = result
     st.session_state["reflected_drafts"] = selected
     st.session_state["submitted_ids"] = set()
+    st.session_state["awaiting_feedback"] = False
 
 if "reflection" in st.session_state:
     r = st.session_state["reflection"]
@@ -68,33 +69,56 @@ if "reflection" in st.session_state:
     reflected_drafts = st.session_state.get("reflected_drafts", [])
     submitted_ids = st.session_state.get("submitted_ids", set())
 
-    for draft in reflected_drafts:
-        draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
+    if not st.session_state.get("awaiting_feedback", False):
+        for draft in reflected_drafts:
+            draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
 
-        if draft_id in submitted_ids:
-            st.success(f"{case_ref} - {doc_type}: {T['submitted']}")
-            continue
+            if draft_id in submitted_ids:
+                st.success(f"{case_ref} - {doc_type}: {T['submitted']}")
+                continue
 
-        st.markdown(f"**{case_ref} - {doc_type}**")
-        edited_text = st.text_area(
-            T["edit_document_label"],
-            value=draft_content,
-            height=200,
-            key=f"edit_{draft_id}",
-        )
-        if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
-            finalize_draft(draft_id, edited_text)
-            submitted_ids.add(draft_id)
+            st.markdown(f"**{case_ref} - {doc_type}**")
+            edited_text = st.text_area(
+                T["edit_document_label"],
+                value=draft_content,
+                height=200,
+                key=f"edit_{draft_id}",
+            )
+            if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
+                finalize_draft(draft_id, edited_text)
+                submitted_ids.add(draft_id)
 
-            all_ids = {d[0] for d in reflected_drafts}
-            if submitted_ids >= all_ids:
-                # Every draft in this batch is done — clear the whole
-                # reflection view instead of leaving it lingering on
-                # screen until the next "Begin Reflection" click.
+                all_ids = {d[0] for d in reflected_drafts}
+                if submitted_ids >= all_ids:
+                    st.session_state["submitted_ids"] = submitted_ids
+                    st.session_state["awaiting_feedback"] = True
+                else:
+                    st.session_state["submitted_ids"] = submitted_ids
+
+                st.rerun()
+
+    if st.session_state.get("awaiting_feedback", False):
+        st.divider()
+        st.subheader(T["feedback_prompt_title"])
+
+        rating = st.slider(T["feedback_rating_label"], min_value=1, max_value=5, value=3)
+        comment = st.text_area(T["feedback_comment_label"], value="", height=80)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(T["feedback_submit_button"]):
+                draft_ids = [d[0] for d in reflected_drafts]
+                save_feedback(draft_ids, rating, comment, user_name, user_role)
                 st.session_state.pop("reflection", None)
                 st.session_state.pop("reflected_drafts", None)
                 st.session_state.pop("submitted_ids", None)
-            else:
-                st.session_state["submitted_ids"] = submitted_ids
-
-            st.rerun()
+                st.session_state.pop("awaiting_feedback", None)
+                st.success(T["feedback_thanks"])
+                st.rerun()
+        with col2:
+            if st.button(T["feedback_skip_button"]):
+                st.session_state.pop("reflection", None)
+                st.session_state.pop("reflected_drafts", None)
+                st.session_state.pop("submitted_ids", None)
+                st.session_state.pop("awaiting_feedback", None)
+                st.rerun()

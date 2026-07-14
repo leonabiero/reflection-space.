@@ -109,6 +109,12 @@ LANG = {
         "case_history_edited_option": "Editados",
         "case_history_not_edited_option": "No editados",
         "case_history_no_items_for_filter": "No hay documentos para esta selección.",
+        "feedback_prompt_title": "¿Qué tan útil fue esta reflexión?",
+        "feedback_rating_label": "Valoración (1 = poco útil, 5 = muy útil)",
+        "feedback_comment_label": "Comentario (opcional)",
+        "feedback_submit_button": "Enviar valoración",
+        "feedback_skip_button": "Omitir",
+        "feedback_thanks": "✔ Gracias por tu valoración",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -219,6 +225,12 @@ LANG = {
         "case_history_edited_option": "Editatuak",
         "case_history_not_edited_option": "Editatu gabeak",
         "case_history_no_items_for_filter": "Ez dago dokumenturik hautapen honetarako.",
+        "feedback_prompt_title": "Zenbateraino izan da baliagarria hausnarketa hau?",
+        "feedback_rating_label": "Balorazioa (1 = ez oso baliagarria, 5 = oso baliagarria)",
+        "feedback_comment_label": "Iruzkina (aukerakoa)",
+        "feedback_submit_button": "Balorazioa bidali",
+        "feedback_skip_button": "Saltatu",
+        "feedback_thanks": "✔ Eskerrik asko zure balorazioagatik",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -329,6 +341,12 @@ LANG = {
         "case_history_edited_option": "Edited",
         "case_history_not_edited_option": "Not edited",
         "case_history_no_items_for_filter": "No documents for this selection.",
+        "feedback_prompt_title": "How useful was this reflection?",
+        "feedback_rating_label": "Rating (1 = not useful, 5 = very useful)",
+        "feedback_comment_label": "Comment (optional)",
+        "feedback_submit_button": "Submit rating",
+        "feedback_skip_button": "Skip",
+        "feedback_thanks": "✔ Thanks for your feedback",
     }
 }
 
