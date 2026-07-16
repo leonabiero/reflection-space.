@@ -1,6 +1,9 @@
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import DATABASE_URL
+from services.audit_log import log_action
+
+DELETION_WINDOW_HOURS = 48
 
 
 def _get_conn():
@@ -22,10 +25,14 @@ def _get_conn():
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by TEXT")
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by_role TEXT")
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS was_edited BOOLEAN DEFAULT FALSE")
-        # When a reflection was actually completed/submitted — separate
-        # from created_at (when the draft was first written), so Case
-        # History can filter by "which day was this worked on" correctly.
         c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS completed_at TEXT")
+        # GDPR right-to-erasure support: soft-delete first, so an admin
+        # has a short window to restore a case in case of a mistake,
+        # before it is permanently purged.
+        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_at TEXT")
+        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
+        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
+        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
 
         c.execute("""
         CREATE TABLE IF NOT EXISTS draft_history (
@@ -50,9 +57,12 @@ def save_draft(case_ref, doc_type, language, content, created_by="", created_by_
         c.execute("""
             INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status, created_by, created_by_role, was_edited)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (case_ref, doc_type, language, content, datetime.now().isoformat(), "draft", created_by, created_by_role, False))
+        new_id = c.fetchone()[0]
     conn.commit()
     conn.close()
+    log_action("created", new_id, case_ref, doc_type, created_by, created_by_role)
 
 
 def get_drafts():
@@ -80,9 +90,9 @@ def get_draft_by_id(draft_id):
 def finalize_draft(draft_id, edited_content):
     conn = _get_conn()
     with conn.cursor() as c:
-        c.execute("SELECT content FROM drafts WHERE id=%s", (draft_id,))
+        c.execute("SELECT content, case_ref, doc_type, created_by, created_by_role FROM drafts WHERE id=%s", (draft_id,))
         row = c.fetchone()
-        current_content = row[0] if row else ""
+        current_content, case_ref, doc_type, created_by, created_by_role = row if row else ("", "", "", "", "")
         now = datetime.now().isoformat()
 
         if edited_content.strip() != (current_content or "").strip():
@@ -94,13 +104,19 @@ def finalize_draft(draft_id, edited_content):
                 UPDATE drafts SET content=%s, status='completed', was_edited=TRUE, completed_at=%s
                 WHERE id=%s
             """, (edited_content, now, draft_id))
+            edited_flag = True
         else:
             c.execute("""
                 UPDATE drafts SET status='completed', completed_at=%s
                 WHERE id=%s
             """, (now, draft_id))
+            edited_flag = False
     conn.commit()
     conn.close()
+    log_action(
+        "submitted", draft_id, case_ref, doc_type, created_by, created_by_role,
+        details=("edited" if edited_flag else "not edited"),
+    )
 
 
 def get_completed_drafts():
@@ -126,3 +142,94 @@ def get_draft_history(draft_id):
         rows = c.fetchall()
     conn.close()
     return rows
+
+
+# --- Deletion / restore / purge (GDPR right to erasure) ---
+
+def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
+    """
+    Hides the case immediately (status becomes 'deleted', so it drops
+    out of every normal view), while keeping the content for a short
+    window in case this needs to be undone. Content is only truly
+    removed by purge_expired_deletions().
+    """
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("SELECT status, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return
+        previous_status, case_ref, doc_type = row
+        now = datetime.now().isoformat()
+        c.execute("""
+            UPDATE drafts
+            SET status='deleted', status_before_delete=%s, deleted_at=%s,
+                deleted_by=%s, deleted_by_role=%s
+            WHERE id=%s
+        """, (previous_status, now, deleted_by, deleted_by_role, draft_id))
+    conn.commit()
+    conn.close()
+    log_action("deleted", draft_id, case_ref, doc_type, deleted_by, deleted_by_role)
+
+
+def restore_draft(draft_id, restored_by="", restored_by_role=""):
+    """Undo a soft delete, within the safety window."""
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("SELECT status_before_delete, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return
+        previous_status, case_ref, doc_type = row
+        c.execute("""
+            UPDATE drafts
+            SET status=%s, status_before_delete=NULL, deleted_at=NULL,
+                deleted_by=NULL, deleted_by_role=NULL
+            WHERE id=%s
+        """, (previous_status or "draft", draft_id))
+    conn.commit()
+    conn.close()
+    log_action("restored", draft_id, case_ref, doc_type, restored_by, restored_by_role)
+
+
+def get_pending_deletions():
+    """Cases currently in the soft-deleted window, awaiting purge."""
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("""
+            SELECT id, case_ref, doc_type, deleted_at, deleted_by, deleted_by_role
+            FROM drafts WHERE status='deleted'
+            ORDER BY deleted_at DESC
+        """)
+        rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def purge_expired_deletions():
+    """
+    Permanently removes any case whose deletion window has passed.
+    Call this at the top of any admin-facing page load — there's no
+    background scheduler on this hosting setup, so the purge happens
+    the next time someone actually uses the app after the window
+    closes, rather than at an exact second.
+    """
+    cutoff = (datetime.now() - timedelta(hours=DELETION_WINDOW_HOURS)).isoformat()
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("""
+            SELECT id, case_ref, doc_type FROM drafts
+            WHERE status='deleted' AND deleted_at < %s
+        """, (cutoff,))
+        expired = c.fetchall()
+
+        for draft_id, case_ref, doc_type in expired:
+            c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
+            c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
+    conn.commit()
+    conn.close()
+
+    for draft_id, case_ref, doc_type in expired:
+        log_action("purged", draft_id, case_ref, doc_type, "system", "system")
