@@ -1,4 +1,56 @@
 import streamlit as st
+import streamlit.components.v1 as components
+
+# BCP-47 codes for the <html>/textarea "lang" attribute, so the browser's
+# built-in spellchecker uses the right dictionary instead of defaulting to
+# English (which is what causes correctly-spelled Spanish/Basque words to
+# get red-underlined). Chrome and Firefox ship a Spanish dictionary, but
+# neither ships one for Basque -- so for Euskera we turn spellcheck off
+# entirely rather than have it flag every word as a false positive.
+_BROWSER_LANG_CODES = {"Español": "es", "Euskera": "eu", "English": "en"}
+_BROWSER_SPELLCHECK = {"Español": "true", "Euskera": "false", "English": "true"}
+
+
+def _sync_browser_language(lang_name):
+    code = _BROWSER_LANG_CODES.get(lang_name, "es")
+    spellcheck = _BROWSER_SPELLCHECK.get(lang_name, "true")
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+            const code = "{code}";
+            const spellcheck = "{spellcheck}";
+
+            function applyLang() {{
+                doc.documentElement.lang = code;
+                doc.querySelectorAll(
+                    'textarea, input[type="text"], input[type="password"]'
+                ).forEach(function(el) {{
+                    if (el.lang !== code) el.lang = code;
+                    if (el.getAttribute('spellcheck') !== spellcheck) {{
+                        el.setAttribute('spellcheck', spellcheck);
+                    }}
+                }});
+            }}
+
+            applyLang();
+
+            // Streamlit re-renders the app on every interaction, which can
+            // create fresh textarea/input nodes without these attributes,
+            // so keep re-applying whenever the DOM changes.
+            if (!doc.__reflectionLangObserverAttached) {{
+                const observer = new MutationObserver(applyLang);
+                observer.observe(doc.body, {{ childList: true, subtree: true }});
+                doc.__reflectionLangObserverAttached = true;
+            }}
+        }})();
+        </script>
+        """,
+        height=0,
+    )
+
 
 LANG = {
     "Español": {
@@ -38,6 +90,9 @@ LANG = {
         "reflection_delete_button": "Eliminar documento",
         "reflection_delete_confirm": "¿Confirmas que quieres eliminar este documento? Esta acción no se puede deshacer.",
         "reflection_deleted_success": "✔ Documento eliminado.",
+        "unknown_label": "Desconocido/a",
+        "audit_unknown_case_label": "(caso desconocido)",
+        "case_history_completed_label": "completado",
         "learning_phase2": "Los temas reflexivos emergentes apareceran aqui en la Fase 2.",
         "themes": [
             "Voz de la persona",
@@ -181,6 +236,9 @@ LANG = {
         "reflection_delete_button": "Dokumentua ezabatu",
         "reflection_delete_confirm": "Ziur zaude dokumentu hau ezabatu nahi duzula? Ekintza hau ezin da desegin.",
         "reflection_deleted_success": "✔ Dokumentua ezabatu da.",
+        "unknown_label": "Ezezaguna",
+        "audit_unknown_case_label": "(kasu ezezaguna)",
+        "case_history_completed_label": "amaituta",
         "learning_phase2": "Sortzen ari diren hausnarketa-gaiak hemen agertuko dira 2. fasean.",
         "themes": [
             "Pertsonaren ahotsa",
@@ -325,6 +383,9 @@ LANG = {
         "reflection_delete_button": "Delete document",
         "reflection_delete_confirm": "Are you sure you want to delete this document? This cannot be undone.",
         "reflection_deleted_success": "✔ Document deleted.",
+        "unknown_label": "Unknown",
+        "audit_unknown_case_label": "(unknown case)",
+        "case_history_completed_label": "completed",
         "learning_phase2": "Emerging reflective themes will appear here in Phase 2.",
         "themes": [
             "Client's Voice",
@@ -453,6 +514,8 @@ def init_language():
         index=LANGUAGE_ORDER.index(st.session_state.lang),
         key="lang",
     )
+
+    _sync_browser_language(st.session_state.lang)
 
     return get_lang(st.session_state.lang)
 
