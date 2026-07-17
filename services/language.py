@@ -31,6 +31,10 @@ LANG = {
         "no_drafts": "No hay borradores disponibles.",
         "select_drafts": "Selecciona borradores para reflexionar",
         "begin_reflection": "Comenzar reflexión",
+        "reflection_folders_intro": "Documentos pendientes de reflexión, agrupados por caso.",
+        "reflection_same_day_notice": "⚠️ Este caso tiene más de un documento del mismo día.",
+        "reflection_no_case_ref": "(Sin referencia de caso)",
+        "reflection_active_case_prefix": "Reflexionando sobre el caso:",
         "learning_phase2": "Los temas reflexivos emergentes apareceran aqui en la Fase 2.",
         "themes": [
             "Voz de la persona",
@@ -167,6 +171,10 @@ LANG = {
         "no_drafts": "Ez dago zirriborrorik eskuragarri.",
         "select_drafts": "Hautatu hausnartzeko zirriborroak",
         "begin_reflection": "Hasi hausnarketa",
+        "reflection_folders_intro": "Hausnartzeko dauden dokumentuak, kasuka multzokatuta.",
+        "reflection_same_day_notice": "⚠️ Kasu honek egun bereko dokumentu bat baino gehiago ditu.",
+        "reflection_no_case_ref": "(Kasu-erreferentziarik gabe)",
+        "reflection_active_case_prefix": "Hausnartzen ari zaren kasua:",
         "learning_phase2": "Sortzen ari diren hausnarketa-gaiak hemen agertuko dira 2. fasean.",
         "themes": [
             "Pertsonaren ahotsa",
@@ -304,6 +312,10 @@ LANG = {
         "no_drafts": "No drafts available.",
         "select_drafts": "Select drafts to reflect on",
         "begin_reflection": "Begin Reflection",
+        "reflection_folders_intro": "Documents awaiting reflection, grouped by case.",
+        "reflection_same_day_notice": "⚠️ This case has more than one document from the same day.",
+        "reflection_no_case_ref": "(No case reference)",
+        "reflection_active_case_prefix": "Reflecting on case:",
         "learning_phase2": "Emerging reflective themes will appear here in Phase 2.",
         "themes": [
             "Client's Voice",
