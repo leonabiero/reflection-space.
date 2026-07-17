@@ -34,7 +34,7 @@ def _date_only(iso_str):
 
 def _format_draft_option(d):
     # d = (id, case_ref, doc_type, content, created_at, created_by, created_by_role)
-    doc_type, created_at, creator, role = d[2], d[4], d[5] or "Unknown", d[6] or ""
+    doc_type, created_at, creator, role = d[2], d[4], d[5] or T["unknown_label"], d[6] or ""
     role_label = T.get("role_labels", {}).get(role, role)
     role_suffix = f", {role_label}" if role_label else ""
     time_part = created_at[11:16] if created_at and len(created_at) >= 16 else ""
