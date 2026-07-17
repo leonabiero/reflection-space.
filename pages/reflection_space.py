@@ -1,6 +1,6 @@
 import streamlit as st
 from collections import defaultdict
-from services.draft_storage import get_drafts, finalize_draft
+from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
 from services.reflection_service import generate_reflection
 from services.feedback_store import save_feedback
 from services.language import init_language, render_nav
@@ -163,7 +163,42 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
         for day in sorted(by_date.keys(), reverse=True):
             st.markdown(f"**{day}**")
             for d in by_date[day]:
-                st.write(f"• {_format_draft_option(d)}")
+                draft_id, creator = d[0], d[5] or ""
+                can_delete = user_role == "System Administrator" or (
+                    user_name and user_name == creator
+                )
+
+                if not can_delete:
+                    st.write(f"• {_format_draft_option(d)}")
+                    continue
+
+                confirm_key = f"confirm_delete_pending_{draft_id}"
+                if st.session_state.get(confirm_key, False):
+                    st.write(f"• {_format_draft_option(d)}")
+                    st.warning(T["reflection_delete_confirm"])
+                    cc1, cc2 = st.columns(2)
+                    with cc1:
+                        if st.button(T["case_history_delete_yes"], key=f"yes_delete_pending_{draft_id}"):
+                            delete_pending_draft(draft_id, user_name, user_role)
+                            st.session_state.pop(confirm_key, None)
+                            # Clear any stale multiselect selection for this
+                            # folder, since it may reference the now-deleted
+                            # draft and would otherwise error on rerender.
+                            st.session_state.pop(f"select_{case_ref}", None)
+                            st.success(T["reflection_deleted_success"])
+                            st.rerun()
+                    with cc2:
+                        if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
+                            st.session_state.pop(confirm_key, None)
+                            st.rerun()
+                else:
+                    row_col, btn_col = st.columns([6, 1])
+                    with row_col:
+                        st.write(f"• {_format_draft_option(d)}")
+                    with btn_col:
+                        if st.button("🗑️", key=f"delete_pending_{draft_id}", help=T["reflection_delete_button"]):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
 
         selected = st.multiselect(
             T["select_drafts"],
