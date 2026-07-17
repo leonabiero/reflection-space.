@@ -1,6 +1,10 @@
 import streamlit as st
 from collections import defaultdict
-from services.draft_storage import get_completed_drafts, get_draft_history
+from services.draft_storage import (
+    get_completed_drafts, get_draft_history,
+    soft_delete_draft, restore_draft, get_pending_deletions,
+    purge_expired_deletions,
+)
 from services.feedback_store import get_all_feedback
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
@@ -18,7 +22,10 @@ if not can_see_case_history(user_role):
     st.info(T["case_history_no_items"])
     st.stop()
 
-# --- Feedback section ---
+purge_expired_deletions()
+
+is_admin = user_role == "System Administrator"
+
 st.subheader(T["feedback_section_header"])
 all_feedback = get_all_feedback()
 
@@ -41,7 +48,27 @@ else:
 
 st.divider()
 
-# --- Case history section ---
+if is_admin:
+    st.subheader(T["case_history_pending_deletion_header"])
+    pending = get_pending_deletions()
+
+    if not pending:
+        st.info(T["case_history_pending_deletion_no_items"])
+    else:
+        for row in pending:
+            draft_id, case_ref, doc_type, deleted_at, deleted_by, deleted_by_role = row
+            role_label = T.get("role_labels", {}).get(deleted_by_role, deleted_by_role)
+            st.write(
+                f"🗑️ {case_ref} - {doc_type} — {T['case_history_deleted_by_label']}: "
+                f"{deleted_by or 'Unknown'}, {role_label} ({deleted_at[:16] if deleted_at else ''})"
+            )
+            if st.button(T["case_history_restore_button"], key=f"restore_{draft_id}"):
+                restore_draft(draft_id, user_name, user_role)
+                st.success(T["case_history_restored_success"])
+                st.rerun()
+
+    st.divider()
+
 completed = get_completed_drafts()
 
 if not completed:
@@ -103,5 +130,25 @@ for worker in sorted(by_worker.keys(), key=lambda s: s.lower()):
                         st.markdown(f"*{T['case_history_original_label']}*")
                         original_content, saved_at = history[0]
                         st.write(original_content)
+
+                if is_admin:
+                    confirm_key = f"confirm_delete_{draft_id}"
+                    if st.session_state.get(confirm_key, False):
+                        st.warning(T["case_history_delete_confirm"])
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button(T["case_history_delete_yes"], key=f"yes_delete_{draft_id}"):
+                                soft_delete_draft(draft_id, user_name, user_role)
+                                st.session_state.pop(confirm_key, None)
+                                st.success(T["case_history_deleted_success"])
+                                st.rerun()
+                        with c2:
+                            if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_{draft_id}"):
+                                st.session_state.pop(confirm_key, None)
+                                st.rerun()
+                    else:
+                        if st.button(T["case_history_delete_button"], key=f"delete_{draft_id}"):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
 
                 st.divider()
