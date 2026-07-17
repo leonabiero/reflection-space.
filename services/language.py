@@ -35,6 +35,9 @@ LANG = {
         "reflection_same_day_notice": "⚠️ Este caso tiene más de un documento del mismo día.",
         "reflection_no_case_ref": "(Sin referencia de caso)",
         "reflection_active_case_prefix": "Reflexionando sobre el caso:",
+        "reflection_delete_button": "Eliminar documento",
+        "reflection_delete_confirm": "¿Confirmas que quieres eliminar este documento? Esta acción no se puede deshacer.",
+        "reflection_deleted_success": "✔ Documento eliminado.",
         "learning_phase2": "Los temas reflexivos emergentes apareceran aqui en la Fase 2.",
         "themes": [
             "Voz de la persona",
@@ -175,6 +178,9 @@ LANG = {
         "reflection_same_day_notice": "⚠️ Kasu honek egun bereko dokumentu bat baino gehiago ditu.",
         "reflection_no_case_ref": "(Kasu-erreferentziarik gabe)",
         "reflection_active_case_prefix": "Hausnartzen ari zaren kasua:",
+        "reflection_delete_button": "Dokumentua ezabatu",
+        "reflection_delete_confirm": "Ziur zaude dokumentu hau ezabatu nahi duzula? Ekintza hau ezin da desegin.",
+        "reflection_deleted_success": "✔ Dokumentua ezabatu da.",
         "learning_phase2": "Sortzen ari diren hausnarketa-gaiak hemen agertuko dira 2. fasean.",
         "themes": [
             "Pertsonaren ahotsa",
@@ -316,6 +322,9 @@ LANG = {
         "reflection_same_day_notice": "⚠️ This case has more than one document from the same day.",
         "reflection_no_case_ref": "(No case reference)",
         "reflection_active_case_prefix": "Reflecting on case:",
+        "reflection_delete_button": "Delete document",
+        "reflection_delete_confirm": "Are you sure you want to delete this document? This cannot be undone.",
+        "reflection_deleted_success": "✔ Document deleted.",
         "learning_phase2": "Emerging reflective themes will appear here in Phase 2.",
         "themes": [
             "Client's Voice",
