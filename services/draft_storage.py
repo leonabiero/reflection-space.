@@ -144,6 +144,42 @@ def get_draft_history(draft_id):
     return rows
 
 
+def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
+    """
+    Permanently deletes a still-pending draft (status='draft' -- not yet
+    reflected on or submitted), with no restore window. This is distinct
+    from soft_delete_draft() below, which is for completed cases and
+    goes through the 48-hour GDPR erasure window instead.
+
+    Callers are responsible for authorization (this should only be
+    reachable by the draft's own creator or an admin) -- this function
+    itself does not check who is calling.
+
+    If the row is missing or is no longer in 'draft' status (e.g. it was
+    already submitted in another tab), this is a no-op rather than a
+    forced delete, so it can't accidentally remove a completed case.
+    """
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("SELECT status, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return
+        status, case_ref, doc_type = row
+        if status != "draft":
+            conn.close()
+            return
+        c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
+        c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
+    conn.commit()
+    conn.close()
+    log_action(
+        "purged", draft_id, case_ref, doc_type, deleted_by, deleted_by_role,
+        details="deleted while pending",
+    )
+
+
 # --- Deletion / restore / purge (GDPR right to erasure) ---
 
 def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
