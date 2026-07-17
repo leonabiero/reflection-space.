@@ -164,48 +164,39 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
             st.markdown(f"**{day}**")
             for d in by_date[day]:
                 draft_id, creator = d[0], d[5] or ""
+                chk_key = f"chk_{draft_id}"
                 can_delete = user_role == "System Administrator" or (
                     user_name and user_name == creator
                 )
 
-                if not can_delete:
-                    st.write(f"• {_format_draft_option(d)}")
-                    continue
-
                 confirm_key = f"confirm_delete_pending_{draft_id}"
-                if st.session_state.get(confirm_key, False):
-                    st.write(f"• {_format_draft_option(d)}")
+                if can_delete and st.session_state.get(confirm_key, False):
+                    st.checkbox(_format_draft_option(d), key=chk_key, disabled=True)
                     st.warning(T["reflection_delete_confirm"])
                     cc1, cc2 = st.columns(2)
                     with cc1:
                         if st.button(T["case_history_delete_yes"], key=f"yes_delete_pending_{draft_id}"):
                             delete_pending_draft(draft_id, user_name, user_role)
                             st.session_state.pop(confirm_key, None)
-                            # Clear any stale multiselect selection for this
-                            # folder, since it may reference the now-deleted
-                            # draft and would otherwise error on rerender.
-                            st.session_state.pop(f"select_{case_ref}", None)
+                            st.session_state.pop(chk_key, None)
                             st.success(T["reflection_deleted_success"])
                             st.rerun()
                     with cc2:
                         if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
                             st.session_state.pop(confirm_key, None)
                             st.rerun()
-                else:
-                    row_col, btn_col = st.columns([6, 1])
-                    with row_col:
-                        st.write(f"• {_format_draft_option(d)}")
+                elif can_delete:
+                    chk_col, btn_col = st.columns([6, 1])
+                    with chk_col:
+                        st.checkbox(_format_draft_option(d), key=chk_key)
                     with btn_col:
                         if st.button("🗑️", key=f"delete_pending_{draft_id}", help=T["reflection_delete_button"]):
                             st.session_state[confirm_key] = True
                             st.rerun()
+                else:
+                    st.checkbox(_format_draft_option(d), key=chk_key)
 
-        selected = st.multiselect(
-            T["select_drafts"],
-            options=case_drafts,
-            format_func=_format_draft_option,
-            key=f"select_{case_ref}",
-        )
+        selected = [d for d in case_drafts if st.session_state.get(f"chk_{d[0]}", False)]
 
         if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
             combined_text = "\n\n".join(d[3] for d in selected)
@@ -215,4 +206,7 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
             st.session_state["reflection_case_ref"] = case_ref
             st.session_state["submitted_ids"] = set()
             st.session_state["awaiting_feedback"] = False
+            # Reset this folder's checkboxes so a future visit starts clean.
+            for d in case_drafts:
+                st.session_state.pop(f"chk_{d[0]}", None)
             st.rerun()
