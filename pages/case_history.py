@@ -41,7 +41,7 @@ else:
         fb_id, draft_ids, rating, comment, submitted_by, submitted_by_role, submitted_at = row
         role_label = T.get("role_labels", {}).get(submitted_by_role, submitted_by_role)
         stars = "⭐" * (rating or 0)
-        line = f"{stars} ({rating}/5) — {submitted_by or 'Unknown'}, {role_label} — {submitted_at[:16] if submitted_at else ''}"
+        line = f"{stars} ({rating}/5) — {submitted_by or T['unknown_label']}, {role_label} — {submitted_at[:16] if submitted_at else ''}"
         st.write(line)
         if comment:
             st.caption(comment)
@@ -60,7 +60,7 @@ if is_admin:
             role_label = T.get("role_labels", {}).get(deleted_by_role, deleted_by_role)
             st.write(
                 f"🗑️ {case_ref} - {doc_type} — {T['case_history_deleted_by_label']}: "
-                f"{deleted_by or 'Unknown'}, {role_label} ({deleted_at[:16] if deleted_at else ''})"
+                f"{deleted_by or T['unknown_label']}, {role_label} ({deleted_at[:16] if deleted_at else ''})"
             )
             if st.button(T["case_history_restore_button"], key=f"restore_{draft_id}"):
                 restore_draft(draft_id, user_name, user_role)
@@ -95,7 +95,7 @@ if not filtered:
 
 by_worker = defaultdict(list)
 for row in filtered:
-    worker = row[5] or "Unknown"
+    worker = row[5] or T["unknown_label"]
     by_worker[worker].append(row)
 
 for worker in sorted(by_worker.keys(), key=lambda s: s.lower()):
@@ -120,7 +120,7 @@ for worker in sorted(by_worker.keys(), key=lambda s: s.lower()):
                 badge = "🖊️" if was_edited else "✅"
                 timestamp = completed_at[:16] if completed_at else ""
 
-                st.markdown(f"**{badge} {case_ref} - {doc_type}** _(completed {timestamp})_")
+                st.markdown(f"**{badge} {case_ref} - {doc_type}** _({T['case_history_completed_label']} {timestamp})_")
                 st.markdown(f"*{T['case_history_current_label']}*")
                 st.write(content)
 
