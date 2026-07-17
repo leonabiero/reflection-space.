@@ -46,10 +46,10 @@ for row in entries:
     role_label = T.get("role_labels", {}).get(actor_role, actor_role)
     timestamp = occurred_at[:16] if occurred_at else ""
 
-    line = f"{badge} **{label}** — {case_ref or '(unknown case)'}"
+    line = f"{badge} **{label}** — {case_ref or T['audit_unknown_case_label']}"
     if doc_type:
         line += f" ({doc_type})"
-    line += f" — {actor_name or 'Unknown'}, {role_label} — {timestamp}"
+    line += f" — {actor_name or T['unknown_label']}, {role_label} — {timestamp}"
 
     st.write(line)
     if details:
