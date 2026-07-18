@@ -2,6 +2,7 @@ import streamlit as st
 from collections import defaultdict
 from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
 from services.reflection_service import generate_reflection
+from services.reflection_log import log_reflection
 from services.feedback_store import save_feedback
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
@@ -201,6 +202,8 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
         if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
             combined_text = "\n\n".join(d[3] for d in selected)
             result = generate_reflection(combined_text, st.session_state.lang)
+            if "error" not in result:
+                log_reflection(case_ref, result, user_name, user_role)
             st.session_state["reflection"] = result
             st.session_state["reflected_drafts"] = selected
             st.session_state["reflection_case_ref"] = case_ref
