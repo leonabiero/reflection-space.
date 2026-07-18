@@ -93,7 +93,8 @@ LANG = {
         "unknown_label": "Desconocido/a",
         "audit_unknown_case_label": "(caso desconocido)",
         "case_history_completed_label": "completado",
-        "learning_phase2": "Los temas reflexivos emergentes apareceran aqui en la Fase 2.",
+        "learning_phase2": "Temas reflexivos que emergen en las reflexiones generadas en la aplicación.",
+        "learning_no_data": "Aún no hay reflexiones registradas. Los temas aparecerán aquí a medida que se generen reflexiones.",
         "themes": [
             "Voz de la persona",
             "Hechos vs. Interpretación",
@@ -164,8 +165,8 @@ LANG = {
             "asistió a una reunión de seguimiento. Se le puede contactar en +254 722 334 455 "
             "o sarah.kimani@testmail.com. El Sr. David Otieno fue el trabajador social asignado."
         ),
-        "learning_preview_caption": "Vista previa — datos ilustrativos, aún no activos",
-        "learning_flagged_caption": "Detectado en {count} de las últimas 10 reflexiones",
+        "learning_preview_caption": "Basado en las últimas {total} reflexiones registradas",
+        "learning_flagged_caption": "Detectado en {count} de las últimas {total} reflexiones",
         "case_history_date_filter_label": "Ver historial de:",
         "case_history_toggle_label": "Mostrar:",
         "case_history_edited_option": "Editados",
@@ -239,7 +240,8 @@ LANG = {
         "unknown_label": "Ezezaguna",
         "audit_unknown_case_label": "(kasu ezezaguna)",
         "case_history_completed_label": "amaituta",
-        "learning_phase2": "Sortzen ari diren hausnarketa-gaiak hemen agertuko dira 2. fasean.",
+        "learning_phase2": "Aplikazioan sortutako hausnarketetan agertzen diren gaiak.",
+        "learning_no_data": "Oraindik ez dago hausnarketarik erregistratuta. Gaiak hemen agertuko dira hausnarketak sortu ahala.",
         "themes": [
             "Pertsonaren ahotsa",
             "Ebidentzia vs. Interpretazioa",
@@ -311,8 +313,8 @@ LANG = {
             "sarah.kimani@testmail.com helbidean jar daiteke harremanetan. David Otieno jauna "
             "izan zen esleitutako gizarte-langilea."
         ),
-        "learning_preview_caption": "Aurrebista — datu ilustragarriak, oraindik ez daude martxan",
-        "learning_flagged_caption": "Azken 10 hausnarketetatik {count}-tan identifikatua",
+        "learning_preview_caption": "Azken {total} hausnarketetan oinarrituta",
+        "learning_flagged_caption": "Azken {total} hausnarketetatik {count}-tan identifikatua",
         "case_history_date_filter_label": "Historia ikusi:",
         "case_history_toggle_label": "Erakutsi:",
         "case_history_edited_option": "Editatuak",
@@ -386,7 +388,8 @@ LANG = {
         "unknown_label": "Unknown",
         "audit_unknown_case_label": "(unknown case)",
         "case_history_completed_label": "completed",
-        "learning_phase2": "Emerging reflective themes will appear here in Phase 2.",
+        "learning_phase2": "Reflective themes emerging across reflections generated in the app.",
+        "learning_no_data": "No reflections have been generated yet. Themes will appear here as reflections are created.",
         "themes": [
             "Client's Voice",
             "Observation vs Interpretation",
@@ -458,8 +461,8 @@ LANG = {
             "+254 722 334 455 or sarah.kimani@testmail.com. "
             "Mr. David Otieno was the assigned caseworker."
         ),
-        "learning_preview_caption": "Preview — illustrative data, not yet live",
-        "learning_flagged_caption": "Flagged in {count} of the last 10 reflections",
+        "learning_preview_caption": "Based on the last {total} reflections",
+        "learning_flagged_caption": "Flagged in {count} of the last {total} reflections",
         "case_history_date_filter_label": "View history for:",
         "case_history_toggle_label": "Show:",
         "case_history_edited_option": "Edited",
