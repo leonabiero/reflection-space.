@@ -13,6 +13,14 @@ times.
 reflection_prompt.txt itself is left untouched and unused by this path --
 it remains the prompt for services.reflection_service.generate_reflection(),
 kept as an easy rollback to the single-call approach if ever needed.
+
+Sprint 6/7 addition
+--------------------
+build_companion_conversation_prompt() builds a second kind of system
+prompt for the SAME companion: a free-text, multi-turn "explore this
+observation together" mode, instead of the one-shot JSON generation
+build_companion_prompt() produces. Both share SHARED_FRAME and
+SELF_CHECK so the tone rules never drift between the two modes.
 """
 
 SHARED_FRAME = """You are an experienced colleague thinking alongside a social worker about their documentation — not a supervisor, an auditor, or an evaluator.
@@ -49,7 +57,8 @@ Before writing your final answer, check the question(s) you've drafted: would a 
 
 def build_companion_prompt(companion):
     """
-    Build the full system prompt for one companion.
+    Build the full system prompt for one companion's initial, one-shot
+    generation call.
 
     `companion` is one entry from rdi.companions.COMPANIONS (a dict with
     "key", "label", "focus").
@@ -75,3 +84,37 @@ Return ONLY valid JSON, with exactly this structure and these exact keys. No tex
 """
 
     return SHARED_FRAME + focus_block + SELF_CHECK + output_block
+
+
+def build_companion_conversation_prompt(companion):
+    """
+    Build the system prompt for a CONTINUING conversation about one
+    companion's observation -- Sprint 6 (Reflection Workspace) / Sprint 7
+    (Reflective Conversation).
+
+    Unlike build_companion_prompt(), this is NOT a one-shot JSON call.
+    The model replies in plain text, one short conversational turn at a
+    time, and keeps being the same non-judgmental colleague -- it just
+    stays engaged instead of handing back a fixed observation once.
+
+    `companion` is one entry from rdi.companions.COMPANIONS.
+    """
+    focus_block = f"""
+You already raised one reflective observation with the social worker, about this one aspect of their documentation:
+
+{companion['label']} — {companion['focus']}
+
+The social worker is now choosing to explore that observation further with you. Continue the conversation as the same colleague: curious, warm, non-judgmental.
+"""
+
+    conversation_rules = """
+Additional rules for this conversation mode:
+- Reply in plain conversational text only -- NOT JSON, NOT markdown headers, NOT a list unless a short list genuinely helps.
+- Keep each reply short: 1-4 sentences. This is a dialogue, not a report.
+- Ask at most one question per reply, so the professional isn't answering a quiz.
+- Never provide a case decision, a recommendation for what to do with the client/family, or advice that substitutes for supervision. If asked for a decision, gently redirect back to the professional's own judgment and offer to keep exploring the reasoning instead.
+- Never conclude the conversation with a verdict ("so this confirms...", "this shows that..."). Stay open-ended -- the professional decides what, if anything, this means for their documentation.
+- If the professional pushes back or disagrees with the original observation, accept that as a valid perspective and explore it with genuine curiosity, rather than defending the original observation.
+"""
+
+    return SHARED_FRAME + focus_block + SELF_CHECK + conversation_rules
