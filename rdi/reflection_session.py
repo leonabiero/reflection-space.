@@ -11,6 +11,16 @@ st.session_state[...] keys ("reflection", "reflected_drafts",
 "reflection_case_ref", "submitted_ids", "awaiting_feedback") with a
 single object stored under one key. Pure refactor: the page's behavior
 and everything the practitioner sees is unchanged.
+
+Sprint 6 addition
+------------------
+The session now also carries `safe_text` (the anonymized document text
+used to generate this session's opportunities) and `context_summary`
+(the transparency sentence about how much historical context was
+included). Both are needed by the Reflection Workspace so that exploring
+an opportunity's conversation doesn't require re-anonymizing the
+document or losing the context description. Existing constructor
+arguments and behavior are unchanged; both are optional.
 """
 
 import streamlit as st
@@ -23,18 +33,21 @@ class ReflectionSession:
 
     _SESSION_KEY = "reflection_session"
 
-    def __init__(self, result, reflected_drafts, case_ref):
+    def __init__(self, result, reflected_drafts, case_ref, context_summary=""):
         # result is whatever rdi.orchestrator.run_reflection() returned:
         # either {"error": ..., "raw": ...} or
-        # {"opportunities": [...], "raw": ..., "failed_count": ..., "failed_labels": [...]}
+        # {"opportunities": [...], "raw": ..., "failed_count": ...,
+        #  "failed_labels": [...], "safe_text": ...}
         self.error = result.get("error")
         self.error_raw = result.get("raw") if self.error else None
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
         self.failed_count = result.get("failed_count", 0)
+        self.safe_text = result.get("safe_text", "")
 
         self.reflected_drafts = reflected_drafts
         self.case_ref = case_ref
+        self.context_summary = context_summary
         self.submitted_ids = set()
         self.awaiting_feedback = False
 
@@ -55,6 +68,21 @@ class ReflectionSession:
 
     def draft_ids(self):
         return [d[0] for d in self.reflected_drafts]
+
+    def get_opportunity(self, trigger):
+        """Look up one opportunity by its trigger key (e.g.
+        "client_voice"), for continuing its conversation. Returns None
+        if not found (shouldn't normally happen, but kept defensive)."""
+        for opportunity in self.opportunities:
+            if opportunity.trigger == trigger:
+                return opportunity
+        return None
+
+    def explored_count(self):
+        """How many opportunities the practitioner has opened at all --
+        used for the session progress indicator. Not a completion or
+        competence measure, just a count."""
+        return sum(1 for o in self.opportunities if o.explored)
 
     # --- session storage -------------------------------------------------
 
