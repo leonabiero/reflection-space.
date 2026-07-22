@@ -89,3 +89,57 @@ def get_recent_theme_counts(limit=10):
                 counts[key] += 1
 
     return counts, len(rows)
+
+
+def get_theme_flag_counts(since_iso=None):
+    """
+    Sprint 10 (Research Metrics): {theme_key: count} of how many
+    reflections flagged that dimension, across ALL reflections in the
+    given period (not just the most recent `limit` like
+    get_recent_theme_counts() above) -- and, unlike that function,
+    with no per-professional or per-case breakdown at all. This is
+    purely an aggregate count for research/organisational-learning use,
+    mirroring the same shape services.exploration_log.get_aggregated_theme_counts()
+    already returns for explored (rather than flagged) themes, so the
+    two can be compared side by side.
+
+    `since_iso`, if given, restricts to reflections created at or after
+    that ISO timestamp.
+    """
+    conn = _get_conn()
+    with conn.cursor() as c:
+        if since_iso:
+            c.execute("SELECT flags FROM reflections WHERE created_at >= %s", (since_iso,))
+        else:
+            c.execute("SELECT flags FROM reflections")
+        rows = c.fetchall()
+    conn.close()
+
+    counts = {key: 0 for key in THEME_KEYS}
+    for (flags_json,) in rows:
+        try:
+            flags = json.loads(flags_json) if flags_json else {}
+        except (TypeError, ValueError):
+            flags = {}
+        for key in THEME_KEYS:
+            if flags.get(key):
+                counts[key] += 1
+
+    return counts
+
+
+def get_total_reflection_count(since_iso=None):
+    """
+    Sprint 10: total number of reflection sessions generated, org-wide,
+    with no professional or case attribution -- a simple activity
+    count for research purposes.
+    """
+    conn = _get_conn()
+    with conn.cursor() as c:
+        if since_iso:
+            c.execute("SELECT COUNT(*) FROM reflections WHERE created_at >= %s", (since_iso,))
+        else:
+            c.execute("SELECT COUNT(*) FROM reflections")
+        (count,) = c.fetchone()
+    conn.close()
+    return count
