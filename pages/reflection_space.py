@@ -3,6 +3,7 @@ from collections import defaultdict
 from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
 from services.reflection_log import log_reflection
 from services.feedback_store import save_feedback
+from services.reflection_service import continue_companion_conversation
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
@@ -11,6 +12,7 @@ from rdi.orchestrator import run_reflection
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
+from rdi.companions import COMPANIONS
 
 T = init_language()
 log_visit("reflection_space", st.session_state.lang)
@@ -19,6 +21,11 @@ render_nav(T)
 render_identity_footer(T)
 
 st.title(T["nav_reflection"])
+
+# trigger -> companion dict, so the workspace can look up label/focus
+# when continuing a conversation, without re-deriving it from the
+# opportunity's stored observation text.
+COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 
 
 def _clear_all():
@@ -46,6 +53,79 @@ def _format_historical_option(h):
     date_part = _date_only(h.get("completed_at") or h.get("created_at"))
     edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
     return f"{h['doc_type']} ({date_part}){edited_suffix}"
+
+
+def _render_opportunity_workspace(session, opportunity):
+    """Sprint 6: render one reflective opportunity as an expandable
+    workspace item -- the observation/questions, an Explore toggle, and
+    (once opened) a conversation area."""
+    label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
+    badge = f" {T['workspace_explored_badge']}" if opportunity.explored else ""
+
+    with st.expander(f"{label}{badge}", expanded=opportunity.explored):
+        if opportunity.focus:
+            st.write(opportunity.focus)
+        for q in opportunity.invitation:
+            st.markdown(f"- {q}")
+
+        st.caption(T["workspace_reminder"])
+
+        open_key = f"workspace_open_{opportunity.trigger}"
+        is_open = st.session_state.get(open_key, False)
+
+        if not is_open:
+            if st.button(T["workspace_explore_button"], key=f"explore_btn_{opportunity.trigger}"):
+                opportunity.mark_explored()
+                st.session_state[open_key] = True
+                session.save()
+                st.rerun()
+        else:
+            st.divider()
+            for turn in opportunity.conversation:
+                role_label = "🧑‍💼" if turn["role"] == "professional" else "💬"
+                st.markdown(f"**{role_label}** {turn['content']}")
+
+            input_key = f"convo_input_{opportunity.trigger}"
+            message_text = st.text_area(
+                T["workspace_conversation_input_label"],
+                placeholder=T["workspace_conversation_placeholder"],
+                key=input_key,
+                height=80,
+            )
+
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button(T["workspace_send_button"], key=f"send_btn_{opportunity.trigger}"):
+                    if message_text and message_text.strip():
+                        companion = COMPANIONS_BY_KEY.get(opportunity.trigger)
+                        history_before = list(opportunity.conversation)
+                        opportunity.add_professional_message(message_text.strip())
+
+                        with st.spinner(T["workspace_ai_thinking"]):
+                            result = continue_companion_conversation(
+                                companion=companion,
+                                safe_text=session.safe_text,
+                                initial_observation=opportunity.focus,
+                                initial_questions=opportunity.invitation,
+                                conversation_history=history_before,
+                                professional_message=message_text.strip(),
+                                lang=st.session_state.lang,
+                            )
+
+                        if "reply" in result:
+                            opportunity.add_ai_message(result["reply"])
+                        else:
+                            st.session_state[f"convo_error_{opportunity.trigger}"] = True
+
+                        session.save()
+                        st.rerun()
+            with col2:
+                if st.button(T["workspace_close_button"], key=f"close_btn_{opportunity.trigger}"):
+                    st.session_state[open_key] = False
+                    st.rerun()
+
+            if st.session_state.pop(f"convo_error_{opportunity.trigger}", False):
+                st.error(T["workspace_conversation_error"])
 
 
 drafts = get_drafts()
@@ -100,7 +180,12 @@ if active_context is not None:
             if "error" not in result:
                 log_reflection(ctx.case_ref, result["raw"], user_name, user_role)
 
-            session = ReflectionSession(result, reflected_drafts=ctx.selected, case_ref=ctx.case_ref)
+            session = ReflectionSession(
+                result,
+                reflected_drafts=ctx.selected,
+                case_ref=ctx.case_ref,
+                context_summary=summary,
+            )
             ReflectionContext.clear()
             session.save()
             st.rerun()
@@ -113,8 +198,8 @@ if active_context is not None:
 
 
 # --- A reflection session is already in progress for one client: show
-# that instead of the folder browser, so work stays scoped to one
-# client at a time. ---
+# the Reflection Workspace instead of the folder browser, so work stays
+# scoped to one client at a time. ---
 if active_session is not None:
     session = active_session
 
@@ -129,13 +214,27 @@ if active_session is not None:
     if session.failed_count > 0:
         st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
 
+    # --- Workspace header: document + context summary, so the
+    # practitioner always sees what this reflection is grounded in. ---
+    with st.expander(T["workspace_document_header"], expanded=False):
+        for d in session.reflected_drafts:
+            st.markdown(f"**{d[1]} - {d[2]}**")
+            st.write(d[3])
+
+    if session.context_summary:
+        st.caption(f"{T['workspace_context_header']}: {session.context_summary}")
+
+    total_opportunities = len(session.opportunities)
+    if total_opportunities:
+        st.progress(session.explored_count() / total_opportunities)
+        st.caption(T["workspace_progress_label"].format(
+            explored=session.explored_count(), total=total_opportunities
+        ))
+
+    st.subheader(T["workspace_opportunities_header"])
+
     for opportunity in build_conversation(session.opportunities):
-        label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
-        st.subheader(label)
-        if opportunity.focus:
-            st.write(opportunity.focus)
-        for q in opportunity.invitation:
-            st.markdown(f"- {q}")
+        _render_opportunity_workspace(session, opportunity)
 
     st.divider()
     st.subheader(T["update_document"])
