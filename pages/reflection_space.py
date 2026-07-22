@@ -1,12 +1,16 @@
 import streamlit as st
 from collections import defaultdict
 from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
-from services.reflection_service import generate_reflection
 from services.reflection_log import log_reflection
 from services.feedback_store import save_feedback
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
+from rdi.context_engine import get_historical_context
+from rdi.orchestrator import run_reflection
+from rdi.conversation_builder import build_conversation
+from rdi.reflection_context import ReflectionContext
+from rdi.reflection_session import ReflectionSession
 
 T = init_language()
 log_visit("reflection_space", st.session_state.lang)
@@ -16,17 +20,12 @@ render_identity_footer(T)
 
 st.title(T["nav_reflection"])
 
-# Keys cleared together whenever a reflection session (per client) ends,
-# whether by finishing feedback or skipping it.
-_SESSION_KEYS = (
-    "reflection", "reflected_drafts", "submitted_ids",
-    "awaiting_feedback", "reflection_case_ref",
-)
 
-
-def _clear_session():
-    for k in _SESSION_KEYS:
-        st.session_state.pop(k, None)
+def _clear_all():
+    """Leaving the reflection flow entirely, whatever stage it was at --
+    resets both the context and the session objects."""
+    ReflectionContext.clear()
+    ReflectionSession.clear()
 
 
 def _date_only(iso_str):
@@ -42,52 +41,110 @@ def _format_draft_option(d):
     return f"{doc_type} ({time_part}) — {creator}{role_suffix}"
 
 
+def _format_historical_option(h):
+    # h is a dict from rdi.context_engine.get_historical_context()
+    date_part = _date_only(h.get("completed_at") or h.get("created_at"))
+    edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
+    return f"{h['doc_type']} ({date_part}){edited_suffix}"
+
+
 drafts = get_drafts()
 
-if not drafts and "reflection" not in st.session_state:
+active_context = ReflectionContext.get_active()
+active_session = ReflectionSession.get_active()
+
+if not drafts and active_session is None and active_context is None:
     st.info(T["no_drafts"])
+    st.stop()
+
+
+# --- Reflection Context step: shown after the practitioner picks
+# document(s) to reflect on, before the reflection is generated. Surfaces
+# relevant prior documentation for this case so it can be reviewed and
+# deselected, per the Reflection Context Engine (rdi/context_engine.py). ---
+if active_context is not None:
+    ctx = active_context
+
+    if ctx.case_ref:
+        st.caption(f"{T['reflection_active_case_prefix']} {ctx.case_ref}")
+
+    st.subheader(T["reflection_context_title"])
+
+    st.markdown(f"**{T['reflection_context_current_label']}**")
+    for d in ctx.selected:
+        st.checkbox(_format_draft_option(d), value=True, disabled=True, key=f"ctx_current_{d[0]}")
+
+    if ctx.historical:
+        st.markdown(f"**{T['reflection_context_historical_label']}**")
+        for h in ctx.historical:
+            hist_key = f"ctx_hist_{h['id']}"
+            checked = st.checkbox(
+                _format_historical_option(h),
+                value=(h["id"] in ctx.selected_hist_ids),
+                key=hist_key,
+            )
+            ctx.set_historical_included(h["id"], checked)
+
+    summary = ctx.strength_summary(T)
+    st.info(summary)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(T["reflection_context_continue"], type="primary"):
+            combined_text = ctx.combined_text()
+
+            # Same underlying companion calls as before (see
+            # rdi/orchestrator.py) -- this just also reshapes the result
+            # into a ReflectionSession for display and tracking.
+            result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
+            if "error" not in result:
+                log_reflection(ctx.case_ref, result["raw"], user_name, user_role)
+
+            session = ReflectionSession(result, reflected_drafts=ctx.selected, case_ref=ctx.case_ref)
+            ReflectionContext.clear()
+            session.save()
+            st.rerun()
+    with col2:
+        if st.button(T["reflection_context_back"]):
+            ReflectionContext.clear()
+            st.rerun()
+
     st.stop()
 
 
 # --- A reflection session is already in progress for one client: show
 # that instead of the folder browser, so work stays scoped to one
 # client at a time. ---
-if "reflection" in st.session_state:
-    active_case_ref = st.session_state.get("reflection_case_ref", "")
-    if active_case_ref:
-        st.caption(f"{T['reflection_active_case_prefix']} {active_case_ref}")
+if active_session is not None:
+    session = active_session
 
-    r = st.session_state["reflection"]
-    if "error" in r:
+    if session.case_ref:
+        st.caption(f"{T['reflection_active_case_prefix']} {session.case_ref}")
+
+    if session.has_error():
         st.error(T["error_parsing"])
-        st.text(r["raw"])
+        st.text(session.error_raw)
         st.stop()
 
-    for section, content in r.items():
-        label = T["section_labels"].get(section, section.replace("_", " ").title())
+    if session.failed_count > 0:
+        st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
+
+    for opportunity in build_conversation(session.opportunities):
+        label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
         st.subheader(label)
-        if isinstance(content, dict):
-            observation = content.get("observation", "")
-            questions = content.get("questions", [])
-            if observation:
-                st.write(observation)
-            if questions:
-                for q in questions:
-                    st.markdown(f"- {q}")
-        else:
-            st.write(content)
+        if opportunity.focus:
+            st.write(opportunity.focus)
+        for q in opportunity.invitation:
+            st.markdown(f"- {q}")
 
     st.divider()
     st.subheader(T["update_document"])
 
-    reflected_drafts = st.session_state.get("reflected_drafts", [])
-    submitted_ids = st.session_state.get("submitted_ids", set())
-
-    if not st.session_state.get("awaiting_feedback", False):
-        for draft in reflected_drafts:
+    if not session.awaiting_feedback:
+        for draft in session.reflected_drafts:
             draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
 
-            if draft_id in submitted_ids:
+            if session.is_submitted(draft_id):
                 st.success(f"{case_ref} - {doc_type}: {T['submitted']}")
                 continue
 
@@ -100,22 +157,21 @@ if "reflection" in st.session_state:
             )
             if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
                 finalize_draft(draft_id, edited_text)
-                submitted_ids.add(draft_id)
+                session.mark_submitted(draft_id)
 
-                all_ids_in_batch = {d[0] for d in reflected_drafts}
-                if submitted_ids >= all_ids_in_batch:
+                if session.all_batch_submitted():
                     remaining = get_drafts()
                     if not remaining:
-                        st.session_state["submitted_ids"] = submitted_ids
-                        st.session_state["awaiting_feedback"] = True
+                        session.awaiting_feedback = True
+                        session.save()
                     else:
-                        _clear_session()
+                        _clear_all()
                 else:
-                    st.session_state["submitted_ids"] = submitted_ids
+                    session.save()
 
                 st.rerun()
 
-    if st.session_state.get("awaiting_feedback", False):
+    if session.awaiting_feedback:
         st.divider()
         st.subheader(T["feedback_prompt_title"])
 
@@ -125,14 +181,13 @@ if "reflection" in st.session_state:
         col1, col2 = st.columns(2)
         with col1:
             if st.button(T["feedback_submit_button"]):
-                draft_ids = [d[0] for d in reflected_drafts]
-                save_feedback(draft_ids, rating, comment, user_name, user_role)
-                _clear_session()
+                save_feedback(session.draft_ids(), rating, comment, user_name, user_role)
+                _clear_all()
                 st.success(T["feedback_thanks"])
                 st.rerun()
         with col2:
             if st.button(T["feedback_skip_button"]):
-                _clear_session()
+                _clear_all()
                 st.rerun()
 
     st.stop()
@@ -200,15 +255,9 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
         selected = [d for d in case_drafts if st.session_state.get(f"chk_{d[0]}", False)]
 
         if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
-            combined_text = "\n\n".join(d[3] for d in selected)
-            result = generate_reflection(combined_text, st.session_state.lang)
-            if "error" not in result:
-                log_reflection(case_ref, result, user_name, user_role)
-            st.session_state["reflection"] = result
-            st.session_state["reflected_drafts"] = selected
-            st.session_state["reflection_case_ref"] = case_ref
-            st.session_state["submitted_ids"] = set()
-            st.session_state["awaiting_feedback"] = False
+            selected_ids = {d[0] for d in selected}
+            historical = get_historical_context(case_ref, exclude_ids=selected_ids)
+            ReflectionContext(case_ref=case_ref, selected=selected, historical=historical).save()
             # Reset this folder's checkboxes so a future visit starts clean.
             for d in case_drafts:
                 st.session_state.pop(f"chk_{d[0]}", None)
