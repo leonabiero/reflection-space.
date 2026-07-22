@@ -152,6 +152,31 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
         opportunity's conversation (NOT including professional_message)
     professional_message : the practitioner's newest message, to be
         answered now
+
+    Sprint 7 -- prompt caching
+    --------------------------
+    Every turn of a given opportunity's conversation resends the exact
+    same system prompt and the exact same "DOCUMENT + original
+    observation" context block -- only the conversation history and the
+    newest message actually change turn to turn. Those two repeating
+    pieces are marked with `cache_control: {"type": "ephemeral"}`, so
+    from the 2nd turn onward Anthropic reuses the cached prefix instead
+    of reprocessing it, at a fraction of normal input-token cost.
+
+    This changes nothing the professional sees or how the model
+    responds -- caching only affects what Anthropic charges to reprocess
+    already-seen content, never the content or quality of the reply.
+
+    Two things worth knowing:
+    - Cached blocks need to be at least ~1,024 tokens to actually cache
+      (Anthropic's minimum for Sonnet-class models). Below that, the
+      marker is simply ignored and billing is unaffected -- a short
+      case note plus system prompt may not always clear this bar, and
+      that's fine, it just means this particular conversation doesn't
+      benefit.
+    - The cache entry expires after a short idle window (currently ~5
+      minutes). A conversation the practitioner returns to after a long
+      pause will simply re-cache on its next turn rather than error.
     """
     system_prompt = build_companion_conversation_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
@@ -168,9 +193,37 @@ Your original reflective question(s) were:
 {chr(10).join(f"- {q}" for q in (initial_questions or []))}
 """
 
-    messages = [{"role": "user", "content": context_block}]
-    messages.append({"role": "assistant", "content": "Understood -- I'll keep exploring this with them."})
+    # Cache breakpoint 1: the system prompt. Identical for every turn of
+    # every conversation about this companion+language combination.
+    system_param = [
+        {
+            "type": "text",
+            "text": full_system_prompt,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
 
+    # Cache breakpoint 2: the document + original observation. Identical
+    # for every turn of THIS opportunity's conversation. Anthropic caches
+    # everything up to and including this block (system + this message),
+    # so this is the point where the big, reusable prefix ends.
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": context_block,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+        },
+        {"role": "assistant", "content": "Understood -- I'll keep exploring this with them."},
+    ]
+
+    # Everything after the cache breakpoint is genuinely new each turn,
+    # so it's sent as plain (uncached) messages -- caching it wouldn't
+    # help, since it never repeats identically.
     for turn in conversation_history:
         role = "assistant" if turn.get("role") == "ai" else "user"
         messages.append({"role": role, "content": turn.get("content", "")})
@@ -181,7 +234,7 @@ Your original reflective question(s) were:
         message = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=400,
-            system=full_system_prompt,
+            system=system_param,
             messages=messages,
         )
     except Exception as e:
@@ -191,5 +244,15 @@ Your original reflective question(s) were:
 
     if not raw.strip():
         return {"error": "Empty response", "raw": ""}
+
+    # Surface cache stats for visibility (Sprint 10 research metrics can
+    # persist these later; for now this is just an observability hook
+    # and never affects behavior or the returned reply).
+    usage = getattr(message, "usage", None)
+    cache_read = getattr(usage, "cache_read_input_tokens", 0) if usage else 0
+    cache_created = getattr(usage, "cache_creation_input_tokens", 0) if usage else 0
+    if cache_read or cache_created:
+        print(f"[prompt cache] companion={companion.get('key')} "
+              f"cache_read_input_tokens={cache_read} cache_creation_input_tokens={cache_created}")
 
     return {"reply": raw.strip()}
