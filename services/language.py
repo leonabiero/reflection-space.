@@ -230,6 +230,13 @@ LANG = {
         "growth_history_header": "Momentos reflexivos recientes",
         "growth_entry_line": "**{theme}** — caso {case} — {count} intercambio(s) — {date}",
         "growth_session_count_label": "Momentos de exploración registrados en total",
+        "nav_team_learning": "🌍 Aprendizaje del Equipo",
+        "team_learning_title": "🌍 Temas Reflexivos del Equipo",
+        "team_learning_intro": "Esta vista muestra patrones agregados y anónimos de toda la organización. No identifica a ningún profesional, no identifica ningún caso concreto y no muestra el historial de reflexión de nadie en particular. Su propósito es ayudar a la organización a identificar qué áreas de la práctica merecen atención colectiva — no evaluar a las personas.",
+        "team_learning_period_caption": "Últimos 6 meses — {total} momento(s) de exploración registrados en total, de todos los equipos",
+        "team_learning_no_data": "Aún no hay suficientes datos de exploración registrados en los últimos 6 meses.",
+        "team_learning_header": "Áreas reflexivas más comunes",
+        "team_learning_rank_line": "{rank}. {theme} — {count} exploraciones",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -409,6 +416,13 @@ LANG = {
         "growth_history_header": "Duela gutxiko hausnarketa-uneak",
         "growth_entry_line": "**{theme}** — {case} kasua — {count} truke — {date}",
         "growth_session_count_label": "Guztira erregistratutako azterketa-uneak",
+        "nav_team_learning": "🌍 Taldearen Ikaskuntza",
+        "team_learning_title": "🌍 Taldearen Hausnarketa Gaiak",
+        "team_learning_intro": "Ikuspegi honek erakusten ditu erakunde osoko eredu agregatu eta anonimoak. Ez du profesionalik identifikatzen, ez du kasu zehatzik identifikatzen eta ez du inoren hausnarketa-historiala erakusten. Bere helburua da erakundeari laguntzea zein arlok merezi duten arreta kolektiboa identifikatzen — ez pertsonak ebaluatzea.",
+        "team_learning_period_caption": "Azken 6 hilabeteak — {total} azterketa-une erregistratuta guztira, talde guztietan",
+        "team_learning_no_data": "Oraindik ez dago nahikoa azterketa-daturik azken 6 hilabeteetan erregistratuta.",
+        "team_learning_header": "Hausnarketa-arlo ohikoenak",
+        "team_learning_rank_line": "{rank}. {theme} — {count} azterketa",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -588,6 +602,13 @@ LANG = {
         "growth_history_header": "Recent reflective moments",
         "growth_entry_line": "**{theme}** — case {case} — {count} exchange(s) — {date}",
         "growth_session_count_label": "Total exploration moments recorded",
+        "nav_team_learning": "🌍 Team Learning",
+        "team_learning_title": "🌍 Team Reflective Themes",
+        "team_learning_intro": "This view shows aggregated, anonymous patterns across the whole organisation. It does not identify any professional, does not identify any specific case, and does not show anyone's individual reflection history. Its purpose is to help the organisation see which areas of practice deserve collective attention -- not to evaluate individuals.",
+        "team_learning_period_caption": "Last 6 months — {total} exploration moment(s) recorded in total, across all teams",
+        "team_learning_no_data": "There isn't enough exploration data recorded in the last 6 months yet.",
+        "team_learning_header": "Most common reflective areas",
+        "team_learning_rank_line": "{rank}. {theme} — {count} explorations",
     }
 }
 
@@ -630,5 +651,6 @@ def render_nav(T):
     current_role = st.session_state.get("user_role", "").strip()
     if current_role in visible_roles:
         st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])
+        st.sidebar.page_link("pages/team_learning.py", label=T["nav_team_learning"])
         st.sidebar.page_link("pages/case_history.py", label=T["nav_case_history"])
         st.sidebar.page_link("pages/audit_log.py", label=T["nav_audit_log"])
