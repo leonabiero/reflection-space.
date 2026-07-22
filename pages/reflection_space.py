@@ -4,6 +4,7 @@ from services.draft_storage import get_drafts, finalize_draft, delete_pending_dr
 from services.reflection_log import log_reflection
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
+from services.exploration_log import log_exploration
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
@@ -30,7 +31,24 @@ COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 
 def _clear_all():
     """Leaving the reflection flow entirely, whatever stage it was at --
-    resets both the context and the session objects."""
+    resets both the context and the session objects.
+
+    Sprint 7: before the session (and its in-memory conversations) is
+    discarded, log which themes were actually explored and how many
+    turns each ran to (see services.exploration_log). No conversation
+    text is persisted -- only the fact that this theme was explored, by
+    whom, on which case, for the Growth/Team dashboards to read later.
+    """
+    session = ReflectionSession.get_active()
+    if session is not None:
+        for opportunity in session.opportunities:
+            turn_count = sum(1 for turn in opportunity.conversation if turn.get("role") == "professional")
+            if turn_count > 0:
+                log_exploration(
+                    session.case_ref, opportunity.trigger, turn_count,
+                    user_name, user_role,
+                )
+
     ReflectionContext.clear()
     ReflectionSession.clear()
 
