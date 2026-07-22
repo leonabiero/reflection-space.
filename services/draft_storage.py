@@ -132,6 +132,24 @@ def get_completed_drafts():
     return rows
 
 
+def get_completed_draft_count(since_iso=None):
+    """
+    Sprint 10 (Research Metrics): how many documents have been
+    completed, org-wide, WITHOUT pulling document content (or any
+    other row data) into memory the way get_completed_drafts() does --
+    this is a plain COUNT(*), nothing else.
+    """
+    conn = _get_conn()
+    with conn.cursor() as c:
+        if since_iso:
+            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed' AND completed_at >= %s", (since_iso,))
+        else:
+            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed'")
+        (count,) = c.fetchone()
+    conn.close()
+    return count
+
+
 def get_draft_history(draft_id):
     conn = _get_conn()
     with conn.cursor() as c:
