@@ -19,6 +19,15 @@ Design choices worth knowing about:
   (timeout, parse error, etc.) while others succeed, the ones that
   succeeded are still shown. Only if ALL 8 fail does this behave like the
   old single-call error case.
+
+Sprint 6 addition
+------------------
+The anonymized `safe_text` produced here is now included in the return
+value (key "safe_text"). The Reflection Workspace needs it to continue a
+conversation about an opportunity later, without re-anonymizing the
+document or ever sending the raw/original text to the API a second time.
+This is purely additive -- every existing key in the return dict is
+unchanged.
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -47,6 +56,11 @@ def run_reflection(text, lang="Español", context_description=""):
                                            companions that failed, for an
                                            honest "N areas couldn't be
                                            generated" notice
+          "safe_text": str,            -- (Sprint 6) the anonymized
+                                           document text used for this
+                                           run, for reuse by the
+                                           Reflection Workspace's
+                                           follow-up conversations
         }
     """
     safe_text = anonymize(text)
@@ -112,4 +126,5 @@ def run_reflection(text, lang="Español", context_description=""):
         "raw": raw_result,
         "failed_count": len(failed_labels),
         "failed_labels": failed_labels,
+        "safe_text": safe_text,
     }
