@@ -221,6 +221,15 @@ LANG = {
         "workspace_ai_thinking": "Pensando...",
         "workspace_conversation_error": "⚠ No se pudo continuar la conversación. Inténtalo de nuevo.",
         "workspace_reminder": "Esto es solo una invitación a reflexionar. Explorarlo, y decidir si cambiar algo en la documentación, depende por completo de tu criterio profesional.",
+        "nav_growth": "🌱 Mi Reflexión",
+        "growth_title": "🌱 Tu Trayectoria Reflexiva",
+        "growth_intro": "Este es tu espacio personal. Muestra únicamente lo que tú has explorado — no es una evaluación de tu desempeño, no se compara con otros profesionales y no es visible para supervisores.",
+        "growth_no_data": "Aún no has explorado ninguna reflexión. A medida que uses el botón «Explorar» en el Espacio de Reflexión, tu trayectoria aparecerá aquí.",
+        "growth_themes_header": "Áreas que más has explorado",
+        "growth_themes_caption": "Basado en {total} momento(s) de exploración registrados",
+        "growth_history_header": "Momentos reflexivos recientes",
+        "growth_entry_line": "**{theme}** — caso {case} — {count} intercambio(s) — {date}",
+        "growth_session_count_label": "Momentos de exploración registrados en total",
     },
     "Euskera": {
         "title": "🧠 Hausnarketa Gunea",
@@ -391,6 +400,15 @@ LANG = {
         "workspace_ai_thinking": "Pentsatzen...",
         "workspace_conversation_error": "⚠ Ezin izan da elkarrizketarekin jarraitu. Saiatu berriro.",
         "workspace_reminder": "Hau hausnartzeko gonbidapen bat besterik ez da. Aztertzea, eta dokumentazioan zerbait aldatzea, erabat zure erabaki profesionalaren araberakoa da.",
+        "nav_growth": "🌱 Nire Hausnarketa",
+        "growth_title": "🌱 Zure Hausnarketa Bidea",
+        "growth_intro": "Hau zure gune pertsonala da. Zuk zeuk aztertutakoa bakarrik erakusten du — ez da zure jardunaren ebaluazioa, ez da beste profesional batzuekin konparatzen eta ez da gainbegiraleentzat ikusgai.",
+        "growth_no_data": "Oraindik ez duzu hausnarketarik aztertu. Hausnarketa Gunean «Aztertu» botoia erabili ahala, zure bidea hemen agertuko da.",
+        "growth_themes_header": "Gehien aztertu dituzun arloak",
+        "growth_themes_caption": "Erregistratutako {total} azterketa-unetan oinarrituta",
+        "growth_history_header": "Duela gutxiko hausnarketa-uneak",
+        "growth_entry_line": "**{theme}** — {case} kasua — {count} truke — {date}",
+        "growth_session_count_label": "Guztira erregistratutako azterketa-uneak",
     },
     "English": {
         "title": "🧠 Reflection Space",
@@ -561,6 +579,15 @@ LANG = {
         "workspace_ai_thinking": "Thinking...",
         "workspace_conversation_error": "⚠ Could not continue the conversation. Please try again.",
         "workspace_reminder": "This is offered as a reflective prompt only. Whether to explore it, and whether to change anything in the documentation, is entirely your professional decision.",
+        "nav_growth": "🌱 My Reflection",
+        "growth_title": "🌱 Your Reflective Journey",
+        "growth_intro": "This is your personal space. It shows only what you've chosen to explore -- it is not an evaluation of your performance, it is never compared with other professionals, and it is not visible to supervisors.",
+        "growth_no_data": "You haven't explored a reflection yet. As you use the \"Explore\" button in the Reflection Space, your journey will appear here.",
+        "growth_themes_header": "Areas you've explored most",
+        "growth_themes_caption": "Based on {total} recorded exploration moment(s)",
+        "growth_history_header": "Recent reflective moments",
+        "growth_entry_line": "**{theme}** — case {case} — {count} exchange(s) — {date}",
+        "growth_session_count_label": "Total exploration moments recorded",
     }
 }
 
@@ -593,6 +620,11 @@ def render_nav(T):
     st.sidebar.success(T["nav_header"])
     st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
     st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
+    # Sprint 8: personal to whoever is logged in -- unlike the
+    # supervisory pages below, this is never gated by role, since it
+    # shows a professional only their own reflective history, never
+    # anyone else's.
+    st.sidebar.page_link("pages/growth_dashboard.py", label=T["nav_growth"])
 
     visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
     current_role = st.session_state.get("user_role", "").strip()
