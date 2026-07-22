@@ -2,7 +2,7 @@ import anthropic
 import json
 from config import ANTHROPIC_API_KEY
 from services.anonymizer import anonymize
-from rdi.companions.prompt_builder import build_companion_prompt
+from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -124,3 +124,72 @@ Return structured reflection JSON only.
             "error": "Failed to parse JSON",
             "raw": raw
         }
+
+
+def continue_companion_conversation(companion: dict, safe_text: str, initial_observation: str,
+                                     initial_questions, conversation_history, professional_message: str,
+                                     lang: str = "Español"):
+    """
+    Sprint 6/7: continue a free-text reflective conversation for ONE
+    companion's opportunity, inside the Reflection Workspace.
+
+    Unlike generate_companion_reflection(), this does NOT ask for JSON.
+    It returns plain text -- one short conversational reply -- or an
+    error dict on failure, in the same {"error": ..., "raw": ...} shape
+    used elsewhere so callers can handle both paths identically.
+
+    Parameters
+    ----------
+    companion : one entry from rdi.companions.COMPANIONS
+    safe_text : the already-anonymized document text (reused from the
+        original orchestrator run -- never re-anonymized here, and the
+        raw/original document is never seen by this function or the API)
+    initial_observation, initial_questions : what this companion raised
+        originally, so the model has the full context of what's being
+        explored
+    conversation_history : list of {"role": "professional"|"ai",
+        "content": str} for turns that already happened in this
+        opportunity's conversation (NOT including professional_message)
+    professional_message : the practitioner's newest message, to be
+        answered now
+    """
+    system_prompt = build_companion_conversation_prompt(companion)
+    lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
+    full_system_prompt = system_prompt + "\n\n" + lang_instruction
+
+    context_block = f"""
+DOCUMENT:
+{safe_text}
+
+Your original observation was:
+{initial_observation}
+
+Your original reflective question(s) were:
+{chr(10).join(f"- {q}" for q in (initial_questions or []))}
+"""
+
+    messages = [{"role": "user", "content": context_block}]
+    messages.append({"role": "assistant", "content": "Understood -- I'll keep exploring this with them."})
+
+    for turn in conversation_history:
+        role = "assistant" if turn.get("role") == "ai" else "user"
+        messages.append({"role": role, "content": turn.get("content", "")})
+
+    messages.append({"role": "user", "content": professional_message})
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-5",
+            max_tokens=400,
+            system=full_system_prompt,
+            messages=messages,
+        )
+    except Exception as e:
+        return {"error": "API call failed", "raw": str(e)}
+
+    raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
+
+    if not raw.strip():
+        return {"error": "Empty response", "raw": ""}
+
+    return {"reply": raw.strip()}
