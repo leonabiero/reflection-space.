@@ -24,10 +24,13 @@ see rdi/retrieval_service.py for the full design.
 
 This module's PUBLIC INTERFACE is unchanged on purpose: same function
 name, same return shape (list of dicts with id/doc_type/content/
-created_at/was_edited/completed_at -- now with two additive keys, "score"
-and "match_reason", used only for the transparency label), and the same
-call sites (pages/reflection_space.py, rdi/reflection_context.py) work
-without needing to know retrieval got smarter. Only the internals of
+created_at/was_edited/completed_at -- now with three additive keys,
+"score", "match_reason" (primary reason, kept for back-compat), and
+"match_reasons" (the full list of every strategy that proposed this
+document -- see rdi/retrieval_service.py's "Multi-reason merge" section),
+used only for the transparency label), and the same call sites
+(pages/reflection_space.py, rdi/reflection_context.py) work without
+needing to know retrieval got smarter. Only the internals of
 get_historical_context() changed; classify_context_strength() gained one
 new optional argument (avg_score) but is fully backward compatible for
 any call site that doesn't pass it.
@@ -54,6 +57,15 @@ LIMITED_CONTEXT_THRESHOLD = 1
 STRONG_SIMILARITY_THRESHOLD = 0.75
 
 
+def _log(msg):
+    """Temporary development logging helper, matching the convention
+    used in services/qdrant_service.py and rdi/retrieval_service.py."""
+    try:
+        print(f"[RAG] {msg}")
+    except Exception:
+        pass
+
+
 def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIMIT, query_text=""):
     """
     Return up to `limit` documents relevant to `case_ref`, excluding any
@@ -75,8 +87,9 @@ def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIM
             "created_at": str (ISO timestamp),
             "completed_at": str (ISO timestamp),
             "was_edited": bool,
-            "score": float | None,      # similarity score, semantic matches only
-            "match_reason": str,        # "must_include" | "semantic" | "recency"
+            "score": float | None,        # similarity score, semantic matches only
+            "match_reason": str,          # primary reason (highest priority)
+            "match_reasons": [str, ...],  # every reason this document was proposed for
         }
 
     A missing/blank case_ref returns an empty list: undated, uncategorised
@@ -89,9 +102,22 @@ def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIM
         return []
 
     exclude_ids = exclude_ids or set()
-    return retrieve_historical_context(
+    results = retrieve_historical_context(
         case_ref, exclude_ids=exclude_ids, limit=limit, query_text=query_text,
     )
+
+    _log(
+        f"get_historical_context: case_ref={case_ref!r} returned {len(results)} document(s): "
+        + (
+            ", ".join(
+                f"[id={d['id']} doc_type={d['doc_type']!r} reasons={d.get('match_reasons')} score={d.get('score')}"
+                for d in results
+            )
+            if results else "(none)"
+        )
+    )
+
+    return results
 
 
 def classify_context_strength(count, avg_score=None):
@@ -111,9 +137,14 @@ def classify_context_strength(count, avg_score=None):
     something weaker, and it never affects the "none" case.
     """
     if count >= STRONG_CONTEXT_THRESHOLD:
-        return "strong"
+        strength = "strong"
     elif count >= LIMITED_CONTEXT_THRESHOLD:
         if avg_score is not None and avg_score >= STRONG_SIMILARITY_THRESHOLD:
-            return "strong"
-        return "limited"
-    return "none"
+            strength = "strong"
+        else:
+            strength = "limited"
+    else:
+        strength = "none"
+
+    _log(f"classify_context_strength: count={count} avg_score={avg_score} -> {strength}")
+    return strength
