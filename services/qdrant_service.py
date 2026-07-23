@@ -35,17 +35,43 @@ If QDRANT_URL isn't configured, or Voyage embeddings aren't available
 returns an empty result rather than raising -- so a practitioner who
 hasn't set up the semantic layer yet still gets the exact same
 recency-based Reflection Context behavior the app has always had.
+
+Development logging (temporary, Hybrid RAG hardening pass)
+------------------------------------------------------------
+Every indexing and search operation now prints a short, prefixed
+"[RAG]" trace to stdout (visible in Streamlit Cloud's "Manage app" logs
+tab, or the local terminal running `streamlit run`). This is
+intentionally verbose and intentionally temporary -- it exists so the
+Hybrid RAG pipeline can be verified end-to-end without needing a
+debugger attached to a live Streamlit session. Nothing here changes
+retrieval behavior, ranking, or what a practitioner sees; it only adds
+visibility into what already happens. Failures are logged with their
+exception and full stack trace rather than silently swallowed, while
+still never raising upward (indexing/search must never block a
+practitioner's submission or the Reflection Space page -- see the
+graceful-degradation note above).
 """
 
+import traceback
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 
-from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION_NAME, EMBEDDING_DIMENSIONS
+from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION_NAME, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 from services.anonymizer import anonymize
 from services.embedding_service import embed_document, embed_query, is_available as embeddings_available
 
 _client = None
 _collection_ready = False
+
+
+def _log(msg):
+    """Temporary development logging helper. Prints a "[RAG]"-prefixed
+    line so Hybrid RAG activity is easy to grep out of app logs. Never
+    raises, never blocks -- purely observational."""
+    try:
+        print(f"[RAG] {msg}")
+    except Exception:
+        pass
 
 
 def is_available():
@@ -93,21 +119,35 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
     text reaches Claude (see services/anonymizer.py, reflection_service.py).
     The raw/original content is never sent to Qdrant or Voyage AI.
 
-    No-ops silently (logs nothing sensitive, raises nothing) if Qdrant
-    or embeddings aren't configured, or if embedding fails -- indexing
-    is best-effort and must never block a practitioner's submission.
+    No-ops silently in terms of BEHAVIOR (logs nothing sensitive, raises
+    nothing) if Qdrant or embeddings aren't configured, or if embedding
+    fails -- indexing is best-effort and must never block a
+    practitioner's submission. It DOES, however, log every attempt and
+    its outcome (see module docstring) so this is fully observable
+    during development/testing.
 
     `draft_id` is used directly as the Qdrant point id, so re-submitting
     (e.g. re-running a backfill) simply overwrites the same point rather
     than creating duplicates.
     """
+    _log(
+        f"upsert_document start: draft_id={draft_id} case_ref={case_ref!r} "
+        f"doc_type={doc_type!r} embedding_model={EMBEDDING_MODEL} "
+        f"embedding_dimensions={EMBEDDING_DIMENSIONS} collection={QDRANT_COLLECTION_NAME}"
+    )
+
     client = _get_client()
-    if client is None or not case_ref or not (case_ref or "").strip():
+    if client is None:
+        _log(f"upsert_document SKIPPED: draft_id={draft_id} reason='Qdrant not configured (QDRANT_URL missing)'")
+        return False
+    if not case_ref or not (case_ref or "").strip():
+        _log(f"upsert_document SKIPPED: draft_id={draft_id} reason='missing case_ref'")
         return False
 
     safe_text = anonymize(content or "")
     vector = embed_document(safe_text)
     if vector is None:
+        _log(f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} reason='embedding returned None (Voyage not configured or call failed)'")
         return False
 
     try:
@@ -131,8 +171,13 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
                 )
             ],
         )
+        _log(f"upsert_document SUCCESS: draft_id={draft_id} case_ref={case_ref!r} doc_type={doc_type!r} collection={QDRANT_COLLECTION_NAME}")
         return True
-    except Exception:
+    except Exception as e:
+        _log(
+            f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} "
+            f"exception={e!r}\n{traceback.format_exc()}"
+        )
         return False
 
 
@@ -152,14 +197,16 @@ def delete_document(draft_id):
     """
     client = _get_client()
     if client is None:
+        _log(f"delete_document SKIPPED: draft_id={draft_id} reason='Qdrant not configured'")
         return
     try:
         client.delete(
             collection_name=QDRANT_COLLECTION_NAME,
             points_selector=qmodels.PointIdsList(points=[draft_id]),
         )
-    except Exception:
-        pass
+        _log(f"delete_document SUCCESS: draft_id={draft_id} collection={QDRANT_COLLECTION_NAME}")
+    except Exception as e:
+        _log(f"delete_document FAILED: draft_id={draft_id} exception={e!r}\n{traceback.format_exc()}")
 
 
 def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
@@ -176,15 +223,21 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
     ids back to full document rows in Postgres.
     """
     if not case_ref or not (case_ref or "").strip():
+        _log("search_similar SKIPPED: reason='missing case_ref'")
         return []
 
     client = _get_client()
     if client is None:
+        _log(f"search_similar SKIPPED: case_ref={case_ref!r} reason='Qdrant not configured'")
         return []
 
     safe_query = anonymize(query_text or "")
     vector = embed_query(safe_query)
+    query_embedding_created = vector is not None
+    _log(f"search_similar: case_ref={case_ref!r} collection={QDRANT_COLLECTION_NAME} query_embedding_created={query_embedding_created}")
+
     if vector is None:
+        _log(f"search_similar FAILED: case_ref={case_ref!r} reason='query embedding returned None'")
         return []
 
     exclude_ids = exclude_ids or set()
@@ -201,6 +254,10 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
         )
 
     query_filter = qmodels.Filter(must=must_conditions, must_not=must_not_conditions)
+    _log(
+        f"search_similar payload_filter: case_ref=={case_ref!r} "
+        f"exclude_document_ids={sorted(exclude_ids) if exclude_ids else []} limit={limit}"
+    )
 
     try:
         _ensure_collection(client)
@@ -210,6 +267,113 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
             query_filter=query_filter,
             limit=limit,
         )
-        return [{"id": point.id, "score": point.score} for point in results]
-    except Exception:
+        out = [{"id": point.id, "score": point.score} for point in results]
+        _log(f"search_similar RESULT: case_ref={case_ref!r} retrieved={out}")
+        return out
+    except Exception as e:
+        _log(f"search_similar FAILED: case_ref={case_ref!r} exception={e!r}\n{traceback.format_exc()}")
         return []
+
+
+# --- RAG Diagnostics (temporary, development-only) --------------------
+#
+# Read-only introspection used by the "RAG Diagnostics" section of
+# pages/zz_admin.py. Never called from any practitioner-facing page.
+# Every field is best-effort: if Qdrant isn't configured or a call
+# fails, get_diagnostics() reports that clearly rather than raising, so
+# the admin page can always render something useful.
+
+def get_diagnostics():
+    """
+    Returns a dict describing the current state of the semantic layer,
+    for the temporary RAG Diagnostics admin panel:
+
+        {
+            "configured": bool,           # QDRANT_URL set at all
+            "connected": bool,             # a live call to Qdrant succeeded
+            "collection_name": str,
+            "embedding_model": str,
+            "embedding_dimensions": int,
+            "points_count": int | None,
+            "latest_document_id": int | None,
+            "latest_case_ref": str | None,
+            "latest_doc_type": str | None,
+            "latest_completed_at": str | None,
+            "error": str | None,
+        }
+    """
+    diagnostics = {
+        "configured": bool(QDRANT_URL),
+        "connected": False,
+        "collection_name": QDRANT_COLLECTION_NAME,
+        "embedding_model": EMBEDDING_MODEL,
+        "embedding_dimensions": EMBEDDING_DIMENSIONS,
+        "points_count": None,
+        "latest_document_id": None,
+        "latest_case_ref": None,
+        "latest_doc_type": None,
+        "latest_completed_at": None,
+        "error": None,
+    }
+
+    if not QDRANT_URL:
+        diagnostics["error"] = "QDRANT_URL is not configured."
+        return diagnostics
+
+    client = _get_client()
+    if client is None:
+        diagnostics["error"] = "Could not create a Qdrant client."
+        return diagnostics
+
+    try:
+        _ensure_collection(client)
+
+        count_result = client.count(collection_name=QDRANT_COLLECTION_NAME, exact=True)
+        diagnostics["points_count"] = count_result.count
+        diagnostics["connected"] = True
+
+        # Qdrant has no built-in "most recently inserted" query, so we
+        # scroll a bounded batch of points and pick the max by
+        # payload.completed_at. This is a development diagnostic only
+        # (bounded, not used for retrieval), so a capped scroll is fine
+        # even for larger collections.
+        latest = None
+        next_offset = None
+        scanned = 0
+        SCROLL_CAP = 2000
+        while scanned < SCROLL_CAP:
+            points, next_offset = client.scroll(
+                collection_name=QDRANT_COLLECTION_NAME,
+                limit=200,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            if not points:
+                break
+            for p in points:
+                payload = p.payload or {}
+                completed_at = payload.get("completed_at") or ""
+                if latest is None or completed_at > (latest.get("completed_at") or ""):
+                    latest = {
+                        "document_id": payload.get("document_id", p.id),
+                        "case_ref": payload.get("case_ref"),
+                        "document_type": payload.get("document_type"),
+                        "completed_at": completed_at,
+                    }
+            scanned += len(points)
+            if next_offset is None:
+                break
+
+        if latest:
+            diagnostics["latest_document_id"] = latest["document_id"]
+            diagnostics["latest_case_ref"] = latest["case_ref"]
+            diagnostics["latest_doc_type"] = latest["document_type"]
+            diagnostics["latest_completed_at"] = latest["completed_at"]
+
+        _log(f"get_diagnostics: {diagnostics}")
+        return diagnostics
+    except Exception as e:
+        diagnostics["error"] = f"{e!r}"
+        _log(f"get_diagnostics FAILED: exception={e!r}\n{traceback.format_exc()}")
+        return diagnostics
