@@ -34,9 +34,17 @@ needing to know retrieval got smarter. Only the internals of
 get_historical_context() changed; classify_context_strength() gained one
 new optional argument (avg_score) but is fully backward compatible for
 any call site that doesn't pass it.
+
+Development logging
+----------------------
+Logging goes through the shared services.rag_logging.rag_log() helper
+(see that module's docstring) rather than a local, ad-hoc print()-based
+helper, so "[RAG]" trace lines are reliably written to stdout on
+Streamlit Cloud instead of possibly being lost to output buffering.
 """
 
 from rdi.retrieval_service import retrieve_historical_context
+from services.rag_logging import rag_log
 
 # How many historical documents to surface by default. Kept small
 # deliberately -- this is meant to orient the practitioner, not overwhelm
@@ -58,12 +66,9 @@ STRONG_SIMILARITY_THRESHOLD = 0.75
 
 
 def _log(msg):
-    """Temporary development logging helper, matching the convention
-    used in services/qdrant_service.py and rdi/retrieval_service.py."""
-    try:
-        print(f"[RAG] {msg}")
-    except Exception:
-        pass
+    """Thin wrapper kept for call-site compatibility -- delegates to the
+    shared, properly configured logger in services.rag_logging."""
+    rag_log(f"[RAG] {msg}")
 
 
 def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIMIT, query_text=""):
