@@ -76,15 +76,18 @@ function here that can return a document from a different case.
 
 Development logging (temporary, Hybrid RAG hardening pass)
 ------------------------------------------------------------
-Each strategy's raw output, and the final merged result, are printed
-with a "[RAG]" prefix so the whole hybrid pipeline can be traced end to
-end during testing. Purely observational -- see
-services/qdrant_service.py's module docstring for the same convention
-used on the indexing/search side.
+Each strategy's raw output, and the final merged result, are logged
+with a "[RAG]" prefix via the shared services.rag_logging.rag_log()
+helper, so the whole hybrid pipeline can be traced end to end during
+testing. Purely observational -- see services/qdrant_service.py's
+module docstring for the same convention used on the indexing/search
+side, and services/rag_logging.py for why logging was centralized
+there.
 """
 
 from services.draft_storage import get_completed_drafts
 from services.qdrant_service import search_similar, is_available as qdrant_available
+from services.rag_logging import rag_log
 
 # Document types that always anchor a case's context, regardless of
 # semantic similarity -- these are the "must include" documents.
@@ -101,12 +104,9 @@ _REASON_PRIORITY = {"must_include": 0, "semantic": 1, "recency": 2}
 
 
 def _log(msg):
-    """Temporary development logging helper, matching the convention in
-    services/qdrant_service.py. Never raises."""
-    try:
-        print(f"[RAG] {msg}")
-    except Exception:
-        pass
+    """Thin wrapper kept for call-site compatibility -- delegates to the
+    shared, properly configured logger in services.rag_logging."""
+    rag_log(f"[RAG] {msg}")
 
 
 class Retriever:
