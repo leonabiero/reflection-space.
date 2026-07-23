@@ -33,8 +33,38 @@ Retrieval strategies (each is a `Retriever`)
    search isn't available/configured, or hasn't found much. This is
    what guarantees the app never regresses below its pre-RAG behavior.
 
-HybridRetriever runs all three, merges by document id (first strategy to
-propose a document wins its "why" label), and truncates to `limit`.
+HybridRetriever runs all three, merges by document id (a document that
+is proposed by more than one strategy keeps ALL of the reasons it was
+proposed for -- see "Multi-reason merge" below), and truncates to
+`limit`.
+
+Multi-reason merge
+----------------------
+Previously, a document that happened to be proposed by more than one
+strategy (e.g. it's both the case's latest Assessment AND came back as
+a semantic match) silently kept only the FIRST strategy's reason,
+because dict-based dedup just skipped it the second time it was seen.
+
+Each merged document now carries a `match_reasons` list (e.g.
+["must_include", "semantic"]) instead of a single reason, so the
+practitioner-facing transparency label can show every reason a document
+is included, not just one. `match_reason` (singular) is still populated
+for backward compatibility with any code that only cares about the
+single highest-priority reason (must_include > semantic > recency) --
+it is now derived from `match_reasons` rather than being the only
+signal.
+
+If the SemanticRetriever proposed a document, that document's semantic
+`score` is preserved on the merged record even if another strategy also
+proposed it (and would otherwise have no score) -- so "this document is
+also a documented semantic match, 0.81 similarity" is never lost just
+because MustIncludeRetriever got to it in the same pass.
+
+This module ONLY changes the shape of what's returned (additive keys)
+and how proposals from multiple strategies for the SAME document are
+combined. It does not change which documents are retrieved, their
+ranking priority (must_include > semantic > recency, then score, then
+recency), or the `limit` truncation behavior.
 
 Confidentiality
 -------------------
@@ -43,6 +73,14 @@ services.draft_storage.get_completed_drafts() (filtered here) or
 services.qdrant_service.search_similar() (filtered inside Qdrant, see
 that module's docstring). This module adds no bypass -- there is no
 function here that can return a document from a different case.
+
+Development logging (temporary, Hybrid RAG hardening pass)
+------------------------------------------------------------
+Each strategy's raw output, and the final merged result, are printed
+with a "[RAG]" prefix so the whole hybrid pipeline can be traced end to
+end during testing. Purely observational -- see
+services/qdrant_service.py's module docstring for the same convention
+used on the indexing/search side.
 """
 
 from services.draft_storage import get_completed_drafts
@@ -56,6 +94,19 @@ PLAN_DOC_TYPES = {"Intervention plan", "Esku-hartze plana", "Plan de intervenciÃ
 ASSESSMENT_DOC_TYPES = {"Social work report", "Gizarte-txostena", "Informe social"}
 
 DEFAULT_SEMANTIC_K = 4
+
+# Priority order used both for the primary `match_reason` label and for
+# ranking merged documents -- unchanged from before this pass.
+_REASON_PRIORITY = {"must_include": 0, "semantic": 1, "recency": 2}
+
+
+def _log(msg):
+    """Temporary development logging helper, matching the convention in
+    services/qdrant_service.py. Never raises."""
+    try:
+        print(f"[RAG] {msg}")
+    except Exception:
+        pass
 
 
 class Retriever:
@@ -158,9 +209,10 @@ class RecencyRetriever(Retriever):
 
 class HybridRetriever(Retriever):
     """Runs a list of strategies in order and merges their results,
-    deduped by document id -- first strategy to propose a document
-    wins the "why" label (must_include takes priority over semantic,
-    which takes priority over recency, matching the order below)."""
+    deduped by document id. Unlike before, a document proposed by more
+    than one strategy now keeps ALL of the reasons it was proposed for
+    (see module docstring, "Multi-reason merge"), and keeps a semantic
+    score if any strategy that ran for it was the SemanticRetriever."""
 
     def __init__(self, strategies=None):
         self.strategies = strategies or [
@@ -172,22 +224,69 @@ class HybridRetriever(Retriever):
     def retrieve(self, case_ref, query_text, exclude_ids, completed_docs, limit=4):
         merged = {}
         for strategy in self.strategies:
-            for doc in strategy.retrieve(case_ref, query_text, exclude_ids, completed_docs):
-                if doc["id"] not in merged:
-                    merged[doc["id"]] = doc
+            strategy_name = type(strategy).__name__
+            docs = strategy.retrieve(case_ref, query_text, exclude_ids, completed_docs)
+            _log(
+                f"{strategy_name} returned: "
+                + (
+                    ", ".join(
+                        f"[id={d['id']} doc_type={d['doc_type']!r} reason={d['match_reason']} score={d['score']}"
+                        for d in docs
+                    )
+                    if docs else "(none)"
+                )
+            )
+
+            for doc in docs:
+                doc_id = doc["id"]
+                reason = doc["match_reason"]
+                if doc_id not in merged:
+                    entry = dict(doc)
+                    entry["match_reasons"] = [reason]
+                    merged[doc_id] = entry
+                else:
+                    entry = merged[doc_id]
+                    if reason not in entry["match_reasons"]:
+                        entry["match_reasons"].append(reason)
+                    # Preserve a semantic score even if a later/earlier
+                    # strategy proposed the same document without one.
+                    if entry.get("score") is None and doc.get("score") is not None:
+                        entry["score"] = doc["score"]
+
             if len(merged) >= limit:
                 break
 
+        # Recompute the primary `match_reason` for each merged document
+        # from its full reason list, so ranking and any code that only
+        # looks at the singular field still gets the highest-priority
+        # reason (must_include > semantic > recency).
+        for entry in merged.values():
+            entry["match_reason"] = min(entry["match_reasons"], key=lambda r: _REASON_PRIORITY.get(r, 99))
+
         # Rank: must_include first, then by score (semantic docs) /
         # recency (completed_at), so the practitioner sees the most
-        # load-bearing context first.
+        # load-bearing context first. Unchanged ranking logic -- only
+        # now reads from the (possibly multi-reason) merged entry.
         def sort_key(doc):
-            priority = {"must_include": 0, "semantic": 1, "recency": 2}[doc["match_reason"]]
+            priority = _REASON_PRIORITY[doc["match_reason"]]
             score = -(doc["score"] or 0)
             return (priority, score, doc["completed_at"] or "")
 
         ordered = sorted(merged.values(), key=sort_key, reverse=False)
-        return ordered[:limit]
+        result = ordered[:limit]
+
+        _log(
+            "Merged Result: "
+            + (
+                ", ".join(
+                    f"[id={d['id']} doc_type={d['doc_type']!r} reasons={d['match_reasons']} score={d['score']}"
+                    for d in result
+                )
+                if result else "(none)"
+            )
+        )
+
+        return result
 
 
 def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=""):
@@ -197,13 +296,16 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
     Retriever over them.
 
     Returns a list of document dicts (see _doc_to_dict) -- same shape
-    the Context Engine has always returned, plus "score" and
-    "match_reason" for transparency, sorted most-relevant-first.
+    the Context Engine has always returned, plus "score", "match_reason"
+    (primary reason, back-compat) and "match_reasons" (full list) for
+    transparency, sorted most-relevant-first.
     """
     if not case_ref or not case_ref.strip():
         return []
 
     exclude_ids = exclude_ids or set()
+
+    _log(f"retrieve_historical_context start: case_ref={case_ref!r} exclude_ids={sorted(exclude_ids)} limit={limit} query_text_len={len(query_text or '')}")
 
     all_completed = get_completed_drafts()
     completed_docs = [row for row in all_completed if row[1] == case_ref]
