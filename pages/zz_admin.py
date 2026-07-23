@@ -3,7 +3,7 @@ from services.visit_log import get_visits, clear_visits
 from services.anonymizer import anonymize
 from services.language import get_lang
 from services.draft_storage import get_completed_drafts
-from services.qdrant_service import upsert_document, is_available as qdrant_available
+from services.qdrant_service import upsert_document, is_available as qdrant_available, get_diagnostics
 from config import ADMIN_PASSWORD
 
 st.set_page_config(page_title="Visit Log", layout="centered")
@@ -104,6 +104,59 @@ else:
             progress.progress((i + 1) / len(completed) if completed else 1.0)
 
         st.success(T["admin_backfill_done"].format(indexed=indexed, total=len(completed)))
+
+st.divider()
+
+# --- RAG Diagnostics (TEMPORARY, development-only) -----------------------
+#
+# Read-only introspection into the semantic layer's current state, to
+# verify the Hybrid RAG pipeline end-to-end without needing DB/Qdrant
+# console access. Intentionally hardcoded to English and left
+# un-translated -- this section is a development/testing aid, not a
+# practitioner-facing feature, and is expected to be removed (or gated
+# further) before/at general release.
+st.header("🧪 RAG Diagnostics (temporary, dev-only)")
+st.caption(
+    "Read-only snapshot of the semantic retrieval layer -- for verifying "
+    "indexing and search are working, not for day-to-day use."
+)
+
+if st.button("Refresh diagnostics"):
+    st.session_state["_rag_diagnostics"] = get_diagnostics()
+
+diagnostics = st.session_state.get("_rag_diagnostics")
+if diagnostics is None:
+    diagnostics = get_diagnostics()
+    st.session_state["_rag_diagnostics"] = diagnostics
+
+if not diagnostics["configured"]:
+    st.warning(
+        "Qdrant is not configured (QDRANT_URL is missing from secrets). "
+        "Semantic retrieval is disabled; the app is falling back to "
+        "recency-based historical context."
+    )
+elif diagnostics["error"]:
+    st.error(f"Could not reach Qdrant: {diagnostics['error']}")
+else:
+    st.success("✓ Connected to Qdrant")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**Collection:** {diagnostics['collection_name']}")
+        st.write(f"**Embedding model:** {diagnostics['embedding_model']}")
+        st.write(f"**Embedding dimensions:** {diagnostics['embedding_dimensions']}")
+    with col2:
+        points = diagnostics["points_count"]
+        st.metric("Indexed vectors", points if points is not None else "—")
+
+    st.markdown("**Latest indexed document**")
+    if diagnostics["latest_document_id"] is not None:
+        st.write(f"- Document id: `{diagnostics['latest_document_id']}`")
+        st.write(f"- Case reference: `{diagnostics['latest_case_ref']}`")
+        st.write(f"- Document type: {diagnostics['latest_doc_type']}")
+        st.write(f"- Completed at: {diagnostics['latest_completed_at']}")
+    else:
+        st.caption("No documents indexed yet.")
 
 st.divider()
 
