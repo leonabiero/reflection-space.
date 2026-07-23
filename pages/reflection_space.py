@@ -8,6 +8,7 @@ from services.exploration_log import log_exploration
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
+from services.rag_logging import rag_log
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from rdi.conversation_builder import build_conversation
@@ -410,6 +411,13 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
 
         if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
             selected_ids = {d[0] for d in selected}
+
+            # Development logging: mark the moment the practitioner
+            # actually enters the Reflection workflow for this case,
+            # before historical context retrieval or any companion
+            # calls happen. See services/rag_logging.py.
+            rag_log(f"[RAG] Reflection started for case_ref={case_ref!r}")
+
             # Hybrid RAG: use the selected document(s)' own text as the
             # semantic query, so historical retrieval finds documents
             # that are actually related to what's being reflected on
