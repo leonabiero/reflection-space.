@@ -28,6 +28,32 @@ even a semantic near-duplicate from a different client's case can never
 be returned, because Qdrant discards it at the filter stage before
 scoring is even considered for ranking.
 
+Payload index on `case_ref` (required for filtering)
+----------------------------------------------------
+Qdrant will not execute a payload filter on a field unless a payload
+index exists for that field -- filtering without an index raises
+"Index required but not found for <field>" (400 Bad Request). Since
+every search this module performs filters on case_ref (see
+Confidentiality boundary above), a payload index for case_ref must
+exist before search_similar() is ever called.
+
+_ensure_payload_index() creates that index automatically, once, right
+after the collection itself is confirmed to exist (see
+_ensure_collection() below) -- so no manual Qdrant Console step is
+needed, on a fresh collection or an existing one created before this
+fix. It is idempotent by construction:
+  - It first asks Qdrant for the collection's current payload schema
+    and does nothing if an index for "case_ref" is already listed
+    there.
+  - If it isn't listed, it creates a KEYWORD index for "case_ref".
+    Qdrant's create_payload_index call is itself safe to call more
+    than once for the same field (it does not duplicate or error on a
+    field that already has an index), so even the rare race where two
+    app instances start at the same moment is harmless.
+This never changes what gets filtered or how -- it only makes the
+existing case_ref filter (which was always part of the design) actually
+executable.
+
 Graceful degradation
 ------------------------
 If QDRANT_URL isn't configured, or Voyage embeddings aren't available
@@ -63,6 +89,12 @@ from services.embedding_service import embed_document, embed_query, is_available
 _client = None
 _collection_ready = False
 
+# The one payload field every search filters on (see module docstring,
+# "Confidentiality boundary"). Kept as a constant so
+# _ensure_payload_index() and any future caller stay in sync with
+# search_similar()'s filter field by construction, not by convention.
+CASE_REF_FIELD = "case_ref"
+
 
 def _log(msg):
     """Temporary development logging helper. Prints a "[RAG]"-prefixed
@@ -90,6 +122,57 @@ def _get_client():
     return _client
 
 
+def _ensure_payload_index(client):
+    """
+    Idempotently make sure a payload index exists for CASE_REF_FIELD
+    ("case_ref"), so filtering by it (search_similar()'s query_filter,
+    always scoped to one case) never fails with Qdrant's "Index
+    required but not found" error.
+
+    Idempotent in two layers:
+      1. It first reads back the collection's current payload schema
+         and does nothing if an index for CASE_REF_FIELD is already
+         present -- the common case on every app start after the first.
+      2. Even if that check is skipped or races with another process,
+         Qdrant's create_payload_index() itself does not error or
+         duplicate when called again for a field that already has an
+         index of the same type -- so calling this twice is always
+         safe.
+
+    Never raises upward: an indexing problem here must not block the
+    app from starting or a page from loading (same graceful-degradation
+    contract as every other function in this module). If it fails,
+    search_similar() will surface the underlying Qdrant error the next
+    time it actually tries to filter -- which is exactly the failure
+    this function exists to prevent, so it's logged loudly here.
+    """
+    try:
+        collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
+        payload_schema = getattr(collection_info, "payload_schema", None) or {}
+        if CASE_REF_FIELD in payload_schema:
+            _log(f"_ensure_payload_index: index for {CASE_REF_FIELD!r} already exists, skipping")
+            return
+    except Exception as e:
+        # Couldn't read the schema back (e.g. brand-new collection with
+        # an eventually-consistent schema listing) -- fall through and
+        # attempt to create the index anyway; create_payload_index is
+        # itself safe to call redundantly (see docstring above).
+        _log(f"_ensure_payload_index: could not read existing payload schema ({e!r}), attempting create anyway")
+
+    try:
+        client.create_payload_index(
+            collection_name=QDRANT_COLLECTION_NAME,
+            field_name=CASE_REF_FIELD,
+            field_schema=qmodels.PayloadSchemaType.KEYWORD,
+        )
+        _log(f"_ensure_payload_index: created/confirmed KEYWORD payload index for {CASE_REF_FIELD!r}")
+    except Exception as e:
+        _log(
+            f"_ensure_payload_index FAILED: could not create payload index for "
+            f"{CASE_REF_FIELD!r} exception={e!r}\n{traceback.format_exc()}"
+        )
+
+
 def _ensure_collection(client):
     global _collection_ready
     if _collection_ready:
@@ -103,6 +186,15 @@ def _ensure_collection(client):
                 distance=qmodels.Distance.COSINE,
             ),
         )
+    # Runs every time the collection is (re)confirmed -- including on
+    # collections that already existed before this fix shipped, which
+    # is exactly the case that was missing an index and triggering the
+    # "Index required but not found for case_ref" error. Cheap and
+    # idempotent (see _ensure_payload_index docstring), so doing this
+    # unconditionally here (rather than only right after
+    # create_collection) is what makes existing deployments self-heal
+    # on next startup with no manual Qdrant Console step.
+    _ensure_payload_index(client)
     _collection_ready = True
 
 
@@ -295,6 +387,7 @@ def get_diagnostics():
             "embedding_model": str,
             "embedding_dimensions": int,
             "points_count": int | None,
+            "case_ref_index_present": bool | None,
             "latest_document_id": int | None,
             "latest_case_ref": str | None,
             "latest_doc_type": str | None,
@@ -309,6 +402,7 @@ def get_diagnostics():
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dimensions": EMBEDDING_DIMENSIONS,
         "points_count": None,
+        "case_ref_index_present": None,
         "latest_document_id": None,
         "latest_case_ref": None,
         "latest_doc_type": None,
@@ -331,6 +425,13 @@ def get_diagnostics():
         count_result = client.count(collection_name=QDRANT_COLLECTION_NAME, exact=True)
         diagnostics["points_count"] = count_result.count
         diagnostics["connected"] = True
+
+        try:
+            collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
+            payload_schema = getattr(collection_info, "payload_schema", None) or {}
+            diagnostics["case_ref_index_present"] = CASE_REF_FIELD in payload_schema
+        except Exception:
+            diagnostics["case_ref_index_present"] = None
 
         # Qdrant has no built-in "most recently inserted" query, so we
         # scroll a bounded batch of points and pick the max by
