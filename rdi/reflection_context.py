@@ -11,6 +11,16 @@ inline, by hand, in pages/reflection_space.py. Nothing about what the
 practitioner sees or how the app behaves changes -- this just gives that
 data a name and clear methods, so the page reads more like "ask the
 context what it needs" rather than manipulating dictionary keys directly.
+
+Hybrid RAG upgrade
+--------------------
+`historical` documents now arrive from rdi.context_engine.get_historical_context()
+carrying two additive fields, "score" and "match_reason" (see
+rdi/retrieval_service.py). strength_summary() below now factors the
+average semantic score of included documents into its Context
+Confidence classification (see classify_context_strength()), instead of
+count alone -- everything else (set_historical_included,
+included_historical, combined_text, save/get_active/clear) is unchanged.
 """
 
 import streamlit as st
@@ -47,9 +57,24 @@ class ReflectionContext:
 
     def strength_summary(self, T):
         """The localized transparency sentence describing how much
-        historical context is included right now."""
-        count = len(self.selected_hist_ids)
-        strength = classify_context_strength(count)
+        historical context is included right now (Context Confidence).
+
+        Uses both the count of included documents and, when available,
+        the average semantic similarity score among the included
+        documents that came from semantic matching -- see
+        rdi.context_engine.classify_context_strength() for exactly how
+        those two signals combine.
+        """
+        included = self.included_historical()
+        count = len(included)
+
+        semantic_scores = [
+            h["score"] for h in included
+            if h.get("match_reason") == "semantic" and h.get("score") is not None
+        ]
+        avg_score = (sum(semantic_scores) / len(semantic_scores)) if semantic_scores else None
+
+        strength = classify_context_strength(count, avg_score=avg_score)
         if strength == "strong":
             return T["reflection_context_summary_strong"].format(count=count)
         elif strength == "limited":
