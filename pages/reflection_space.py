@@ -9,6 +9,7 @@ from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
 from services.rag_logging import rag_log
+from services.explanation_builder import build_explanations, similarity_category
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from rdi.conversation_builder import build_conversation
@@ -101,6 +102,41 @@ def _format_historical_option(h):
     )
     badge_prefix = f"{badges} " if badges else ""
     return f"{badge_prefix}{h['doc_type']} ({date_part}){edited_suffix}"
+
+
+def _render_why_included(h, current_text):
+    """
+    Sprint 11 (Explainability). Renders the collapsed "Why was this
+    included?" panel for one historical document on the Reflection
+    Context screen.
+
+    Purely presentational -- reads only fields the retrieval pipeline
+    already attaches to `h` (match_reasons/match_reason, doc_type,
+    content, score) via services.explanation_builder, and makes no
+    Anthropic API call. Does not change which documents are retrieved,
+    their order, or whether they're included -- that stays fully
+    controlled by the checkbox above this panel.
+
+    Note on nesting: Streamlit does not support an expander nested
+    inside another expander, so the optional "Technical details"
+    (similarity category) is rendered as a divided sub-section INSIDE
+    the same "Why was this included?" expander, rather than as a
+    separate nested expander -- both stay collapsed together by
+    default, which keeps the collapsed-by-default requirement intact.
+    """
+    explanations = build_explanations(h, current_text, T)
+    if not explanations:
+        return
+
+    with st.expander(T["why_included_label"], expanded=False):
+        for line in explanations:
+            st.write(f"✓ {line}")
+
+        sim_cat = similarity_category(h.get("score"))
+        if sim_cat:
+            st.divider()
+            st.caption(T["why_technical_details_label"])
+            st.write(f"{T['why_similarity_label']} {T['why_similarity_' + sim_cat]}")
 
 
 def _render_opportunity_workspace(session, opportunity):
@@ -203,6 +239,12 @@ if active_context is not None:
         st.checkbox(_format_draft_option(d), value=True, disabled=True, key=f"ctx_current_{d[0]}")
 
     if ctx.historical:
+        # Sprint 11: today's selected document text, used only locally
+        # by services.explanation_builder to find shared keywords with
+        # each historical document for the "Why was this included?"
+        # panel -- never sent anywhere, never logged.
+        current_text = "\n\n".join(d[3] for d in ctx.selected)
+
         st.markdown(f"**{T['reflection_context_historical_label']}**")
         for h in ctx.historical:
             hist_key = f"ctx_hist_{h['id']}"
@@ -212,6 +254,7 @@ if active_context is not None:
                 key=hist_key,
             )
             ctx.set_historical_included(h["id"], checked)
+            _render_why_included(h, current_text)
 
     summary = ctx.strength_summary(T)
     st.info(summary)
