@@ -64,9 +64,12 @@ recency-based Reflection Context behavior the app has always had.
 
 Development logging (temporary, Hybrid RAG hardening pass)
 ------------------------------------------------------------
-Every indexing and search operation now prints a short, prefixed
-"[RAG]" trace to stdout (visible in Streamlit Cloud's "Manage app" logs
-tab, or the local terminal running `streamlit run`). This is
+Every indexing and search operation prints a short, prefixed "[RAG]"
+trace, via the shared services.rag_logging.rag_log() helper (see that
+module for why logging was centralized there -- in short: stdout
+buffering on Streamlit Cloud could previously swallow plain print()
+calls; rag_log() writes through both a properly configured
+logging.Logger AND a flushed print() so tracing is reliable). This is
 intentionally verbose and intentionally temporary -- it exists so the
 Hybrid RAG pipeline can be verified end-to-end without needing a
 debugger attached to a live Streamlit session. Nothing here changes
@@ -85,6 +88,7 @@ from qdrant_client.http import models as qmodels
 from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION_NAME, EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 from services.anonymizer import anonymize
 from services.embedding_service import embed_document, embed_query, is_available as embeddings_available
+from services.rag_logging import rag_log
 
 _client = None
 _collection_ready = False
@@ -97,13 +101,10 @@ CASE_REF_FIELD = "case_ref"
 
 
 def _log(msg):
-    """Temporary development logging helper. Prints a "[RAG]"-prefixed
-    line so Hybrid RAG activity is easy to grep out of app logs. Never
-    raises, never blocks -- purely observational."""
-    try:
-        print(f"[RAG] {msg}")
-    except Exception:
-        pass
+    """Thin wrapper kept for call-site compatibility -- delegates to the
+    shared, properly configured logger in services.rag_logging. See
+    that module's docstring for why logging was centralized there."""
+    rag_log(f"[RAG] {msg}")
 
 
 def is_available():
@@ -353,6 +354,7 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
 
     try:
         _ensure_collection(client)
+        _log("Starting semantic search...")
         results = client.search(
             collection_name=QDRANT_COLLECTION_NAME,
             query_vector=vector,
