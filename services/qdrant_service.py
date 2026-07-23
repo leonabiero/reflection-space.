@@ -28,31 +28,41 @@ even a semantic near-duplicate from a different client's case can never
 be returned, because Qdrant discards it at the filter stage before
 scoring is even considered for ranking.
 
-Payload index on `case_ref` (required for filtering)
-----------------------------------------------------
+search_similar() ALSO filters (must_not) on `document_id`, to exclude
+today's own document(s) from its own historical-context suggestions
+(see the `exclude_ids` argument).
+
+Payload indexes (required for filtering)
+-----------------------------------------
 Qdrant will not execute a payload filter on a field unless a payload
 index exists for that field -- filtering without an index raises
 "Index required but not found for <field>" (400 Bad Request). Since
-every search this module performs filters on case_ref (see
-Confidentiality boundary above), a payload index for case_ref must
-exist before search_similar() is ever called.
+search_similar() filters on BOTH case_ref (must) and document_id
+(must_not), payload indexes for BOTH fields must exist before
+search_similar() is ever called:
 
-_ensure_payload_index() creates that index automatically, once, right
-after the collection itself is confirmed to exist (see
-_ensure_collection() below) -- so no manual Qdrant Console step is
-needed, on a fresh collection or an existing one created before this
-fix. It is idempotent by construction:
+    - "case_ref"     -> KEYWORD index
+    - "document_id"  -> INTEGER index
+
+REQUIRED_PAYLOAD_INDEXES (below) is the single source of truth for
+which fields need an index and what schema type each needs.
+_ensure_payload_indexes() creates whichever of these are missing,
+automatically, once, right after the collection itself is confirmed to
+exist (see _ensure_collection() below) -- so no manual Qdrant Console
+step is ever needed, on a fresh collection or an existing one created
+before this fix. It is idempotent by construction:
   - It first asks Qdrant for the collection's current payload schema
-    and does nothing if an index for "case_ref" is already listed
-    there.
-  - If it isn't listed, it creates a KEYWORD index for "case_ref".
-    Qdrant's create_payload_index call is itself safe to call more
-    than once for the same field (it does not duplicate or error on a
-    field that already has an index), so even the rare race where two
-    app instances start at the same moment is harmless.
+    and does nothing for any field whose index is already listed
+    there (logs "[RAG] Payload index exists: <field>").
+  - For any field not yet listed, it creates an index of the
+    configured type. Qdrant's create_payload_index call is itself safe
+    to call more than once for the same field (it does not duplicate
+    or error on a field that already has an index of the same type),
+    so even the rare race where two app instances start at the same
+    moment is harmless.
 This never changes what gets filtered or how -- it only makes the
-existing case_ref filter (which was always part of the design) actually
-executable.
+existing case_ref / document_id filters (which were always part of the
+design) actually executable.
 
 Graceful degradation
 ------------------------
@@ -93,11 +103,24 @@ from services.rag_logging import rag_log
 _client = None
 _collection_ready = False
 
-# The one payload field every search filters on (see module docstring,
-# "Confidentiality boundary"). Kept as a constant so
-# _ensure_payload_index() and any future caller stay in sync with
-# search_similar()'s filter field by construction, not by convention.
+# The payload field every search filters on for confidentiality (see
+# module docstring, "Confidentiality boundary"). Kept as a constant so
+# search_similar() and anything referencing it by name stay in sync.
 CASE_REF_FIELD = "case_ref"
+
+# The payload field search_similar() uses to exclude today's own
+# document(s) from its own historical suggestions.
+DOCUMENT_ID_FIELD = "document_id"
+
+# Single source of truth for every payload field that needs an index
+# before search_similar() can filter on it, and what schema type each
+# one needs. Add a new entry here (and nowhere else) if a future filter
+# field is introduced -- _ensure_payload_indexes() below picks it up
+# automatically.
+REQUIRED_PAYLOAD_INDEXES = {
+    CASE_REF_FIELD: qmodels.PayloadSchemaType.KEYWORD,
+    DOCUMENT_ID_FIELD: qmodels.PayloadSchemaType.INTEGER,
+}
 
 
 def _log(msg):
@@ -123,17 +146,20 @@ def _get_client():
     return _client
 
 
-def _ensure_payload_index(client):
+def _ensure_payload_indexes(client):
     """
-    Idempotently make sure a payload index exists for CASE_REF_FIELD
-    ("case_ref"), so filtering by it (search_similar()'s query_filter,
-    always scoped to one case) never fails with Qdrant's "Index
-    required but not found" error.
+    Idempotently make sure a payload index exists for EVERY field in
+    REQUIRED_PAYLOAD_INDEXES (currently "case_ref" -> KEYWORD and
+    "document_id" -> INTEGER), so filtering by any of them (
+    search_similar()'s query_filter, which filters on case_ref and
+    excludes on document_id) never fails with Qdrant's "Index required
+    but not found" error.
 
-    Idempotent in two layers:
+    Idempotent in two layers, per field:
       1. It first reads back the collection's current payload schema
-         and does nothing if an index for CASE_REF_FIELD is already
-         present -- the common case on every app start after the first.
+         and does nothing for a field whose index is already present
+         -- the common case on every app start after the first. Logs
+         "[RAG] Payload index exists: <field>" in that case.
       2. Even if that check is skipped or races with another process,
          Qdrant's create_payload_index() itself does not error or
          duplicate when called again for a field that already has an
@@ -150,28 +176,33 @@ def _ensure_payload_index(client):
     try:
         collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
         payload_schema = getattr(collection_info, "payload_schema", None) or {}
-        if CASE_REF_FIELD in payload_schema:
-            _log(f"_ensure_payload_index: index for {CASE_REF_FIELD!r} already exists, skipping")
-            return
     except Exception as e:
         # Couldn't read the schema back (e.g. brand-new collection with
-        # an eventually-consistent schema listing) -- fall through and
-        # attempt to create the index anyway; create_payload_index is
-        # itself safe to call redundantly (see docstring above).
-        _log(f"_ensure_payload_index: could not read existing payload schema ({e!r}), attempting create anyway")
+        # an eventually-consistent schema listing) -- treat as "nothing
+        # confirmed yet" and attempt to create every required index
+        # anyway; create_payload_index is itself safe to call
+        # redundantly (see docstring above).
+        _log(f"_ensure_payload_indexes: could not read existing payload schema ({e!r}), attempting create for all required fields anyway")
+        payload_schema = {}
 
-    try:
-        client.create_payload_index(
-            collection_name=QDRANT_COLLECTION_NAME,
-            field_name=CASE_REF_FIELD,
-            field_schema=qmodels.PayloadSchemaType.KEYWORD,
-        )
-        _log(f"_ensure_payload_index: created/confirmed KEYWORD payload index for {CASE_REF_FIELD!r}")
-    except Exception as e:
-        _log(
-            f"_ensure_payload_index FAILED: could not create payload index for "
-            f"{CASE_REF_FIELD!r} exception={e!r}\n{traceback.format_exc()}"
-        )
+    for field_name, field_schema in REQUIRED_PAYLOAD_INDEXES.items():
+        if field_name in payload_schema:
+            _log(f"Payload index exists: {field_name}")
+            continue
+
+        try:
+            client.create_payload_index(
+                collection_name=QDRANT_COLLECTION_NAME,
+                field_name=field_name,
+                field_schema=field_schema,
+            )
+            _log(f"_ensure_payload_indexes: created/confirmed {field_schema} payload index for {field_name!r}")
+            _log(f"Payload index exists: {field_name}")
+        except Exception as e:
+            _log(
+                f"_ensure_payload_indexes FAILED: could not create payload index for "
+                f"{field_name!r} exception={e!r}\n{traceback.format_exc()}"
+            )
 
 
 def _ensure_collection(client):
@@ -190,12 +221,12 @@ def _ensure_collection(client):
     # Runs every time the collection is (re)confirmed -- including on
     # collections that already existed before this fix shipped, which
     # is exactly the case that was missing an index and triggering the
-    # "Index required but not found for case_ref" error. Cheap and
-    # idempotent (see _ensure_payload_index docstring), so doing this
-    # unconditionally here (rather than only right after
-    # create_collection) is what makes existing deployments self-heal
-    # on next startup with no manual Qdrant Console step.
-    _ensure_payload_index(client)
+    # "Index required but not found for case_ref" / "...document_id"
+    # errors. Cheap and idempotent (see _ensure_payload_indexes
+    # docstring), so doing this unconditionally here (rather than only
+    # right after create_collection) is what makes existing deployments
+    # self-heal on next startup with no manual Qdrant Console step.
+    _ensure_payload_indexes(client)
     _collection_ready = True
 
 
@@ -309,6 +340,11 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
     not an optional filter, so there is no way to call this without
     confidentiality scoping.
 
+    Filters used (both require a payload index -- see
+    _ensure_payload_indexes()):
+      - must:     case_ref == case_ref               (KEYWORD index)
+      - must_not: document_id in exclude_ids          (INTEGER index)
+
     Returns a list of {"id": draft_id, "score": float} dicts, most
     similar first, or [] if semantic search isn't available/configured,
     the case has no indexed documents, or embedding the query failed.
@@ -335,13 +371,13 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
 
     exclude_ids = exclude_ids or set()
     must_conditions = [
-        qmodels.FieldCondition(key="case_ref", match=qmodels.MatchValue(value=case_ref))
+        qmodels.FieldCondition(key=CASE_REF_FIELD, match=qmodels.MatchValue(value=case_ref))
     ]
     must_not_conditions = []
     if exclude_ids:
         must_not_conditions.append(
             qmodels.FieldCondition(
-                key="document_id",
+                key=DOCUMENT_ID_FIELD,
                 match=qmodels.MatchAny(any=list(exclude_ids)),
             )
         )
@@ -383,13 +419,14 @@ def get_diagnostics():
     for the temporary RAG Diagnostics admin panel:
 
         {
-            "configured": bool,           # QDRANT_URL set at all
-            "connected": bool,             # a live call to Qdrant succeeded
+            "configured": bool,                  # QDRANT_URL set at all
+            "connected": bool,                    # a live call to Qdrant succeeded
             "collection_name": str,
             "embedding_model": str,
             "embedding_dimensions": int,
             "points_count": int | None,
             "case_ref_index_present": bool | None,
+            "document_id_index_present": bool | None,
             "latest_document_id": int | None,
             "latest_case_ref": str | None,
             "latest_doc_type": str | None,
@@ -405,6 +442,7 @@ def get_diagnostics():
         "embedding_dimensions": EMBEDDING_DIMENSIONS,
         "points_count": None,
         "case_ref_index_present": None,
+        "document_id_index_present": None,
         "latest_document_id": None,
         "latest_case_ref": None,
         "latest_doc_type": None,
@@ -432,8 +470,13 @@ def get_diagnostics():
             collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
             payload_schema = getattr(collection_info, "payload_schema", None) or {}
             diagnostics["case_ref_index_present"] = CASE_REF_FIELD in payload_schema
+            diagnostics["document_id_index_present"] = DOCUMENT_ID_FIELD in payload_schema
+            for field_name in REQUIRED_PAYLOAD_INDEXES:
+                if field_name in payload_schema:
+                    _log(f"Payload index exists: {field_name}")
         except Exception:
             diagnostics["case_ref_index_present"] = None
+            diagnostics["document_id_index_present"] = None
 
         # Qdrant has no built-in "most recently inserted" query, so we
         # scroll a bounded batch of points and pick the max by
