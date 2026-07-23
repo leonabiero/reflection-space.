@@ -2,6 +2,8 @@ import streamlit as st
 from services.visit_log import get_visits, clear_visits
 from services.anonymizer import anonymize
 from services.language import get_lang
+from services.draft_storage import get_completed_drafts
+from services.qdrant_service import upsert_document, is_available as qdrant_available
 from config import ADMIN_PASSWORD
 
 st.set_page_config(page_title="Visit Log", layout="centered")
@@ -63,6 +65,45 @@ st.write("")
 if st.button(T["admin_clear_log"]):
     clear_visits()
     st.rerun()
+
+st.divider()
+
+# --- Hybrid RAG: Qdrant backfill ----------------------------------------
+# One-off utility for documents that were completed BEFORE the semantic
+# retrieval upgrade existed -- those rows are in Postgres (the system of
+# record, untouched) but were never embedded/indexed in Qdrant, since
+# indexing only started happening at finalize_draft() going forward.
+# Safe to run more than once: upsert_document() overwrites by draft id
+# rather than duplicating, so re-running just re-embeds everything.
+st.header(T["admin_backfill_header"])
+st.caption(T["admin_backfill_caption"])
+
+if not qdrant_available():
+    st.warning(T["admin_backfill_unavailable"])
+else:
+    if st.button(T["admin_backfill_button"]):
+        completed = get_completed_drafts()
+        progress = st.progress(0)
+        status = st.empty()
+        indexed = 0
+
+        for i, row in enumerate(completed):
+            draft_id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at = row
+            status.write(T["admin_backfill_running"].format(current=i + 1, total=len(completed)))
+            ok = upsert_document(
+                draft_id, case_ref, doc_type,
+                content=content,
+                language="",
+                created_at=created_at,
+                completed_at=completed_at,
+                created_by_role=created_by_role,
+                was_edited=was_edited,
+            )
+            if ok:
+                indexed += 1
+            progress.progress((i + 1) / len(completed) if completed else 1.0)
+
+        st.success(T["admin_backfill_done"].format(indexed=indexed, total=len(completed)))
 
 st.divider()
 
