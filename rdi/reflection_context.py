@@ -26,21 +26,24 @@ document that is BOTH a must-include document AND a semantic match still
 has its semantic score counted towards confidence. Everything else
 (set_historical_included, included_historical, combined_text,
 save/get_active/clear) is unchanged.
+
+Development logging
+----------------------
+Logging goes through the shared services.rag_logging.rag_log() helper
+(see that module's docstring) rather than a local, ad-hoc print()-based
+helper, so "[RAG]" trace lines are reliably written to stdout on
+Streamlit Cloud instead of possibly being lost to output buffering.
 """
 
 import streamlit as st
 from rdi.context_engine import classify_context_strength
+from services.rag_logging import rag_log
 
 
 def _log(msg):
-    """Temporary development logging helper, matching the convention
-    used elsewhere in the Hybrid RAG pipeline (see
-    services/qdrant_service.py, rdi/retrieval_service.py,
-    rdi/context_engine.py)."""
-    try:
-        print(f"[RAG] {msg}")
-    except Exception:
-        pass
+    """Thin wrapper kept for call-site compatibility -- delegates to the
+    shared, properly configured logger in services.rag_logging."""
+    rag_log(f"[RAG] {msg}")
 
 
 class ReflectionContext:
