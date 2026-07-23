@@ -15,16 +15,32 @@ context what it needs" rather than manipulating dictionary keys directly.
 Hybrid RAG upgrade
 --------------------
 `historical` documents now arrive from rdi.context_engine.get_historical_context()
-carrying two additive fields, "score" and "match_reason" (see
-rdi/retrieval_service.py). strength_summary() below now factors the
-average semantic score of included documents into its Context
-Confidence classification (see classify_context_strength()), instead of
-count alone -- everything else (set_historical_included,
-included_historical, combined_text, save/get_active/clear) is unchanged.
+carrying three additive fields: "score", "match_reason" (primary reason,
+back-compat), and "match_reasons" (the full list of every retrieval
+strategy that proposed this document -- see rdi/retrieval_service.py,
+"Multi-reason merge"). strength_summary() below factors the average
+semantic score of included documents into its Context Confidence
+classification (see classify_context_strength()), and now looks at
+`match_reasons` (rather than the old single `match_reason`) so a
+document that is BOTH a must-include document AND a semantic match still
+has its semantic score counted towards confidence. Everything else
+(set_historical_included, included_historical, combined_text,
+save/get_active/clear) is unchanged.
 """
 
 import streamlit as st
 from rdi.context_engine import classify_context_strength
+
+
+def _log(msg):
+    """Temporary development logging helper, matching the convention
+    used elsewhere in the Hybrid RAG pipeline (see
+    services/qdrant_service.py, rdi/retrieval_service.py,
+    rdi/context_engine.py)."""
+    try:
+        print(f"[RAG] {msg}")
+    except Exception:
+        pass
 
 
 class ReflectionContext:
@@ -55,6 +71,23 @@ class ReflectionContext:
         """The historical documents currently still checked."""
         return [h for h in self.historical if h["id"] in self.selected_hist_ids]
 
+    def _semantic_scores(self, docs):
+        """Average similarity score among the given docs that were
+        proposed (at least in part) by the SemanticRetriever. A
+        document is counted here if "semantic" appears anywhere in its
+        match_reasons list, so a must-include document that ALSO came
+        back as a semantic match still contributes its score."""
+        scores = []
+        for h in docs:
+            reasons = h.get("match_reasons")
+            if reasons is None:
+                # Back-compat: older/plain callers that only set the
+                # singular match_reason.
+                reasons = [h.get("match_reason")] if h.get("match_reason") else []
+            if "semantic" in reasons and h.get("score") is not None:
+                scores.append(h["score"])
+        return scores
+
     def strength_summary(self, T):
         """The localized transparency sentence describing how much
         historical context is included right now (Context Confidence).
@@ -68,10 +101,7 @@ class ReflectionContext:
         included = self.included_historical()
         count = len(included)
 
-        semantic_scores = [
-            h["score"] for h in included
-            if h.get("match_reason") == "semantic" and h.get("score") is not None
-        ]
+        semantic_scores = self._semantic_scores(included)
         avg_score = (sum(semantic_scores) / len(semantic_scores)) if semantic_scores else None
 
         strength = classify_context_strength(count, avg_score=avg_score)
@@ -88,6 +118,32 @@ class ReflectionContext:
         parts = [d[3] for d in self.selected]
         parts += [h["content"] for h in self.included_historical()]
         return "\n\n".join(parts)
+
+    def log_pre_orchestrator_summary(self, T):
+        """Temporary development logging: emits one detailed "[RAG]"
+        trace of exactly what is about to be sent into the Reflection
+        Orchestrator -- the current document(s), every included
+        historical document with its reasons and score, and the
+        resulting Context Confidence sentence. Call this once, right
+        before rdi.orchestrator.run_reflection(), so the full context
+        that produced a given reflection is always visible in the logs.
+        Purely observational -- never changes what gets sent."""
+        included = self.included_historical()
+        summary_text = self.strength_summary(T)
+
+        current_lines = [f"id={d[0]} doc_type={d[2]!r}" for d in self.selected]
+        historical_lines = [
+            f"id={h['id']} doc_type={h['doc_type']!r} reasons={h.get('match_reasons', [h.get('match_reason')])} score={h.get('score')}"
+            for h in included
+        ]
+
+        _log(
+            "Reflection Context (pre-orchestrator): "
+            f"case_ref={self.case_ref!r} | "
+            f"current_documents=[{'; '.join(current_lines)}] | "
+            f"historical_documents=[{'; '.join(historical_lines) if historical_lines else 'none'}] | "
+            f"context_confidence={summary_text!r}"
+        )
 
     # --- session storage -------------------------------------------------
     # Kept as simple wrappers around st.session_state, in one place, so
