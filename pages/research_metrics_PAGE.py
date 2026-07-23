@@ -2,14 +2,14 @@ import streamlit as st
 from services.language import init_language, render_nav
 from services.visit_log import log_visit
 from services.identity import init_identity, render_identity_footer
-from services.research_metrics import build_research_summary, summary_to_dataframe, build_research_export_csv
+from services.research_metrics_SERVICE import build_research_summary, summary_to_dataframe, build_research_export_csv
 
 # Research Metrics
 # ==================
 #
 # Sprint 10. Prepares the app for future research/evaluation by
 # surfacing organisation-wide reflection ACTIVITY -- never professional
-# competence (see services/research_metrics.py for the structural
+# competence (see services/research_metrics_SERVICE.py for the structural
 # reasoning; nothing in that module can return per-person data, so
 # nothing here can render it either).
 #
