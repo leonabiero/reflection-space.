@@ -728,4 +728,4 @@ def render_nav(T):
         st.sidebar.page_link("pages/audit_log.py", label=T["nav_audit_log"])
 
     if current_role == "System Administrator":
-        st.sidebar.page_link("pages/research_metrics.py", label=T["nav_research_metrics"])
+        st.sidebar.page_link("pages/research_metrics_PAGE.py", label=T["nav_research_metrics"])
