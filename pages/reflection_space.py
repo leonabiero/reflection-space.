@@ -28,6 +28,17 @@ st.title(T["nav_reflection"])
 # opportunity's stored observation text.
 COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 
+# Hybrid RAG transparency: a short badge per retrieval reason, so the
+# practitioner can see not just WHICH documents were retrieved but WHY,
+# alongside the existing checkbox review/deselect controls -- this is
+# additive to _format_historical_option, nothing about deselecting or
+# reviewing documents changes.
+MATCH_REASON_BADGES = {
+    "must_include": "📌",
+    "semantic": "🔎",
+    "recency": "🕒",
+}
+
 
 def _clear_all():
     """Leaving the reflection flow entirely, whatever stage it was at --
@@ -67,10 +78,14 @@ def _format_draft_option(d):
 
 
 def _format_historical_option(h):
-    # h is a dict from rdi.context_engine.get_historical_context()
+    # h is a dict from rdi.context_engine.get_historical_context() --
+    # now also carrying "score" and "match_reason" (see
+    # rdi/retrieval_service.py), used only for the transparency badge.
     date_part = _date_only(h.get("completed_at") or h.get("created_at"))
     edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
-    return f"{h['doc_type']} ({date_part}){edited_suffix}"
+    badge = MATCH_REASON_BADGES.get(h.get("match_reason"), "")
+    badge_prefix = f"{badge} " if badge else ""
+    return f"{badge_prefix}{h['doc_type']} ({date_part}){edited_suffix}"
 
 
 def _render_opportunity_workspace(session, opportunity):
@@ -373,7 +388,14 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
 
         if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
             selected_ids = {d[0] for d in selected}
-            historical = get_historical_context(case_ref, exclude_ids=selected_ids)
+            # Hybrid RAG: use the selected document(s)' own text as the
+            # semantic query, so historical retrieval finds documents
+            # that are actually related to what's being reflected on
+            # today -- not just whatever is most recent for this case.
+            selected_text = "\n\n".join(d[3] for d in selected)
+            historical = get_historical_context(
+                case_ref, exclude_ids=selected_ids, query_text=selected_text,
+            )
             ReflectionContext(case_ref=case_ref, selected=selected, historical=historical).save()
             # Reset this folder's checkboxes so a future visit starts clean.
             for d in case_drafts:
