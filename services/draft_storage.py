@@ -2,6 +2,7 @@ import psycopg2
 from datetime import datetime, timedelta
 from config import DATABASE_URL
 from services.audit_log import log_action
+from services.qdrant_service import upsert_document, delete_document
 
 DELETION_WINDOW_HOURS = 48
 
@@ -90,9 +91,15 @@ def get_draft_by_id(draft_id):
 def finalize_draft(draft_id, edited_content):
     conn = _get_conn()
     with conn.cursor() as c:
-        c.execute("SELECT content, case_ref, doc_type, created_by, created_by_role FROM drafts WHERE id=%s", (draft_id,))
+        c.execute("""
+            SELECT content, case_ref, doc_type, created_by, created_by_role, language
+            FROM drafts WHERE id=%s
+        """, (draft_id,))
         row = c.fetchone()
-        current_content, case_ref, doc_type, created_by, created_by_role = row if row else ("", "", "", "", "")
+        if row:
+            current_content, case_ref, doc_type, created_by, created_by_role, language = row
+        else:
+            current_content, case_ref, doc_type, created_by, created_by_role, language = ("", "", "", "", "", "")
         now = datetime.now().isoformat()
 
         if edited_content.strip() != (current_content or "").strip():
@@ -116,6 +123,28 @@ def finalize_draft(draft_id, edited_content):
     log_action(
         "submitted", draft_id, case_ref, doc_type, created_by, created_by_role,
         details=("edited" if edited_flag else "not edited"),
+    )
+
+    # Hybrid RAG: index the now-completed document in Qdrant so future
+    # reflections on this case can find it semantically. Best-effort --
+    # see services/qdrant_service.py for why this never raises upward.
+    # Fetch created_at separately rather than reusing the SELECT above,
+    # since that row reflects pre-update state.
+    conn2 = _get_conn()
+    with conn2.cursor() as c2:
+        c2.execute("SELECT created_at FROM drafts WHERE id=%s", (draft_id,))
+        created_row = c2.fetchone()
+    conn2.close()
+    created_at = created_row[0] if created_row else ""
+
+    upsert_document(
+        draft_id, case_ref, doc_type,
+        content=edited_content,
+        language=language,
+        created_at=created_at,
+        completed_at=now,
+        created_by_role=created_by_role,
+        was_edited=edited_flag,
     )
 
 
@@ -176,6 +205,10 @@ def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
     If the row is missing or is no longer in 'draft' status (e.g. it was
     already submitted in another tab), this is a no-op rather than a
     forced delete, so it can't accidentally remove a completed case.
+
+    A pending (never-completed) draft is never indexed in Qdrant in the
+    first place -- indexing only happens at finalize_draft() -- so no
+    Qdrant cleanup is needed here.
     """
     conn = _get_conn()
     with conn.cursor() as c:
@@ -206,6 +239,12 @@ def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
     out of every normal view), while keeping the content for a short
     window in case this needs to be undone. Content is only truly
     removed by purge_expired_deletions().
+
+    The Qdrant vector deliberately stays in place during this window
+    (see services/qdrant_service.py:delete_document docstring) -- the
+    case is already invisible everywhere a user could see it, and
+    keeping the vector means restore_draft() doesn't need to re-embed
+    anything.
     """
     conn = _get_conn()
     with conn.cursor() as c:
@@ -269,6 +308,12 @@ def purge_expired_deletions():
     background scheduler on this hosting setup, so the purge happens
     the next time someone actually uses the app after the window
     closes, rather than at an exact second.
+
+    Also removes the corresponding Qdrant vector for each purged
+    document (see services/qdrant_service.py:delete_document), so a
+    permanently erased case leaves no retrievable trace in the semantic
+    index either -- matching the same GDPR guarantee already made for
+    Postgres content.
     """
     cutoff = (datetime.now() - timedelta(hours=DELETION_WINDOW_HOURS)).isoformat()
     conn = _get_conn()
@@ -286,4 +331,5 @@ def purge_expired_deletions():
     conn.close()
 
     for draft_id, case_ref, doc_type in expired:
+        delete_document(draft_id)
         log_action("purged", draft_id, case_ref, doc_type, "system", "system")
