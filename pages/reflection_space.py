@@ -33,11 +33,18 @@ COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 # alongside the existing checkbox review/deselect controls -- this is
 # additive to _format_historical_option, nothing about deselecting or
 # reviewing documents changes.
+#
+# A document can now carry MORE THAN ONE reason (e.g. it's both the
+# case's latest Assessment AND a semantic match -- see
+# rdi/retrieval_service.py, "Multi-reason merge"), so
+# _format_historical_option renders one badge per reason present,
+# always in this fixed order, rather than a single badge.
 MATCH_REASON_BADGES = {
     "must_include": "📌",
     "semantic": "🔎",
     "recency": "🕒",
 }
+MATCH_REASON_ORDER = ["must_include", "semantic", "recency"]
 
 
 def _clear_all():
@@ -79,12 +86,19 @@ def _format_draft_option(d):
 
 def _format_historical_option(h):
     # h is a dict from rdi.context_engine.get_historical_context() --
-    # now also carrying "score" and "match_reason" (see
-    # rdi/retrieval_service.py), used only for the transparency badge.
+    # now also carrying "score", "match_reason" (primary, back-compat)
+    # and "match_reasons" (full list -- see rdi/retrieval_service.py),
+    # used only for the transparency badge(s).
     date_part = _date_only(h.get("completed_at") or h.get("created_at"))
     edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
-    badge = MATCH_REASON_BADGES.get(h.get("match_reason"), "")
-    badge_prefix = f"{badge} " if badge else ""
+
+    reasons = h.get("match_reasons")
+    if not reasons:
+        reasons = [h.get("match_reason")] if h.get("match_reason") else []
+    badges = "".join(
+        MATCH_REASON_BADGES[r] for r in MATCH_REASON_ORDER if r in reasons
+    )
+    badge_prefix = f"{badges} " if badges else ""
     return f"{badge_prefix}{h['doc_type']} ({date_part}){edited_suffix}"
 
 
@@ -205,6 +219,14 @@ if active_context is not None:
     with col1:
         if st.button(T["reflection_context_continue"], type="primary"):
             combined_text = ctx.combined_text()
+
+            # Development logging: capture exactly what is about to be
+            # sent into the Reflection Orchestrator -- current
+            # document(s), every included historical document with its
+            # retrieval reason(s) and semantic score, and the resulting
+            # Context Confidence sentence. See
+            # rdi.reflection_context.ReflectionContext.log_pre_orchestrator_summary.
+            ctx.log_pre_orchestrator_summary(T)
 
             # Same underlying companion calls as before (see
             # rdi/orchestrator.py) -- this just also reshapes the result
