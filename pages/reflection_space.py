@@ -59,9 +59,8 @@ MATCH_REASON_TEXT_KEY = {
 }
 
 # Small emoji used purely to make each reflective dimension visually
-# distinct on the Reflection Dashboard tabs (UX Priority 2) and the
-# Reflection Coverage checklist (UX Priority 7). Cosmetic only -- does
-# not affect which companions run or what they return.
+# distinct on the Reflection Dashboard tabs (UX Priority 2). Cosmetic
+# only -- does not affect which companions run or what they return.
 TRIGGER_ICONS = {
     "client_voice": "🗣️",
     "observation_vs_interpretation": "🔍",
@@ -199,43 +198,64 @@ def _render_why_included(h, current_text):
 # ---------------------------------------------------------------------
 # Phase 3 (Practitioner UX)
 # ---------------------------------------------------------------------
-# Everything below this line is new for Phase 3. It is purely
-# presentational: it reorganises how existing data (historical
-# documents, opportunities, retrieval reasons, session progress) is
-# LAID OUT on screen. It does not call the Anthropic API, does not
-# change retrieval/ranking, does not change the prompts, and does not
-# add, remove, or reorder any of the 8 reflective dimensions -- see the
-# accompanying explanation for the full list of what was and wasn't
-# touched.
+# Everything below this line is presentational: it reorganises how
+# existing data (historical documents, opportunities, retrieval
+# reasons, session progress) is LAID OUT on screen. It does not call
+# the Anthropic API, does not change retrieval/ranking, does not
+# change the prompts, and does not add, remove, or reorder any of the
+# 8 reflective dimensions.
 
-JOURNEY_STEPS = ["journey_step1", "journey_step2", "journey_step3", "journey_step4"]
+# UX pass: the Reflection Journey now has three stages instead of four.
+# "Reflective Questions" was removed as a separate stage -- the
+# questions are already part of the Professional Reflection stage
+# (they appear inside each dimension's tab), so showing them as their
+# own step was misleading rather than clarifying.
+JOURNEY_STEPS = ["journey_step1", "journey_step2", "journey_step3"]
 
 
 def _render_journey(active_step):
     """
     UX Priority 1 -- Reflection Journey.
 
-    Renders a simple 4-step horizontal progress strip so the
-    practitioner always knows where they are in the flow: which
-    document(s) they picked, that historical context was gathered,
-    that the AI is reasoning across both, and that reflective questions
-    are what comes out the other end. `active_step` is 1-4; steps
-    before it are shown as done (✓), the active one is highlighted,
-    later ones are shown as upcoming.
+    Renders a single-line horizontal progress strip (Today's
+    Documentation -> Historical Context -> Professional Reflection) so
+    the practitioner always knows where they are in the flow.
+    `active_step` is 1-3; steps before it are shown as done (✓), the
+    active one is highlighted, later ones are shown as upcoming.
+
+    Rendered as one flex row of inline-block spans (rather than
+    st.columns, which forces each label into a fixed-width column and
+    was what caused stage names to wrap onto two lines) with
+    "white-space: nowrap" on every stage, so all three names reliably
+    stay on a single line regardless of screen width. Long-term, if a
+    future stage name were ever long enough to still overflow on a
+    narrow phone screen, the row scrolls horizontally rather than
+    wrapping and breaking the layout.
 
     This explains the WORKFLOW in plain language -- it never exposes
     retrieval internals, model names, or prompt structure.
     """
-    cols = st.columns(4)
-    for i, (col, key) in enumerate(zip(cols, JOURNEY_STEPS), start=1):
+    parts = []
+    for i, key in enumerate(JOURNEY_STEPS, start=1):
         label = T[key]
-        with col:
-            if i < active_step:
-                st.markdown(f"✅ **{label}**")
-            elif i == active_step:
-                st.markdown(f"▶️ **:blue[{label}]**")
-            else:
-                st.markdown(f"⚪ {label}")
+        if i < active_step:
+            parts.append(f'<span style="white-space:nowrap;">✅ <b>{label}</b></span>')
+        elif i == active_step:
+            parts.append(
+                f'<span style="white-space:nowrap; color:#1c83e1;">🟢 <b>{label}</b></span>'
+            )
+        else:
+            parts.append(f'<span style="white-space:nowrap; opacity:0.5;">⚪ {label}</span>')
+
+        if i < len(JOURNEY_STEPS):
+            parts.append('<span style="opacity:0.35; padding:0 0.5rem;">→</span>')
+
+    st.markdown(
+        '<div style="display:flex; align-items:center; justify-content:space-between; '
+        'flex-wrap:nowrap; overflow-x:auto; font-size:0.95rem; padding-bottom:0.35rem;">'
+        + "".join(parts) + "</div>",
+        unsafe_allow_html=True,
+    )
     st.divider()
 
 
@@ -306,35 +326,6 @@ def _render_historical_timeline(ctx, current_text):
         st.markdown(f"**{T['timeline_today_label']}**")
         for d in ctx.selected:
             st.caption(f"{d[2]}")
-
-
-def _render_coverage(session):
-    """
-    UX Priority 7 -- Reflection Coverage.
-
-    Confirms, dimension by dimension, that the reflection actually
-    considered all 8 areas -- NOT a score, NOT an assessment of the
-    practitioner or the case. Every companion in rdi.companions.COMPANIONS
-    always runs for every reflection (see rdi/orchestrator.py); a
-    dimension only has "nothing to raise" if that companion's model
-    call found nothing notable, or (rarely) failed outright. This panel
-    reads only `session.failed_labels` (already returned by the
-    orchestrator, see rdi/orchestrator.py's "failed_labels" key) --
-    nothing new is computed, generated, or sent to the API here.
-    """
-    st.subheader(T["coverage_header"])
-    st.caption(T["coverage_intro"])
-
-    failed = set(session.failed_labels or [])
-    cols = st.columns(2)
-    for i, companion in enumerate(COMPANIONS):
-        label = T["section_labels"].get(companion["key"], companion["label"])
-        icon = TRIGGER_ICONS.get(companion["key"], "•")
-        with cols[i % 2]:
-            if companion["label"] in failed:
-                st.write(f"⚠️ {icon} **{label}** — _{T['coverage_unavailable']}_")
-            else:
-                st.write(f"✅ {icon} **{label}** — {T['coverage_considered']}")
 
 
 # ---------------------------------------------------------------------
@@ -518,7 +509,11 @@ if active_session is not None:
         st.text(session.error_raw)
         st.stop()
 
-    _render_journey(active_step=4)
+    # Professional Reflection is the third and final stage of the
+    # (now three-stage) journey -- exploring the generated opportunities
+    # and answering their reflective questions all happens within this
+    # one stage, so it stays on step 3 throughout the workspace.
+    _render_journey(active_step=3)
 
     if session.case_ref:
         st.caption(f"{T['reflection_active_case_prefix']} {session.case_ref}")
@@ -564,11 +559,6 @@ if active_session is not None:
         for tab, opportunity in zip(tabs, ordered_opportunities):
             with tab:
                 _render_opportunity_tab_body(session, opportunity)
-
-    st.divider()
-
-    # UX Priority 7: Reflection Coverage checklist.
-    _render_coverage(session)
 
     st.divider()
     st.subheader(T["update_document"])
@@ -630,17 +620,6 @@ if active_session is not None:
 # folders. Same-day multiples are shown grouped under a date heading
 # within the folder, but each document is still picked individually. ---
 _render_journey(active_step=1)
-
-# UX Priority 8: Reflection History. Full past reflection CONTENT is
-# never persisted anywhere in this app once a session ends (only the
-# fact that a theme was explored, and completed document text -- see
-# services/exploration_log.py and services/draft_storage.py), so this
-# is a pointer to the one place that data genuinely lives: the
-# practitioner's own Reflective Journey page. No new storage, no new
-# database table, no schema change.
-st.caption(f"{T['history_link_hint']} ")
-st.page_link("pages/growth_dashboard.py", label=T["nav_growth"])
-st.divider()
 
 st.caption(T["reflection_folders_intro"])
 
