@@ -48,6 +48,58 @@ MATCH_REASON_BADGES = {
 }
 MATCH_REASON_ORDER = ["must_include", "semantic", "recency"]
 
+# Phase 3 (Practitioner UX): a short badge label per reason, shown next
+# to the icon on the Better Historical Document Cards (UX Priority 6).
+# Purely cosmetic -- reuses the exact same match_reasons data that was
+# already being retrieved and displayed via MATCH_REASON_BADGES above.
+MATCH_REASON_TEXT_KEY = {
+    "must_include": "why_reason_must_include_generic",
+    "semantic": "why_reason_semantic_generic",
+    "recency": "why_reason_recency",
+}
+
+# Small emoji used purely to make each reflective dimension visually
+# distinct on the Reflection Dashboard tabs (UX Priority 2) and the
+# Reflection Coverage checklist (UX Priority 7). Cosmetic only -- does
+# not affect which companions run or what they return.
+TRIGGER_ICONS = {
+    "client_voice": "🗣️",
+    "observation_vs_interpretation": "🔍",
+    "labels_and_language": "🏷️",
+    "possible_bias": "⚖️",
+    "evidence_for_decisions": "📋",
+    "missing_information": "❔",
+    "strengths_and_deficits": "🌱",
+    "continuity": "🔗",
+}
+
+# Localized month names for the Historical Timeline (UX Priority 5).
+# Kept local to this page rather than in services/language.py, since
+# it's a small, purely presentational lookup table with no reuse
+# elsewhere in the app.
+_MONTH_NAMES = {
+    "Español": ["", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+    "Euskera": ["", "urtarrila", "otsaila", "martxoa", "apirila", "maiatza", "ekaina",
+                "uztaila", "abuztua", "iraila", "urria", "azaroa", "abendua"],
+    "English": ["", "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"],
+}
+
+
+def _month_year_label(date_str):
+    """'2025-03-14T...' -> 'March 2025' (localized). Falls back to the
+    raw date fragment if the string can't be parsed -- purely cosmetic,
+    never blocks rendering."""
+    if not date_str or len(date_str) < 7:
+        return date_str or ""
+    try:
+        year, month = date_str[:4], int(date_str[5:7])
+        names = _MONTH_NAMES.get(st.session_state.lang, _MONTH_NAMES["English"])
+        return f"{names[month]} {year}"
+    except Exception:
+        return date_str[:7]
+
 
 def _clear_all():
     """Leaving the reflection flow entirely, whatever stage it was at --
@@ -86,6 +138,16 @@ def _format_draft_option(d):
     return f"{doc_type} ({time_part}) — {creator}{role_suffix}"
 
 
+def _historical_badges(h):
+    """Return the ordered list of reason keys present on this historical
+    document (e.g. ["must_include", "semantic"]) -- shared by both the
+    checkbox label and the card renderer below."""
+    reasons = h.get("match_reasons")
+    if not reasons:
+        reasons = [h.get("match_reason")] if h.get("match_reason") else []
+    return [r for r in MATCH_REASON_ORDER if r in reasons]
+
+
 def _format_historical_option(h):
     # h is a dict from rdi.context_engine.get_historical_context() --
     # now also carrying "score", "match_reason" (primary, back-compat)
@@ -94,12 +156,7 @@ def _format_historical_option(h):
     date_part = _date_only(h.get("completed_at") or h.get("created_at"))
     edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
 
-    reasons = h.get("match_reasons")
-    if not reasons:
-        reasons = [h.get("match_reason")] if h.get("match_reason") else []
-    badges = "".join(
-        MATCH_REASON_BADGES[r] for r in MATCH_REASON_ORDER if r in reasons
-    )
+    badges = "".join(MATCH_REASON_BADGES[r] for r in _historical_badges(h))
     badge_prefix = f"{badges} " if badges else ""
     return f"{badge_prefix}{h['doc_type']} ({date_part}){edited_suffix}"
 
@@ -139,77 +196,224 @@ def _render_why_included(h, current_text):
             st.write(f"{T['why_similarity_label']} {T['why_similarity_' + sim_cat]}")
 
 
-def _render_opportunity_workspace(session, opportunity):
-    """Sprint 6: render one reflective opportunity as an expandable
-    workspace item -- the observation/questions, an Explore toggle, and
-    (once opened) a conversation area."""
-    label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
-    badge = f" {T['workspace_explored_badge']}" if opportunity.explored else ""
+# ---------------------------------------------------------------------
+# Phase 3 (Practitioner UX)
+# ---------------------------------------------------------------------
+# Everything below this line is new for Phase 3. It is purely
+# presentational: it reorganises how existing data (historical
+# documents, opportunities, retrieval reasons, session progress) is
+# LAID OUT on screen. It does not call the Anthropic API, does not
+# change retrieval/ranking, does not change the prompts, and does not
+# add, remove, or reorder any of the 8 reflective dimensions -- see the
+# accompanying explanation for the full list of what was and wasn't
+# touched.
 
-    with st.expander(f"{label}{badge}", expanded=opportunity.explored):
-        if opportunity.focus:
-            st.write(opportunity.focus)
-        for q in opportunity.invitation:
-            st.markdown(f"- {q}")
+JOURNEY_STEPS = ["journey_step1", "journey_step2", "journey_step3", "journey_step4"]
 
-        st.caption(T["workspace_reminder"])
 
-        open_key = f"workspace_open_{opportunity.trigger}"
-        is_open = st.session_state.get(open_key, False)
+def _render_journey(active_step):
+    """
+    UX Priority 1 -- Reflection Journey.
 
-        if not is_open:
-            if st.button(T["workspace_explore_button"], key=f"explore_btn_{opportunity.trigger}"):
-                opportunity.mark_explored()
-                st.session_state[open_key] = True
-                session.save()
-                st.rerun()
-        else:
-            st.divider()
-            for turn in opportunity.conversation:
-                role_label = "🧑‍💼" if turn["role"] == "professional" else "💬"
-                st.markdown(f"**{role_label}** {turn['content']}")
+    Renders a simple 4-step horizontal progress strip so the
+    practitioner always knows where they are in the flow: which
+    document(s) they picked, that historical context was gathered,
+    that the AI is reasoning across both, and that reflective questions
+    are what comes out the other end. `active_step` is 1-4; steps
+    before it are shown as done (✓), the active one is highlighted,
+    later ones are shown as upcoming.
 
-            input_key = f"convo_input_{opportunity.trigger}"
-            message_text = st.text_area(
-                T["workspace_conversation_input_label"],
-                placeholder=T["workspace_conversation_placeholder"],
-                key=input_key,
-                height=80,
+    This explains the WORKFLOW in plain language -- it never exposes
+    retrieval internals, model names, or prompt structure.
+    """
+    cols = st.columns(4)
+    for i, (col, key) in enumerate(zip(cols, JOURNEY_STEPS), start=1):
+        label = T[key]
+        with col:
+            if i < active_step:
+                st.markdown(f"✅ **{label}**")
+            elif i == active_step:
+                st.markdown(f"▶️ **:blue[{label}]**")
+            else:
+                st.markdown(f"⚪ {label}")
+    st.divider()
+
+
+def _render_historical_timeline(ctx, current_text):
+    """
+    UX Priority 5 & 6 -- Historical Timeline + Better Historical
+    Document Cards.
+
+    Same underlying data as before (ctx.historical, already retrieved
+    by rdi.context_engine.get_historical_context() -- nothing about
+    retrieval, ranking, or the documents returned changes here). This
+    only changes how it's laid out: chronologically, grouped by
+    month/year, as visually distinct cards with badges and the
+    existing "Why was this included?" panel inside each card, ending
+    with a "Today's Documentation" marker.
+
+    Selection state (which historical documents stay included in the
+    reflection) is still driven by the exact same checkboxes as before
+    -- this function only changes their visual grouping/container, not
+    their behavior or session storage.
+    """
+    st.markdown(f"**{T['historical_timeline_header']}**")
+    st.caption(T["historical_timeline_intro"])
+
+    # Oldest first, so the timeline reads top-to-bottom as a real
+    # chronology ending at "today".
+    ordered = sorted(
+        ctx.historical,
+        key=lambda h: h.get("completed_at") or h.get("created_at") or "",
+    )
+
+    last_month_label = None
+    for h in ordered:
+        month_label = _month_year_label(h.get("completed_at") or h.get("created_at"))
+        if month_label != last_month_label:
+            st.markdown(f"##### 🗓️ {month_label}")
+            last_month_label = month_label
+
+        with st.container(border=True):
+            badges = _historical_badges(h)
+            badge_row = "  ".join(f"{MATCH_REASON_BADGES[r]}" for r in badges)
+            date_part = _date_only(h.get("completed_at") or h.get("created_at"))
+            edited_suffix = f" · {T['case_history_completed_label']}" if h.get("was_edited") else ""
+
+            top_col1, top_col2 = st.columns([4, 1])
+            with top_col1:
+                st.markdown(f"**{h['doc_type']}**")
+                st.caption(f"{date_part}{edited_suffix}")
+            with top_col2:
+                st.markdown(badge_row)
+
+            hist_key = f"ctx_hist_{h['id']}"
+            checked = st.checkbox(
+                _format_historical_option(h),
+                value=(h["id"] in ctx.selected_hist_ids),
+                key=hist_key,
+                label_visibility="collapsed",
             )
+            ctx.set_historical_included(h["id"], checked)
+            _render_why_included(h, current_text)
 
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                if st.button(T["workspace_send_button"], key=f"send_btn_{opportunity.trigger}"):
-                    if message_text and message_text.strip():
-                        companion = COMPANIONS_BY_KEY.get(opportunity.trigger)
-                        history_before = list(opportunity.conversation)
-                        opportunity.add_professional_message(message_text.strip())
+        st.markdown("<div style='text-align:center; opacity:0.5;'>↓</div>", unsafe_allow_html=True)
 
-                        with st.spinner(T["workspace_ai_thinking"]):
-                            result = continue_companion_conversation(
-                                companion=companion,
-                                safe_text=session.safe_text,
-                                initial_observation=opportunity.focus,
-                                initial_questions=opportunity.invitation,
-                                conversation_history=history_before,
-                                professional_message=message_text.strip(),
-                                lang=st.session_state.lang,
-                            )
+    # The chronology always ends at today's documentation, so the
+    # practitioner can see where today's note sits relative to the
+    # case's history.
+    with st.container(border=True):
+        st.markdown(f"**{T['timeline_today_label']}**")
+        for d in ctx.selected:
+            st.caption(f"{d[2]}")
 
-                        if "reply" in result:
-                            opportunity.add_ai_message(result["reply"])
-                        else:
-                            st.session_state[f"convo_error_{opportunity.trigger}"] = True
 
-                        session.save()
-                        st.rerun()
-            with col2:
-                if st.button(T["workspace_close_button"], key=f"close_btn_{opportunity.trigger}"):
-                    st.session_state[open_key] = False
+def _render_coverage(session):
+    """
+    UX Priority 7 -- Reflection Coverage.
+
+    Confirms, dimension by dimension, that the reflection actually
+    considered all 8 areas -- NOT a score, NOT an assessment of the
+    practitioner or the case. Every companion in rdi.companions.COMPANIONS
+    always runs for every reflection (see rdi/orchestrator.py); a
+    dimension only has "nothing to raise" if that companion's model
+    call found nothing notable, or (rarely) failed outright. This panel
+    reads only `session.failed_labels` (already returned by the
+    orchestrator, see rdi/orchestrator.py's "failed_labels" key) --
+    nothing new is computed, generated, or sent to the API here.
+    """
+    st.subheader(T["coverage_header"])
+    st.caption(T["coverage_intro"])
+
+    failed = set(session.failed_labels or [])
+    cols = st.columns(2)
+    for i, companion in enumerate(COMPANIONS):
+        label = T["section_labels"].get(companion["key"], companion["label"])
+        icon = TRIGGER_ICONS.get(companion["key"], "•")
+        with cols[i % 2]:
+            if companion["label"] in failed:
+                st.write(f"⚠️ {icon} **{label}** — _{T['coverage_unavailable']}_")
+            else:
+                st.write(f"✅ {icon} **{label}** — {T['coverage_considered']}")
+
+
+# ---------------------------------------------------------------------
+
+
+def _render_opportunity_tab_body(session, opportunity):
+    """
+    UX Priority 2 & 4 -- Reflection Dashboard + Navigator.
+
+    Same content and same behavior as the previous per-opportunity
+    expander (observation, questions, Explore toggle, conversation) --
+    only the container changed, from a stacked st.expander to the body
+    of one st.tabs() tab (see the call site below), so practitioners
+    can jump directly to a dimension instead of scrolling past seven
+    others to find it.
+    """
+    if opportunity.focus:
+        st.write(opportunity.focus)
+    for q in opportunity.invitation:
+        st.markdown(f"- {q}")
+
+    st.caption(T["workspace_reminder"])
+
+    open_key = f"workspace_open_{opportunity.trigger}"
+    is_open = st.session_state.get(open_key, opportunity.explored)
+
+    if not is_open:
+        if st.button(T["workspace_explore_button"], key=f"explore_btn_{opportunity.trigger}"):
+            opportunity.mark_explored()
+            st.session_state[open_key] = True
+            session.save()
+            st.rerun()
+    else:
+        st.divider()
+        for turn in opportunity.conversation:
+            role_label = "🧑‍💼" if turn["role"] == "professional" else "💬"
+            st.markdown(f"**{role_label}** {turn['content']}")
+
+        input_key = f"convo_input_{opportunity.trigger}"
+        message_text = st.text_area(
+            T["workspace_conversation_input_label"],
+            placeholder=T["workspace_conversation_placeholder"],
+            key=input_key,
+            height=80,
+        )
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button(T["workspace_send_button"], key=f"send_btn_{opportunity.trigger}"):
+                if message_text and message_text.strip():
+                    companion = COMPANIONS_BY_KEY.get(opportunity.trigger)
+                    history_before = list(opportunity.conversation)
+                    opportunity.add_professional_message(message_text.strip())
+
+                    with st.spinner(T["workspace_ai_thinking"]):
+                        result = continue_companion_conversation(
+                            companion=companion,
+                            safe_text=session.safe_text,
+                            initial_observation=opportunity.focus,
+                            initial_questions=opportunity.invitation,
+                            conversation_history=history_before,
+                            professional_message=message_text.strip(),
+                            lang=st.session_state.lang,
+                        )
+
+                    if "reply" in result:
+                        opportunity.add_ai_message(result["reply"])
+                    else:
+                        st.session_state[f"convo_error_{opportunity.trigger}"] = True
+
+                    session.save()
                     st.rerun()
+        with col2:
+            if st.button(T["workspace_close_button"], key=f"close_btn_{opportunity.trigger}"):
+                st.session_state[open_key] = False
+                st.rerun()
 
-            if st.session_state.pop(f"convo_error_{opportunity.trigger}", False):
-                st.error(T["workspace_conversation_error"])
+        if st.session_state.pop(f"convo_error_{opportunity.trigger}", False):
+            st.error(T["workspace_conversation_error"])
 
 
 drafts = get_drafts()
@@ -229,6 +433,8 @@ if not drafts and active_session is None and active_context is None:
 if active_context is not None:
     ctx = active_context
 
+    _render_journey(active_step=2)
+
     if ctx.case_ref:
         st.caption(f"{T['reflection_active_case_prefix']} {ctx.case_ref}")
 
@@ -245,19 +451,19 @@ if active_context is not None:
         # panel -- never sent anywhere, never logged.
         current_text = "\n\n".join(d[3] for d in ctx.selected)
 
-        st.markdown(f"**{T['reflection_context_historical_label']}**")
-        for h in ctx.historical:
-            hist_key = f"ctx_hist_{h['id']}"
-            checked = st.checkbox(
-                _format_historical_option(h),
-                value=(h["id"] in ctx.selected_hist_ids),
-                key=hist_key,
-            )
-            ctx.set_historical_included(h["id"], checked)
-            _render_why_included(h, current_text)
+        st.divider()
+        # UX Priority 5 & 6: chronological timeline of cards, replacing
+        # the flat checkbox list. Same documents, same checkboxes, same
+        # "Why was this included?" panels -- just organised as a
+        # timeline instead of a plain list.
+        _render_historical_timeline(ctx, current_text)
 
     summary = ctx.strength_summary(T)
+    st.divider()
     st.info(summary)
+    # UX Priority 3: explicit count of historical documents currently
+    # included, alongside the existing Context Confidence sentence.
+    st.caption(f"{T['historical_docs_used_label']}: {len(ctx.included_historical())}")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -272,10 +478,14 @@ if active_context is not None:
             # rdi.reflection_context.ReflectionContext.log_pre_orchestrator_summary.
             ctx.log_pre_orchestrator_summary(T)
 
-            # Same underlying companion calls as before (see
-            # rdi/orchestrator.py) -- this just also reshapes the result
-            # into a ReflectionSession for display and tracking.
-            result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
+            # UX Priority 1: Step 3 of the Reflection Journey, shown for
+            # the duration of the (unchanged) orchestrator call.
+            with st.spinner(f"{T['journey_step3']}..."):
+                # Same underlying companion calls as before (see
+                # rdi/orchestrator.py) -- this just also reshapes the
+                # result into a ReflectionSession for display and
+                # tracking.
+                result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
             if "error" not in result:
                 log_reflection(ctx.case_ref, result["raw"], user_name, user_role)
 
@@ -302,13 +512,16 @@ if active_context is not None:
 if active_session is not None:
     session = active_session
 
-    if session.case_ref:
-        st.caption(f"{T['reflection_active_case_prefix']} {session.case_ref}")
-
     if session.has_error():
+        _render_journey(active_step=3)
         st.error(T["error_parsing"])
         st.text(session.error_raw)
         st.stop()
+
+    _render_journey(active_step=4)
+
+    if session.case_ref:
+        st.caption(f"{T['reflection_active_case_prefix']} {session.case_ref}")
 
     if session.failed_count > 0:
         st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
@@ -330,10 +543,32 @@ if active_session is not None:
             explored=session.explored_count(), total=total_opportunities
         ))
 
+    # UX Priority 2 & 4: Reflection Dashboard + Navigator. Each
+    # reflective dimension becomes its own tab -- same content as
+    # before (observation, questions, Explore, conversation), just
+    # organised into clearly separated, directly-jumpable sections
+    # instead of a long vertical stack of expanders.
     st.subheader(T["workspace_opportunities_header"])
+    ordered_opportunities = build_conversation(session.opportunities)
 
-    for opportunity in build_conversation(session.opportunities):
-        _render_opportunity_workspace(session, opportunity)
+    if ordered_opportunities:
+        st.caption(T["dashboard_navigator_hint"])
+        tab_labels = []
+        for opportunity in ordered_opportunities:
+            label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
+            icon = TRIGGER_ICONS.get(opportunity.trigger, "•")
+            badge = f" {T['workspace_explored_badge']}" if opportunity.explored else ""
+            tab_labels.append(f"{icon} {label}{badge}")
+
+        tabs = st.tabs(tab_labels)
+        for tab, opportunity in zip(tabs, ordered_opportunities):
+            with tab:
+                _render_opportunity_tab_body(session, opportunity)
+
+    st.divider()
+
+    # UX Priority 7: Reflection Coverage checklist.
+    _render_coverage(session)
 
     st.divider()
     st.subheader(T["update_document"])
@@ -394,6 +629,19 @@ if active_session is not None:
 # --- No reflection in progress: browse pending drafts as per-client
 # folders. Same-day multiples are shown grouped under a date heading
 # within the folder, but each document is still picked individually. ---
+_render_journey(active_step=1)
+
+# UX Priority 8: Reflection History. Full past reflection CONTENT is
+# never persisted anywhere in this app once a session ends (only the
+# fact that a theme was explored, and completed document text -- see
+# services/exploration_log.py and services/draft_storage.py), so this
+# is a pointer to the one place that data genuinely lives: the
+# practitioner's own Reflective Journey page. No new storage, no new
+# database table, no schema change.
+st.caption(f"{T['history_link_hint']} ")
+st.page_link("pages/growth_dashboard.py", label=T["nav_growth"])
+st.divider()
+
 st.caption(T["reflection_folders_intro"])
 
 by_case = defaultdict(list)
