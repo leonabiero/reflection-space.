@@ -21,6 +21,19 @@ included). Both are needed by the Reflection Workspace so that exploring
 an opportunity's conversation doesn't require re-anonymizing the
 document or losing the context description. Existing constructor
 arguments and behavior are unchanged; both are optional.
+
+Phase 3 (Practitioner UX) addition
+-----------------------------------
+`failed_labels` is now also carried over from the orchestrator result
+(previously only `failed_count` was kept). This is purely additive and
+purely for DISPLAY -- it lets the Reflection Coverage panel on the
+Reflection Workspace page show, dimension by dimension, which of the 8
+reflective areas were actually analysed this run versus which one(s)
+couldn't be generated (see rdi/orchestrator.py's existing
+"failed_labels" key, which was already being computed and returned --
+it just wasn't being kept on the session object before now). No new
+data is computed here, and nothing about how the orchestrator runs,
+what it returns, or how reflections are generated has changed.
 """
 
 import streamlit as st
@@ -43,6 +56,11 @@ class ReflectionSession:
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
         self.failed_count = result.get("failed_count", 0)
+        # Phase 3 (UX): kept purely for the Reflection Coverage display --
+        # see module docstring. Falls back to [] so nothing breaks for any
+        # older, already-in-memory session created before this field
+        # existed.
+        self.failed_labels = result.get("failed_labels", [])
         self.safe_text = result.get("safe_text", "")
 
         self.reflected_drafts = reflected_drafts
