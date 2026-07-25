@@ -1,7 +1,7 @@
 import streamlit as st
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer
+from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.exploration_log import get_personal_exploration_history
 from services.reflection_log import THEME_KEYS
 
@@ -29,6 +29,7 @@ from services.reflection_log import THEME_KEYS
 
 T = init_language()
 user_name, user_role = init_identity(T)
+require_work_mode(T, "Practitioner")
 render_nav(T)
 render_identity_footer(T)
 
