@@ -73,6 +73,9 @@ def _check_login(username, password, users):
     return None
 
 
+from services.draft_storage import update_user_activity
+
+
 def init_identity(T):
     if "authed" not in st.session_state:
         st.session_state.authed = False
@@ -81,20 +84,18 @@ def init_identity(T):
     if "user_role" not in st.session_state:
         st.session_state.user_role = ""
     if "active_workspace" not in st.session_state:
-        st.session_state.active_workspace = "Practitioner"
+        st.session_state.active_workspace = ""
 
     # Apply any logout requested on the previous run BEFORE render_nav()
-    # (called right after this function returns/stops) ever instantiates
-    # the "active_workspace" selectbox widget this run. See the module
-    # docstring above ("Logout ordering fix") for why this can't happen
-    # inside render_identity_footer itself.
     if st.session_state.pop("_logout_requested", False):
         st.session_state.authed = False
         st.session_state.user_name = ""
         st.session_state.user_role = ""
-        st.session_state.active_workspace = "Practitioner"
+        st.session_state.active_workspace = ""
 
     if st.session_state.authed:
+        # Heartbeat: update last_seen on every page load while authed
+        update_user_activity(st.session_state.user_name, st.session_state.user_role)
         return st.session_state.user_name, st.session_state.user_role
 
     # Not logged in: block this page with a login form until a valid
@@ -115,7 +116,14 @@ def init_identity(T):
             st.session_state.authed = True
             st.session_state.user_name = user.get("name", username).strip()
             st.session_state.user_role = user.get("role", ROLES[0]).strip()
-            st.session_state.active_workspace = "System Administration" if st.session_state.user_role == "System Administrator" else ("Manager" if st.session_state.user_role in {"Supervisor", "Programme Manager"} else "Practitioner")
+            # Initial active workspace based on role
+            role = st.session_state.user_role
+            if role == "System Administrator":
+                st.session_state.active_workspace = "System Administration"
+            elif role in {"Supervisor", "Programme Manager"}:
+                st.session_state.active_workspace = "Manager"
+            else:
+                st.session_state.active_workspace = "Practitioner"
             st.rerun()
         else:
             st.error(T["login_error"])
