@@ -14,6 +14,28 @@ import streamlit as st
 # render_identity_footer(T) draws the logged-in account display and
 # the Log out button. Call this AFTER render_nav(T) so it ends up at
 # the bottom of the sidebar, below the navigation links.
+#
+# Logout ordering fix
+# ---------------------
+# navigation.router.render_nav() renders a sidebar selectbox bound to
+# st.session_state["active_workspace"] (key="active_workspace"). Every
+# page calls render_nav(T) BEFORE render_identity_footer(T), so by the
+# time the Log out button (inside render_identity_footer) is clicked,
+# that widget has already been instantiated in this script run.
+#
+# Streamlit raises StreamlitAPIException if you assign directly to
+# st.session_state["active_workspace"] after its widget has already
+# been created in the same run — which is exactly what logging out
+# used to do (reset active_workspace back to "Practitioner" inline,
+# then st.rerun()). The assignment itself was already illegal before
+# the rerun ever got a chance to run.
+#
+# Fix: the Log out button no longer touches session_state directly.
+# It only sets a plain (non-widget) flag, "_logout_requested", and
+# reruns. The actual reset (authed/user_name/user_role/active_workspace)
+# now happens at the very top of init_identity() instead — which every
+# page calls BEFORE render_nav() — so the reset always runs before the
+# "active_workspace" widget exists for that run, which is allowed.
 
 ROLES = ["Social Worker", "Supervisor", "Programme Manager", "System Administrator"]
 
@@ -61,6 +83,17 @@ def init_identity(T):
     if "active_workspace" not in st.session_state:
         st.session_state.active_workspace = "Practitioner"
 
+    # Apply any logout requested on the previous run BEFORE render_nav()
+    # (called right after this function returns/stops) ever instantiates
+    # the "active_workspace" selectbox widget this run. See the module
+    # docstring above ("Logout ordering fix") for why this can't happen
+    # inside render_identity_footer itself.
+    if st.session_state.pop("_logout_requested", False):
+        st.session_state.authed = False
+        st.session_state.user_name = ""
+        st.session_state.user_role = ""
+        st.session_state.active_workspace = "Practitioner"
+
     if st.session_state.authed:
         return st.session_state.user_name, st.session_state.user_role
 
@@ -100,10 +133,12 @@ def render_identity_footer(T):
         st.caption(role_label)
         st.write(f"**{name}**")
         if st.button(T["logout"]):
-            st.session_state.authed = False
-            st.session_state.user_name = ""
-            st.session_state.user_role = ""
-            st.session_state.active_workspace = "Practitioner"
+            # Do NOT touch st.session_state["active_workspace"] here --
+            # render_nav() already instantiated that widget earlier in
+            # this run. Just flag the request and rerun; init_identity()
+            # performs the actual reset at the top of the NEXT run,
+            # before that widget exists again. See module docstring.
+            st.session_state["_logout_requested"] = True
             st.rerun()
 
 
