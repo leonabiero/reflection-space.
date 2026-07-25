@@ -1,4 +1,5 @@
 import streamlit as st
+from navigation.permissions import default_workspace_for_role, can_access_workspace
 
 # FR-001/NFR-011 (authentication) + FR-002/FR-003 (identity, roles).
 # Each professional has their own username and password, defined in
@@ -15,27 +16,51 @@ import streamlit as st
 # the Log out button. Call this AFTER render_nav(T) so it ends up at
 # the bottom of the sidebar, below the navigation links.
 #
+# Role / Work-Mode separation
+# ------------------------------
+# st.session_state.user_role is the AUTHENTICATED role -- it is set once
+# at login and is NEVER changed while switching work modes. It only
+# changes on logout/new login.
+#
+# st.session_state.active_work_mode is the CURRENTLY ACTIVE workspace
+# the person is operating in right now. It starts at
+# navigation.permissions.default_workspace_for_role(user_role) on login,
+# and from then on is only ever changed by:
+#   - an explicit, authorized work-mode switch (navigation/router.py)
+#   - logout / a new login
+# It must never silently reset back to "Practitioner" during an
+# ordinary Streamlit rerun -- see navigation/router.py, which only ever
+# WRITES active_work_mode on those two occasions, never reads a stale
+# default back into it.
+#
+# Presence / heartbeat (Team Presence, Sprint 12)
+# ---------------------------------------------------
+# Every authenticated page load "touches" services.presence with the
+# logged-in professional's name/role, updating their last_seen
+# timestamp. This is a lightweight heartbeat -- there is no background
+# job, the timestamp simply advances every time the person interacts
+# with the app (any page load, any button press causes a Streamlit
+# rerun, which re-touches presence). See services/presence.py for the
+# "active now / recently active / offline" classification used by the
+# Team Presence panel on the Learning page.
+#
 # Logout ordering fix
 # ---------------------
-# navigation.router.render_nav() renders a sidebar selectbox bound to
-# st.session_state["active_workspace"] (key="active_workspace"). Every
+# navigation.router.render_nav() renders a sidebar control bound to
+# st.session_state["active_work_mode"] (key="active_work_mode"). Every
 # page calls render_nav(T) BEFORE render_identity_footer(T), so by the
 # time the Log out button (inside render_identity_footer) is clicked,
 # that widget has already been instantiated in this script run.
 #
 # Streamlit raises StreamlitAPIException if you assign directly to
-# st.session_state["active_workspace"] after its widget has already
-# been created in the same run — which is exactly what logging out
-# used to do (reset active_workspace back to "Practitioner" inline,
-# then st.rerun()). The assignment itself was already illegal before
-# the rerun ever got a chance to run.
-#
-# Fix: the Log out button no longer touches session_state directly.
-# It only sets a plain (non-widget) flag, "_logout_requested", and
-# reruns. The actual reset (authed/user_name/user_role/active_workspace)
-# now happens at the very top of init_identity() instead — which every
-# page calls BEFORE render_nav() — so the reset always runs before the
-# "active_workspace" widget exists for that run, which is allowed.
+# st.session_state["active_work_mode"] after its widget has already
+# been created in the same run. Fix: the Log out button no longer
+# touches session_state directly. It only sets a plain (non-widget)
+# flag, "_logout_requested", and reruns. The actual reset
+# (authed/user_name/user_role/active_work_mode) happens at the very top
+# of init_identity() instead -- which every page calls BEFORE
+# render_nav() -- so the reset always runs before that widget exists
+# for that run, which is allowed.
 
 ROLES = ["Social Worker", "Supervisor", "Programme Manager", "System Administrator"]
 
@@ -73,7 +98,14 @@ def _check_login(username, password, users):
     return None
 
 
-from services.draft_storage import update_user_activity
+def _touch_presence():
+    """Best-effort presence heartbeat -- never blocks or breaks a page
+    if the presence table/DB is unavailable for any reason."""
+    try:
+        from services.presence import touch
+        touch(st.session_state.user_name, st.session_state.user_role)
+    except Exception:
+        pass
 
 
 def init_identity(T):
@@ -83,19 +115,22 @@ def init_identity(T):
         st.session_state.user_name = ""
     if "user_role" not in st.session_state:
         st.session_state.user_role = ""
-    if "active_workspace" not in st.session_state:
-        st.session_state.active_workspace = ""
+    if "active_work_mode" not in st.session_state:
+        st.session_state.active_work_mode = "Practitioner"
 
     # Apply any logout requested on the previous run BEFORE render_nav()
+    # (called right after this function returns/stops) ever instantiates
+    # the "active_work_mode" widget this run. See the module docstring
+    # above ("Logout ordering fix") for why this can't happen inside
+    # render_identity_footer itself.
     if st.session_state.pop("_logout_requested", False):
         st.session_state.authed = False
         st.session_state.user_name = ""
         st.session_state.user_role = ""
-        st.session_state.active_workspace = ""
+        st.session_state.active_work_mode = "Practitioner"
 
     if st.session_state.authed:
-        # Heartbeat: update last_seen on every page load while authed
-        update_user_activity(st.session_state.user_name, st.session_state.user_role)
+        _touch_presence()
         return st.session_state.user_name, st.session_state.user_role
 
     # Not logged in: block this page with a login form until a valid
@@ -116,14 +151,14 @@ def init_identity(T):
             st.session_state.authed = True
             st.session_state.user_name = user.get("name", username).strip()
             st.session_state.user_role = user.get("role", ROLES[0]).strip()
-            # Initial active workspace based on role
-            role = st.session_state.user_role
-            if role == "System Administrator":
-                st.session_state.active_workspace = "System Administration"
-            elif role in {"Supervisor", "Programme Manager"}:
-                st.session_state.active_workspace = "Manager"
-            else:
-                st.session_state.active_workspace = "Practitioner"
+            # Active work mode is initialised ONCE here, from the
+            # authenticated role's default workspace -- see
+            # navigation.permissions.default_workspace_for_role(). It is
+            # a completely separate piece of state from user_role from
+            # this point on.
+            st.session_state.active_work_mode = default_workspace_for_role(
+                st.session_state.user_role
+            )
             st.rerun()
         else:
             st.error(T["login_error"])
@@ -141,7 +176,7 @@ def render_identity_footer(T):
         st.caption(role_label)
         st.write(f"**{name}**")
         if st.button(T["logout"]):
-            # Do NOT touch st.session_state["active_workspace"] here --
+            # Do NOT touch st.session_state["active_work_mode"] here --
             # render_nav() already instantiated that widget earlier in
             # this run. Just flag the request and rerun; init_identity()
             # performs the actual reset at the top of the NEXT run,
@@ -154,9 +189,39 @@ def get_identity():
     return st.session_state.get("user_name", ""), st.session_state.get("user_role", "")
 
 
+def get_active_work_mode():
+    return st.session_state.get("active_work_mode", "Practitioner")
+
+
 def can_see_learning(role: str) -> bool:
     return role in LEARNING_VISIBLE_ROLES
 
 
 def can_see_case_history(role: str) -> bool:
     return role in CASE_HISTORY_VISIBLE_ROLES
+
+
+def require_work_mode(T, workspace):
+    """
+    Authorization guard for a page whose content belongs to `workspace`
+    ("Practitioner" | "Manager" | "System Administration").
+
+    This is the enforcement point requested for direct-page-access
+    protection: it checks the AUTHENTICATED role (never just the active
+    work mode, and never just sidebar visibility) via
+    navigation.permissions.can_access_workspace(). If the authenticated
+    user isn't allowed into this workspace at all, the page is blocked
+    with st.stop() -- typing the URL directly cannot bypass this.
+
+    If the person IS authorized, this also keeps active_work_mode in
+    sync with whatever page they actually landed on (e.g. following a
+    direct link, or a page reload) -- so the work-mode switcher and the
+    "Practitioner mode hides the switcher" rule stay consistent no
+    matter how the person arrived at this page, not only when they used
+    the switcher itself.
+    """
+    role = st.session_state.get("user_role", "")
+    if not can_access_workspace(role, workspace):
+        st.error(T.get("workmode_access_denied", "You do not have access to this workspace."))
+        st.stop()
+    st.session_state.active_work_mode = workspace
