@@ -83,6 +83,22 @@ testing. Purely observational -- see services/qdrant_service.py's
 module docstring for the same convention used on the indexing/search
 side, and services/rag_logging.py for why logging was centralized
 there.
+
+Bugfix (recency tie-break ordering)
+--------------------------------------
+The final ranking step used to sort merged documents on one ascending
+tuple: (priority, score, completed_at). Ascending string comparison on
+an ISO timestamp puts the OLDEST date first -- the opposite of what
+"recency" means, and the opposite of the order RecencyRetriever already
+handed in (its `completed_docs` input arrives most-recent-first, sorted
+by the caller). This was invisible in the UI, which re-sorts documents
+chronologically for display regardless -- but it directly controlled
+which documents survived the `limit` truncation whenever a case had
+more candidate documents than `limit` and recency was the deciding
+factor, silently keeping older documents over newer ones. Fixed below
+with two chained STABLE sorts (sort by completed_at descending first,
+then stable-sort by priority/score) so ties keep their most-recent-
+first order.
 """
 
 from services.draft_storage import get_completed_drafts
@@ -265,14 +281,28 @@ class HybridRetriever(Retriever):
 
         # Rank: must_include first, then by score (semantic docs) /
         # recency (completed_at), so the practitioner sees the most
-        # load-bearing context first. Unchanged ranking logic -- only
-        # now reads from the (possibly multi-reason) merged entry.
-        def sort_key(doc):
-            priority = _REASON_PRIORITY[doc["match_reason"]]
-            score = -(doc["score"] or 0)
-            return (priority, score, doc["completed_at"] or "")
-
-        ordered = sorted(merged.values(), key=sort_key, reverse=False)
+        # load-bearing context first.
+        #
+        # BUGFIX: this used to be one ascending sort on
+        # (priority, score, completed_at). Ascending string comparison
+        # on an ISO timestamp puts the OLDEST date first among ties --
+        # the opposite of "recency", and the opposite of the order
+        # RecencyRetriever already handed in (completed_docs arrives
+        # most-recent-first, sorted by the caller). This directly
+        # affected which documents survived the `limit` truncation
+        # below whenever a case had more candidates than `limit` and
+        # recency (not a semantic score) was the tie-breaker -- older
+        # documents were silently kept over newer ones.
+        #
+        # Fixed with two chained STABLE sorts: sort by completed_at
+        # descending first (newest first), then stable-sort by
+        # (priority, score) -- ties keep the most-recent-first order
+        # from the first pass instead of being reversed.
+        ordered = sorted(merged.values(), key=lambda d: d.get("completed_at") or "", reverse=True)
+        ordered = sorted(
+            ordered,
+            key=lambda d: (_REASON_PRIORITY[d["match_reason"]], -(d["score"] or 0)),
+        )
         result = ordered[:limit]
 
         _log(
