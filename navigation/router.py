@@ -7,7 +7,7 @@ def render_nav(T):
     role = st.session_state.get("user_role", "")
     options = available_workspaces(role)
 
-    if not options:
+    if not options or len(options) <= 1:
         render_workspace_menu(T)
         return
 
@@ -15,17 +15,29 @@ def render_nav(T):
     if current not in options:
         current = options[0]
 
-    # Only seed session_state directly when the key is missing or
-    # invalid. Once it exists, the selectbox's `key=` alone controls
-    # the value on every subsequent rerun -- we must NOT also pass an
-    # `index=` default for the same key, since setting a widget's
-    # session_state value both via the Session State API (e.g. on
-    # login, in services/identity.py) and via a widget default
-    # (index=) in the same run is exactly what triggers Streamlit's
-    # "widget was created with a default value but also had its value
-    # set via the Session State API" warning.
-    if "active_workspace" not in st.session_state or st.session_state.active_workspace not in options:
-        st.session_state.active_workspace = current
+    # If in Practitioner mode, hide the switcher
+    if current == "Practitioner":
+        render_workspace_menu(T)
+        return
 
-    st.sidebar.selectbox("Workspace", options, key="active_workspace")
+    # Workspace selector for authorised users
+    # We use a non-key selectbox to detect changes and then st.switch_page
+    index = options.index(current) if current in options else 0
+    new_workspace = st.sidebar.selectbox(
+        T.get("workspace_label", "Workspace"),
+        options,
+        index=index
+    )
+
+    if new_workspace != current:
+        st.session_state.active_workspace = new_workspace
+        # Immediate navigation to landing page
+        if new_workspace == "Practitioner":
+            st.switch_page("pages/documentation.py")
+        elif new_workspace == "Manager":
+            st.switch_page("pages/learning.py")
+        elif new_workspace == "System Administration":
+            st.switch_page("pages/system_administration.py")
+        st.rerun()
+
     render_workspace_menu(T)
