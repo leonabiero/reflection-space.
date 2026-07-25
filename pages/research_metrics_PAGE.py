@@ -1,6 +1,6 @@
 import streamlit as st
-from services.language import init_language, render_nav
-from services.visit_log import log_visit
+from services.language import init_language
+from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer
 from services.research_metrics_SERVICE import build_research_summary, summary_to_dataframe, build_research_export_csv
 
@@ -20,7 +20,6 @@ from services.research_metrics_SERVICE import build_research_summary, summary_to
 # access bar is set a little higher.
 
 T = init_language()
-log_visit("research_metrics", st.session_state.lang)
 user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
