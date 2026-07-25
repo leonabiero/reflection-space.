@@ -11,7 +11,7 @@ from services.embedding_service import is_available as embeddings_available
 from services.draft_storage import get_completed_drafts
 from services.anonymizer import anonymize
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
-from rdi.retrieval_service import retrieve_historical_context
+from rdi.retrieval_service import retrieve_historical_context, retrieve_global_context
 from rdi.context_engine import DEFAULT_HISTORY_LIMIT
 
 # =============================================================================
@@ -23,17 +23,21 @@ from rdi.context_engine import DEFAULT_HISTORY_LIMIT
 # services.embedding_service, services.draft_storage,
 # rdi.retrieval_service, config) -- nothing here makes a NEW call to
 # Voyage AI or the Anthropic (Claude) API. The Retrieval Test panel
-# calls rdi.retrieval_service.retrieve_historical_context(), exactly as
-# the previous version of this page did -- that function only calls
-# Voyage AI (embeddings) for the query text and Qdrant for the search;
-# it never calls the Claude/Anthropic API at all. So this redesign has
-# ZERO impact on Anthropic API cost -- see the docstring on the
-# Retrieval Test section below for the one-line cost note kept
-# alongside that button for transparency.
+# calls rdi.retrieval_service.retrieve_historical_context() (case-
+# specific mode) or rdi.retrieval_service.retrieve_global_context()
+# (global mode, added alongside the optional Case Reference field) --
+# both only ever call Voyage AI (embeddings) for the query text and
+# Qdrant for the search; neither calls the Claude/Anthropic API at all.
+# So this redesign, and the global-mode addition, have ZERO impact on
+# Anthropic API cost -- see the docstring on the Retrieval Test section
+# below for the one-line cost note kept alongside that button for
+# transparency.
 #
 # Everything below only changes HOW existing data is displayed
 # (tables/cards/badges instead of raw st.json(...)) -- it does not
-# change what is retrieved, indexed, or computed.
+# change what is retrieved, indexed, or computed, except for the
+# Retrieval Test's new global mode, which is scoped narrowly and
+# explained in that section's own comments below.
 
 
 T = init_language()
@@ -119,11 +123,30 @@ with st.expander("📇 Document Indexing"):
 # 3. Retrieval Test
 # =============================================================================
 with st.expander("🔍 Retrieval Test"):
-    st.caption("Runs a real semantic search against Qdrant, scoped to one case reference, to verify retrieval is working end to end.")
-    st.caption("💰 Cost note: this embeds your query text via Voyage AI only -- it never calls the Claude/Anthropic API, so running this test has no effect on Anthropic API cost.")
+    st.caption("Runs a real semantic search against Qdrant to verify retrieval is working end to end -- either scoped to one case, or across the entire knowledge base.")
+    st.caption("💰 Cost note: this embeds your query text via Voyage AI only -- it never calls the Claude/Anthropic API, so running this test (in either mode) has no effect on Anthropic API cost.")
 
-    case_ref = st.text_input("Case reference", key="admin_retrieval_case_ref")
+    # Case Reference is optional -- see the two modes below.
+    #
+    # - Case Reference filled in  -> CASE-SPECIFIC mode: calls
+    #   rdi.retrieval_service.retrieve_historical_context(), exactly as
+    #   before. Confidentiality-scoped: only ever returns documents from
+    #   that one case (see services/qdrant_service.py's search_similar()).
+    #
+    # - Case Reference left blank -> GLOBAL mode: calls
+    #   rdi.retrieval_service.retrieve_global_context(), which applies NO
+    #   case filter and searches the entire Qdrant collection. This is a
+    #   deliberate, admin-only exception to the app's per-case
+    #   confidentiality boundary (see services/qdrant_service.py's
+    #   search_global() docstring) -- results can include documents from
+    #   any client's case, shown side by side, so an administrator can
+    #   validate the RAG system as a whole rather than only one case at a
+    #   time. This mode is only reachable from this page, gated to
+    #   System Administrator above.
+    case_ref = st.text_input("Case reference (optional -- leave blank to search the entire knowledge base)", key="admin_retrieval_case_ref")
     query = st.text_area("Search query", key="admin_retrieval_query")
+
+    is_global_mode = not (case_ref or "").strip()
 
     if st.button("Run retrieval test", type="primary"):
         success = True
@@ -133,7 +156,10 @@ with st.expander("🔍 Retrieval Test"):
 
         start = time.time()
         try:
-            docs = retrieve_historical_context(case_ref, query_text=query)
+            if is_global_mode:
+                docs = retrieve_global_context(query_text=query)
+            else:
+                docs = retrieve_historical_context(case_ref, query_text=query)
         except Exception as e:
             success = False
             error_message = str(e)
@@ -146,20 +172,27 @@ with st.expander("🔍 Retrieval Test"):
             "case_ref": case_ref,
             "query": query,
             "docs": docs,
+            "is_global_mode": is_global_mode,
         }
 
     result = st.session_state.get("admin_last_retrieval_result")
     if result:
+        was_global = result.get("is_global_mode", not (result.get("case_ref") or "").strip())
+        mode_label = "🌍 Global Knowledge Base Search" if was_global else f"📁 Case-specific ({result['case_ref']})"
+
         st.markdown("#### Retrieval Summary")
         summary_rows = [
             {"Item": "Status", "Value": "✅ Successful" if result["success"] else "❌ Failed"},
+            {"Item": "Retrieval Mode", "Value": mode_label},
             {"Item": "Search time", "Value": f"{result['elapsed']:.2f} seconds"},
-            {"Item": "Case reference", "Value": result["case_ref"] or "—"},
             {"Item": "Query", "Value": result["query"] or "—"},
             {"Item": "Documents returned", "Value": str(len(result["docs"]))},
             {"Item": "Embedding model", "Value": EMBEDDING_MODEL},
         ]
         st.table(pd.DataFrame(summary_rows).set_index("Item"))
+
+        if was_global:
+            st.caption("🌍 Global mode: this search applied no case filter and may return documents from more than one case.")
 
         if not result["success"]:
             st.error(f"Retrieval failed: {result['error']}")
@@ -170,21 +203,30 @@ with st.expander("🔍 Retrieval Test"):
                 reasons = d.get("match_reasons") or ([d.get("match_reason")] if d.get("match_reason") else [])
                 reason_label = " + ".join(MATCH_REASON_LABELS.get(r, r) for r in reasons) if reasons else "—"
                 score = d.get("score")
-                doc_rows.append({
+                row_dict = {
                     "Rank": rank,
                     "Document Type": d.get("doc_type", ""),
                     "Retrieval Reason": reason_label,
                     "Similarity": f"{score:.2f}" if score is not None else "—",
-                })
+                }
+                # Global mode can span cases, so show which case each
+                # result belongs to. Case-specific mode already implies
+                # the case (shown in Retrieval Mode above), so this
+                # column is omitted there to avoid a redundant, always-
+                # identical column.
+                if was_global:
+                    row_dict["Case Reference"] = d.get("case_ref") or "—"
+                doc_rows.append(row_dict)
             st.dataframe(pd.DataFrame(doc_rows), hide_index=True, use_container_width=True)
         else:
-            st.info("No documents were returned for this case reference / query.")
+            st.info("No documents were returned for this query.")
 
         with st.expander("🔧 Advanced Diagnostics"):
             if st.checkbox("Show raw response", key="admin_retrieval_raw_toggle"):
                 st.json({
                     "success": result["success"],
                     "error": result["error"],
+                    "retrieval_mode": "global" if was_global else "case_specific",
                     "search_time_seconds": round(result["elapsed"], 3),
                     "case_reference": result["case_ref"],
                     "query": result["query"],
