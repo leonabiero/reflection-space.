@@ -71,8 +71,27 @@ Confidentiality
 Every strategy that touches Postgres already scopes by case_ref via
 services.draft_storage.get_completed_drafts() (filtered here) or
 services.qdrant_service.search_similar() (filtered inside Qdrant, see
-that module's docstring). This module adds no bypass -- there is no
-function here that can return a document from a different case.
+that module's docstring). This module adds no bypass for the practitioner
+-facing path -- retrieve_historical_context() (used by
+rdi/context_engine.py, which is used by the real Reflection Context
+screen) can never return a document from a different case.
+
+Admin-only exception -- retrieve_global_context()
+-------------------------------------------------------
+retrieve_global_context(), added below, is a SEPARATE public entry
+point that does NOT take a case_ref at all and searches across every
+case in the semantic index, via services.qdrant_service.search_global()
+(see that module's docstring, "ONE DELIBERATE, ADMIN-ONLY EXCEPTION").
+It exists solely to back the System Administration page's Retrieval
+Test "global mode" (System Administrator role only), so an
+administrator can validate the RAG system's retrieval quality across
+the whole knowledge base, not just within one case.
+
+retrieve_historical_context() itself is completely unchanged by this --
+it still requires a non-blank case_ref and still only ever returns
+documents from that one case. retrieve_global_context() must never be
+called from rdi/context_engine.py or any other practitioner-facing
+code path.
 
 Development logging (temporary, Hybrid RAG hardening pass)
 ------------------------------------------------------------
@@ -102,7 +121,7 @@ first order.
 """
 
 from services.draft_storage import get_completed_drafts
-from services.qdrant_service import search_similar, is_available as qdrant_available
+from services.qdrant_service import search_similar, search_global, is_available as qdrant_available
 from services.rag_logging import rag_log
 
 # Document types that always anchor a case's context, regardless of
@@ -329,6 +348,11 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
     the Context Engine has always returned, plus "score", "match_reason"
     (primary reason, back-compat) and "match_reasons" (full list) for
     transparency, sorted most-relevant-first.
+
+    Unchanged by the admin "global retrieval" addition below: a
+    blank/missing case_ref still returns [] here, and every result is
+    still confined to the given case_ref. See retrieve_global_context()
+    for the separate, admin-only, cross-case entry point.
     """
     if not case_ref or not case_ref.strip():
         return []
@@ -343,3 +367,75 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
 
     retriever = HybridRetriever()
     return retriever.retrieve(case_ref, query_text, exclude_ids, completed_docs, limit=limit)
+
+
+def retrieve_global_context(query_text, exclude_ids=None, limit=4):
+    """
+    Admin-only, cross-case semantic search -- backs the System
+    Administration page's Retrieval Test "global mode" (System
+    Administrator role only, no case_ref supplied).
+
+    Unlike retrieve_historical_context(), this does NOT take a case_ref
+    at all, applies NO case filter, and can return documents belonging
+    to ANY case in the semantic index. It exists purely to validate the
+    RAG system's retrieval quality across the whole knowledge base --
+    see services.qdrant_service.search_global()'s docstring for the
+    confidentiality note.
+
+    DO NOT call this from rdi/context_engine.py or any other
+    practitioner-facing code path -- practitioner-facing retrieval must
+    always go through retrieve_historical_context(), which remains
+    unchanged and still hard-scoped to one case_ref.
+
+    Only runs the semantic strategy (there is no "most recent
+    Intervention Plan for this case" or "most recent documents for this
+    case" concept once there is no case) -- must_include and recency
+    strategies are inherently case-scoped concepts and do not apply to
+    a cross-case search.
+
+    Returns a list of document dicts shaped like
+    retrieve_historical_context()'s results, PLUS a "case_ref" key on
+    each entry (needed for display, since results may span multiple
+    cases) -- or [] if semantic search isn't available/configured, or
+    the query text is blank.
+    """
+    if not qdrant_available() or not (query_text or "").strip():
+        return []
+
+    exclude_ids = exclude_ids or set()
+
+    _log(f"retrieve_global_context start: exclude_ids={sorted(exclude_ids)} limit={limit} query_text_len={len(query_text or '')}")
+
+    matches = search_global(query_text, exclude_ids=exclude_ids, limit=limit)
+    if not matches:
+        _log("retrieve_global_context: no matches")
+        return []
+
+    all_completed = get_completed_drafts()
+    by_id = {row[0]: row for row in all_completed}
+
+    results = []
+    for match in matches:
+        row = by_id.get(match["id"])
+        if row is None:
+            # Indexed in Qdrant but not present/completed in Postgres
+            # right now (e.g. purged) -- skip rather than risk showing
+            # a document that no longer exists.
+            continue
+        entry = _doc_to_dict(row, score=match["score"], match_reason="semantic")
+        entry["match_reasons"] = ["semantic"]
+        entry["case_ref"] = row[1]
+        results.append(entry)
+
+    _log(
+        "retrieve_global_context RESULT: "
+        + (
+            ", ".join(
+                f"[id={d['id']} case_ref={d['case_ref']!r} doc_type={d['doc_type']!r} score={d['score']}"
+                for d in results
+            )
+            if results else "(none)"
+        )
+    )
+
+    return results
