@@ -1,41 +1,55 @@
 import streamlit as st
-from services.language import init_language, render_nav
-from services.visit_log import log_visit
+from datetime import datetime, timedelta
+from services.language import init_language
+from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_learning
 from services.reflection_log import get_recent_theme_counts, THEME_KEYS
+from services.exploration_log import get_aggregated_theme_counts
 
 T = init_language()
-log_visit("learning", st.session_state.lang)
 user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
 
-st.title(T["nav_learning"])
-
-# Access gate: this page is meant to be visible only to Supervisor /
-# Programme Manager / System Administrator (see LEARNING_VISIBLE_ROLES
-# in services/identity.py). render_nav() already hides the sidebar link
-# for other roles, but that alone doesn't stop someone from opening this
-# page directly by URL -- this check is what actually enforces it, the
-# same way every other supervisory page (case_history.py, audit_log.py,
-# team_learning.py, research_metrics_PAGE.py) already does.
 if not can_see_learning(user_role):
-    st.info(T["learning_no_data"])
+    st.info(T.get("learning_no_data", "No access."))
     st.stop()
 
-st.write(T["learning_phase2"])
+st.title(T["nav_learning"])
 
-WINDOW = 10
-counts, total = get_recent_theme_counts(limit=WINDOW)
-
+# Practitioner/practice learning insights
+st.subheader(T.get("learning_phase2", "Learning Insights"))
+counts, total = get_recent_theme_counts(limit=10)
 if total == 0:
-    st.info(T["learning_no_data"])
+    st.info(T.get("learning_no_data", "No learning data available."))
 else:
-    st.caption(T["learning_preview_caption"].format(total=total))
-
+    st.caption(T.get("learning_preview_caption", "Themes from recent reflections.").format(total=total))
     for i, key in enumerate(THEME_KEYS):
-        theme_label = T["themes"][i]
+        label = T.get("themes", {}).get(i, key.replace("_", " ").title()) if isinstance(T.get("themes"), dict) else key
         count = counts.get(key, 0)
-        st.write(f"**{theme_label}**")
-        st.progress(count / total)
-        st.caption(T["learning_flagged_caption"].format(count=count, total=total))
+        if count:
+            st.write(f"**{label}**")
+            st.progress(count / total)
+            st.caption(T.get("learning_flagged_caption", "{count} of {total}").format(count=count, total=total))
+
+st.divider()
+
+# Team Learning migration: anonymous organisational themes
+st.subheader(T.get("team_learning_title", "Team Learning"))
+st.caption(T.get("team_learning_intro", "Aggregated anonymous organisational themes."))
+
+window_days = 182
+since_iso = (datetime.now() - timedelta(days=window_days)).isoformat()
+team_counts = get_aggregated_theme_counts(since_iso=since_iso)
+total_team = sum(team_counts.get(k, 0) for k in THEME_KEYS)
+
+if total_team == 0:
+    st.info(T.get("team_learning_no_data", "No organisational learning data available."))
+else:
+    st.caption(T.get("team_learning_period_caption", "{total} themes identified.").format(total=total_team))
+    ranked = sorted((k for k in THEME_KEYS if team_counts.get(k, 0)), key=lambda k: team_counts[k], reverse=True)
+    for rank, key in enumerate(ranked, start=1):
+        label = T.get("section_labels", {}).get(key, key.replace("_", " ").title())
+        count = team_counts[key]
+        st.write(T.get("team_learning_rank_line", "#{rank}: {theme} ({count})").format(rank=rank, theme=label, count=count))
+        st.progress(count / total_team)
