@@ -8,10 +8,11 @@ from services.draft_storage import (
 from services.feedback_store import get_all_feedback
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer, can_see_case_history
+from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 
 T = init_language()
 user_name, user_role = init_identity(T)
+require_work_mode(T, "Manager")
 render_nav(T)
 render_identity_footer(T)
 
