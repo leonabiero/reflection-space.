@@ -1,7 +1,7 @@
 import streamlit as st
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer
+from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.research_metrics_SERVICE import build_research_summary, summary_to_dataframe, build_research_export_csv
 
 # Research Metrics
@@ -21,6 +21,7 @@ from services.research_metrics_SERVICE import build_research_summary, summary_to
 
 T = init_language()
 user_name, user_role = init_identity(T)
+require_work_mode(T, "Manager")
 render_nav(T)
 render_identity_footer(T)
 
