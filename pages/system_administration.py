@@ -48,24 +48,28 @@ render_identity_footer(T)
 if st.session_state.get("user_role") != "System Administrator":
     st.stop()
 
-st.title("🛠️ System Administration")
-st.caption("Administration console for Reflection Space -- system status, indexing, and diagnostic tools.")
+st.title(T["admin_title"])
+st.caption(T["admin_header_caption"])
 
 # --- shared badge/label helpers --------------------------------------------
 
 MATCH_REASON_LABELS = {
-    "must_include": "📌 Must Include",
-    "semantic": "🔎 Semantic Match",
-    "recency": "🕒 Recent",
+    "must_include": T["admin_match_reasons"]["must_include"],
+    "semantic": T["admin_match_reasons"]["semantic"],
+    "recency": T["admin_match_reasons"]["recency"],
 }
 
 
-def _status_badge(ok, true_label="Healthy", false_label="Unavailable"):
+def _status_badge(ok, true_label=None, false_label=None):
+    if true_label is None:
+        true_label = T["admin_status_healthy"]
+    if false_label is None:
+        false_label = T["admin_status_unavailable"]
     return f"✅ {true_label}" if ok else f"❌ {false_label}"
 
 
 def _bool_badge(ok):
-    return "✅ Present" if ok else "❌ Missing"
+    return f"✅ {T['admin_present']}" if ok else f"❌ {T['admin_missing']}"
 
 
 def _check_database():
@@ -85,30 +89,30 @@ def _check_database():
 # =============================================================================
 # 1. User Management (unchanged)
 # =============================================================================
-with st.expander("👥 User Management", expanded=True):
-    st.info("Users are managed through Streamlit Secrets. Dynamic CRUD is intentionally unavailable because credentials and roles are configured in deployment secrets, not application tables.")
+with st.expander(T["admin_management_title"], expanded=True):
+    st.info(T["admin_management_info"])
     users = dict(st.secrets.get("users", {}))
     if users:
         rows = []
         for username, info in users.items():
             rows.append({
-                "Username": username,
-                "Name": info.get("name", ""),
-                "Role": info.get("role", ""),
+                T["admin_username_col"]: username,
+                T["admin_name_col"]: info.get("name", ""),
+                T["admin_role_col"]: info.get("role", ""),
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
-        st.warning("No users are configured yet. Add them under Settings → Secrets in Streamlit Cloud.")
+        st.warning(T["admin_no_users_warning"])
 
 # =============================================================================
 # 2. Document Indexing (unchanged -- backfill utility)
 # =============================================================================
-with st.expander("📇 Document Indexing"):
-    st.caption("Hybrid RAG backfill utility -- generates Qdrant embeddings for documents completed before semantic retrieval was enabled.")
-    st.caption("💰 Cost note: this calls Voyage AI (embeddings) once per completed document, never Claude. At pilot volume this is $0.00/month either way -- see config.py for the full cost breakdown.")
+with st.expander(T["admin_doc_indexing_title"]):
+    st.caption(T["admin_doc_indexing_caption"])
+    st.caption(T["admin_cost_note_backfill"])
     if not qdrant_available():
-        st.warning("Qdrant is not configured, so semantic indexing is unavailable.")
-    elif st.button("Run document backfill", type="primary"):
+        st.warning(T["admin_qdrant_not_configured"])
+    elif st.button(T["admin_run_backfill_button"], type="primary"):
         rows = get_completed_drafts()
         indexed = 0
         progress = st.progress(0)
@@ -117,14 +121,14 @@ with st.expander("📇 Document Indexing"):
             if upsert_document(draft_id, case_ref, doc_type, content=content, language="", created_at=created_at, completed_at=completed_at, created_by_role=created_by_role, was_edited=was_edited):
                 indexed += 1
             progress.progress((i + 1) / len(rows) if rows else 1.0)
-        st.success(f"✅ Indexed {indexed} of {len(rows)} documents.")
+        st.success(T["admin_indexed_success"].format(indexed=indexed, total=len(rows)))
 
 # =============================================================================
 # 3. Retrieval Test
 # =============================================================================
-with st.expander("🔍 Retrieval Test"):
-    st.caption("Runs a real semantic search against Qdrant to verify retrieval is working end to end -- either scoped to one case, or across the entire knowledge base.")
-    st.caption("💰 Cost note: this embeds your query text via Voyage AI only -- it never calls the Claude/Anthropic API, so running this test (in either mode) has no effect on Anthropic API cost.")
+with st.expander(T["admin_retrieval_test_title"]):
+    st.caption(T["admin_retrieval_test_caption"])
+    st.caption(T["admin_cost_note_retrieval"])
 
     # Case Reference is optional -- see the two modes below.
     #
@@ -143,12 +147,12 @@ with st.expander("🔍 Retrieval Test"):
     #   validate the RAG system as a whole rather than only one case at a
     #   time. This mode is only reachable from this page, gated to
     #   System Administrator above.
-    case_ref = st.text_input("Case reference (optional -- leave blank to search the entire knowledge base)", key="admin_retrieval_case_ref")
-    query = st.text_area("Search query", key="admin_retrieval_query")
+    case_ref = st.text_input(T["admin_case_ref_placeholder"], key="admin_retrieval_case_ref")
+    query = st.text_area(T["admin_query_placeholder"], key="admin_retrieval_query")
 
     is_global_mode = not (case_ref or "").strip()
 
-    if st.button("Run retrieval test", type="primary"):
+    if st.button(T["admin_run_retrieval_button"], type="primary"):
         success = True
         error_message = None
         docs = []
@@ -178,36 +182,36 @@ with st.expander("🔍 Retrieval Test"):
     result = st.session_state.get("admin_last_retrieval_result")
     if result:
         was_global = result.get("is_global_mode", not (result.get("case_ref") or "").strip())
-        mode_label = "🌍 Global Knowledge Base Search" if was_global else f"📁 Case-specific ({result['case_ref']})"
+        mode_label = T["admin_retrieval_mode_global"] if was_global else T["admin_retrieval_mode_case"].format(case_ref=result['case_ref'])
 
-        st.markdown("#### Retrieval Summary")
+        st.markdown(f"#### {T['admin_retrieval_summary']}")
         summary_rows = [
-            {"Item": "Status", "Value": "✅ Successful" if result["success"] else "❌ Failed"},
-            {"Item": "Retrieval Mode", "Value": mode_label},
-            {"Item": "Search time", "Value": f"{result['elapsed']:.2f} seconds"},
-            {"Item": "Query", "Value": result["query"] or "—"},
-            {"Item": "Documents returned", "Value": str(len(result["docs"]))},
-            {"Item": "Embedding model", "Value": EMBEDDING_MODEL},
+            {"Item": T["admin_retrieval_status"], "Value": T["admin_retrieval_success"] if result["success"] else T["admin_retrieval_failed"]},
+            {"Item": T["admin_retrieval_mode"], "Value": mode_label},
+            {"Item": T["admin_search_time"], "Value": f"{result['elapsed']:.2f} seconds"},
+            {"Item": T["admin_query_label"], "Value": result["query"] or "—"},
+            {"Item": T["admin_docs_returned"], "Value": str(len(result["docs"]))},
+            {"Item": T["admin_embedding_model"], "Value": EMBEDDING_MODEL},
         ]
         st.table(pd.DataFrame(summary_rows).set_index("Item"))
 
         if was_global:
-            st.caption("🌍 Global mode: this search applied no case filter and may return documents from more than one case.")
+            st.caption(T["admin_global_mode_notice"])
 
         if not result["success"]:
-            st.error(f"Retrieval failed: {result['error']}")
+            st.error(T["admin_retrieval_failed_msg"].format(error=result['error']))
         elif result["docs"]:
-            st.markdown("#### Retrieved Documents")
+            st.markdown(f"#### {T['admin_retrieved_documents']}")
             doc_rows = []
             for rank, d in enumerate(result["docs"], start=1):
                 reasons = d.get("match_reasons") or ([d.get("match_reason")] if d.get("match_reason") else [])
                 reason_label = " + ".join(MATCH_REASON_LABELS.get(r, r) for r in reasons) if reasons else "—"
                 score = d.get("score")
                 row_dict = {
-                    "Rank": rank,
-                    "Document Type": d.get("doc_type", ""),
-                    "Retrieval Reason": reason_label,
-                    "Similarity": f"{score:.2f}" if score is not None else "—",
+                    T["admin_rank"]: rank,
+                    T["admin_doc_type"]: d.get("doc_type", ""),
+                    T["admin_retrieval_reason"]: reason_label,
+                    T["admin_similarity"]: f"{score:.2f}" if score is not None else "—",
                 }
                 # Global mode can span cases, so show which case each
                 # result belongs to. Case-specific mode already implies
@@ -219,10 +223,10 @@ with st.expander("🔍 Retrieval Test"):
                 doc_rows.append(row_dict)
             st.dataframe(pd.DataFrame(doc_rows), hide_index=True, use_container_width=True)
         else:
-            st.info("No documents were returned for this query.")
+            st.info(T["admin_no_docs_found"])
 
-        with st.expander("🔧 Advanced Diagnostics"):
-            if st.checkbox("Show raw response", key="admin_retrieval_raw_toggle"):
+        with st.expander(T["admin_advanced_diagnostics"]):
+            if st.checkbox(T["admin_show_raw_response"], key="admin_retrieval_raw_toggle"):
                 st.json({
                     "success": result["success"],
                     "error": result["error"],
@@ -236,37 +240,37 @@ with st.expander("🔍 Retrieval Test"):
 # =============================================================================
 # 4. RAG Status (renamed from "RAG Diagnostics")
 # =============================================================================
-with st.expander("📡 RAG Status"):
+with st.expander(T["admin_rag_status_title"]):
     diagnostics = get_diagnostics()
 
     if diagnostics.get("error"):
         st.error(f"⚠️ {diagnostics['error']}")
     else:
-        st.success("✅ Semantic retrieval layer is reachable.")
+        st.success(T["admin_rag_layer_reachable"])
 
     status_rows = [
-        {"Item": "Qdrant connection", "Status": _status_badge(diagnostics.get("connected"), "Connected", "Not connected")},
-        {"Item": "Collection", "Status": diagnostics.get("collection_name") or "—"},
-        {"Item": "Embedding model", "Status": diagnostics.get("embedding_model") or "—"},
-        {"Item": "Embedding dimensions", "Status": str(diagnostics.get("embedding_dimensions") or "—")},
-        {"Item": "Indexed documents", "Status": str(diagnostics.get("points_count")) if diagnostics.get("points_count") is not None else "—"},
-        {"Item": "Case reference index", "Status": _bool_badge(diagnostics.get("case_ref_index_present"))},
-        {"Item": "Document ID index", "Status": _bool_badge(diagnostics.get("document_id_index_present"))},
-        {"Item": "Latest document ID", "Status": str(diagnostics.get("latest_document_id")) if diagnostics.get("latest_document_id") is not None else "—"},
-        {"Item": "Latest case", "Status": diagnostics.get("latest_case_ref") or "—"},
-        {"Item": "Latest document type", "Status": diagnostics.get("latest_doc_type") or "—"},
-        {"Item": "Last indexed", "Status": (diagnostics.get("latest_completed_at") or "—")[:19]},
+        {"Item": T["admin_qdrant_connection"], "Status": _status_badge(diagnostics.get("connected"))},
+        {"Item": T["admin_collection"], "Status": diagnostics.get("collection_name") or "—"},
+        {"Item": T["admin_embedding_model"], "Status": diagnostics.get("embedding_model") or "—"},
+        {"Item": T["admin_embedding_dimensions"], "Status": str(diagnostics.get("embedding_dimensions") or "—")},
+        {"Item": T["admin_indexed_documents"], "Status": str(diagnostics.get("points_count")) if diagnostics.get("points_count") is not None else "—"},
+        {"Item": T["admin_case_ref_index"], "Status": _bool_badge(diagnostics.get("case_ref_index_present"))},
+        {"Item": T["admin_doc_id_index"], "Status": _bool_badge(diagnostics.get("document_id_index_present"))},
+        {"Item": T["admin_latest_doc_id"], "Status": str(diagnostics.get("latest_document_id")) if diagnostics.get("latest_document_id") is not None else "—"},
+        {"Item": T["admin_latest_case"], "Status": diagnostics.get("latest_case_ref") or "—"},
+        {"Item": T["admin_latest_doc_type"], "Status": diagnostics.get("latest_doc_type") or "—"},
+        {"Item": T["admin_last_indexed"], "Status": (diagnostics.get("latest_completed_at") or "—")[:19]},
     ]
     st.table(pd.DataFrame(status_rows).set_index("Item"))
 
-    with st.expander("🔧 Advanced Diagnostics"):
-        if st.checkbox("Show raw response", key="admin_rag_status_raw_toggle"):
+    with st.expander(T["admin_advanced_diagnostics"]):
+        if st.checkbox(T["admin_show_raw_response"], key="admin_rag_status_raw_toggle"):
             st.json(diagnostics)
 
 # =============================================================================
 # 5. System Health
 # =============================================================================
-with st.expander("💚 System Health"):
+with st.expander(T["admin_system_health"]):
     db_ok, db_error = _check_database()
     q_diag = get_diagnostics()
     qdrant_ok = bool(q_diag.get("connected"))
@@ -277,30 +281,30 @@ with st.expander("💚 System Health"):
     if not db_ok or not reflection_ok:
         overall = "🔴 Critical"
     elif not retrieval_ok:
-        overall = "🟡 Degraded (semantic retrieval not configured -- app is using date-based fallback)"
+        overall = T["admin_fallback_mode"]
     else:
         overall = "🟢 Healthy"
 
-    st.markdown("#### Overall Status")
+    st.markdown(f"#### {T['admin_overall_status']}")
     st.markdown(f"### {overall}")
 
-    st.markdown("#### Components")
+    st.markdown(f"#### {T['admin_components']}")
     component_rows = [
-        {"Component": "Database", "Status": _status_badge(db_ok, "Healthy", "Unreachable")},
-        {"Component": "Qdrant", "Status": _status_badge(qdrant_ok, "Connected", "Not connected")},
-        {"Component": "Embedding service (Voyage AI)", "Status": _status_badge(embed_ok, "Available", "Not configured")},
-        {"Component": "Retrieval service", "Status": "✅ Operational" if retrieval_ok else "🟡 Fallback mode (recency-based)"},
-        {"Component": "Reflection engine (Claude API)", "Status": _status_badge(reflection_ok, "Operational", "Not configured")},
+        {"Component": T["admin_component_db"], "Status": _status_badge(db_ok)},
+        {"Component": T["admin_component_qdrant"], "Status": _status_badge(qdrant_ok)},
+        {"Component": T["admin_component_embeddings"], "Status": _status_badge(embed_ok)},
+        {"Component": T["admin_component_retrieval"], "Status": "✅ Operational" if retrieval_ok else T["admin_fallback_mode"]},
+        {"Component": T["admin_component_reflection"], "Status": _status_badge(reflection_ok)},
     ]
     st.table(pd.DataFrame(component_rows).set_index("Component"))
 
     if not db_ok and db_error:
         st.error(f"Database error: {db_error}")
     if not reflection_ok:
-        st.error("ANTHROPIC_API_KEY is not configured -- reflections cannot be generated.")
+        st.error(T["admin_reflection_key_missing"])
 
-    with st.expander("🔧 Advanced Diagnostics"):
-        if st.checkbox("Show raw response", key="admin_health_raw_toggle"):
+    with st.expander(T["admin_advanced_diagnostics"]):
+        if st.checkbox(T["admin_show_raw_response"], key="admin_health_raw_toggle"):
             st.json({
                 "database_ok": db_ok,
                 "database_error": db_error,
@@ -312,24 +316,24 @@ with st.expander("💚 System Health"):
 # =============================================================================
 # 6. Configuration
 # =============================================================================
-with st.expander("⚙️ Configuration"):
+with st.expander(T["admin_configuration"]):
     st.markdown(f"""
-- **Embedding model:** {EMBEDDING_MODEL}
-- **Embedding dimensions:** {EMBEDDING_DIMENSIONS}
-- **Retrieval limit:** {DEFAULT_HISTORY_LIMIT} documents
-- **Vector database:** Qdrant
-- **Collection:** {QDRANT_COLLECTION_NAME}
+- **{T['admin_embedding_model_label']}:** {EMBEDDING_MODEL}
+- **{T['admin_embedding_dimensions_label']}:** {EMBEDDING_DIMENSIONS}
+- **{T['admin_retrieval_limit']}:** {DEFAULT_HISTORY_LIMIT} documents
+- **{T['admin_vector_db']}:** Qdrant
+- **{T['admin_collection_label']}:** {QDRANT_COLLECTION_NAME}
 """)
 
 # =============================================================================
 # 7. Administrative Tools (renamed from "Utilities")
 # =============================================================================
-with st.expander("🧰 Administrative Tools"):
-    st.subheader("Anonymization Test")
-    st.caption("Runs the same anonymize() function used before any text is sent to Claude or Voyage AI -- lets you verify what a document looks like once anonymized.")
-    sample = st.text_area("Sample text", key="admin_anon_sample")
-    if st.button("Run anonymization"):
+with st.expander(T["admin_admin_tools"]):
+    st.subheader(T["admin_anon_test_title"])
+    st.caption(T["admin_anon_test_caption"])
+    sample = st.text_area(T["admin_sample_text"], key="admin_anon_sample")
+    if st.button(T["admin_run_anonymizer"]):
         st.code(anonymize(sample))
 
     st.divider()
-    st.caption("Future administrator tools will appear here.")
+    st.caption(T["admin_future_tools"])
