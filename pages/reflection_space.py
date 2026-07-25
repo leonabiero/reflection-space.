@@ -5,8 +5,8 @@ from services.reflection_log import log_reflection
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
-from services.language import init_language, render_nav
-from services.visit_log import log_visit
+from services.language import init_language
+from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer
 from services.rag_logging import rag_log
 from services.explanation_builder import build_explanations, similarity_category
@@ -18,7 +18,6 @@ from rdi.reflection_session import ReflectionSession
 from rdi.companions import COMPANIONS
 
 T = init_language()
-log_visit("reflection_space", st.session_state.lang)
 user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
