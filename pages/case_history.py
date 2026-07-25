@@ -6,12 +6,11 @@ from services.draft_storage import (
     purge_expired_deletions,
 )
 from services.feedback_store import get_all_feedback
-from services.language import init_language, render_nav
-from services.visit_log import log_visit
+from services.language import init_language
+from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history
 
 T = init_language()
-log_visit("case_history", st.session_state.lang)
 user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
