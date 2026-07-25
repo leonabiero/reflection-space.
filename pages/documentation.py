@@ -2,10 +2,11 @@ import streamlit as st
 from services.draft_storage import save_draft
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer
+from services.identity import init_identity, render_identity_footer, require_work_mode
 
 T = init_language()
 user_name, user_role = init_identity(T)
+require_work_mode(T, "Practitioner")
 render_nav(T)
 render_identity_footer(T)
 
