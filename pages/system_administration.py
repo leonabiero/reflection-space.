@@ -5,7 +5,7 @@ import streamlit as st
 
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer
+from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.qdrant_service import get_diagnostics, is_available as qdrant_available, upsert_document
 from services.embedding_service import is_available as embeddings_available
 from services.draft_storage import get_completed_drafts
@@ -28,48 +28,53 @@ from rdi.context_engine import DEFAULT_HISTORY_LIMIT
 # (global mode, added alongside the optional Case Reference field) --
 # both only ever call Voyage AI (embeddings) for the query text and
 # Qdrant for the search; neither calls the Claude/Anthropic API at all.
-# So this redesign, and the global-mode addition, have ZERO impact on
-# Anthropic API cost -- see the docstring on the Retrieval Test section
-# below for the one-line cost note kept alongside that button for
-# transparency.
+# So this page has ZERO impact on Anthropic API cost.
 #
-# Everything below only changes HOW existing data is displayed
-# (tables/cards/badges instead of raw st.json(...)) -- it does not
-# change what is retrieved, indexed, or computed, except for the
-# Retrieval Test's new global mode, which is scoped narrowly and
-# explained in that section's own comments below.
-
+# Sprint 12 translation audit
+# -------------------------------
+# Every user-facing string on this page now goes through the existing
+# central language service (services/language.py, key T) -- no second
+# translation table was created. See the "admin_*" / "admin_rag_*" /
+# "admin_health_*" / "admin_retrieval_*" keys added there.
 
 T = init_language()
 init_identity(T)
+require_work_mode(T, "System Administration")
 render_nav(T)
 render_identity_footer(T)
 
 if st.session_state.get("user_role") != "System Administrator":
     st.stop()
 
-st.title(T["admin_title"])
-st.caption(T["admin_header_caption"])
+st.title(T.get("nav_system_admin", "🛠️ System Administration"))
+st.caption("Administration console for Reflection Space -- system status, indexing, and diagnostic tools.")
 
 # --- shared badge/label helpers --------------------------------------------
 
-MATCH_REASON_LABELS = {
-    "must_include": T["admin_match_reasons"]["must_include"],
-    "semantic": T["admin_match_reasons"]["semantic"],
-    "recency": T["admin_match_reasons"]["recency"],
+MATCH_REASON_LABEL_KEYS = {
+    "must_include": "why_reason_must_include_generic",
+    "semantic": "why_reason_semantic_generic",
+    "recency": "why_reason_recency",
+}
+MATCH_REASON_ICONS = {
+    "must_include": "📌",
+    "semantic": "🔎",
+    "recency": "🕒",
 }
 
 
-def _status_badge(ok, true_label=None, false_label=None):
-    if true_label is None:
-        true_label = T["admin_status_healthy"]
-    if false_label is None:
-        false_label = T["admin_status_unavailable"]
-    return f"✅ {true_label}" if ok else f"❌ {false_label}"
+def _reason_label(reason):
+    icon = MATCH_REASON_ICONS.get(reason, "")
+    text = T.get(MATCH_REASON_LABEL_KEYS.get(reason, ""), reason)
+    return f"{icon} {text}".strip()
+
+
+def _status_badge(ok, true_key="admin_status_connected", false_key="admin_status_not_connected"):
+    return f"✅ {T[true_key]}" if ok else f"❌ {T[false_key]}"
 
 
 def _bool_badge(ok):
-    return f"✅ {T['admin_present']}" if ok else f"❌ {T['admin_missing']}"
+    return T["admin_status_present"] if ok else T["admin_status_missing"]
 
 
 def _check_database():
@@ -87,32 +92,32 @@ def _check_database():
 
 
 # =============================================================================
-# 1. User Management (unchanged)
+# 1. User Management
 # =============================================================================
-with st.expander(T["admin_management_title"], expanded=True):
-    st.info(T["admin_management_info"])
+with st.expander(T["admin_user_mgmt_header"], expanded=True):
+    st.info(T["admin_user_mgmt_info"])
     users = dict(st.secrets.get("users", {}))
     if users:
         rows = []
         for username, info in users.items():
             rows.append({
-                T["admin_username_col"]: username,
-                T["admin_name_col"]: info.get("name", ""),
-                T["admin_role_col"]: info.get("role", ""),
+                T["admin_user_col_username"]: username,
+                T["admin_user_col_name"]: info.get("name", ""),
+                T["admin_user_col_role"]: T.get("role_labels", {}).get(info.get("role", ""), info.get("role", "")),
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
-        st.warning(T["admin_no_users_warning"])
+        st.warning(T["admin_user_mgmt_empty"])
 
 # =============================================================================
-# 2. Document Indexing (unchanged -- backfill utility)
+# 2. Document Indexing (backfill utility)
 # =============================================================================
-with st.expander(T["admin_doc_indexing_title"]):
+with st.expander(T["admin_doc_indexing_header"]):
     st.caption(T["admin_doc_indexing_caption"])
-    st.caption(T["admin_cost_note_backfill"])
+    st.caption(T["admin_doc_indexing_cost"])
     if not qdrant_available():
-        st.warning(T["admin_qdrant_not_configured"])
-    elif st.button(T["admin_run_backfill_button"], type="primary"):
+        st.warning(T["admin_doc_indexing_unavailable"])
+    elif st.button(T["admin_doc_indexing_button"], type="primary"):
         rows = get_completed_drafts()
         indexed = 0
         progress = st.progress(0)
@@ -121,14 +126,14 @@ with st.expander(T["admin_doc_indexing_title"]):
             if upsert_document(draft_id, case_ref, doc_type, content=content, language="", created_at=created_at, completed_at=completed_at, created_by_role=created_by_role, was_edited=was_edited):
                 indexed += 1
             progress.progress((i + 1) / len(rows) if rows else 1.0)
-        st.success(T["admin_indexed_success"].format(indexed=indexed, total=len(rows)))
+        st.success(T["admin_doc_indexing_success"].format(indexed=indexed, total=len(rows)))
 
 # =============================================================================
 # 3. Retrieval Test
 # =============================================================================
-with st.expander(T["admin_retrieval_test_title"]):
+with st.expander(T["admin_retrieval_test_header"]):
     st.caption(T["admin_retrieval_test_caption"])
-    st.caption(T["admin_cost_note_retrieval"])
+    st.caption(T["admin_retrieval_test_cost"])
 
     # Case Reference is optional -- see the two modes below.
     #
@@ -146,13 +151,15 @@ with st.expander(T["admin_retrieval_test_title"]):
     #   any client's case, shown side by side, so an administrator can
     #   validate the RAG system as a whole rather than only one case at a
     #   time. This mode is only reachable from this page, gated to
-    #   System Administrator above.
-    case_ref = st.text_input(T["admin_case_ref_placeholder"], key="admin_retrieval_case_ref")
-    query = st.text_area(T["admin_query_placeholder"], key="admin_retrieval_query")
+    #   System Administrator above. This is also the SAME retrieval path
+    #   the Knowledge Assistant (Learning page) uses for organisational
+    #   questions -- see services/knowledge_assistant.py.
+    case_ref = st.text_input(T["admin_retrieval_case_label"], key="admin_retrieval_case_ref")
+    query = st.text_area(T["admin_retrieval_query_label"], key="admin_retrieval_query")
 
     is_global_mode = not (case_ref or "").strip()
 
-    if st.button(T["admin_run_retrieval_button"], type="primary"):
+    if st.button(T["admin_retrieval_run_button"], type="primary"):
         success = True
         error_message = None
         docs = []
@@ -184,34 +191,34 @@ with st.expander(T["admin_retrieval_test_title"]):
         was_global = result.get("is_global_mode", not (result.get("case_ref") or "").strip())
         mode_label = T["admin_retrieval_mode_global"] if was_global else T["admin_retrieval_mode_case"].format(case_ref=result['case_ref'])
 
-        st.markdown(f"#### {T['admin_retrieval_summary']}")
+        st.markdown(T["admin_retrieval_summary_header"])
         summary_rows = [
-            {"Item": T["admin_retrieval_status"], "Value": T["admin_retrieval_success"] if result["success"] else T["admin_retrieval_failed"]},
-            {"Item": T["admin_retrieval_mode"], "Value": mode_label},
-            {"Item": T["admin_search_time"], "Value": f"{result['elapsed']:.2f} seconds"},
-            {"Item": T["admin_query_label"], "Value": result["query"] or "—"},
-            {"Item": T["admin_docs_returned"], "Value": str(len(result["docs"]))},
-            {"Item": T["admin_embedding_model"], "Value": EMBEDDING_MODEL},
+            {"Item": T["admin_retrieval_status_label"], "Value": T["admin_retrieval_status_success"] if result["success"] else T["admin_retrieval_status_failed"]},
+            {"Item": T["admin_retrieval_mode_row_label"], "Value": mode_label},
+            {"Item": T["admin_retrieval_time_label"], "Value": f"{result['elapsed']:.2f} s"},
+            {"Item": T["admin_retrieval_query_row_label"], "Value": result["query"] or "—"},
+            {"Item": T["admin_retrieval_docs_returned_label"], "Value": str(len(result["docs"]))},
+            {"Item": T["admin_retrieval_embedding_model_label"], "Value": EMBEDDING_MODEL},
         ]
         st.table(pd.DataFrame(summary_rows).set_index("Item"))
 
         if was_global:
-            st.caption(T["admin_global_mode_notice"])
+            st.caption(T["admin_retrieval_global_notice"])
 
         if not result["success"]:
-            st.error(T["admin_retrieval_failed_msg"].format(error=result['error']))
+            st.error(f"{T['admin_retrieval_failed_label']} {result['error']}")
         elif result["docs"]:
-            st.markdown(f"#### {T['admin_retrieved_documents']}")
+            st.markdown(T["admin_retrieval_documents_header"])
             doc_rows = []
             for rank, d in enumerate(result["docs"], start=1):
                 reasons = d.get("match_reasons") or ([d.get("match_reason")] if d.get("match_reason") else [])
-                reason_label = " + ".join(MATCH_REASON_LABELS.get(r, r) for r in reasons) if reasons else "—"
+                reason_label = " + ".join(_reason_label(r) for r in reasons) if reasons else "—"
                 score = d.get("score")
                 row_dict = {
-                    T["admin_rank"]: rank,
-                    T["admin_doc_type"]: d.get("doc_type", ""),
-                    T["admin_retrieval_reason"]: reason_label,
-                    T["admin_similarity"]: f"{score:.2f}" if score is not None else "—",
+                    T["admin_retrieval_col_rank"]: rank,
+                    T["admin_retrieval_col_doctype"]: d.get("doc_type", ""),
+                    T["admin_retrieval_col_reason"]: reason_label,
+                    T["admin_retrieval_col_similarity"]: f"{score:.2f}" if score is not None else "—",
                 }
                 # Global mode can span cases, so show which case each
                 # result belongs to. Case-specific mode already implies
@@ -219,11 +226,11 @@ with st.expander(T["admin_retrieval_test_title"]):
                 # column is omitted there to avoid a redundant, always-
                 # identical column.
                 if was_global:
-                    row_dict["Case Reference"] = d.get("case_ref") or "—"
+                    row_dict[T["admin_retrieval_col_case"]] = d.get("case_ref") or "—"
                 doc_rows.append(row_dict)
             st.dataframe(pd.DataFrame(doc_rows), hide_index=True, use_container_width=True)
         else:
-            st.info(T["admin_no_docs_found"])
+            st.info(T["admin_retrieval_no_docs"])
 
         with st.expander(T["admin_advanced_diagnostics"]):
             if st.checkbox(T["admin_show_raw_response"], key="admin_retrieval_raw_toggle"):
@@ -238,28 +245,28 @@ with st.expander(T["admin_retrieval_test_title"]):
                 })
 
 # =============================================================================
-# 4. RAG Status (renamed from "RAG Diagnostics")
+# 4. RAG Status
 # =============================================================================
-with st.expander(T["admin_rag_status_title"]):
+with st.expander(T["admin_rag_status_header"]):
     diagnostics = get_diagnostics()
 
     if diagnostics.get("error"):
         st.error(f"⚠️ {diagnostics['error']}")
     else:
-        st.success(T["admin_rag_layer_reachable"])
+        st.success(T["admin_rag_status_ok"])
 
     status_rows = [
-        {"Item": T["admin_qdrant_connection"], "Status": _status_badge(diagnostics.get("connected"))},
-        {"Item": T["admin_collection"], "Status": diagnostics.get("collection_name") or "—"},
-        {"Item": T["admin_embedding_model"], "Status": diagnostics.get("embedding_model") or "—"},
-        {"Item": T["admin_embedding_dimensions"], "Status": str(diagnostics.get("embedding_dimensions") or "—")},
-        {"Item": T["admin_indexed_documents"], "Status": str(diagnostics.get("points_count")) if diagnostics.get("points_count") is not None else "—"},
-        {"Item": T["admin_case_ref_index"], "Status": _bool_badge(diagnostics.get("case_ref_index_present"))},
-        {"Item": T["admin_doc_id_index"], "Status": _bool_badge(diagnostics.get("document_id_index_present"))},
-        {"Item": T["admin_latest_doc_id"], "Status": str(diagnostics.get("latest_document_id")) if diagnostics.get("latest_document_id") is not None else "—"},
-        {"Item": T["admin_latest_case"], "Status": diagnostics.get("latest_case_ref") or "—"},
-        {"Item": T["admin_latest_doc_type"], "Status": diagnostics.get("latest_doc_type") or "—"},
-        {"Item": T["admin_last_indexed"], "Status": (diagnostics.get("latest_completed_at") or "—")[:19]},
+        {"Item": T["admin_rag_qdrant_connection"], "Status": _status_badge(diagnostics.get("connected"))},
+        {"Item": T["admin_rag_collection"], "Status": diagnostics.get("collection_name") or "—"},
+        {"Item": T["admin_rag_embedding_model"], "Status": diagnostics.get("embedding_model") or "—"},
+        {"Item": T["admin_rag_embedding_dims"], "Status": str(diagnostics.get("embedding_dimensions") or "—")},
+        {"Item": T["admin_rag_indexed_docs"], "Status": str(diagnostics.get("points_count")) if diagnostics.get("points_count") is not None else "—"},
+        {"Item": T["admin_rag_case_ref_index"], "Status": _bool_badge(diagnostics.get("case_ref_index_present"))},
+        {"Item": T["admin_rag_doc_id_index"], "Status": _bool_badge(diagnostics.get("document_id_index_present"))},
+        {"Item": T["admin_rag_latest_doc_id"], "Status": str(diagnostics.get("latest_document_id")) if diagnostics.get("latest_document_id") is not None else "—"},
+        {"Item": T["admin_rag_latest_case"], "Status": diagnostics.get("latest_case_ref") or "—"},
+        {"Item": T["admin_rag_latest_doctype"], "Status": diagnostics.get("latest_doc_type") or "—"},
+        {"Item": T["admin_rag_last_indexed"], "Status": (diagnostics.get("latest_completed_at") or "—")[:19]},
     ]
     st.table(pd.DataFrame(status_rows).set_index("Item"))
 
@@ -270,7 +277,7 @@ with st.expander(T["admin_rag_status_title"]):
 # =============================================================================
 # 5. System Health
 # =============================================================================
-with st.expander(T["admin_system_health"]):
+with st.expander(T["admin_health_header"]):
     db_ok, db_error = _check_database()
     q_diag = get_diagnostics()
     qdrant_ok = bool(q_diag.get("connected"))
@@ -279,29 +286,29 @@ with st.expander(T["admin_system_health"]):
     retrieval_ok = qdrant_ok and embed_ok  # falls back gracefully if not
 
     if not db_ok or not reflection_ok:
-        overall = "🔴 Critical"
+        overall = T["admin_health_critical"]
     elif not retrieval_ok:
-        overall = T["admin_fallback_mode"]
+        overall = T["admin_health_degraded"]
     else:
-        overall = "🟢 Healthy"
+        overall = T["admin_health_healthy"]
 
-    st.markdown(f"#### {T['admin_overall_status']}")
+    st.markdown(T["admin_health_overall"])
     st.markdown(f"### {overall}")
 
-    st.markdown(f"#### {T['admin_components']}")
+    st.markdown(T["admin_health_components"])
     component_rows = [
-        {"Component": T["admin_component_db"], "Status": _status_badge(db_ok)},
-        {"Component": T["admin_component_qdrant"], "Status": _status_badge(qdrant_ok)},
-        {"Component": T["admin_component_embeddings"], "Status": _status_badge(embed_ok)},
-        {"Component": T["admin_component_retrieval"], "Status": "✅ Operational" if retrieval_ok else T["admin_fallback_mode"]},
-        {"Component": T["admin_component_reflection"], "Status": _status_badge(reflection_ok)},
+        {T["admin_health_component_col"]: T["admin_health_component_database"], T["admin_health_status_col"]: _status_badge(db_ok, "admin_health_healthy_label", "admin_health_unreachable_label")},
+        {T["admin_health_component_col"]: T["admin_health_component_qdrant"], T["admin_health_status_col"]: _status_badge(qdrant_ok, "admin_status_connected", "admin_status_not_connected")},
+        {T["admin_health_component_col"]: T["admin_health_component_embedding"], T["admin_health_status_col"]: _status_badge(embed_ok, "admin_health_available_label", "admin_health_not_configured_label")},
+        {T["admin_health_component_col"]: T["admin_health_component_retrieval"], T["admin_health_status_col"]: T["admin_health_operational_label"] if retrieval_ok else T["admin_health_fallback_label"]},
+        {T["admin_health_component_col"]: T["admin_health_component_reflection"], T["admin_health_status_col"]: _status_badge(reflection_ok, "admin_health_operational_label", "admin_health_not_configured_label")},
     ]
-    st.table(pd.DataFrame(component_rows).set_index("Component"))
+    st.table(pd.DataFrame(component_rows).set_index(T["admin_health_component_col"]))
 
     if not db_ok and db_error:
-        st.error(f"Database error: {db_error}")
+        st.error(f"{T['admin_health_db_error_prefix']} {db_error}")
     if not reflection_ok:
-        st.error(T["admin_reflection_key_missing"])
+        st.error(T["admin_health_key_missing"])
 
     with st.expander(T["admin_advanced_diagnostics"]):
         if st.checkbox(T["admin_show_raw_response"], key="admin_health_raw_toggle"):
@@ -316,24 +323,23 @@ with st.expander(T["admin_system_health"]):
 # =============================================================================
 # 6. Configuration
 # =============================================================================
-with st.expander(T["admin_configuration"]):
+with st.expander(T["admin_config_header"]):
     st.markdown(f"""
-- **{T['admin_embedding_model_label']}:** {EMBEDDING_MODEL}
-- **{T['admin_embedding_dimensions_label']}:** {EMBEDDING_DIMENSIONS}
-- **{T['admin_retrieval_limit']}:** {DEFAULT_HISTORY_LIMIT} documents
-- **{T['admin_vector_db']}:** Qdrant
-- **{T['admin_collection_label']}:** {QDRANT_COLLECTION_NAME}
+- **{T['admin_rag_embedding_model']}:** {EMBEDDING_MODEL}
+- **{T['admin_rag_embedding_dims']}:** {EMBEDDING_DIMENSIONS}
+- **{T.get('historical_docs_used_label', 'Retrieval limit')}:** {DEFAULT_HISTORY_LIMIT}
+- **{T['admin_rag_collection']}:** {QDRANT_COLLECTION_NAME}
 """)
 
 # =============================================================================
-# 7. Administrative Tools (renamed from "Utilities")
+# 7. Administrative Tools
 # =============================================================================
-with st.expander(T["admin_admin_tools"]):
-    st.subheader(T["admin_anon_test_title"])
-    st.caption(T["admin_anon_test_caption"])
-    sample = st.text_area(T["admin_sample_text"], key="admin_anon_sample")
-    if st.button(T["admin_run_anonymizer"]):
+with st.expander(T["admin_tools_header"]):
+    st.subheader(T["admin_tools_anon_test_header"])
+    st.caption(T["admin_anon_caption"])
+    sample = st.text_area(T["admin_sample_label"], key="admin_anon_sample")
+    if st.button(T["admin_run_button"]):
         st.code(anonymize(sample))
 
     st.divider()
-    st.caption(T["admin_future_tools"])
+    st.caption(T["admin_tools_future"])
