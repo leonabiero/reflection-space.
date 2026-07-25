@@ -1,6 +1,6 @@
 import streamlit as st
-from services.language import init_language, render_nav
-from services.visit_log import log_visit
+from services.language import init_language
+from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer
 from services.exploration_log import get_personal_exploration_history
 from services.reflection_log import THEME_KEYS
@@ -28,7 +28,6 @@ from services.reflection_log import THEME_KEYS
 # text itself (see services/exploration_log.py for the full rationale).
 
 T = init_language()
-log_visit("growth_dashboard", st.session_state.lang)
 user_name, user_role = init_identity(T)
 render_nav(T)
 render_identity_footer(T)
