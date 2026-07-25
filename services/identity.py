@@ -58,6 +58,8 @@ def init_identity(T):
         st.session_state.user_name = ""
     if "user_role" not in st.session_state:
         st.session_state.user_role = ""
+    if "active_workspace" not in st.session_state:
+        st.session_state.active_workspace = "Practitioner"
 
     if st.session_state.authed:
         return st.session_state.user_name, st.session_state.user_role
@@ -80,6 +82,7 @@ def init_identity(T):
             st.session_state.authed = True
             st.session_state.user_name = user.get("name", username).strip()
             st.session_state.user_role = user.get("role", ROLES[0]).strip()
+            st.session_state.active_workspace = "System Administration" if st.session_state.user_role == "System Administrator" else ("Manager" if st.session_state.user_role in {"Supervisor", "Programme Manager"} else "Practitioner")
             st.rerun()
         else:
             st.error(T["login_error"])
@@ -100,6 +103,7 @@ def render_identity_footer(T):
             st.session_state.authed = False
             st.session_state.user_name = ""
             st.session_state.user_role = ""
+            st.session_state.active_workspace = "Practitioner"
             st.rerun()
 
 
