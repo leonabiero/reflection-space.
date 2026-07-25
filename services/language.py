@@ -808,23 +808,3 @@ def init_language():
     return get_lang(st.session_state.lang)
 
 
-def render_nav(T):
-    st.sidebar.success(T["nav_header"])
-    st.sidebar.page_link("pages/documentation.py", label=T["nav_doc"])
-    st.sidebar.page_link("pages/reflection_space.py", label=T["nav_reflection"])
-    # Sprint 8: personal to whoever is logged in -- unlike the
-    # supervisory pages below, this is never gated by role, since it
-    # shows a professional only their own reflective history, never
-    # anyone else's.
-    st.sidebar.page_link("pages/growth_dashboard.py", label=T["nav_growth"])
-
-    visible_roles = {"Supervisor", "Programme Manager", "System Administrator"}
-    current_role = st.session_state.get("user_role", "").strip()
-    if current_role in visible_roles:
-        st.sidebar.page_link("pages/learning.py", label=T["nav_learning"])
-        st.sidebar.page_link("pages/team_learning.py", label=T["nav_team_learning"])
-        st.sidebar.page_link("pages/case_history.py", label=T["nav_case_history"])
-        st.sidebar.page_link("pages/audit_log.py", label=T["nav_audit_log"])
-
-    if current_role == "System Administrator":
-        st.sidebar.page_link("pages/research_metrics_PAGE.py", label=T["nav_research_metrics"])
