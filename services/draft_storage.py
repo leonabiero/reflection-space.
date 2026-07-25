@@ -43,6 +43,13 @@ def _get_conn():
             saved_at TEXT
         )
         """)
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS user_activity (
+            user_name TEXT PRIMARY KEY,
+            user_role TEXT,
+            last_seen TEXT
+        )
+        """)
     conn.commit()
     return conn
 
@@ -50,6 +57,58 @@ def _get_conn():
 def init_db():
     conn = _get_conn()
     conn.close()
+
+
+def update_user_activity(user_name, user_role):
+    if not user_name:
+        return
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("""
+            INSERT INTO user_activity (user_name, user_role, last_seen)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_name) DO UPDATE
+            SET user_role = EXCLUDED.user_role, last_seen = EXCLUDED.last_seen
+        """, (user_name, user_role, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+
+def get_active_users():
+    conn = _get_conn()
+    with conn.cursor() as c:
+        c.execute("SELECT user_name, user_role, last_seen FROM user_activity ORDER BY last_seen DESC")
+        rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def get_case_count(since_iso=None, service=None, doc_type=None):
+    """
+    Structured query for aggregation/counting.
+    """
+    conn = _get_conn()
+    query = "SELECT COUNT(DISTINCT case_ref) FROM drafts WHERE status='completed'"
+    params = []
+    if since_iso:
+        query += " AND completed_at >= %s"
+        params.append(since_iso)
+    # Note: 'service' is not a separate column yet, but we can search in case_ref
+    # if it follows a pattern, or just return total for now.
+    # The requirement mentions 'service' and 'age' which aren't explicit columns.
+    # We will search case_ref for service names if provided.
+    if service:
+        query += " AND case_ref ILIKE %s"
+        params.append(f"%{service}%")
+    if doc_type:
+        query += " AND doc_type = %s"
+        params.append(doc_type)
+
+    with conn.cursor() as c:
+        c.execute(query, tuple(params))
+        (count,) = c.fetchone()
+    conn.close()
+    return count
 
 
 def save_draft(case_ref, doc_type, language, content, created_by="", created_by_role=""):
