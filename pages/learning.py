@@ -25,7 +25,18 @@ if total == 0:
 else:
     st.caption(T.get("learning_preview_caption", "Themes from recent reflections.").format(total=total))
     for i, key in enumerate(THEME_KEYS):
-        label = T.get("themes", {}).get(i, key.replace("_", " ").title()) if isinstance(T.get("themes"), dict) else key
+        # NOTE (fix): T["themes"] is a positional LIST (index 0..7, same
+        # order as THEME_KEYS), not a dict -- it was never safe to call
+        # .get(i, ...) on it. The old `isinstance(..., dict)` guard
+        # always evaluated False against that list, so every reflection
+        # theme silently fell back to its raw snake_case key (e.g.
+        # "client_voice" instead of "Client's Voice" / "Voz de la
+        # persona"). T["section_labels"] is a proper {theme_key: label}
+        # dict -- already used correctly everywhere else in the app
+        # (growth_dashboard.py, research_metrics_PAGE.py, and the Team
+        # Learning section further down this same page) -- so we use it
+        # here too instead of the broken positional lookup.
+        label = T.get("section_labels", {}).get(key, key.replace("_", " ").title())
         count = counts.get(key, 0)
         if count:
             st.write(f"**{label}**")
