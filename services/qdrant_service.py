@@ -20,17 +20,36 @@ time.
 Confidentiality boundary (mandatory, per case)
 --------------------------------------------------
 Every point stored here is tagged with a `case_ref` payload field, and
-every search MUST filter on it. search_similar() below takes case_ref
-as a required, non-optional argument specifically so there is no way to
-call it without a case scope -- there is no "search everything" method
-in this module at all. This is the mechanism, not just a convention:
-even a semantic near-duplicate from a different client's case can never
-be returned, because Qdrant discards it at the filter stage before
-scoring is even considered for ranking.
+every PRACTITIONER-FACING search MUST filter on it. search_similar()
+below takes case_ref as a required, non-optional argument specifically
+so there is no way to call it without a case scope -- there is no
+"search everything" method built on top of search_similar() at all.
+This is the mechanism, not just a convention: even a semantic
+near-duplicate from a different client's case can never be returned to
+a practitioner reflecting on a case, because Qdrant discards it at the
+filter stage before scoring is even considered for ranking.
 
 search_similar() ALSO filters (must_not) on `document_id`, to exclude
 today's own document(s) from its own historical-context suggestions
 (see the `exclude_ids` argument).
+
+ONE DELIBERATE, ADMIN-ONLY EXCEPTION -- search_global()
+------------------------------------------------------------
+search_global() (added alongside the System Administration page's
+Retrieval Test "global mode") is the single exception to the rule
+above. It runs the exact same semantic search but WITHOUT a case_ref
+filter, on purpose, so an administrator can validate that the RAG
+system as a whole is retrieving sensibly, not just within one case.
+
+This function must NEVER be called from any practitioner-facing code
+path -- not rdi/context_engine.py, not rdi/retrieval_service.py's
+retrieve_historical_context() (used by the real Reflection Context
+screen), not services/reflection_service.py. Those must keep using
+search_similar(), which remains unchanged and still hard-scoped to one
+case_ref. search_global() is only ever called from
+rdi.retrieval_service.retrieve_global_context(), which in turn is only
+ever called from pages/system_administration.py's Retrieval Test panel
+(System Administrator role only).
 
 Payload indexes (required for filtering)
 -----------------------------------------
@@ -43,6 +62,11 @@ search_similar() is ever called:
 
     - "case_ref"     -> KEYWORD index
     - "document_id"  -> INTEGER index
+
+search_global() only ever filters on document_id (must_not, for
+exclude_ids), so it only depends on the document_id index -- but both
+indexes are always ensured together by _ensure_payload_indexes(), so
+this is never a practical concern.
 
 REQUIRED_PAYLOAD_INDEXES (below) is the single source of truth for
 which fields need an index and what schema type each needs.
@@ -103,20 +127,21 @@ from services.rag_logging import rag_log
 _client = None
 _collection_ready = False
 
-# The payload field every search filters on for confidentiality (see
-# module docstring, "Confidentiality boundary"). Kept as a constant so
-# search_similar() and anything referencing it by name stay in sync.
+# The payload field every practitioner-facing search filters on for
+# confidentiality (see module docstring, "Confidentiality boundary").
+# Kept as a constant so search_similar() and anything referencing it by
+# name stay in sync.
 CASE_REF_FIELD = "case_ref"
 
-# The payload field search_similar() uses to exclude today's own
-# document(s) from its own historical suggestions.
+# The payload field both search_similar() and search_global() use to
+# exclude today's own document(s) from their own suggestions.
 DOCUMENT_ID_FIELD = "document_id"
 
 # Single source of truth for every payload field that needs an index
-# before search_similar() can filter on it, and what schema type each
-# one needs. Add a new entry here (and nowhere else) if a future filter
-# field is introduced -- _ensure_payload_indexes() below picks it up
-# automatically.
+# before search_similar() / search_global() can filter on it, and what
+# schema type each one needs. Add a new entry here (and nowhere else)
+# if a future filter field is introduced -- _ensure_payload_indexes()
+# below picks it up automatically.
 REQUIRED_PAYLOAD_INDEXES = {
     CASE_REF_FIELD: qmodels.PayloadSchemaType.KEYWORD,
     DOCUMENT_ID_FIELD: qmodels.PayloadSchemaType.INTEGER,
@@ -152,8 +177,9 @@ def _ensure_payload_indexes(client):
     REQUIRED_PAYLOAD_INDEXES (currently "case_ref" -> KEYWORD and
     "document_id" -> INTEGER), so filtering by any of them (
     search_similar()'s query_filter, which filters on case_ref and
-    excludes on document_id) never fails with Qdrant's "Index required
-    but not found" error.
+    excludes on document_id; search_global()'s query_filter, which
+    excludes on document_id only) never fails with Qdrant's "Index
+    required but not found" error.
 
     Idempotent in two layers, per field:
       1. It first reads back the collection's current payload schema
@@ -169,9 +195,10 @@ def _ensure_payload_indexes(client):
     Never raises upward: an indexing problem here must not block the
     app from starting or a page from loading (same graceful-degradation
     contract as every other function in this module). If it fails,
-    search_similar() will surface the underlying Qdrant error the next
-    time it actually tries to filter -- which is exactly the failure
-    this function exists to prevent, so it's logged loudly here.
+    search_similar() / search_global() will surface the underlying
+    Qdrant error the next time they actually try to filter -- which is
+    exactly the failure this function exists to prevent, so it's
+    logged loudly here.
     """
     try:
         collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
@@ -335,10 +362,13 @@ def delete_document(draft_id):
 
 def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
     """
-    Semantic search, ALWAYS scoped to one case. This is the only search
-    entry point this module exposes -- case_ref is a required argument,
-    not an optional filter, so there is no way to call this without
-    confidentiality scoping.
+    Semantic search, ALWAYS scoped to one case. This is the ONLY search
+    entry point this module exposes for practitioner-facing code --
+    case_ref is a required argument, not an optional filter, so there
+    is no way to call this without confidentiality scoping. (The one
+    exception in this module is search_global(), below, which is
+    admin-only -- see the module docstring, "ONE DELIBERATE, ADMIN-ONLY
+    EXCEPTION".)
 
     Filters used (both require a payload index -- see
     _ensure_payload_indexes()):
@@ -402,6 +432,80 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
         return out
     except Exception as e:
         _log(f"search_similar FAILED: case_ref={case_ref!r} exception={e!r}\n{traceback.format_exc()}")
+        return []
+
+
+def search_global(query_text, exclude_ids=None, limit=5):
+    """
+    Semantic search across the ENTIRE Qdrant collection -- NO case_ref
+    filter is applied. This is the one deliberate exception to this
+    module's confidentiality boundary (see module docstring, "ONE
+    DELIBERATE, ADMIN-ONLY EXCEPTION").
+
+    DO NOT call this from any practitioner-facing path. It exists
+    solely to back the System Administration page's Retrieval Test
+    "global mode" (System Administrator role only), via
+    rdi.retrieval_service.retrieve_global_context(), so an administrator
+    can validate the RAG system's retrieval quality across the whole
+    knowledge base rather than one case at a time.
+
+    Filters used (requires the document_id payload index -- see
+    _ensure_payload_indexes()):
+      - must_not: document_id in exclude_ids          (INTEGER index)
+
+    No case_ref filter is applied at all -- results can come from any
+    case in the collection.
+
+    Returns a list of {"id": draft_id, "score": float} dicts, most
+    similar first, or [] if semantic search isn't available/configured
+    or embedding the query failed. Callers are responsible for joining
+    these ids back to full document rows in Postgres (including which
+    case_ref each one belongs to, since results may span cases).
+    """
+    client = _get_client()
+    if client is None:
+        _log("search_global SKIPPED: reason='Qdrant not configured'")
+        return []
+
+    safe_query = anonymize(query_text or "")
+    vector = embed_query(safe_query)
+    query_embedding_created = vector is not None
+    _log(f"search_global: collection={QDRANT_COLLECTION_NAME} query_embedding_created={query_embedding_created}")
+
+    if vector is None:
+        _log("search_global FAILED: reason='query embedding returned None'")
+        return []
+
+    exclude_ids = exclude_ids or set()
+    must_not_conditions = []
+    if exclude_ids:
+        must_not_conditions.append(
+            qmodels.FieldCondition(
+                key=DOCUMENT_ID_FIELD,
+                match=qmodels.MatchAny(any=list(exclude_ids)),
+            )
+        )
+    query_filter = qmodels.Filter(must_not=must_not_conditions) if must_not_conditions else None
+
+    _log(
+        f"search_global payload_filter: (no case_ref filter -- global) "
+        f"exclude_document_ids={sorted(exclude_ids) if exclude_ids else []} limit={limit}"
+    )
+
+    try:
+        _ensure_collection(client)
+        _log("Starting global semantic search (no case_ref filter)...")
+        results = client.search(
+            collection_name=QDRANT_COLLECTION_NAME,
+            query_vector=vector,
+            query_filter=query_filter,
+            limit=limit,
+        )
+        out = [{"id": point.id, "score": point.score} for point in results]
+        _log(f"search_global RESULT: retrieved={out}")
+        return out
+    except Exception as e:
+        _log(f"search_global FAILED: exception={e!r}\n{traceback.format_exc()}")
         return []
 
 
