@@ -7,7 +7,7 @@ from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
 from services.language import init_language
 from navigation.router import render_nav
-from services.identity import init_identity, render_identity_footer
+from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.rag_logging import rag_log
 from services.explanation_builder import build_explanations, similarity_category
 from rdi.context_engine import get_historical_context
@@ -19,6 +19,7 @@ from rdi.companions import COMPANIONS
 
 T = init_language()
 user_name, user_role = init_identity(T)
+require_work_mode(T, "Practitioner")
 render_nav(T)
 render_identity_footer(T)
 
