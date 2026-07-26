@@ -13,14 +13,19 @@ retrieval pipeline, or a second Anthropic client pattern. It is a thin
 orchestration layer over pieces that already exist:
 
     - rdi.retrieval_service.retrieve_global_context() -- the SAME
-      Hybrid RAG / Qdrant semantic search already used by
-      rdi/context_engine.py, just called without a case_ref so it can
-      search across the WHOLE organisation's indexed knowledge, exactly
-      the way the System Administration page's Retrieval Test "global
-      mode" already does (see rdi/retrieval_service.py's module
-      docstring, "Admin-only exception -- retrieve_global_context()").
-      Practitioner Reflection's per-case retrieval
-      (retrieve_historical_context()) is completely untouched by this.
+      case-unscoped semantic search already used by the System
+      Administration page's Retrieval Test "global mode", just reused
+      here for a second, equally authorised purpose: letting
+      Supervisors and Programme Managers ask organisation-wide
+      questions that need evidence from across every case, not just
+      one (see rdi/retrieval_service.py's module docstring,
+      "Organisation-wide (case-unscoped) retrieval --
+      retrieve_global_context()", which lists both authorised call
+      sites and the roles permitted to use each one). This is a
+      distinct code path from rdi/context_engine.py's per-case
+      retrieval (retrieve_historical_context()), which is completely
+      untouched by this and remains hard-scoped to one case for every
+      practitioner-facing use.
 
     - services.research_metrics_SERVICE.build_research_summary() -- the
       SAME organisation-wide, anonymous aggregate counts (theme flags,
