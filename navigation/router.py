@@ -59,7 +59,8 @@ def render_nav(T):
     whichever page was actually navigated to, and it must run before
     this function instantiates the active_work_mode-keyed widget for
     this rerun, or Streamlit raises a "widget already has a value"
-    exception.
+    exception. It is ALSO what records "previous_work_mode" (see below)
+    -- so that ordering requirement now serves two purposes, not one.
 
     Role / work-mode separation
     ------------------------------
@@ -83,6 +84,30 @@ def render_nav(T):
     never stranded in Practitioner mode -- this is a single button, not
     a switcher/selector, so it does not violate the "no switcher in
     Practitioner mode" rule.
+
+    "Back to my workspace" now remembers where the person actually came
+    from
+    ------------------------------------------------------------------------
+    Previously this button always targeted the FIRST non-Practitioner
+    workspace available to the role (in practice, always "Manager" for
+    every role that has more than one work mode -- Supervisor,
+    Programme Manager, and System Administrator all list "Manager"
+    before "System Administration" in WORKSPACE_ORDER). A System
+    Administrator who switched from System Administration into
+    Practitioner mode would incorrectly land back on Manager instead of
+    System Administration.
+
+    services.identity.require_work_mode() now records the work mode a
+    person was actually in right before it changes to "Practitioner",
+    under st.session_state["previous_work_mode"] -- this covers BOTH
+    ways someone can enter Practitioner mode (the switcher above, and
+    simply clicking a Practitioner-mode page link directly), since both
+    paths call require_work_mode() before landing on the page. This
+    function just reads that value back, falling back to the old
+    "first available workspace" behavior only if no previous work mode
+    was recorded, or if the recorded one is no longer a workspace this
+    role can access (e.g. permissions changed mid-session) -- so the
+    button can never send someone somewhere they're not authorized for.
     """
     role = st.session_state.get("user_role", "")
     options = available_workspaces(role)
@@ -98,7 +123,11 @@ def render_nav(T):
     if active == "Practitioner":
         if can_switch_work_mode(role):
             other_options = [w for w in options if w != "Practitioner"]
-            back_target = other_options[0] if other_options else None
+            previous = st.session_state.get("previous_work_mode")
+            if previous in other_options:
+                back_target = previous
+            else:
+                back_target = other_options[0] if other_options else None
             if back_target:
                 st.sidebar.button(
                     f"⬅ {_label(T, back_target)}",
