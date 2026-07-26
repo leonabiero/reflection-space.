@@ -145,15 +145,20 @@ with st.expander(T["admin_retrieval_test_header"]):
     # - Case Reference left blank -> GLOBAL mode: calls
     #   rdi.retrieval_service.retrieve_global_context(), which applies NO
     #   case filter and searches the entire Qdrant collection. This is a
-    #   deliberate, admin-only exception to the app's per-case
+    #   deliberate, intentional exception to the app's per-case
     #   confidentiality boundary (see services/qdrant_service.py's
     #   search_global() docstring) -- results can include documents from
     #   any client's case, shown side by side, so an administrator can
     #   validate the RAG system as a whole rather than only one case at a
-    #   time. This mode is only reachable from this page, gated to
-    #   System Administrator above. This is also the SAME retrieval path
-    #   the Knowledge Assistant (Learning page) uses for organisational
-    #   questions -- see services/knowledge_assistant.py.
+    #   time. On this page, this mode is gated to System Administrator
+    #   only (see the role check above). Organisation-wide retrieval is
+    #   NOT unique to this page, though: the Knowledge Assistant on the
+    #   Learning page (services/knowledge_assistant.py) intentionally
+    #   reuses this same retrieve_global_context() path so Supervisors
+    #   and Programme Managers can ask organisational questions that need
+    #   evidence from across every case. See rdi/retrieval_service.py's
+    #   retrieve_global_context() docstring for the full list of
+    #   authorised call sites and the roles permitted to use each one.
     case_ref = st.text_input(T["admin_retrieval_case_label"], key="admin_retrieval_case_ref")
     query = st.text_area(T["admin_retrieval_query_label"], key="admin_retrieval_query")
 
