@@ -76,22 +76,30 @@ that module's docstring). This module adds no bypass for the practitioner
 rdi/context_engine.py, which is used by the real Reflection Context
 screen) can never return a document from a different case.
 
-Admin-only exception -- retrieve_global_context()
--------------------------------------------------------
+Organisation-wide (case-unscoped) retrieval -- retrieve_global_context()
+--------------------------------------------------------------------------
 retrieve_global_context(), added below, is a SEPARATE public entry
 point that does NOT take a case_ref at all and searches across every
 case in the semantic index, via services.qdrant_service.search_global()
-(see that module's docstring, "ONE DELIBERATE, ADMIN-ONLY EXCEPTION").
-It exists solely to back the System Administration page's Retrieval
-Test "global mode" (System Administrator role only), so an
-administrator can validate the RAG system's retrieval quality across
-the whole knowledge base, not just within one case.
+(see that module's docstring, "ONE DELIBERATE, CASE-UNSCOPED
+EXCEPTION"). It is intentionally used by two authorised, management-
+tier features, never by any practitioner-facing page:
+  - The System Administration page's Retrieval Test "global mode"
+    (System Administrator role only), so an administrator can validate
+    the RAG system's retrieval quality across the whole knowledge base,
+    not just within one case.
+  - The Knowledge Assistant on the Learning page
+    (services/knowledge_assistant.py), which deliberately searches
+    across every case so Supervisors and Programme Managers can ask
+    organisation-wide questions ("what patterns have come up across
+    the organisation this quarter") rather than case-specific ones.
 
 retrieve_historical_context() itself is completely unchanged by this --
 it still requires a non-blank case_ref and still only ever returns
 documents from that one case. retrieve_global_context() must never be
 called from rdi/context_engine.py or any other practitioner-facing
-code path.
+code path -- it is reserved for the two authorised, management-tier
+call sites above.
 
 Development logging (temporary, Hybrid RAG hardening pass)
 ------------------------------------------------------------
@@ -349,10 +357,10 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
     (primary reason, back-compat) and "match_reasons" (full list) for
     transparency, sorted most-relevant-first.
 
-    Unchanged by the admin "global retrieval" addition below: a
+    Unchanged by the "organisation-wide retrieval" addition below: a
     blank/missing case_ref still returns [] here, and every result is
     still confined to the given case_ref. See retrieve_global_context()
-    for the separate, admin-only, cross-case entry point.
+    for the separate, management-tier, cross-case entry point.
     """
     if not case_ref or not case_ref.strip():
         return []
@@ -371,21 +379,28 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
 
 def retrieve_global_context(query_text, exclude_ids=None, limit=4):
     """
-    Admin-only, cross-case semantic search -- backs the System
+    Organisation-wide, cross-case semantic search -- intentionally used
+    by two authorised, management-tier features: the System
     Administration page's Retrieval Test "global mode" (System
-    Administrator role only, no case_ref supplied).
+    Administrator role only, no case_ref supplied), and the Knowledge
+    Assistant on the Learning page (services/knowledge_assistant.py,
+    Supervisor / Programme Manager / System Administrator).
 
     Unlike retrieve_historical_context(), this does NOT take a case_ref
     at all, applies NO case filter, and can return documents belonging
-    to ANY case in the semantic index. It exists purely to validate the
-    RAG system's retrieval quality across the whole knowledge base --
-    see services.qdrant_service.search_global()'s docstring for the
+    to ANY case in the semantic index. For the Retrieval Test, this
+    validates the RAG system's retrieval quality across the whole
+    knowledge base; for the Knowledge Assistant, this is exactly the
+    behaviour wanted -- an organisation-wide question needs evidence
+    that can come from any case, not just one. See
+    services.qdrant_service.search_global()'s docstring for the
     confidentiality note.
 
     DO NOT call this from rdi/context_engine.py or any other
     practitioner-facing code path -- practitioner-facing retrieval must
     always go through retrieve_historical_context(), which remains
-    unchanged and still hard-scoped to one case_ref.
+    unchanged and still hard-scoped to one case_ref. This function is
+    reserved for the two authorised, management-tier call sites above.
 
     Only runs the semantic strategy (there is no "most recent
     Intervention Plan for this case" or "most recent documents for this
