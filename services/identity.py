@@ -33,6 +33,18 @@ from navigation.permissions import default_workspace_for_role, can_access_worksp
 # WRITES active_work_mode on those two occasions, never reads a stale
 # default back into it.
 #
+# "previous_work_mode" (Back to my workspace fix)
+# ----------------------------------------------------
+# require_work_mode() below now also records, in
+# st.session_state["previous_work_mode"], whichever work mode was
+# active immediately before the person entered "Practitioner" mode --
+# whether that happened via the work-mode switcher (navigation/router.py)
+# or simply by clicking a Practitioner-mode page link directly. Both
+# paths call require_work_mode() before the page renders, so this one
+# spot reliably captures it regardless of how Practitioner mode was
+# entered. navigation/router.py's "back to my workspace" button reads
+# this value back instead of always guessing "Manager".
+#
 # Presence / heartbeat (Team Presence, Sprint 12)
 # ---------------------------------------------------
 # Every authenticated page load "touches" services.presence with the
@@ -128,6 +140,10 @@ def init_identity(T):
         st.session_state.user_name = ""
         st.session_state.user_role = ""
         st.session_state.active_work_mode = "Practitioner"
+        # Clear the remembered "came from" workspace too, so a fresh
+        # login never accidentally inherits a stale value from a
+        # previous person's session on a shared browser.
+        st.session_state.pop("previous_work_mode", None)
 
     if st.session_state.authed:
         _touch_presence()
@@ -219,9 +235,34 @@ def require_work_mode(T, workspace):
     "Practitioner mode hides the switcher" rule stay consistent no
     matter how the person arrived at this page, not only when they used
     the switcher itself.
+
+    "Back to my workspace" fix -- remembering where they came from
+    ------------------------------------------------------------------
+    Right before active_work_mode is (re)set, if the NEW workspace is
+    "Practitioner" and the CURRENT active_work_mode is something else
+    (i.e. this call is the moment of entering Practitioner mode, not
+    just re-confirming it on a later Practitioner-mode page), the
+    current value is saved as st.session_state["previous_work_mode"].
+
+    This covers both ways someone can end up in Practitioner mode:
+    using the work-mode switcher (navigation/router.py's selectbox,
+    which calls st.switch_page -> lands on a Practitioner page ->
+    require_work_mode(T, "Practitioner") runs), and clicking a
+    Practitioner-mode page link directly from Manager or System
+    Administration mode. Navigating between two Practitioner-mode pages
+    (e.g. Documentation -> Reflection Space) does NOT overwrite the
+    remembered value, since active_work_mode is already "Practitioner"
+    by then -- so the true originating workspace is preserved for the
+    whole time someone stays in Practitioner mode, not just the first
+    click.
     """
     role = st.session_state.get("user_role", "")
     if not can_access_workspace(role, workspace):
         st.error(T.get("workmode_access_denied", "You do not have access to this workspace."))
         st.stop()
+
+    current = st.session_state.get("active_work_mode")
+    if workspace == "Practitioner" and current and current != "Practitioner":
+        st.session_state["previous_work_mode"] = current
+
     st.session_state.active_work_mode = workspace
