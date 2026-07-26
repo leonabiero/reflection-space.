@@ -100,6 +100,34 @@ def _month_year_label(date_str):
         return date_str[:7]
 
 
+# ---------------------------------------------------------------------
+# Session-state hygiene
+# ---------------------------------------------------------------------
+# Several widgets on this page use keys that are scoped only to a
+# document id or a dimension "trigger" (e.g. "ctx_hist_42",
+# "workspace_open_client_voice"). Both of those can legitimately repeat
+# across DIFFERENT reflection sessions -- a historical document can be
+# offered again later, and there are only 8 possible trigger values
+# shared by every case. Streamlit keeps a widget's value in
+# st.session_state for as long as the key exists, so without an
+# explicit reset, a checkbox someone unchecked (or a dimension someone
+# expanded) in one reflection would silently carry its state into an
+# entirely different, later reflection that happens to reuse the same
+# key.
+#
+# _reset_ephemeral_widget_state() removes every session_state key that
+# starts with one of the given prefixes, so the next time those widgets
+# are created they fall back to their real defaults (all historical
+# documents included; every Professional Reflection tab collapsed)
+# instead of inheriting stale state. This changes nothing about the
+# workflow itself -- it only makes sure each new reflection starts from
+# a clean slate, exactly as if the page had never been visited before.
+def _reset_ephemeral_widget_state(prefixes):
+    for key in list(st.session_state.keys()):
+        if any(key.startswith(prefix) for prefix in prefixes):
+            del st.session_state[key]
+
+
 def _clear_all():
     """Leaving the reflection flow entirely, whatever stage it was at --
     resets both the context and the session objects.
@@ -122,6 +150,14 @@ def _clear_all():
 
     ReflectionContext.clear()
     ReflectionSession.clear()
+
+    # Belt-and-braces reset: whichever path led here (submitting the
+    # last draft in a batch, skipping/submitting feedback), make sure no
+    # leftover checkbox, explore/collapse, input, or error state from
+    # this reflection can bleed into the next one.
+    _reset_ephemeral_widget_state([
+        "ctx_hist_", "workspace_open_", "convo_input_", "convo_error_",
+    ])
 
 
 def _date_only(iso_str):
@@ -275,7 +311,12 @@ def _render_historical_timeline(ctx, current_text):
     Selection state (which historical documents stay included in the
     reflection) is still driven by the exact same checkboxes as before
     -- this function only changes their visual grouping/container, not
-    their behavior or session storage.
+    their behavior or session storage. The checkbox keys themselves are
+    reset to a clean slate whenever a NEW reflection context begins
+    (see _reset_ephemeral_widget_state(), called from the "Begin
+    Reflection" button handler below), so a document's checkbox here
+    always starts from ctx.selected_hist_ids (i.e. "included") rather
+    than a leftover value from a previous, unrelated reflection.
     """
     st.markdown(f"**{T['historical_timeline_header']}**")
     st.caption(T["historical_timeline_intro"])
@@ -396,6 +437,14 @@ def _render_opportunity_tab_body(session, opportunity):
                     else:
                         st.session_state[f"convo_error_{opportunity.trigger}"] = True
 
+                    # Clear the conversation input box now that the
+                    # message has been sent, so it doesn't sit there
+                    # holding onto the just-sent text. This only clears
+                    # the input widget's own state -- the conversation
+                    # history itself (opportunity.conversation, saved
+                    # just above) is completely untouched.
+                    st.session_state[input_key] = ""
+
                     session.save()
                     st.rerun()
         with col2:
@@ -488,6 +537,16 @@ if active_context is not None:
             )
             ReflectionContext.clear()
             session.save()
+
+            # Ensure the brand-new Reflection Workspace always opens with
+            # every Professional Reflection tab collapsed, and with no
+            # leftover conversation-input or error state -- even if this
+            # case happens to raise the same dimension(s) a previous,
+            # unrelated reflection had left open/explored.
+            _reset_ephemeral_widget_state([
+                "workspace_open_", "convo_input_", "convo_error_",
+            ])
+
             st.rerun()
     with col2:
         if st.button(T["reflection_context_back"]):
@@ -696,6 +755,17 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
             historical = get_historical_context(
                 case_ref, exclude_ids=selected_ids, query_text=selected_text,
             )
+
+            # Reset any leftover historical-document checkbox state from
+            # a previous reflection context before this new one is
+            # created. Checkbox keys are scoped only by document id
+            # (ctx_hist_<id>), and the same historical document can
+            # legitimately be offered again in a later, unrelated
+            # reflection -- without this reset its previous
+            # checked/unchecked state would silently carry over instead
+            # of defaulting back to "included".
+            _reset_ephemeral_widget_state(["ctx_hist_"])
+
             ReflectionContext(case_ref=case_ref, selected=selected, historical=historical).save()
             # Reset this folder's checkboxes so a future visit starts clean.
             for d in case_drafts:
