@@ -20,30 +20,83 @@ def _label(T, workspace):
     return T.get(_WORK_MODE_LABEL_KEYS.get(workspace, ""), workspace)
 
 
-def _on_switch_select():
-    """
-    on_change callback for the work-mode selectbox. By the time this
-    runs, Streamlit has already updated
-    st.session_state["active_work_mode"] to the newly chosen value (the
-    widget's own key IS active_work_mode -- see render_nav below), so
-    all this needs to do is perform the actual page navigation.
-
-    Using st.switch_page (real, programmatic navigation) rather than
-    just letting the page rerun is what makes the switch IMMEDIATE and
-    complete: the browser is sent straight to the new work mode's own
-    landing page, so the previous workspace's content never lingers on
-    screen underneath/above the new one.
-    """
-    target = st.session_state["active_work_mode"]
-    st.switch_page(landing_page_for_workspace(target))
-
-
-def _switch_to(target_workspace):
-    """Used by the minimal "back to my workspace" button shown while in
-    Practitioner mode (see render_nav) -- same navigation behavior as
-    the selectbox above, just triggered by a plain button instead."""
-    st.session_state.active_work_mode = target_workspace
-    st.switch_page(landing_page_for_workspace(target_workspace))
+# ---------------------------------------------------------------------
+# Bugfix -- work-mode selection reverting immediately after being chosen
+# ---------------------------------------------------------------------
+#
+# ROOT CAUSE (for anyone maintaining this later):
+#
+# The work-mode switcher selectbox used to be bound directly to
+# st.session_state["active_work_mode"] (key="active_work_mode"), with
+# an on_change callback (_on_switch_select) that read that same key and
+# called st.switch_page() from INSIDE the callback.
+#
+# That key is ALSO written, unconditionally, on every single page load,
+# by services.identity.require_work_mode(T, workspace) -- with
+# `workspace` being a hard-coded string belonging to whichever page
+# file is currently running (e.g. "Manager" on pages/learning.py,
+# "Practitioner" on pages/documentation.py). require_work_mode() runs
+# BEFORE render_nav() on every page, by design (see its docstring --
+# this is what protects direct-URL access).
+#
+# Streamlit updates a widget's session_state value, and fires its
+# on_change callback, BEFORE the main script body reruns. So the actual
+# sequence when someone picked a new work mode from the dropdown was:
+#
+#   1. Streamlit sets active_work_mode = <newly picked value> (because
+#      that was the widget's own key) and fires the on_change callback,
+#      which reads that value and calls st.switch_page().
+#   2. The CURRENT page's own script body (the one the person was
+#      already on) still runs its require_work_mode(T, <this page's
+#      fixed workspace>) call -- which unconditionally OVERWRITES
+#      active_work_mode back to this page's own (old) workspace,
+#      stomping the selection that was just made.
+#   3. The selectbox -- bound to that same, now-reverted key -- renders
+#      the OLD value again.
+#
+# Two different pieces of code ("what page am I actually on" vs. "what
+# did the user just pick") were writing to the SAME session_state key,
+# with no ordering guarantee between them. That produced the
+# intermittent "briefly changes, then reverts" behaviour, and is the
+# same class of bug that produces Streamlit's "calling st.rerun()
+# within a callback is a no-op" warning -- driving navigation from
+# inside a widget callback fights with Streamlit's own automatic
+# post-callback rerun.
+#
+# THE FIX:
+#   - The selector no longer shares a key with active_work_mode. It
+#     gets its own key, derived from the CURRENT authoritative state
+#     (f"workmode_selector_{active}"), so if active_work_mode ever
+#     changes through any other path (a direct page link, the "back to
+#     my workspace" button, a permissions change), Streamlit is forced
+#     to create a brand-new widget instance next render instead of
+#     reusing a stale leftover value from a different page/work mode.
+#   - There is no on_change callback anymore, and st.rerun()/
+#     st.switch_page() are only ever called from the plain script body
+#     (after the widget has rendered), exactly like every other
+#     button-triggered action already in this codebase (e.g. the
+#     logout button in services/identity.py). Nothing here is
+#     triggered from inside a registered callback, so the "st.rerun()
+#     is a no-op inside a callback" situation can no longer arise.
+#   - active_work_mode remains the single, authoritative piece of
+#     state. The selector's own key is pure UI bookkeeping that is
+#     reconciled against it on every render -- it is never read by
+#     anything else in the app.
+#   - previous_work_mode (used by the "back to my workspace" button)
+#     is now captured at the correct moment for BOTH ways of entering
+#     Practitioner mode: via this switcher (captured here, right
+#     before the state changes) and via a direct Practitioner page
+#     link (still captured by services.identity.require_work_mode(),
+#     unchanged). Previously the switcher path never recorded it
+#     correctly, because by the time require_work_mode() ran on the
+#     destination page, active_work_mode had already been flipped to
+#     "Practitioner" by the old callback, so its "did this just change
+#     into Practitioner" check could never fire.
+#
+# Nothing about WHO can access WHICH workspace, or which page a work
+# mode lands on, has changed -- only how the current selection is
+# tracked and applied.
+# ---------------------------------------------------------------------
 
 
 def render_nav(T):
@@ -54,13 +107,10 @@ def render_nav(T):
     IMPORTANT ordering requirement for callers
     ----------------------------------------------
     Pages must call services.identity.require_work_mode(T, workspace)
-    BEFORE calling render_nav(T) (see that function's docstring) --
-    require_work_mode() is what keeps active_work_mode in sync with
-    whichever page was actually navigated to, and it must run before
-    this function instantiates the active_work_mode-keyed widget for
-    this rerun, or Streamlit raises a "widget already has a value"
-    exception. It is ALSO what records "previous_work_mode" (see below)
-    -- so that ordering requirement now serves two purposes, not one.
+    BEFORE calling render_nav(T) -- require_work_mode() is what keeps
+    active_work_mode in sync with whichever page was actually navigated
+    to (direct-URL access protection), and it must run before this
+    function reads active_work_mode for this rerun.
 
     Role / work-mode separation
     ------------------------------
@@ -69,45 +119,33 @@ def render_nav(T):
       (navigation.permissions.available_workspaces()) -- re-derived
       from the authenticated role on every render, so the switcher can
       never offer a work mode this person isn't authorized for.
-    - The ACTIVE work mode (st.session_state.active_work_mode) only
-      determines what's shown right now. This function only WRITES to
-      it in response to an explicit user action (selecting a new work
-      mode, or the "back to my workspace" button) -- an ordinary
-      rerun/page interaction never resets it back to "Practitioner".
+    - The ACTIVE work mode (st.session_state.active_work_mode) is the
+      single source of truth for what's shown right now. This function
+      only writes to it in response to an explicit action taken in the
+      PLAIN script body below (never inside a widget callback): picking
+      a new work mode from the selector, or pressing the "back to my
+      workspace" button.
 
     Practitioner mode hides the switcher (per product requirement): if
     active_work_mode == "Practitioner", no dropdown/selector is shown
     at all, even for a Supervisor/Programme Manager/System
     Administrator who is only temporarily working in Practitioner mode.
     Instead, if that person is authorized for more than one work mode,
-    a single, minimal "back to my workspace" link is shown so they are
-    never stranded in Practitioner mode -- this is a single button, not
-    a switcher/selector, so it does not violate the "no switcher in
-    Practitioner mode" rule.
+    a single, minimal "back to my workspace" button is shown so they
+    are never stranded in Practitioner mode.
 
-    "Back to my workspace" now remembers where the person actually came
+    "Back to my workspace" remembers where the person actually came
     from
-    ------------------------------------------------------------------------
-    Previously this button always targeted the FIRST non-Practitioner
-    workspace available to the role (in practice, always "Manager" for
-    every role that has more than one work mode -- Supervisor,
-    Programme Manager, and System Administrator all list "Manager"
-    before "System Administration" in WORKSPACE_ORDER). A System
-    Administrator who switched from System Administration into
-    Practitioner mode would incorrectly land back on Manager instead of
-    System Administration.
-
-    services.identity.require_work_mode() now records the work mode a
-    person was actually in right before it changes to "Practitioner",
-    under st.session_state["previous_work_mode"] -- this covers BOTH
-    ways someone can enter Practitioner mode (the switcher above, and
-    simply clicking a Practitioner-mode page link directly), since both
-    paths call require_work_mode() before landing on the page. This
-    function just reads that value back, falling back to the old
-    "first available workspace" behavior only if no previous work mode
-    was recorded, or if the recorded one is no longer a workspace this
-    role can access (e.g. permissions changed mid-session) -- so the
-    button can never send someone somewhere they're not authorized for.
+    ------------------------------------------------------------------
+    previous_work_mode is recorded right before active_work_mode
+    changes TO "Practitioner" -- whether that happens via the selector
+    below, or via services.identity.require_work_mode() when a
+    Practitioner-mode page link is clicked directly. This button reads
+    that value back, falling back to the first other available
+    workspace only if no previous work mode was recorded, or if the
+    recorded one is no longer a workspace this role can access (e.g.
+    permissions changed mid-session) -- so the button can never send
+    someone somewhere they're not authorized for.
     """
     role = st.session_state.get("user_role", "")
     options = available_workspaces(role)
@@ -124,29 +162,50 @@ def render_nav(T):
         if can_switch_work_mode(role):
             other_options = [w for w in options if w != "Practitioner"]
             previous = st.session_state.get("previous_work_mode")
-            if previous in other_options:
-                back_target = previous
-            else:
-                back_target = other_options[0] if other_options else None
+            back_target = previous if previous in other_options else (
+                other_options[0] if other_options else None
+            )
             if back_target:
-                st.sidebar.button(
+                # Plain button + inline check, run in the normal script
+                # body -- not a registered on_click callback -- exactly
+                # the same pattern already used for the logout button
+                # in services/identity.py. st.switch_page() here is
+                # safe: it's the script body deciding to navigate, not
+                # a callback fighting with Streamlit's own rerun cycle.
+                if st.sidebar.button(
                     f"⬅ {_label(T, back_target)}",
                     key="workmode_back_button",
-                    on_click=_switch_to,
-                    args=(back_target,),
-                )
+                ):
+                    st.session_state.active_work_mode = back_target
+                    st.switch_page(landing_page_for_workspace(back_target))
     else:
-        # Manager or System Administration work mode: show the real
-        # switcher. Bound directly to the "active_work_mode" key -- the
-        # single source of truth -- exactly like the original
-        # "active_workspace" pattern this replaces, so there is only
-        # ever one variable holding this state, never a shadow copy.
-        st.sidebar.selectbox(
+        # The widget's key is deliberately NOT "active_work_mode" (see
+        # the bugfix note above). It's derived from the current
+        # authoritative state, so a stale value left over from a
+        # different page/work mode can never leak into this render --
+        # any time `active` changes via another path, this key changes
+        # too, forcing Streamlit to create a fresh widget seeded from
+        # `index=`, rather than resurrecting an old stored value.
+        widget_key = f"workmode_selector_{active}"
+
+        selected = st.sidebar.selectbox(
             T.get("workmode_switch_label", "Work mode"),
             options,
             format_func=lambda w: _label(T, w),
-            key="active_work_mode",
-            on_change=_on_switch_select,
+            index=options.index(active),
+            key=widget_key,
         )
+
+        # Navigation decision happens HERE, in the plain script body,
+        # AFTER the widget has already rendered/updated its own key --
+        # never inside an on_change callback. This is what removes the
+        # race with services.identity.require_work_mode()'s own write
+        # to active_work_mode, and what eliminates any reliance on
+        # st.rerun()/st.switch_page() being called from a callback.
+        if selected != active:
+            if selected == "Practitioner" and active != "Practitioner":
+                st.session_state["previous_work_mode"] = active
+            st.session_state.active_work_mode = selected
+            st.switch_page(landing_page_for_workspace(selected))
 
     render_workspace_menu(T)
