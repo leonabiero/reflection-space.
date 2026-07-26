@@ -1,5 +1,9 @@
 import streamlit as st
-from navigation.permissions import default_workspace_for_role, can_access_workspace
+from navigation.permissions import (
+    default_workspace_for_role,
+    can_access_workspace,
+    landing_page_for_workspace,
+)
 
 # FR-001/NFR-011 (authentication) + FR-002/FR-003 (identity, roles).
 # Each professional has their own username and password, defined in
@@ -35,7 +39,7 @@ from navigation.permissions import default_workspace_for_role, can_access_worksp
 #
 # "previous_work_mode" (Back to my workspace fix)
 # ----------------------------------------------------
-# require_work_mode() below now also records, in
+# require_work_mode() below also records, in
 # st.session_state["previous_work_mode"], whichever work mode was
 # active immediately before the person entered "Practitioner" mode --
 # whether that happened via the work-mode switcher (navigation/router.py)
@@ -56,8 +60,53 @@ from navigation.permissions import default_workspace_for_role, can_access_worksp
 # "active now / recently active / offline" classification used by the
 # Team Presence panel on the Learning page.
 #
-# Logout ordering fix
-# ---------------------
+# ============================================================================
+# BUGFIX (this revision): "You do not have access to this workspace" after
+# logging out and logging back in as a different user, in the same tab.
+# ============================================================================
+#
+# ROOT CAUSE
+# ----------
+# Logging out never changes the browser's URL/page -- it only reruns
+# whatever script is currently open (via st.rerun()). The login form was
+# then submitted, and validated, from INSIDE that same page. The old code
+# responded to a successful login with another plain st.rerun(), which
+# simply re-ran that SAME page again -- e.g. pages/system_administration.py.
+# That page immediately calls require_work_mode(T, "System Administration"),
+# and if the newly logged-in person's role isn't allowed into that specific
+# workspace, they are instantly blocked with "You do not have access to this
+# workspace," even though they just logged in correctly. Closing the tab
+# "fixed" it only because a brand-new tab always starts at app.py, which
+# correctly routes by role -- the bug was that login itself never did that
+# redirect.
+#
+# FIX 1 -- Login now redirects.
+# A successful login now calls st.switch_page(...) to the landing page for
+# that role's default work mode (the same helper app.py already uses),
+# instead of st.rerun(). This guarantees every login lands on a page the
+# newly authenticated person is actually allowed to see, regardless of which
+# page the login form happened to be shown on.
+#
+# FIX 2 -- Logout now clears the ENTIRE session, not a fixed list of keys.
+# Previously, logout only reset authed/user_name/user_role/active_work_mode
+# (+ previous_work_mode). Every other piece of state from the previous
+# person's session -- ReflectionContext, ReflectionSession, open-tab flags,
+# checkbox selections, admin-panel inputs, Knowledge Assistant results,
+# delete-confirmation flags, draft-editing text boxes, and anything else --
+# stayed in st.session_state and could bleed into the next person's session
+# in the same tab.
+#
+# Rather than maintaining a hand-curated list of "things to remember to
+# clear" (which is exactly how this kind of bug reappears later, whenever
+# someone adds a new session_state key and forgets to add it to the
+# clear-list too), logout now deletes EVERY key in st.session_state except
+# an explicit, short KEEP-list of things that are genuinely meant to persist
+# across different users in the same browser tab. Today that list is just
+# the language preference. Anything not explicitly kept is gone the moment
+# logout happens -- safe by default for any future feature.
+#
+# Logout ordering (unchanged from before)
+# ------------------------------------------
 # navigation.router.render_nav() renders a sidebar control bound to
 # st.session_state["active_work_mode"] (key="active_work_mode"). Every
 # page calls render_nav(T) BEFORE render_identity_footer(T), so by the
@@ -68,9 +117,8 @@ from navigation.permissions import default_workspace_for_role, can_access_worksp
 # st.session_state["active_work_mode"] after its widget has already
 # been created in the same run. Fix: the Log out button no longer
 # touches session_state directly. It only sets a plain (non-widget)
-# flag, "_logout_requested", and reruns. The actual reset
-# (authed/user_name/user_role/active_work_mode) happens at the very top
-# of init_identity() instead -- which every page calls BEFORE
+# flag, "_logout_requested", and reruns. The actual reset happens at the
+# very top of init_identity() instead -- which every page calls BEFORE
 # render_nav() -- so the reset always runs before that widget exists
 # for that run, which is allowed.
 
@@ -81,6 +129,21 @@ LEARNING_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrat
 # FR-028: who can browse completed/reflected case history. Same tier
 # as Learning for now — supervisory and administrative roles only.
 CASE_HISTORY_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
+
+# --- Logout: explicit KEEP-list --------------------------------------------
+#
+# Everything in st.session_state is wiped on logout EXCEPT the keys listed
+# here. This is intentionally a short, explicit allow-list (not a
+# deny-list) so that any new feature added later is safe-by-default: a new
+# session_state key that nobody remembers to add to a "clear on logout"
+# list will simply be wiped along with everything else, rather than
+# silently surviving into the next user's session.
+#
+# "lang" (the Español/Euskera/English language preference) is the one
+# thing genuinely designed to persist regardless of who is using the
+# browser tab -- it reflects a preference for that physical device/tab,
+# not for a particular professional's account.
+LOGOUT_KEEP_KEYS = {"lang"}
 
 
 def _load_users():
@@ -120,6 +183,37 @@ def _touch_presence():
         pass
 
 
+def _wipe_session_for_logout():
+    """
+    Full session-state reset for logout, keeping only the keys in
+    LOGOUT_KEEP_KEYS (see module docstring, "FIX 2").
+
+    This intentionally clears far more than the old fixed list of
+    identity/work-mode keys -- it clears EVERYTHING: ReflectionContext
+    and ReflectionSession (rdi/reflection_context.py,
+    rdi/reflection_session.py), every per-document checkbox
+    (ctx_hist_*, chk_*), every open Reflection Workspace tab and its
+    conversation input (workspace_open_*, convo_input_*, convo_error_*),
+    delete-confirmation flags (confirm_delete_*), draft-editing text
+    boxes (edit_*), the Documentation page's form-reset counters
+    (doc_reset, doc_type_idx, case_ref_*, doc_type_*, text_*,
+    lang_field_*), admin-panel inputs and toggles (admin_*), the
+    Knowledge Assistant's last answer (ka_last_result, ka_last_question,
+    ka_question_input), save_status, and anything else -- known or not
+    yet invented -- that a previous person's session might have left
+    behind.
+
+    Called from init_identity() BEFORE any widget is instantiated this
+    run (see module docstring, "Logout ordering"), so removing keys
+    here -- including "active_work_mode" -- is always safe.
+    """
+    preserved = {k: st.session_state[k] for k in LOGOUT_KEEP_KEYS if k in st.session_state}
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    for k, v in preserved.items():
+        st.session_state[k] = v
+
+
 def init_identity(T):
     if "authed" not in st.session_state:
         st.session_state.authed = False
@@ -133,17 +227,18 @@ def init_identity(T):
     # Apply any logout requested on the previous run BEFORE render_nav()
     # (called right after this function returns/stops) ever instantiates
     # the "active_work_mode" widget this run. See the module docstring
-    # above ("Logout ordering fix") for why this can't happen inside
+    # above ("Logout ordering") for why this can't happen inside
     # render_identity_footer itself.
     if st.session_state.pop("_logout_requested", False):
+        _wipe_session_for_logout()
+        # Re-establish the plain defaults every page expects to find,
+        # exactly as on a brand-new session -- _wipe_session_for_logout()
+        # deliberately does not special-case these, so they're set here,
+        # the same way they were set above for a first-ever visit.
         st.session_state.authed = False
         st.session_state.user_name = ""
         st.session_state.user_role = ""
         st.session_state.active_work_mode = "Practitioner"
-        # Clear the remembered "came from" workspace too, so a fresh
-        # login never accidentally inherits a stale value from a
-        # previous person's session on a shared browser.
-        st.session_state.pop("previous_work_mode", None)
 
     if st.session_state.authed:
         _touch_presence()
@@ -164,6 +259,15 @@ def init_identity(T):
     if st.button(T["login_button"]):
         user = _check_login(username, password, users)
         if user:
+            # Belt-and-braces: a login is always the start of a brand
+            # new session for whoever is now authenticated. Wipe
+            # anything that might still be sitting in session_state
+            # (e.g. if this login form is being submitted for the very
+            # first time after a logout, before this run's own wipe
+            # above ever had a chance to run) so a fresh login can never
+            # inherit stale, unrelated state either.
+            _wipe_session_for_logout()
+
             st.session_state.authed = True
             st.session_state.user_name = user.get("name", username).strip()
             st.session_state.user_role = user.get("role", ROLES[0]).strip()
@@ -175,7 +279,16 @@ def init_identity(T):
             st.session_state.active_work_mode = default_workspace_for_role(
                 st.session_state.user_role
             )
-            st.rerun()
+
+            # FIX 1 (see module docstring): redirect straight to the
+            # landing page for this role's default work mode, instead of
+            # merely rerunning whatever page the login form happened to
+            # be shown on. This is what guarantees a newly authenticated
+            # person never lands back on a page their role isn't allowed
+            # into (the direct cause of the "You do not have access to
+            # this workspace" bug when logging in as a different user in
+            # the same tab).
+            st.switch_page(landing_page_for_workspace(st.session_state.active_work_mode))
         else:
             st.error(T["login_error"])
 
@@ -255,6 +368,15 @@ def require_work_mode(T, workspace):
     by then -- so the true originating workspace is preserved for the
     whole time someone stays in Practitioner mode, not just the first
     click.
+
+    Note on the logout/login fix above: since login now always redirects
+    (via st.switch_page) to the landing page for the newly authenticated
+    role's default work mode, and that landing page always calls
+    require_work_mode() with a workspace that role IS allowed into, this
+    guard should no longer be reached with a mismatched role/workspace
+    pair immediately after a login. It remains in place unchanged as the
+    defense against direct/typed URL access, which is its original
+    purpose.
     """
     role = st.session_state.get("user_role", "")
     if not can_access_workspace(role, workspace):
