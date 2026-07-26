@@ -33,13 +33,16 @@ search_similar() ALSO filters (must_not) on `document_id`, to exclude
 today's own document(s) from its own historical-context suggestions
 (see the `exclude_ids` argument).
 
-ONE DELIBERATE, ADMIN-ONLY EXCEPTION -- search_global()
+ONE DELIBERATE, CASE-UNSCOPED EXCEPTION -- search_global()
 ------------------------------------------------------------
 search_global() (added alongside the System Administration page's
 Retrieval Test "global mode") is the single exception to the rule
 above. It runs the exact same semantic search but WITHOUT a case_ref
-filter, on purpose, so an administrator can validate that the RAG
-system as a whole is retrieving sensibly, not just within one case.
+filter, on purpose, so organisation-wide retrieval is possible when
+that is genuinely what's needed -- validating the RAG system as a
+whole (System Administration's Retrieval Test) or answering an
+organisational question that spans every case (the Knowledge
+Assistant, see services/knowledge_assistant.py).
 
 This function must NEVER be called from any practitioner-facing code
 path -- not rdi/context_engine.py, not rdi/retrieval_service.py's
@@ -47,9 +50,14 @@ retrieve_historical_context() (used by the real Reflection Context
 screen), not services/reflection_service.py. Those must keep using
 search_similar(), which remains unchanged and still hard-scoped to one
 case_ref. search_global() is only ever called from
-rdi.retrieval_service.retrieve_global_context(), which in turn is only
-ever called from pages/system_administration.py's Retrieval Test panel
-(System Administrator role only).
+rdi.retrieval_service.retrieve_global_context(), which in turn is
+intentionally called from two authorised, management-tier entry
+points: pages/system_administration.py's Retrieval Test panel (System
+Administrator role only) and services/knowledge_assistant.py's ask()
+(Supervisor / Programme Manager / System Administrator, via the
+Learning page's Knowledge Assistant tab). Both are gated to
+management/administrative roles -- this is never reachable from any
+Practitioner-facing page or work mode.
 
 Payload indexes (required for filtering)
 -----------------------------------------
@@ -367,8 +375,8 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
     case_ref is a required argument, not an optional filter, so there
     is no way to call this without confidentiality scoping. (The one
     exception in this module is search_global(), below, which is
-    admin-only -- see the module docstring, "ONE DELIBERATE, ADMIN-ONLY
-    EXCEPTION".)
+    reserved for authorised, management-tier features -- see the
+    module docstring, "ONE DELIBERATE, CASE-UNSCOPED EXCEPTION".)
 
     Filters used (both require a payload index -- see
     _ensure_payload_indexes()):
@@ -440,14 +448,18 @@ def search_global(query_text, exclude_ids=None, limit=5):
     Semantic search across the ENTIRE Qdrant collection -- NO case_ref
     filter is applied. This is the one deliberate exception to this
     module's confidentiality boundary (see module docstring, "ONE
-    DELIBERATE, ADMIN-ONLY EXCEPTION").
+    DELIBERATE, CASE-UNSCOPED EXCEPTION").
 
-    DO NOT call this from any practitioner-facing path. It exists
-    solely to back the System Administration page's Retrieval Test
-    "global mode" (System Administrator role only), via
-    rdi.retrieval_service.retrieve_global_context(), so an administrator
-    can validate the RAG system's retrieval quality across the whole
-    knowledge base rather than one case at a time.
+    DO NOT call this from any practitioner-facing path. It exists to
+    back two authorised, management-tier features via
+    rdi.retrieval_service.retrieve_global_context(): the System
+    Administration page's Retrieval Test "global mode" (System
+    Administrator role only), so an administrator can validate the RAG
+    system's retrieval quality across the whole knowledge base rather
+    than one case at a time; and the Knowledge Assistant on the
+    Learning page (services/knowledge_assistant.py), which intentionally
+    answers organisation-wide questions for Supervisors and Programme
+    Managers by searching across every case, not just one.
 
     Filters used (requires the document_id payload index -- see
     _ensure_payload_indexes()):
