@@ -456,7 +456,19 @@ def _render_opportunity_tab_body(session, opportunity):
             st.error(T["workspace_conversation_error"])
 
 
-drafts = get_drafts()
+# ---------------------------------------------------------------------
+# Ownership isolation
+# ---------------------------------------------------------------------
+# Pending drafts (status='draft') are a professional's own private,
+# in-progress work. get_drafts() now REQUIRES the logged-in user's
+# name and filters strictly by created_by in SQL (see
+# services/draft_storage.py) -- so this page can never show, and this
+# person can never begin a reflection on, another professional's
+# still-pending draft, regardless of role (Supervisor, Programme
+# Manager, and System Administrator included). Completed/submitted
+# documents remain visible to Managers via the separate, existing Case
+# History page -- that is unaffected by this change.
+drafts = get_drafts(user_name)
 
 active_context = ReflectionContext.get_active()
 active_session = ReflectionSession.get_active()
@@ -638,18 +650,26 @@ if active_session is not None:
                 key=f"edit_{draft_id}",
             )
             if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
-                finalize_draft(draft_id, edited_text)
-                session.mark_submitted(draft_id)
+                # Ownership is re-verified inside finalize_draft() itself
+                # (created_by must equal user_name) -- this is defense
+                # in depth on top of the fact that `session.reflected_drafts`
+                # can only ever contain this user's own drafts to begin
+                # with, since they were selected from get_drafts(user_name)
+                # above.
+                if finalize_draft(draft_id, edited_text, user_name):
+                    session.mark_submitted(draft_id)
 
-                if session.all_batch_submitted():
-                    remaining = get_drafts()
-                    if not remaining:
-                        session.awaiting_feedback = True
-                        session.save()
+                    if session.all_batch_submitted():
+                        remaining = get_drafts(user_name)
+                        if not remaining:
+                            session.awaiting_feedback = True
+                            session.save()
+                        else:
+                            _clear_all()
                     else:
-                        _clear_all()
+                        session.save()
                 else:
-                    session.save()
+                    st.error(T["error_parsing"])
 
                 st.rerun()
 
@@ -677,7 +697,10 @@ if active_session is not None:
 
 # --- No reflection in progress: browse pending drafts as per-client
 # folders. Same-day multiples are shown grouped under a date heading
-# within the folder, but each document is still picked individually. ---
+# within the folder, but each document is still picked individually.
+# Every draft here already belongs exclusively to `user_name` (see
+# get_drafts(user_name) above), so this folder browser can only ever
+# show this practitioner's own pending work. ---
 _render_journey(active_step=1)
 
 st.caption(T["reflection_folders_intro"])
@@ -705,9 +728,16 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
             for d in by_date[day]:
                 draft_id, creator = d[0], d[5] or ""
                 chk_key = f"chk_{draft_id}"
-                can_delete = user_role == "System Administrator" or (
-                    user_name and user_name == creator
-                )
+
+                # Ownership isolation: every draft returned by
+                # get_drafts(user_name) already belongs to user_name, so
+                # `can_delete` here is simply "this is my own draft" --
+                # there is no role-based bypass any more. A Supervisor,
+                # Programme Manager, or System Administrator working in
+                # Practitioner mode can delete their OWN pending drafts,
+                # exactly like a Social Worker, but can never see or
+                # delete anyone else's pending draft from this page.
+                can_delete = bool(user_name) and user_name == creator
 
                 confirm_key = f"confirm_delete_pending_{draft_id}"
                 if can_delete and st.session_state.get(confirm_key, False):
@@ -716,10 +746,13 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
                     cc1, cc2 = st.columns(2)
                     with cc1:
                         if st.button(T["case_history_delete_yes"], key=f"yes_delete_pending_{draft_id}"):
-                            delete_pending_draft(draft_id, user_name, user_role)
-                            st.session_state.pop(confirm_key, None)
-                            st.session_state.pop(chk_key, None)
-                            st.success(T["reflection_deleted_success"])
+                            if delete_pending_draft(draft_id, user_name, user_role):
+                                st.session_state.pop(confirm_key, None)
+                                st.session_state.pop(chk_key, None)
+                                st.success(T["reflection_deleted_success"])
+                            else:
+                                st.session_state.pop(confirm_key, None)
+                                st.error(T["error_parsing"])
                             st.rerun()
                     with cc2:
                         if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
@@ -751,6 +784,13 @@ for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
             # semantic query, so historical retrieval finds documents
             # that are actually related to what's being reflected on
             # today -- not just whatever is most recent for this case.
+            #
+            # Note: historical context here still draws on this case's
+            # completed/submitted documents across the case (via
+            # rdi/context_engine.py -> get_completed_drafts()), which is
+            # unrelated to pending-draft ownership -- those documents
+            # are already finished and part of the shared case record,
+            # not anyone's private in-progress draft.
             selected_text = "\n\n".join(d[3] for d in selected)
             historical = get_historical_context(
                 case_ref, exclude_ids=selected_ids, query_text=selected_text,
