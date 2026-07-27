@@ -125,40 +125,109 @@ def save_draft(case_ref, doc_type, language, content, created_by="", created_by_
     log_action("created", new_id, case_ref, doc_type, created_by, created_by_role)
 
 
-def get_drafts():
+# ---------------------------------------------------------------------
+# Ownership isolation (pending / unsubmitted drafts)
+# ---------------------------------------------------------------------
+#
+# A "draft" (status='draft') is a professional's own private,
+# in-progress work -- it has not yet been submitted/completed, and has
+# never gone through the Reflection process. Per product requirements,
+# these must be visible and editable ONLY by the professional who
+# created them -- not by any other Social Worker, and not automatically
+# by a Supervisor, Programme Manager, or System Administrator either.
+# (This is deliberately different from completed/submitted documents,
+# which Managers can already see via Case History -- that is an
+# existing, intentional feature for finished work, not a bypass for
+# still-private drafts.)
+#
+# get_drafts() now REQUIRES an owner_name and filters by it directly in
+# SQL, so there is no code path that can return another professional's
+# pending drafts by accident. finalize_draft() and
+# delete_pending_draft() both re-verify created_by == the acting user's
+# name before making any change, even if a caller somehow supplied a
+# draft_id belonging to someone else (e.g. a stale/tampered widget
+# key) -- this is enforced at the data layer, not just hidden by the
+# UI.
+
+def get_drafts(owner_name):
+    """
+    Returns only PENDING (status='draft') documents belonging to
+    `owner_name`. This is the single source of truth for "my pending
+    drafts" -- it deliberately does NOT return every practitioner's
+    drafts, regardless of the caller's role. `owner_name` is required
+    (not optional) so this can never accidentally be called unscoped.
+    """
+    if not owner_name:
+        return []
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("""
             SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role
-            FROM drafts WHERE status='draft'
+            FROM drafts WHERE status='draft' AND created_by=%s
             ORDER BY id
-        """)
+        """, (owner_name,))
         rows = c.fetchall()
     conn.close()
     return rows
 
 
-def get_draft_by_id(draft_id):
+def get_draft_by_id(draft_id, owner_name=None):
+    """
+    Fetch one draft row by id. If `owner_name` is given, this returns
+    None unless that draft was created by `owner_name` -- a defense-in-
+    depth ownership check for any future call site, mirroring the same
+    check already enforced inside finalize_draft() and
+    delete_pending_draft(). If `owner_name` is omitted, behaves as
+    before (used only by trusted, already-scoped internal callers).
+    """
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("SELECT * FROM drafts WHERE id=%s", (draft_id,))
         row = c.fetchone()
     conn.close()
+    if row is None:
+        return None
+    if owner_name is not None:
+        # created_by is column index 7 in the table definition above
+        # (id, case_ref, doc_type, language, content, created_at,
+        # status, created_by, created_by_role, ...).
+        created_by = row[7]
+        if created_by != owner_name:
+            return None
     return row
 
 
-def finalize_draft(draft_id, edited_content):
+def finalize_draft(draft_id, edited_content, owner_name):
+    """
+    Submit/complete a pending draft. Only succeeds if the draft exists,
+    is still in 'draft' status, AND was created by `owner_name` -- a
+    professional can only submit their OWN pending work, never someone
+    else's, regardless of role. Returns True on success, False if the
+    draft doesn't exist, isn't pending, or isn't owned by `owner_name`
+    (no changes are made in that case).
+    """
+    if not owner_name:
+        return False
+
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("""
-            SELECT content, case_ref, doc_type, created_by, created_by_role, language
+            SELECT content, case_ref, doc_type, created_by, created_by_role, language, status
             FROM drafts WHERE id=%s
         """, (draft_id,))
         row = c.fetchone()
-        if row:
-            current_content, case_ref, doc_type, created_by, created_by_role, language = row
-        else:
-            current_content, case_ref, doc_type, created_by, created_by_role, language = ("", "", "", "", "", "")
+        if not row:
+            conn.close()
+            return False
+
+        current_content, case_ref, doc_type, created_by, created_by_role, language, status = row
+
+        if status != "draft" or created_by != owner_name:
+            # Either already submitted/deleted, or owned by someone
+            # else -- refuse silently rather than acting on it.
+            conn.close()
+            return False
+
         now = datetime.now().isoformat()
 
         if edited_content.strip() != (current_content or "").strip():
@@ -205,6 +274,7 @@ def finalize_draft(draft_id, edited_content):
         created_by_role=created_by_role,
         was_edited=edited_flag,
     )
+    return True
 
 
 def get_completed_drafts():
@@ -257,29 +327,34 @@ def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
     from soft_delete_draft() below, which is for completed cases and
     goes through the 48-hour GDPR erasure window instead.
 
-    Callers are responsible for authorization (this should only be
-    reachable by the draft's own creator or an admin) -- this function
-    itself does not check who is calling.
+    Ownership is enforced HERE, at the data layer -- not just by hiding
+    the delete button in the UI. This only succeeds if the draft is
+    still 'draft' status AND its created_by matches `deleted_by`
+    exactly. A System Administrator (or any other role) can no longer
+    delete another professional's still-pending draft through this
+    function -- that bypass has been removed. If a genuine admin
+    override is ever needed for a pending draft, it should be built as
+    its own explicit, audited feature rather than reusing this
+    function.
 
-    If the row is missing or is no longer in 'draft' status (e.g. it was
-    already submitted in another tab), this is a no-op rather than a
-    forced delete, so it can't accidentally remove a completed case.
-
-    A pending (never-completed) draft is never indexed in Qdrant in the
-    first place -- indexing only happens at finalize_draft() -- so no
-    Qdrant cleanup is needed here.
+    Returns True if the draft was deleted, False if it didn't exist,
+    was no longer pending, or wasn't owned by `deleted_by` (no changes
+    are made in that case).
     """
+    if not deleted_by:
+        return False
+
     conn = _get_conn()
     with conn.cursor() as c:
-        c.execute("SELECT status, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+        c.execute("SELECT status, case_ref, doc_type, created_by FROM drafts WHERE id=%s", (draft_id,))
         row = c.fetchone()
         if not row:
             conn.close()
-            return
-        status, case_ref, doc_type = row
-        if status != "draft":
+            return False
+        status, case_ref, doc_type, created_by = row
+        if status != "draft" or created_by != deleted_by:
             conn.close()
-            return
+            return False
         c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
         c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
     conn.commit()
@@ -288,9 +363,17 @@ def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
         "purged", draft_id, case_ref, doc_type, deleted_by, deleted_by_role,
         details="deleted while pending",
     )
+    return True
 
 
 # --- Deletion / restore / purge (GDPR right to erasure) ---
+#
+# Everything below this line operates on COMPLETED cases only (the
+# case has already been submitted and gone through Reflection) and is
+# part of the existing, intentional Case History / audit feature for
+# supervisory and administrative roles (see pages/case_history.py).
+# This is unrelated to the pending-draft ownership isolation above --
+# a completed case is no longer anyone's private in-progress draft.
 
 def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
     """
