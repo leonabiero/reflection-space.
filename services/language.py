@@ -1166,15 +1166,43 @@ def get_lang(lang):
 
 
 def init_language():
+    """
+    Single source of truth for the active UI language: st.session_state["lang"].
+
+    Fix (removes the Streamlit warning "The widget with key 'lang' was
+    created with a default value but also had its value set via the
+    Session State API"):
+
+    That warning fires whenever a widget's `key` already has a value in
+    st.session_state (which "lang" always does here, after the first
+    line below) AND the widget constructor is ALSO given an explicit
+    default (`index=`/`value=`). Previously this selectbox passed BOTH
+    `index=LANGUAGE_ORDER.index(st.session_state.lang)` and
+    `key="lang"` at the same time, which is exactly that conflicting
+    combination.
+
+    The fix: st.session_state["lang"] is still set once, up front, as
+    the one and only default (same as before -- first-ever visit still
+    starts on "Español", and nothing about persistence changes). The
+    selectbox itself is then created with ONLY `key="lang"` and no
+    `index`/`value` argument at all -- Streamlit reads the widget's
+    current value directly from st.session_state["lang"] in that case,
+    so the dropdown still shows/keeps whatever language is active, and
+    picking a new language still updates st.session_state["lang"]
+    exactly as before. Behaviour, translations, and persistence across
+    reruns/pages are all unchanged -- only the double-default conflict
+    is removed.
+    """
     if "lang" not in st.session_state:
         st.session_state.lang = "Español"
 
-    T = get_lang(st.session_state.lang)
+    # Read the label ("Idioma" / "Hizkuntza" / "Language") using the
+    # CURRENT language, before the widget is instantiated.
+    current_label = get_lang(st.session_state.lang)["language"]
 
     st.sidebar.selectbox(
-        T["language"],
+        current_label,
         LANGUAGE_ORDER,
-        index=LANGUAGE_ORDER.index(st.session_state.lang),
         key="lang",
     )
 
