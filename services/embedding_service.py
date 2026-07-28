@@ -46,10 +46,27 @@ entirely inside the 200M free allocation -- i.e. **$0.00/month at this
 pilot's volume**, likely for its entire lifetime unless volume grows by
 several orders of magnitude. This is separate from, and does not change,
 Claude API (Anthropic) usage/cost in any way.
+
+Engineering-quality pass (see accompanying handoff notes)
+------------------------------------------------------------
+Change 7 (Logging instead of silent failures): _embed() previously
+caught every exception from the Voyage API call with a bare
+`except Exception: return None`, with only a code comment explaining
+why. That comment is preserved below, but the failure is now also
+logged (operational details only -- input_type and the exception,
+never the text itself, which may be case-adjacent content) via the
+shared services.db_time.get_logger(), so a persistent Voyage outage or
+misconfiguration is visible in the operational log instead of being
+completely invisible until someone notices semantic retrieval quietly
+isn't working. The function's return behavior (None on any failure) is
+completely unchanged.
 """
 
 import voyageai
 from config import VOYAGE_API_KEY, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS
+from services.db_time import get_logger
+
+logger = get_logger(__name__)
 
 _client = None
 
@@ -110,7 +127,16 @@ def _embed(text: str, input_type: str):
             output_dimension=EMBEDDING_DIMENSIONS,
         )
         return result.embeddings[0]
-    except Exception:
+    except Exception as e:
         # Never let an embedding-provider hiccup break the app -- the
         # practitioner's document is already safe in Postgres regardless.
+        #
+        # Change 7: log this (model/input_type/exception only -- never
+        # the text itself, which may be case-adjacent content) rather
+        # than swallowing it completely, so a persistent failure is
+        # discoverable in the operational log.
+        logger.warning(
+            "embedding call FAILED: input_type=%r model=%r exception=%r",
+            input_type, EMBEDDING_MODEL, e,
+        )
         return None
