@@ -407,6 +407,17 @@ def _render_opportunity_tab_body(session, opportunity):
             st.markdown(f"**{role_label}** {turn['content']}")
 
         input_key = f"convo_input_{opportunity.trigger}"
+        clear_flag_key = f"clear_convo_input_{opportunity.trigger}"
+
+        # If the previous run flagged this input for clearing (after a
+        # message was sent), reset it here -- BEFORE the widget below
+        # is instantiated. Streamlit does not allow writing to a
+        # widget's session_state key after that widget has already
+        # been created in the same script run, so the clear has to
+        # happen up front, on the run that follows the st.rerun().
+        if st.session_state.pop(clear_flag_key, False):
+            st.session_state[input_key] = ""
+
         message_text = st.text_area(
             T["workspace_conversation_input_label"],
             placeholder=T["workspace_conversation_placeholder"],
@@ -438,13 +449,14 @@ def _render_opportunity_tab_body(session, opportunity):
                     else:
                         st.session_state[f"convo_error_{opportunity.trigger}"] = True
 
-                    # Clear the conversation input box now that the
-                    # message has been sent, so it doesn't sit there
-                    # holding onto the just-sent text. This only clears
-                    # the input widget's own state -- the conversation
-                    # history itself (opportunity.conversation, saved
-                    # just above) is completely untouched.
-                    st.session_state[input_key] = ""
+                    # Flag the conversation input box to be cleared on
+                    # the next run (right before it's re-instantiated
+                    # above), so it doesn't sit there holding onto the
+                    # just-sent text. This only affects the input
+                    # widget's own state -- the conversation history
+                    # itself (opportunity.conversation, saved just
+                    # above) is completely untouched.
+                    st.session_state[clear_flag_key] = True
 
                     session.save()
                     st.rerun()
