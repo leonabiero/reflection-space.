@@ -33,8 +33,8 @@ columns.
 
 Status classification (used by the Learning page's Team Presence
 panel):
-    - "active"    : last_seen within ACTIVE_WINDOW_MINUTES (default 5)
-    - "recent"    : last_seen within RECENT_WINDOW_MINUTES (default 15)
+    - "active"    : last_seen within PRESENCE_ACTIVE_WINDOW_MINUTES (default 5)
+    - "recent"    : last_seen within PRESENCE_RECENT_WINDOW_MINUTES (default 15)
     - "offline"   : older than that, or no last_seen at all
 
 Nobody is ever shown as indefinitely "online" just because they logged
@@ -47,7 +47,7 @@ Issue 1: `last_seen` was stored as plain TEXT
 (datetime.now().isoformat() strings) -- no timezone info, string-only
 comparisons, no real date arithmetic in SQL. It is now a proper
 TIMESTAMPTZ column. touch() now writes a timezone-aware UTC datetime
-object (via _now_utc()) instead of a plain isoformat() string.
+object (via now_utc()) instead of a plain isoformat() string.
 
 Issue 2: this table had no index beyond its implicit primary key,
 despite get_active_social_workers() filtering on professional_role AND
@@ -56,110 +56,74 @@ ordering by last_seen DESC. A composite index on
 access pattern.
 
 Data-flow note: get_active_social_workers() converts the TIMESTAMPTZ
-value back into the same ISO-8601 string shape via _iso() before it is
+value back into the same ISO-8601 string shape via iso() before it is
 ever handed to _classify() or returned to callers -- so _classify()
 below is unchanged and, as before, only ever receives a plain string,
 never a raw datetime object.
+
+--- Engineering-quality pass (see accompanying handoff notes) --------------
+
+Change 1: connection always closed via try/finally.
+Change 2: touch() wraps its single UPSERT with an explicit
+  commit/rollback pair.
+Change 5 / 6: local _now_utc/_iso/_iso_row and
+  _schema_migrated/_ensure_timestamp_columns are replaced by the
+  shared services.db_time / services.db_migration modules.
+Change 7: touch() previously had no failure handling of its own at
+  all (its caller, services.identity._touch_presence(), wraps it in a
+  bare try/except that silently discards any error). touch() itself
+  now logs before its exception propagates, so a presence failure is
+  at least visible in the operational log even though the page-level
+  behavior (never block a page load over a presence hiccup) is
+  unchanged.
+Change 8: ACTIVE_WINDOW_MINUTES / RECENT_WINDOW_MINUTES are now
+  PRESENCE_ACTIVE_WINDOW_MINUTES / PRESENCE_RECENT_WINDOW_MINUTES,
+  imported from config.py instead of being defined locally in this
+  module -- see config.py for the rationale. Values are unchanged
+  (5 / 15 minutes) unless overridden via environment variable.
 """
 
 import psycopg2
 from datetime import datetime, timedelta, timezone
-from config import DATABASE_URL
+from config import DATABASE_URL, PRESENCE_ACTIVE_WINDOW_MINUTES, PRESENCE_RECENT_WINDOW_MINUTES
+from services.db_time import now_utc, iso, iso_row, get_logger
+from services.db_migration import ensure_timestamptz_columns
 
-ACTIVE_WINDOW_MINUTES = 5
-RECENT_WINDOW_MINUTES = 15
+logger = get_logger(__name__)
 
-# One-time-per-process guard for the TIMESTAMPTZ migration below -- an
-# ALTER COLUMN TYPE is not a cheap no-op like ADD COLUMN IF NOT EXISTS,
-# so it must only ever run once per process, not on every _get_conn()
-# call.
-_schema_migrated = False
-
-
-def _now_utc():
-    """Single source of truth for 'now' as a timezone-aware UTC
-    datetime, replacing the old datetime.now().isoformat() pattern."""
-    return datetime.now(timezone.utc)
-
-
-def _iso(value):
-    """Normalize a value read back from a TIMESTAMPTZ column into the
-    same ISO-8601 string shape this module has always returned to its
-    callers -- every downstream caller (pages/, rdi/) does string
-    operations on these values (e.g. slicing), so this keeps the
-    TIMESTAMPTZ migration self-contained to the database layer."""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return value.isoformat()
-
-
-def _iso_row(row, date_indexes):
-    """Apply _iso() to specific positions in a fetched row tuple."""
-    row = list(row)
-    for i in date_indexes:
-        row[i] = _iso(row[i])
-    return tuple(row)
-
-
-def _ensure_timestamp_columns(conn):
-    """
-    One-time-per-process migration: convert `user_presence.last_seen`
-    from TEXT to TIMESTAMPTZ, if it isn't already.
-
-    Checks information_schema.columns for the column's current
-    data_type first, and only runs the ALTER TABLE if it isn't already
-    'timestamp with time zone' -- so this is safe to have called on
-    every process start, even against a database that was already
-    migrated by an earlier process/deploy.
-    """
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT data_type FROM information_schema.columns
-            WHERE table_name = 'user_presence' AND column_name = 'last_seen'
-        """)
-        row = c.fetchone()
-        current_type = row[0] if row else None
-
-        if current_type != "timestamp with time zone":
-            c.execute("""
-                ALTER TABLE user_presence
-                ALTER COLUMN last_seen TYPE TIMESTAMPTZ
-                USING NULLIF(last_seen, '')::timestamptz
-            """)
-    conn.commit()
+# Kept as local aliases so the rest of this module (and _classify()'s
+# reasoning below) reads exactly as it always did -- only the
+# definition site moved to config.py (Change 8).
+ACTIVE_WINDOW_MINUTES = PRESENCE_ACTIVE_WINDOW_MINUTES
+RECENT_WINDOW_MINUTES = PRESENCE_RECENT_WINDOW_MINUTES
 
 
 def _get_conn():
-    global _schema_migrated
-
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS user_presence (
-            professional_name TEXT PRIMARY KEY,
-            professional_role TEXT,
-            last_seen TEXT
-        )
-        """)
-        # Issue 2: composite index to support
-        # get_active_social_workers()'s
-        # `WHERE professional_role = %s ORDER BY last_seen DESC`.
-        # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
-        # pattern already used elsewhere in this codebase.
-        c.execute("""
-        CREATE INDEX IF NOT EXISTS idx_user_presence_role_last_seen
-        ON user_presence (professional_role, last_seen DESC)
-        """)
-    conn.commit()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS user_presence (
+                professional_name TEXT PRIMARY KEY,
+                professional_role TEXT,
+                last_seen TEXT
+            )
+            """)
+            # Issue 2: composite index to support
+            # get_active_social_workers()'s
+            # `WHERE professional_role = %s ORDER BY last_seen DESC`.
+            # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
+            # pattern already used elsewhere in this codebase.
+            c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_presence_role_last_seen
+            ON user_presence (professional_role, last_seen DESC)
+            """)
+        conn.commit()
 
-    # Issue 1: migrate last_seen TEXT -> TIMESTAMPTZ. Guarded by the
-    # module-level flag so this only ever runs once per process, not on
-    # every _get_conn() call.
-    if not _schema_migrated:
-        _ensure_timestamp_columns(conn)
-        _schema_migrated = True
+        ensure_timestamptz_columns(conn, "user_presence", ["last_seen"])
+    except Exception:
+        conn.close()
+        raise
 
     return conn
 
@@ -169,20 +133,28 @@ def touch(name, role):
     every authenticated page load. Best-effort -- callers
     (services.identity.init_identity) already wrap this in a
     try/except, since a presence hiccup must never block a page from
-    loading."""
+    loading. This function now logs the failure (Change 7) before
+    re-raising, so the hiccup is at least visible operationally
+    instead of vanishing silently."""
     if not name:
         return
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            INSERT INTO user_presence (professional_name, professional_role, last_seen)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (professional_name)
-            DO UPDATE SET professional_role = EXCLUDED.professional_role,
-                          last_seen = EXCLUDED.last_seen
-        """, (name, role, _now_utc()))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO user_presence (professional_name, professional_role, last_seen)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (professional_name)
+                DO UPDATE SET professional_role = EXCLUDED.professional_role,
+                              last_seen = EXCLUDED.last_seen
+            """, (name, role, now_utc()))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.warning("touch (presence heartbeat) FAILED for name=%r role=%r", name, role, exc_info=True)
+        raise
+    finally:
+        conn.close()
 
 
 def _classify(last_seen_iso):
@@ -224,20 +196,22 @@ def get_active_social_workers():
     pages/learning.py, which shows only active+recent by default.
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT professional_name, last_seen FROM user_presence
-            WHERE professional_role = %s
-            ORDER BY last_seen DESC
-        """, ("Social Worker",))
-        rows = c.fetchall()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT professional_name, last_seen FROM user_presence
+                WHERE professional_role = %s
+                ORDER BY last_seen DESC
+            """, ("Social Worker",))
+            rows = c.fetchall()
+    finally:
+        conn.close()
 
     # last_seen is now TIMESTAMPTZ (index 1 in each row) -- normalize
     # back to the same ISO-8601 string shape this module has always
     # handed to callers and to _classify() below, before any further
     # processing.
-    rows = [_iso_row(row, [1]) for row in rows]
+    rows = [iso_row(row, [1]) for row in rows]
 
     results = []
     # See the note inside _classify() above: last_seen_iso now parses
