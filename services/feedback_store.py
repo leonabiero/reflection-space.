@@ -1,7 +1,5 @@
-import psycopg2
-from config import DATABASE_URL
 from services.db_time import now_utc, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -17,13 +15,14 @@ logger = get_logger(__name__)
 # despite get_all_feedback() sorting on submitted_at. That column is
 # now indexed (see idx_feedback_submitted_at below).
 #
-# The TIMESTAMPTZ migration runs once per process, via the shared
-# services.db_migration.ensure_timestamptz_columns() helper. Every
-# value read back from `submitted_at` is normalized back to an
-# ISO-8601 string via services.db_time.iso_row() before being
-# returned, so this migration stays entirely contained to the database
-# layer -- no caller outside services/feedback_store.py needs to
-# change.
+# The TIMESTAMPTZ migration runs once per process, at startup, via
+# services.db_schema.ensure_schema() (which calls the shared
+# services.db_migration.ensure_timestamptz_columns() helper -- see
+# that module's docstring). Every value read back from `submitted_at`
+# is normalized back to an ISO-8601 string via services.db_time.iso_row()
+# before being returned, so this migration stays entirely contained to
+# the database layer -- no caller outside services/feedback_store.py
+# needs to change.
 #
 # Engineering-quality pass (see accompanying handoff notes)
 # ---------------------------------------------------------------------
@@ -41,36 +40,14 @@ logger = get_logger(__name__)
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS feedback (
-                id SERIAL PRIMARY KEY,
-                draft_ids TEXT,
-                rating INTEGER,
-                comment TEXT,
-                submitted_by TEXT,
-                submitted_by_role TEXT,
-                submitted_at TEXT
-            )
-            """)
-
-            # Cheap, safe to run on every call -- same pattern as the
-            # existing ADD COLUMN IF NOT EXISTS statements elsewhere in
-            # this codebase (see services/draft_storage.py).
-            c.execute("""
-                CREATE INDEX IF NOT EXISTS idx_feedback_submitted_at
-                ON feedback (submitted_at DESC)
-            """)
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "feedback", ["submitted_at"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def save_feedback(draft_ids, rating, comment, submitted_by="", submitted_by_role=""):
