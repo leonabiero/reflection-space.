@@ -1,7 +1,5 @@
-import psycopg2
-from config import DATABASE_URL
 from services.db_time import now_utc, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -50,34 +48,14 @@ logger = get_logger(__name__)
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS audit_log (
-                id SERIAL PRIMARY KEY,
-                action TEXT,
-                draft_id INTEGER,
-                case_ref TEXT,
-                doc_type TEXT,
-                actor_name TEXT,
-                actor_role TEXT,
-                details TEXT,
-                occurred_at TEXT
-            )
-            """)
-            # get_audit_log()'s ORDER BY occurred_at DESC now supports an
-            # optional LIMIT/OFFSET (see Change 4) -- this index serves
-            # both the unpaginated and paginated forms of that query.
-            c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log (occurred_at DESC)")
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "audit_log", ["occurred_at"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def log_action(action, draft_id, case_ref, doc_type, actor_name="", actor_role="", details=""):
