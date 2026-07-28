@@ -1,8 +1,6 @@
 import json
-import psycopg2
-from config import DATABASE_URL
 from services.db_time import now_utc, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -58,36 +56,14 @@ THEME_KEYS = [
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS reflections (
-                id SERIAL PRIMARY KEY,
-                case_ref TEXT,
-                flags TEXT,
-                created_by TEXT,
-                created_by_role TEXT,
-                created_at TEXT
-            )
-            """)
-            # Issue 2: index to support both the ORDER BY created_at DESC
-            # in get_recent_theme_counts() and the WHERE created_at >= %s
-            # filters in get_theme_flag_counts() / get_total_reflection_count().
-            # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
-            # pattern already used elsewhere in this codebase.
-            c.execute("""
-            CREATE INDEX IF NOT EXISTS idx_reflections_created_at
-            ON reflections (created_at DESC)
-            """)
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "reflections", ["created_at"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def log_reflection(case_ref, reflection_result, created_by="", created_by_role=""):
