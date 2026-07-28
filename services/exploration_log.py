@@ -1,7 +1,5 @@
-import psycopg2
-from config import DATABASE_URL
 from services.db_time import now_utc, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -40,13 +38,14 @@ logger = get_logger(__name__)
 # idx_reflection_explorations_explored_by_at and
 # idx_reflection_explorations_explored_at below).
 #
-# The TIMESTAMPTZ migration runs once per process via the shared
-# services.db_migration.ensure_timestamptz_columns() helper. Every
-# value read back from `explored_at` is normalized back to an
-# ISO-8601 string via services.db_time.iso_row() before being
-# returned, so this migration stays entirely contained to the database
-# layer -- no caller outside services/exploration_log.py needs to
-# change.
+# The TIMESTAMPTZ migration runs once per process, at startup, via
+# services.db_schema.ensure_schema() (which calls the shared
+# services.db_migration.ensure_timestamptz_columns() helper -- see
+# that module's docstring). Every value read back from `explored_at`
+# is normalized back to an ISO-8601 string via services.db_time.iso_row()
+# before being returned, so this migration stays entirely contained to
+# the database layer -- no caller outside services/exploration_log.py
+# needs to change.
 #
 # Engineering-quality pass (see accompanying handoff notes)
 # ---------------------------------------------------------------------
@@ -67,40 +66,14 @@ logger = get_logger(__name__)
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS reflection_explorations (
-                id SERIAL PRIMARY KEY,
-                case_ref TEXT,
-                trigger TEXT,
-                turn_count INTEGER,
-                explored_by TEXT,
-                explored_by_role TEXT,
-                explored_at TEXT
-            )
-            """)
-
-            # Cheap, safe to run on every call -- same pattern as the
-            # existing ADD COLUMN IF NOT EXISTS statements elsewhere in
-            # this codebase (see services/draft_storage.py).
-            c.execute("""
-                CREATE INDEX IF NOT EXISTS idx_reflection_explorations_explored_by_at
-                ON reflection_explorations (explored_by, explored_at DESC)
-            """)
-            c.execute("""
-                CREATE INDEX IF NOT EXISTS idx_reflection_explorations_explored_at
-                ON reflection_explorations (explored_at)
-            """)
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "reflection_explorations", ["explored_at"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def log_exploration(case_ref, trigger, turn_count, explored_by="", explored_by_role=""):
