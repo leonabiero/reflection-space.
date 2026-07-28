@@ -70,6 +70,28 @@ DELETION_WINDOW_HOURS = int(os.getenv("DELETION_WINDOW_HOURS", "48"))
 PRESENCE_ACTIVE_WINDOW_MINUTES = int(os.getenv("PRESENCE_ACTIVE_WINDOW_MINUTES", "5"))
 PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES", "15"))
 
+# ---------------------------------------------------------------------
+# PostgreSQL connection pool sizing (services/db_pool.py)
+# ---------------------------------------------------------------------
+# Previously every services/*.py module called psycopg2.connect()
+# directly, opening and tearing down a brand-new TCP/TLS connection to
+# Postgres for every single read or write -- expensive on its own, and
+# a real problem under concurrent Streamlit users (each connection
+# also re-ran full schema DDL, see services/db_schema.py). These two
+# knobs size the shared pool that replaces that pattern.
+#
+# DB_POOL_MIN_CONN: connections opened eagerly when the pool is first
+# created (kept warm even when idle).
+# DB_POOL_MAX_CONN: hard ceiling on concurrent connections this
+# process will ever hold open. Neon's free/pilot tiers commonly cap
+# total concurrent connections in the low tens, and a single
+# Streamlit process can have several user sessions running
+# concurrently (each on its own script-run thread), so this is set
+# conservatively by default -- raise it via the environment if a
+# larger Postgres plan allows it.
+DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "1"))
+DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
+
 # Default page size used ONLY when a caller of one of the newly
 # paginated read functions (see Change 4 -- get_audit_log(),
 # get_completed_drafts(), get_all_feedback(), get_pending_deletions())
