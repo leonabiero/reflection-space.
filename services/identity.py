@@ -215,6 +215,17 @@ def _wipe_session_for_logout():
 
 
 def init_identity(T):
+    # Defensive safety net: app.py calls services.db_schema.ensure_schema()
+    # once at startup, but Streamlit's classic multipage routing means a
+    # bookmarked/direct URL to a page under pages/ can run that page's
+    # script WITHOUT app.py ever having run first in this session. Every
+    # page calls init_identity() before touching any storage function, so
+    # calling ensure_schema() here too guarantees the schema always exists
+    # first -- it's a no-op after the first successful call in this
+    # process (see services/db_schema.py's process-local guard).
+    from services.db_schema import ensure_schema
+    ensure_schema()
+
     if "authed" not in st.session_state:
         st.session_state.authed = False
     if "user_name" not in st.session_state:
