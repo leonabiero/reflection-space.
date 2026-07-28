@@ -1,11 +1,14 @@
 import streamlit as st
-from services.draft_storage import init_db
+from services.db_schema import ensure_schema
 from services.language import init_language
 from services.identity import init_identity, get_active_work_mode
 from navigation.permissions import landing_page_for_workspace
 
 st.set_page_config(page_title="Reflection Space", layout="centered")
-init_db()
+# Schema creation/migration for every table this app uses now happens
+# exactly once here, at startup (see services/db_schema.py) -- it no
+# longer runs on every individual database call throughout the app.
+ensure_schema()
 
 T = init_language()
 user_name, user_role = init_identity(T)
