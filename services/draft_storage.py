@@ -1,10 +1,12 @@
 import psycopg2
-from datetime import datetime, timedelta, timezone
-from config import DATABASE_URL
+from datetime import timedelta
+from config import DATABASE_URL, DELETION_WINDOW_HOURS
 from services.audit_log import log_action
 from services.qdrant_service import upsert_document, delete_document
+from services.db_time import now_utc, iso, iso_row, get_logger
+from services.db_migration import ensure_timestamptz_columns
 
-DELETION_WINDOW_HOURS = 48
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------
 # Schema hardening pass (audit findings "Issue 1" and "Issue 2")
@@ -28,165 +30,134 @@ DELETION_WINDOW_HOURS = 48
 # operations on these values (e.g. completed_at[:10]). Rather than
 # touch every one of those files in this pass, every function below
 # converts datetime values back to the exact same ISO-8601 string
-# shape they always returned, right before returning -- see _iso() /
-# _iso_row(). The database is now correct and indexable internally;
-# nothing outside services/ needs to change because of this.
+# shape they always returned, right before returning -- see
+# services.db_time.iso() / iso_row(). The database is now correct and
+# indexable internally; nothing outside services/ needs to change
+# because of this.
 # ---------------------------------------------------------------------
-
-# Process-level guard so the one-time TIMESTAMPTZ column migration
-# only runs once per running process, not on every _get_conn() call --
-# _get_conn() is called on nearly every function in this module, and
-# ALTER COLUMN TYPE is not a cheap no-op to repeat, unlike
-# "ADD COLUMN IF NOT EXISTS" / "CREATE INDEX IF NOT EXISTS".
-_schema_migrated = False
-
-
-def _now_utc():
-    """Single source of truth for 'now' as a timezone-aware UTC
-    datetime, replacing the old datetime.now().isoformat() pattern.
-    Passing a real datetime object (instead of a pre-formatted string)
-    lets psycopg2 store it natively in a TIMESTAMPTZ column, with no
-    ambiguity about which timezone it represents."""
-    return datetime.now(timezone.utc)
-
-
-def _iso(value):
-    """Normalize a value read back from a TIMESTAMPTZ column into the
-    same ISO-8601 string shape this module has always returned to its
-    callers. See the module docstring above for why this exists."""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return value.isoformat()
-
-
-def _iso_row(row, date_indexes):
-    """Apply _iso() to specific positions in a fetched row tuple,
-    leaving every other value untouched. Rows from psycopg2 are plain
-    tuples (immutable), so this returns a new tuple."""
-    row = list(row)
-    for i in date_indexes:
-        row[i] = _iso(row[i])
-    return tuple(row)
-
-
-def _ensure_timestamp_columns(conn):
-    """
-    One-time-per-process migration: convert every TEXT-based date
-    column in this module's tables to TIMESTAMPTZ.
-
-    Idempotent two ways:
-      1. Guarded by the module-level _schema_migrated flag (see
-         above), so this only runs once per process.
-      2. Also checks information_schema itself before altering any
-         column, so it's safe across process restarts too -- a column
-         already converted on a previous deploy is left alone,
-         avoiding a needless full-table rewrite every time the app
-         starts.
-
-    NULLIF(col, '') guards against an empty-string value ever being
-    cast (every existing value here was written by
-    datetime.now().isoformat() or left NULL, so this is a cheap,
-    harmless safety net rather than an expected case).
-    """
-    targets = {
-        "drafts": ["created_at", "completed_at", "deleted_at"],
-        "draft_history": ["saved_at"],
-        "user_activity": ["last_seen"],
-    }
-
-    with conn.cursor() as c:
-        for table, columns in targets.items():
-            c.execute("""
-                SELECT column_name, data_type FROM information_schema.columns
-                WHERE table_name = %s AND column_name = ANY(%s)
-            """, (table, columns))
-            current_types = dict(c.fetchall())
-
-            for col in columns:
-                if current_types.get(col) == "timestamp with time zone":
-                    continue
-                c.execute(f"""
-                    ALTER TABLE {table}
-                    ALTER COLUMN {col} TYPE TIMESTAMPTZ
-                    USING NULLIF({col}, '')::timestamptz
-                """)
-    conn.commit()
+#
+# Engineering-quality pass (see accompanying handoff notes)
+# ---------------------------------------------------------------------
+# This revision applies the following, purely non-behavioral,
+# production-hardening changes on top of everything above:
+#
+#   Change 1 (Connection management): every function that opens a
+#   connection now guarantees it is closed via try/finally, even if an
+#   exception is raised partway through -- previously a raised
+#   exception between _get_conn() and conn.close() would leak the
+#   connection.
+#
+#   Change 2 (Transaction safety): every multi-statement write
+#   (save_draft, finalize_draft, delete_pending_draft,
+#   soft_delete_draft, restore_draft, purge_expired_deletions) now
+#   explicitly rolls back the transaction if any statement inside it
+#   raises, so a partial write (e.g. draft_history insert succeeding
+#   but the drafts UPDATE failing) can never be left committed.
+#
+#   Change 3 (Parameterized SQL): unchanged in substance -- every query
+#   here already used %s placeholders for every value. Reviewed and
+#   confirmed as part of this pass; nothing needed to change.
+#
+#   Change 4 (Pagination): get_completed_drafts() and
+#   get_pending_deletions() gain optional `limit`/`offset` parameters.
+#   Both default to `limit=None`, which preserves the EXACT previous
+#   behavior (return every matching row) for every existing call site
+#   in this codebase (pages/case_history.py, rdi/retrieval_service.py)
+#   -- pagination only activates if a caller explicitly opts in by
+#   passing `limit`.
+#
+#   Change 5 / 6 (Centralized helpers): the local _now_utc/_iso/
+#   _iso_row and _schema_migrated/_ensure_timestamp_columns
+#   implementations are replaced by the shared
+#   services.db_time / services.db_migration modules -- see those
+#   modules' docstrings. Behavior is identical.
+#
+#   Change 7 (Logging): the previous local module-level "best effort"
+#   comments are unchanged in intent, but this module now imports the
+#   shared logger (services.db_time.get_logger) for use by call sites
+#   that need to log a non-fatal issue, and re-raises rather than
+#   silently swallowing on write-path failures (see Change 2).
+#
+#   Change 8 (Constants): DELETION_WINDOW_HOURS now lives in config.py
+#   (imported above) instead of being defined locally in this module.
+# ---------------------------------------------------------------------
 
 
 def _get_conn():
-    global _schema_migrated
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS drafts (
-            id SERIAL PRIMARY KEY,
-            case_ref TEXT,
-            doc_type TEXT,
-            language TEXT,
-            content TEXT,
-            created_at TEXT,
-            status TEXT,
-            created_by TEXT,
-            created_by_role TEXT
-        )
-        """)
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by TEXT")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by_role TEXT")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS was_edited BOOLEAN DEFAULT FALSE")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS completed_at TEXT")
-        # GDPR right-to-erasure support: soft-delete first, so an admin
-        # has a short window to restore a case in case of a mistake,
-        # before it is permanently purged.
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_at TEXT")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
-        c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS drafts (
+                id SERIAL PRIMARY KEY,
+                case_ref TEXT,
+                doc_type TEXT,
+                language TEXT,
+                content TEXT,
+                created_at TEXT,
+                status TEXT,
+                created_by TEXT,
+                created_by_role TEXT
+            )
+            """)
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by TEXT")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by_role TEXT")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS was_edited BOOLEAN DEFAULT FALSE")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS completed_at TEXT")
+            # GDPR right-to-erasure support: soft-delete first, so an admin
+            # has a short window to restore a case in case of a mistake,
+            # before it is permanently purged.
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_at TEXT")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
+            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
 
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS draft_history (
-            id SERIAL PRIMARY KEY,
-            draft_id INTEGER REFERENCES drafts(id),
-            content TEXT,
-            saved_at TEXT
-        )
-        """)
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS user_activity (
-            user_name TEXT PRIMARY KEY,
-            user_role TEXT,
-            last_seen TEXT
-        )
-        """)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS draft_history (
+                id SERIAL PRIMARY KEY,
+                draft_id INTEGER REFERENCES drafts(id),
+                content TEXT,
+                saved_at TEXT
+            )
+            """)
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS user_activity (
+                user_name TEXT PRIMARY KEY,
+                user_role TEXT,
+                last_seen TEXT
+            )
+            """)
 
-        # --- Indexes (audit "Issue 2") ------------------------------------
-        # Cheap, idempotent metadata checks -- safe to run on every
-        # connection, exactly like the ADD COLUMN IF NOT EXISTS calls
-        # above. Each one maps directly to a WHERE/ORDER BY already used
-        # by a function in this module:
-        #   - get_drafts(): WHERE status='draft' AND created_by=%s
-        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_created_by ON drafts (status, created_by)")
-        #   - historical-context / case-scoped lookups filter completed
-        #     drafts by case_ref (rdi/retrieval_service.py reads
-        #     get_completed_drafts() then filters in Python today; this
-        #     index is what a future case_ref-scoped SQL query would need,
-        #     and costs nothing to have now)
-        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_case_ref ON drafts (status, case_ref)")
-        #   - get_completed_drafts(): ORDER BY completed_at DESC
-        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_completed_at ON drafts (completed_at DESC)")
-        #   - get_pending_deletions() / purge_expired_deletions():
-        #     WHERE status='deleted'
-        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_deleted_status ON drafts (status) WHERE status = 'deleted'")
-        #   - get_draft_history(): WHERE draft_id=%s
-        c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
-        #   - get_active_users(): ORDER BY last_seen DESC
-        c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
-    conn.commit()
+            # --- Indexes (audit "Issue 2") ------------------------------------
+            # Cheap, idempotent metadata checks -- safe to run on every
+            # connection, exactly like the ADD COLUMN IF NOT EXISTS calls
+            # above. Each one maps directly to a WHERE/ORDER BY already used
+            # by a function in this module:
+            #   - get_drafts(): WHERE status='draft' AND created_by=%s
+            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_created_by ON drafts (status, created_by)")
+            #   - historical-context / case-scoped lookups filter completed
+            #     drafts by case_ref (rdi/retrieval_service.py reads
+            #     get_completed_drafts() then filters in Python today; this
+            #     index is what a future case_ref-scoped SQL query would need,
+            #     and costs nothing to have now)
+            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_case_ref ON drafts (status, case_ref)")
+            #   - get_completed_drafts(): ORDER BY completed_at DESC
+            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_completed_at ON drafts (completed_at DESC)")
+            #   - get_pending_deletions() / purge_expired_deletions():
+            #     WHERE status='deleted'
+            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_deleted_status ON drafts (status) WHERE status = 'deleted'")
+            #   - get_draft_history(): WHERE draft_id=%s
+            c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
+            #   - get_active_users(): ORDER BY last_seen DESC
+            c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
+        conn.commit()
 
-    if not _schema_migrated:
-        _ensure_timestamp_columns(conn)
-        _schema_migrated = True
+        ensure_timestamptz_columns(conn, "drafts", ["created_at", "completed_at", "deleted_at"])
+        ensure_timestamptz_columns(conn, "draft_history", ["saved_at"])
+        ensure_timestamptz_columns(conn, "user_activity", ["last_seen"])
+    except Exception:
+        conn.close()
+        raise
 
     return conn
 
@@ -200,24 +171,32 @@ def update_user_activity(user_name, user_role):
     if not user_name:
         return
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            INSERT INTO user_activity (user_name, user_role, last_seen)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (user_name) DO UPDATE
-            SET user_role = EXCLUDED.user_role, last_seen = EXCLUDED.last_seen
-        """, (user_name, user_role, _now_utc()))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO user_activity (user_name, user_role, last_seen)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_name) DO UPDATE
+                SET user_role = EXCLUDED.user_role, last_seen = EXCLUDED.last_seen
+            """, (user_name, user_role, now_utc()))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("update_user_activity FAILED for user_name=%r", user_name)
+        raise
+    finally:
+        conn.close()
 
 
 def get_active_users():
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("SELECT user_name, user_role, last_seen FROM user_activity ORDER BY last_seen DESC")
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [2]) for row in rows]
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT user_name, user_role, last_seen FROM user_activity ORDER BY last_seen DESC")
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [2]) for row in rows]
 
 
 def get_case_count(since_iso=None, service=None, doc_type=None):
@@ -234,42 +213,54 @@ def get_case_count(since_iso=None, service=None, doc_type=None):
     inconsistency to fix separately if exact timezone precision ever
     matters for this comparison -- not something this schema pass
     changes the correctness of.
+
+    Every value below (since_iso, service, doc_type) is passed as a
+    %s parameter, never interpolated into the query string -- see
+    Change 3 in the module docstring.
     """
     conn = _get_conn()
-    query = "SELECT COUNT(DISTINCT case_ref) FROM drafts WHERE status='completed'"
-    params = []
-    if since_iso:
-        query += " AND completed_at >= %s"
-        params.append(since_iso)
-    # Note: 'service' is not a separate column yet, but we can search in case_ref
-    # if it follows a pattern, or just return total for now.
-    # The requirement mentions 'service' and 'age' which aren't explicit columns.
-    # We will search case_ref for service names if provided.
-    if service:
-        query += " AND case_ref ILIKE %s"
-        params.append(f"%{service}%")
-    if doc_type:
-        query += " AND doc_type = %s"
-        params.append(doc_type)
+    try:
+        query = "SELECT COUNT(DISTINCT case_ref) FROM drafts WHERE status='completed'"
+        params = []
+        if since_iso:
+            query += " AND completed_at >= %s"
+            params.append(since_iso)
+        # Note: 'service' is not a separate column yet, but we can search in case_ref
+        # if it follows a pattern, or just return total for now.
+        # The requirement mentions 'service' and 'age' which aren't explicit columns.
+        # We will search case_ref for service names if provided.
+        if service:
+            query += " AND case_ref ILIKE %s"
+            params.append(f"%{service}%")
+        if doc_type:
+            query += " AND doc_type = %s"
+            params.append(doc_type)
 
-    with conn.cursor() as c:
-        c.execute(query, tuple(params))
-        (count,) = c.fetchone()
-    conn.close()
+        with conn.cursor() as c:
+            c.execute(query, tuple(params))
+            (count,) = c.fetchone()
+    finally:
+        conn.close()
     return count
 
 
 def save_draft(case_ref, doc_type, language, content, created_by="", created_by_role=""):
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status, created_by, created_by_role, was_edited)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (case_ref, doc_type, language, content, _now_utc(), "draft", created_by, created_by_role, False))
-        new_id = c.fetchone()[0]
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status, created_by, created_by_role, was_edited)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (case_ref, doc_type, language, content, now_utc(), "draft", created_by, created_by_role, False))
+            new_id = c.fetchone()[0]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("save_draft FAILED for case_ref=%r doc_type=%r", case_ref, doc_type)
+        raise
+    finally:
+        conn.close()
     log_action("created", new_id, case_ref, doc_type, created_by, created_by_role)
 
 
@@ -308,15 +299,17 @@ def get_drafts(owner_name):
     if not owner_name:
         return []
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role
-            FROM drafts WHERE status='draft' AND created_by=%s
-            ORDER BY id
-        """, (owner_name,))
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [4]) for row in rows]
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role
+                FROM drafts WHERE status='draft' AND created_by=%s
+                ORDER BY id
+            """, (owner_name,))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [4]) for row in rows]
 
 
 def get_draft_by_id(draft_id, owner_name=None):
@@ -329,17 +322,19 @@ def get_draft_by_id(draft_id, owner_name=None):
     before (used only by trusted, already-scoped internal callers).
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("SELECT * FROM drafts WHERE id=%s", (draft_id,))
-        row = c.fetchone()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT * FROM drafts WHERE id=%s", (draft_id,))
+            row = c.fetchone()
+    finally:
+        conn.close()
     if row is None:
         return None
     # Column order: id(0), case_ref(1), doc_type(2), language(3),
     # content(4), created_at(5), status(6), created_by(7),
     # created_by_role(8), was_edited(9), completed_at(10), deleted_at(11),
     # status_before_delete(12), deleted_by(13), deleted_by_role(14).
-    row = _iso_row(row, [5, 10, 11])
+    row = iso_row(row, [5, 10, 11])
     if owner_name is not None:
         created_by = row[7]
         if created_by != owner_name:
@@ -355,49 +350,63 @@ def finalize_draft(draft_id, edited_content, owner_name):
     else's, regardless of role. Returns True on success, False if the
     draft doesn't exist, isn't pending, or isn't owned by `owner_name`
     (no changes are made in that case).
+
+    Transaction safety (Change 2): the "insert into draft_history" +
+    "update drafts" pair (when the content was edited) are two
+    statements that must succeed together -- if the UPDATE were to fail
+    after the history INSERT already went through, the draft would be
+    left showing its NEW content with no matching "current" status
+    change, and a phantom history row pointing at content that was
+    never actually applied. Both statements now share one transaction
+    that is rolled back as a unit on any failure.
     """
     if not owner_name:
         return False
 
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT content, case_ref, doc_type, created_by, created_by_role, language, status
-            FROM drafts WHERE id=%s
-        """, (draft_id,))
-        row = c.fetchone()
-        if not row:
-            conn.close()
-            return False
-
-        current_content, case_ref, doc_type, created_by, created_by_role, language, status = row
-
-        if status != "draft" or created_by != owner_name:
-            # Either already submitted/deleted, or owned by someone
-            # else -- refuse silently rather than acting on it.
-            conn.close()
-            return False
-
-        now = _now_utc()
-
-        if edited_content.strip() != (current_content or "").strip():
+    try:
+        with conn.cursor() as c:
             c.execute("""
-                INSERT INTO draft_history (draft_id, content, saved_at)
-                VALUES (%s, %s, %s)
-            """, (draft_id, current_content, now))
-            c.execute("""
-                UPDATE drafts SET content=%s, status='completed', was_edited=TRUE, completed_at=%s
-                WHERE id=%s
-            """, (edited_content, now, draft_id))
-            edited_flag = True
-        else:
-            c.execute("""
-                UPDATE drafts SET status='completed', completed_at=%s
-                WHERE id=%s
-            """, (now, draft_id))
-            edited_flag = False
-    conn.commit()
-    conn.close()
+                SELECT content, case_ref, doc_type, created_by, created_by_role, language, status
+                FROM drafts WHERE id=%s
+            """, (draft_id,))
+            row = c.fetchone()
+            if not row:
+                return False
+
+            current_content, case_ref, doc_type, created_by, created_by_role, language, status = row
+
+            if status != "draft" or created_by != owner_name:
+                # Either already submitted/deleted, or owned by someone
+                # else -- refuse silently rather than acting on it.
+                return False
+
+            now = now_utc()
+
+            if edited_content.strip() != (current_content or "").strip():
+                c.execute("""
+                    INSERT INTO draft_history (draft_id, content, saved_at)
+                    VALUES (%s, %s, %s)
+                """, (draft_id, current_content, now))
+                c.execute("""
+                    UPDATE drafts SET content=%s, status='completed', was_edited=TRUE, completed_at=%s
+                    WHERE id=%s
+                """, (edited_content, now, draft_id))
+                edited_flag = True
+            else:
+                c.execute("""
+                    UPDATE drafts SET status='completed', completed_at=%s
+                    WHERE id=%s
+                """, (now, draft_id))
+                edited_flag = False
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("finalize_draft FAILED for draft_id=%r owner_name=%r", draft_id, owner_name)
+        raise
+    finally:
+        conn.close()
+
     log_action(
         "submitted", draft_id, case_ref, doc_type, created_by, created_by_role,
         details=("edited" if edited_flag else "not edited"),
@@ -409,35 +418,58 @@ def finalize_draft(draft_id, edited_content, owner_name):
     # Fetch created_at separately rather than reusing the SELECT above,
     # since that row reflects pre-update state.
     conn2 = _get_conn()
-    with conn2.cursor() as c2:
-        c2.execute("SELECT created_at FROM drafts WHERE id=%s", (draft_id,))
-        created_row = c2.fetchone()
-    conn2.close()
-    created_at = _iso(created_row[0]) if created_row else ""
+    try:
+        with conn2.cursor() as c2:
+            c2.execute("SELECT created_at FROM drafts WHERE id=%s", (draft_id,))
+            created_row = c2.fetchone()
+    finally:
+        conn2.close()
+    created_at = iso(created_row[0]) if created_row else ""
 
     upsert_document(
         draft_id, case_ref, doc_type,
         content=edited_content,
         language=language,
         created_at=created_at,
-        completed_at=_iso(now),
+        completed_at=iso(now),
         created_by_role=created_by_role,
         was_edited=edited_flag,
     )
     return True
 
 
-def get_completed_drafts():
+def get_completed_drafts(limit=None, offset=0):
+    """
+    Returns completed (status='completed') documents, most recently
+    completed first.
+
+    Pagination (Change 4): `limit`/`offset` are optional and default to
+    `limit=None` (no LIMIT clause at all -- every matching row is
+    returned, exactly as before this change) so every EXISTING call
+    site (pages/case_history.py, rdi/retrieval_service.py -- both of
+    which need the full completed-document set to group/filter
+    correctly) is completely unaffected. Pass an explicit `limit` (and
+    optionally `offset`) to page through results in any NEW call site
+    that wants that.
+    """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
+    try:
+        query = """
             SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
             FROM drafts WHERE status='completed'
             ORDER BY completed_at DESC
-        """)
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [4, 8]) for row in rows]
+        """
+        params = []
+        if limit is not None:
+            query += " LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+
+        with conn.cursor() as c:
+            c.execute(query, tuple(params))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [4, 8]) for row in rows]
 
 
 def get_completed_draft_count(since_iso=None):
@@ -451,26 +483,30 @@ def get_completed_draft_count(since_iso=None):
     same caveat applies here.
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        if since_iso:
-            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed' AND completed_at >= %s", (since_iso,))
-        else:
-            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed'")
-        (count,) = c.fetchone()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            if since_iso:
+                c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed' AND completed_at >= %s", (since_iso,))
+            else:
+                c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed'")
+            (count,) = c.fetchone()
+    finally:
+        conn.close()
     return count
 
 
 def get_draft_history(draft_id):
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT content, saved_at FROM draft_history
-            WHERE draft_id=%s ORDER BY id
-        """, (draft_id,))
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [1]) for row in rows]
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT content, saved_at FROM draft_history
+                WHERE draft_id=%s ORDER BY id
+            """, (draft_id,))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [1]) for row in rows]
 
 
 def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
@@ -493,25 +529,35 @@ def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
     Returns True if the draft was deleted, False if it didn't exist,
     was no longer pending, or wasn't owned by `deleted_by` (no changes
     are made in that case).
+
+    Transaction safety (Change 2): the draft_history DELETE and the
+    drafts DELETE must succeed together, or a foreign-key-orphaned
+    history row (or a draft deleted without its history) could result.
+    Both now share one transaction, rolled back together on failure.
     """
     if not deleted_by:
         return False
 
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("SELECT status, case_ref, doc_type, created_by FROM drafts WHERE id=%s", (draft_id,))
-        row = c.fetchone()
-        if not row:
-            conn.close()
-            return False
-        status, case_ref, doc_type, created_by = row
-        if status != "draft" or created_by != deleted_by:
-            conn.close()
-            return False
-        c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
-        c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT status, case_ref, doc_type, created_by FROM drafts WHERE id=%s", (draft_id,))
+            row = c.fetchone()
+            if not row:
+                return False
+            status, case_ref, doc_type, created_by = row
+            if status != "draft" or created_by != deleted_by:
+                return False
+            c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
+            c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("delete_pending_draft FAILED for draft_id=%r deleted_by=%r", draft_id, deleted_by)
+        raise
+    finally:
+        conn.close()
+
     log_action(
         "purged", draft_id, case_ref, doc_type, deleted_by, deleted_by_role,
         details="deleted while pending",
@@ -540,60 +586,99 @@ def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
     case is already invisible everywhere a user could see it, and
     keeping the vector means restore_draft() doesn't need to re-embed
     anything.
+
+    Transaction safety (Change 2): the single UPDATE below is already
+    atomic on its own, but is still wrapped with an explicit
+    commit/rollback pair (rather than the previous bare conn.commit())
+    so a failure between execute() and commit() can never leave the
+    connection in an ambiguous, uncommitted state that's silently
+    closed without rollback.
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("SELECT status, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
-        row = c.fetchone()
-        if not row:
-            conn.close()
-            return
-        previous_status, case_ref, doc_type = row
-        now = _now_utc()
-        c.execute("""
-            UPDATE drafts
-            SET status='deleted', status_before_delete=%s, deleted_at=%s,
-                deleted_by=%s, deleted_by_role=%s
-            WHERE id=%s
-        """, (previous_status, now, deleted_by, deleted_by_role, draft_id))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT status, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+            row = c.fetchone()
+            if not row:
+                return
+            previous_status, case_ref, doc_type = row
+            now = now_utc()
+            c.execute("""
+                UPDATE drafts
+                SET status='deleted', status_before_delete=%s, deleted_at=%s,
+                    deleted_by=%s, deleted_by_role=%s
+                WHERE id=%s
+            """, (previous_status, now, deleted_by, deleted_by_role, draft_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("soft_delete_draft FAILED for draft_id=%r", draft_id)
+        raise
+    finally:
+        conn.close()
+
+    if not row:
+        return
     log_action("deleted", draft_id, case_ref, doc_type, deleted_by, deleted_by_role)
 
 
 def restore_draft(draft_id, restored_by="", restored_by_role=""):
     """Undo a soft delete, within the safety window."""
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("SELECT status_before_delete, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
-        row = c.fetchone()
-        if not row:
-            conn.close()
-            return
-        previous_status, case_ref, doc_type = row
-        c.execute("""
-            UPDATE drafts
-            SET status=%s, status_before_delete=NULL, deleted_at=NULL,
-                deleted_by=NULL, deleted_by_role=NULL
-            WHERE id=%s
-        """, (previous_status or "draft", draft_id))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT status_before_delete, case_ref, doc_type FROM drafts WHERE id=%s", (draft_id,))
+            row = c.fetchone()
+            if not row:
+                return
+            previous_status, case_ref, doc_type = row
+            c.execute("""
+                UPDATE drafts
+                SET status=%s, status_before_delete=NULL, deleted_at=NULL,
+                    deleted_by=NULL, deleted_by_role=NULL
+                WHERE id=%s
+            """, (previous_status or "draft", draft_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("restore_draft FAILED for draft_id=%r", draft_id)
+        raise
+    finally:
+        conn.close()
+
+    if not row:
+        return
     log_action("restored", draft_id, case_ref, doc_type, restored_by, restored_by_role)
 
 
-def get_pending_deletions():
-    """Cases currently in the soft-deleted window, awaiting purge."""
+def get_pending_deletions(limit=None, offset=0):
+    """
+    Cases currently in the soft-deleted window, awaiting purge.
+
+    Pagination (Change 4): `limit`/`offset` are optional, defaulting to
+    `limit=None` (no LIMIT clause -- every matching row is returned,
+    exactly as before this change), so the existing call site
+    (pages/case_history.py) is unaffected. Pass an explicit `limit` to
+    page through results.
+    """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
+    try:
+        query = """
             SELECT id, case_ref, doc_type, deleted_at, deleted_by, deleted_by_role
             FROM drafts WHERE status='deleted'
             ORDER BY deleted_at DESC
-        """)
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [3]) for row in rows]
+        """
+        params = []
+        if limit is not None:
+            query += " LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+
+        with conn.cursor() as c:
+            c.execute(query, tuple(params))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [3]) for row in rows]
 
 
 def purge_expired_deletions():
@@ -609,21 +694,38 @@ def purge_expired_deletions():
     permanently erased case leaves no retrievable trace in the semantic
     index either -- matching the same GDPR guarantee already made for
     Postgres content.
-    """
-    cutoff = _now_utc() - timedelta(hours=DELETION_WINDOW_HOURS)
-    conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT id, case_ref, doc_type FROM drafts
-            WHERE status='deleted' AND deleted_at < %s
-        """, (cutoff,))
-        expired = c.fetchall()
 
-        for draft_id, case_ref, doc_type in expired:
-            c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
-            c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
-    conn.commit()
-    conn.close()
+    DELETION_WINDOW_HOURS now comes from config.py (Change 8) rather
+    than being defined as a local module constant.
+
+    Transaction safety (Change 2): the per-draft draft_history DELETE +
+    drafts DELETE pair, across potentially many expired drafts, all
+    happen inside ONE transaction now -- either every expired case is
+    purged from Postgres, or (on failure partway through) none of them
+    are, and the whole batch is retried on the next run rather than
+    leaving some cases purged and others not.
+    """
+    cutoff = now_utc() - timedelta(hours=DELETION_WINDOW_HOURS)
+    conn = _get_conn()
+    expired = []
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT id, case_ref, doc_type FROM drafts
+                WHERE status='deleted' AND deleted_at < %s
+            """, (cutoff,))
+            expired = c.fetchall()
+
+            for draft_id, case_ref, doc_type in expired:
+                c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
+                c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("purge_expired_deletions FAILED (batch of %d expired case(s) rolled back)", len(expired))
+        raise
+    finally:
+        conn.close()
 
     for draft_id, case_ref, doc_type in expired:
         delete_document(draft_id)
