@@ -10,6 +10,7 @@ from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.rag_logging import rag_log
 from services.explanation_builder import build_explanations, similarity_category
+from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from rdi.conversation_builder import build_conversation
@@ -517,9 +518,44 @@ if active_context is not None:
     # included, alongside the existing Context Confidence sentence.
     st.caption(f"{T['historical_docs_used_label']}: {len(ctx.included_historical())}")
 
+    # ---------------------------------------------------------------
+    # Cost-safety guard (added after project risk review)
+    # ---------------------------------------------------------------
+    # Generating a reflection triggers 8 parallel Claude API calls
+    # (see rdi/orchestrator.py) plus automatic retries on failure.
+    # Two independent protections here, neither of which changes what
+    # a normal practitioner experiences:
+    #
+    # 1. "_generating_reflection" is a plain session flag (not a
+    #    widget) that is set the instant the button below is clicked
+    #    and cleared once generation finishes. While it's set, the
+    #    button renders disabled, so a second click during the same
+    #    brief window (before Streamlit's rerun completes) can't start
+    #    a second, overlapping generation for this person.
+    # 2. services.rate_limiter.check_and_record() enforces a generous
+    #    per-person hourly cap (DEFAULT_MAX_PER_HOUR, currently well
+    #    above any realistic legitimate use) as a backstop against a
+    #    bug or an unusual usage pattern quietly running up API cost.
+    #    It fails open (never blocks) if the database itself is
+    #    unreachable, so this can never be the reason someone can't
+    #    work.
+    is_generating = st.session_state.get("_generating_reflection", False)
+
     col1, col2 = st.columns(2)
     with col1:
-        if st.button(T["reflection_context_continue"], type="primary"):
+        if st.button(
+            T["reflection_context_continue"],
+            type="primary",
+            disabled=is_generating,
+        ):
+            allowed, _count = check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR)
+
+            if not allowed:
+                st.session_state["_rate_limit_hit"] = True
+                st.rerun()
+
+            st.session_state["_generating_reflection"] = True
+
             combined_text = ctx.combined_text()
 
             # Development logging: capture exactly what is about to be
@@ -538,6 +574,9 @@ if active_context is not None:
                 # result into a ReflectionSession for display and
                 # tracking.
                 result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
+
+            st.session_state["_generating_reflection"] = False
+
             if "error" not in result:
                 log_reflection(ctx.case_ref, result["raw"], user_name, user_role)
 
@@ -561,9 +600,21 @@ if active_context is not None:
 
             st.rerun()
     with col2:
-        if st.button(T["reflection_context_back"]):
+        if st.button(T["reflection_context_back"], disabled=is_generating):
             ReflectionContext.clear()
             st.rerun()
+
+    if st.session_state.pop("_rate_limit_hit", False):
+        st.error(
+            T.get(
+                "rate_limit_exceeded_message",
+                "You've reached the limit of {max} reflections in the last hour on this "
+                "account. This is a safety limit to prevent accidental repeated requests, "
+                "not a restriction on your normal work -- please wait a little and try "
+                "again, or contact your System Administrator if you believe this is a "
+                "mistake.",
+            ).format(max=DEFAULT_MAX_PER_HOUR)
+        )
 
     st.stop()
 
