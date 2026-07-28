@@ -1,6 +1,5 @@
-import psycopg2
-from config import DATABASE_URL
 from services.db_time import get_logger
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -24,20 +23,14 @@ logger = get_logger(__name__)
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT
-            )
-            """)
-        conn.commit()
-    except Exception:
-        conn.close()
-        raise
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def get_setting(key, default=None):
