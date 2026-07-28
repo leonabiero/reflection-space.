@@ -83,11 +83,10 @@ Change 8: ACTIVE_WINDOW_MINUTES / RECENT_WINDOW_MINUTES are now
   (5 / 15 minutes) unless overridden via environment variable.
 """
 
-import psycopg2
 from datetime import datetime, timedelta, timezone
-from config import DATABASE_URL, PRESENCE_ACTIVE_WINDOW_MINUTES, PRESENCE_RECENT_WINDOW_MINUTES
+from config import PRESENCE_ACTIVE_WINDOW_MINUTES, PRESENCE_RECENT_WINDOW_MINUTES
 from services.db_time import now_utc, iso, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 logger = get_logger(__name__)
 
@@ -99,33 +98,14 @@ RECENT_WINDOW_MINUTES = PRESENCE_RECENT_WINDOW_MINUTES
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS user_presence (
-                professional_name TEXT PRIMARY KEY,
-                professional_role TEXT,
-                last_seen TEXT
-            )
-            """)
-            # Issue 2: composite index to support
-            # get_active_social_workers()'s
-            # `WHERE professional_role = %s ORDER BY last_seen DESC`.
-            # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
-            # pattern already used elsewhere in this codebase.
-            c.execute("""
-            CREATE INDEX IF NOT EXISTS idx_user_presence_role_last_seen
-            ON user_presence (professional_role, last_seen DESC)
-            """)
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "user_presence", ["last_seen"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def touch(name, role):
