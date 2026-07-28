@@ -1,13 +1,122 @@
 import psycopg2
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config import DATABASE_URL
 from services.audit_log import log_action
 from services.qdrant_service import upsert_document, delete_document
 
 DELETION_WINDOW_HOURS = 48
 
+# ---------------------------------------------------------------------
+# Schema hardening pass (audit findings "Issue 1" and "Issue 2")
+# ---------------------------------------------------------------------
+# Issue 1: created_at/completed_at/deleted_at (drafts), saved_at
+# (draft_history), and last_seen (user_activity) were all plain TEXT
+# columns holding datetime.now().isoformat() strings -- no timezone
+# info, string-only comparisons, no real date arithmetic possible in
+# SQL. They are now TIMESTAMPTZ.
+#
+# Issue 2: this module had zero indexes beyond each table's implicit
+# primary-key index. Every filter/sort actually used by the functions
+# below (status+created_by, status+case_ref, completed_at ordering,
+# the deleted-status lookup, draft_history's draft_id lookup,
+# last_seen ordering) now has one.
+#
+# Design choice worth knowing about: converting to TIMESTAMPTZ means
+# psycopg2 returns a native datetime object on read, not a string.
+# Every page in this app (case_history.py, learning.py,
+# growth_dashboard.py, research_metrics_SERVICE.py, etc.) does string
+# operations on these values (e.g. completed_at[:10]). Rather than
+# touch every one of those files in this pass, every function below
+# converts datetime values back to the exact same ISO-8601 string
+# shape they always returned, right before returning -- see _iso() /
+# _iso_row(). The database is now correct and indexable internally;
+# nothing outside services/ needs to change because of this.
+# ---------------------------------------------------------------------
+
+# Process-level guard so the one-time TIMESTAMPTZ column migration
+# only runs once per running process, not on every _get_conn() call --
+# _get_conn() is called on nearly every function in this module, and
+# ALTER COLUMN TYPE is not a cheap no-op to repeat, unlike
+# "ADD COLUMN IF NOT EXISTS" / "CREATE INDEX IF NOT EXISTS".
+_schema_migrated = False
+
+
+def _now_utc():
+    """Single source of truth for 'now' as a timezone-aware UTC
+    datetime, replacing the old datetime.now().isoformat() pattern.
+    Passing a real datetime object (instead of a pre-formatted string)
+    lets psycopg2 store it natively in a TIMESTAMPTZ column, with no
+    ambiguity about which timezone it represents."""
+    return datetime.now(timezone.utc)
+
+
+def _iso(value):
+    """Normalize a value read back from a TIMESTAMPTZ column into the
+    same ISO-8601 string shape this module has always returned to its
+    callers. See the module docstring above for why this exists."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return value.isoformat()
+
+
+def _iso_row(row, date_indexes):
+    """Apply _iso() to specific positions in a fetched row tuple,
+    leaving every other value untouched. Rows from psycopg2 are plain
+    tuples (immutable), so this returns a new tuple."""
+    row = list(row)
+    for i in date_indexes:
+        row[i] = _iso(row[i])
+    return tuple(row)
+
+
+def _ensure_timestamp_columns(conn):
+    """
+    One-time-per-process migration: convert every TEXT-based date
+    column in this module's tables to TIMESTAMPTZ.
+
+    Idempotent two ways:
+      1. Guarded by the module-level _schema_migrated flag (see
+         above), so this only runs once per process.
+      2. Also checks information_schema itself before altering any
+         column, so it's safe across process restarts too -- a column
+         already converted on a previous deploy is left alone,
+         avoiding a needless full-table rewrite every time the app
+         starts.
+
+    NULLIF(col, '') guards against an empty-string value ever being
+    cast (every existing value here was written by
+    datetime.now().isoformat() or left NULL, so this is a cheap,
+    harmless safety net rather than an expected case).
+    """
+    targets = {
+        "drafts": ["created_at", "completed_at", "deleted_at"],
+        "draft_history": ["saved_at"],
+        "user_activity": ["last_seen"],
+    }
+
+    with conn.cursor() as c:
+        for table, columns in targets.items():
+            c.execute("""
+                SELECT column_name, data_type FROM information_schema.columns
+                WHERE table_name = %s AND column_name = ANY(%s)
+            """, (table, columns))
+            current_types = dict(c.fetchall())
+
+            for col in columns:
+                if current_types.get(col) == "timestamp with time zone":
+                    continue
+                c.execute(f"""
+                    ALTER TABLE {table}
+                    ALTER COLUMN {col} TYPE TIMESTAMPTZ
+                    USING NULLIF({col}, '')::timestamptz
+                """)
+    conn.commit()
+
 
 def _get_conn():
+    global _schema_migrated
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor() as c:
         c.execute("""
@@ -50,7 +159,35 @@ def _get_conn():
             last_seen TEXT
         )
         """)
+
+        # --- Indexes (audit "Issue 2") ------------------------------------
+        # Cheap, idempotent metadata checks -- safe to run on every
+        # connection, exactly like the ADD COLUMN IF NOT EXISTS calls
+        # above. Each one maps directly to a WHERE/ORDER BY already used
+        # by a function in this module:
+        #   - get_drafts(): WHERE status='draft' AND created_by=%s
+        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_created_by ON drafts (status, created_by)")
+        #   - historical-context / case-scoped lookups filter completed
+        #     drafts by case_ref (rdi/retrieval_service.py reads
+        #     get_completed_drafts() then filters in Python today; this
+        #     index is what a future case_ref-scoped SQL query would need,
+        #     and costs nothing to have now)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_case_ref ON drafts (status, case_ref)")
+        #   - get_completed_drafts(): ORDER BY completed_at DESC
+        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_completed_at ON drafts (completed_at DESC)")
+        #   - get_pending_deletions() / purge_expired_deletions():
+        #     WHERE status='deleted'
+        c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_deleted_status ON drafts (status) WHERE status = 'deleted'")
+        #   - get_draft_history(): WHERE draft_id=%s
+        c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
+        #   - get_active_users(): ORDER BY last_seen DESC
+        c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
     conn.commit()
+
+    if not _schema_migrated:
+        _ensure_timestamp_columns(conn)
+        _schema_migrated = True
+
     return conn
 
 
@@ -69,7 +206,7 @@ def update_user_activity(user_name, user_role):
             VALUES (%s, %s, %s)
             ON CONFLICT (user_name) DO UPDATE
             SET user_role = EXCLUDED.user_role, last_seen = EXCLUDED.last_seen
-        """, (user_name, user_role, datetime.now().isoformat()))
+        """, (user_name, user_role, _now_utc()))
     conn.commit()
     conn.close()
 
@@ -80,12 +217,23 @@ def get_active_users():
         c.execute("SELECT user_name, user_role, last_seen FROM user_activity ORDER BY last_seen DESC")
         rows = c.fetchall()
     conn.close()
-    return rows
+    return [_iso_row(row, [2]) for row in rows]
 
 
 def get_case_count(since_iso=None, service=None, doc_type=None):
     """
     Structured query for aggregation/counting.
+
+    Note on since_iso: callers elsewhere in the app (e.g.
+    services/research_metrics_SERVICE.py) build this as a naive,
+    server-local ISO string via datetime.now() (not UTC-aware). Now
+    that completed_at is TIMESTAMPTZ, Postgres will cast that string
+    using the session's timezone setting when comparing. This is
+    unchanged behavior from before this migration (it was a string
+    comparison either way) and is flagged here as a known, pre-existing
+    inconsistency to fix separately if exact timezone precision ever
+    matters for this comparison -- not something this schema pass
+    changes the correctness of.
     """
     conn = _get_conn()
     query = "SELECT COUNT(DISTINCT case_ref) FROM drafts WHERE status='completed'"
@@ -118,7 +266,7 @@ def save_draft(case_ref, doc_type, language, content, created_by="", created_by_
             INSERT INTO drafts (case_ref, doc_type, language, content, created_at, status, created_by, created_by_role, was_edited)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (case_ref, doc_type, language, content, datetime.now().isoformat(), "draft", created_by, created_by_role, False))
+        """, (case_ref, doc_type, language, content, _now_utc(), "draft", created_by, created_by_role, False))
         new_id = c.fetchone()[0]
     conn.commit()
     conn.close()
@@ -168,7 +316,7 @@ def get_drafts(owner_name):
         """, (owner_name,))
         rows = c.fetchall()
     conn.close()
-    return rows
+    return [_iso_row(row, [4]) for row in rows]
 
 
 def get_draft_by_id(draft_id, owner_name=None):
@@ -187,10 +335,12 @@ def get_draft_by_id(draft_id, owner_name=None):
     conn.close()
     if row is None:
         return None
+    # Column order: id(0), case_ref(1), doc_type(2), language(3),
+    # content(4), created_at(5), status(6), created_by(7),
+    # created_by_role(8), was_edited(9), completed_at(10), deleted_at(11),
+    # status_before_delete(12), deleted_by(13), deleted_by_role(14).
+    row = _iso_row(row, [5, 10, 11])
     if owner_name is not None:
-        # created_by is column index 7 in the table definition above
-        # (id, case_ref, doc_type, language, content, created_at,
-        # status, created_by, created_by_role, ...).
         created_by = row[7]
         if created_by != owner_name:
             return None
@@ -228,7 +378,7 @@ def finalize_draft(draft_id, edited_content, owner_name):
             conn.close()
             return False
 
-        now = datetime.now().isoformat()
+        now = _now_utc()
 
         if edited_content.strip() != (current_content or "").strip():
             c.execute("""
@@ -263,14 +413,14 @@ def finalize_draft(draft_id, edited_content, owner_name):
         c2.execute("SELECT created_at FROM drafts WHERE id=%s", (draft_id,))
         created_row = c2.fetchone()
     conn2.close()
-    created_at = created_row[0] if created_row else ""
+    created_at = _iso(created_row[0]) if created_row else ""
 
     upsert_document(
         draft_id, case_ref, doc_type,
         content=edited_content,
         language=language,
         created_at=created_at,
-        completed_at=now,
+        completed_at=_iso(now),
         created_by_role=created_by_role,
         was_edited=edited_flag,
     )
@@ -287,7 +437,7 @@ def get_completed_drafts():
         """)
         rows = c.fetchall()
     conn.close()
-    return rows
+    return [_iso_row(row, [4, 8]) for row in rows]
 
 
 def get_completed_draft_count(since_iso=None):
@@ -296,6 +446,9 @@ def get_completed_draft_count(since_iso=None):
     completed, org-wide, WITHOUT pulling document content (or any
     other row data) into memory the way get_completed_drafts() does --
     this is a plain COUNT(*), nothing else.
+
+    See get_case_count()'s docstring re: since_iso timezone-naivety --
+    same caveat applies here.
     """
     conn = _get_conn()
     with conn.cursor() as c:
@@ -317,7 +470,7 @@ def get_draft_history(draft_id):
         """, (draft_id,))
         rows = c.fetchall()
     conn.close()
-    return rows
+    return [_iso_row(row, [1]) for row in rows]
 
 
 def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
@@ -396,7 +549,7 @@ def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
             conn.close()
             return
         previous_status, case_ref, doc_type = row
-        now = datetime.now().isoformat()
+        now = _now_utc()
         c.execute("""
             UPDATE drafts
             SET status='deleted', status_before_delete=%s, deleted_at=%s,
@@ -440,7 +593,7 @@ def get_pending_deletions():
         """)
         rows = c.fetchall()
     conn.close()
-    return rows
+    return [_iso_row(row, [3]) for row in rows]
 
 
 def purge_expired_deletions():
@@ -457,7 +610,7 @@ def purge_expired_deletions():
     index either -- matching the same GDPR guarantee already made for
     Postgres content.
     """
-    cutoff = (datetime.now() - timedelta(hours=DELETION_WINDOW_HOURS)).isoformat()
+    cutoff = _now_utc() - timedelta(hours=DELETION_WINDOW_HOURS)
     conn = _get_conn()
     with conn.cursor() as c:
         c.execute("""
