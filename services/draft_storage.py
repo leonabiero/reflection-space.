@@ -1,10 +1,10 @@
-import psycopg2
 from datetime import timedelta
-from config import DATABASE_URL, DELETION_WINDOW_HOURS
+from config import DELETION_WINDOW_HOURS
 from services.audit_log import log_action
 from services.qdrant_service import upsert_document, delete_document
 from services.db_time import now_utc, iso, iso_row, get_logger
-from services.db_migration import ensure_timestamptz_columns
+from services.db_pool import get_conn as _acquire_pooled_conn
+from services.db_schema import ensure_schema
 
 logger = get_logger(__name__)
 
@@ -84,87 +84,24 @@ logger = get_logger(__name__)
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS drafts (
-                id SERIAL PRIMARY KEY,
-                case_ref TEXT,
-                doc_type TEXT,
-                language TEXT,
-                content TEXT,
-                created_at TEXT,
-                status TEXT,
-                created_by TEXT,
-                created_by_role TEXT
-            )
-            """)
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by TEXT")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS created_by_role TEXT")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS was_edited BOOLEAN DEFAULT FALSE")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS completed_at TEXT")
-            # GDPR right-to-erasure support: soft-delete first, so an admin
-            # has a short window to restore a case in case of a mistake,
-            # before it is permanently purged.
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_at TEXT")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
-            c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
-
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS draft_history (
-                id SERIAL PRIMARY KEY,
-                draft_id INTEGER REFERENCES drafts(id),
-                content TEXT,
-                saved_at TEXT
-            )
-            """)
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS user_activity (
-                user_name TEXT PRIMARY KEY,
-                user_role TEXT,
-                last_seen TEXT
-            )
-            """)
-
-            # --- Indexes (audit "Issue 2") ------------------------------------
-            # Cheap, idempotent metadata checks -- safe to run on every
-            # connection, exactly like the ADD COLUMN IF NOT EXISTS calls
-            # above. Each one maps directly to a WHERE/ORDER BY already used
-            # by a function in this module:
-            #   - get_drafts(): WHERE status='draft' AND created_by=%s
-            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_created_by ON drafts (status, created_by)")
-            #   - historical-context / case-scoped lookups filter completed
-            #     drafts by case_ref (rdi/retrieval_service.py reads
-            #     get_completed_drafts() then filters in Python today; this
-            #     index is what a future case_ref-scoped SQL query would need,
-            #     and costs nothing to have now)
-            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_case_ref ON drafts (status, case_ref)")
-            #   - get_completed_drafts(): ORDER BY completed_at DESC
-            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_completed_at ON drafts (completed_at DESC)")
-            #   - get_pending_deletions() / purge_expired_deletions():
-            #     WHERE status='deleted'
-            c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_deleted_status ON drafts (status) WHERE status = 'deleted'")
-            #   - get_draft_history(): WHERE draft_id=%s
-            c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
-            #   - get_active_users(): ORDER BY last_seen DESC
-            c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
-        conn.commit()
-
-        ensure_timestamptz_columns(conn, "drafts", ["created_at", "completed_at", "deleted_at"])
-        ensure_timestamptz_columns(conn, "draft_history", ["saved_at"])
-        ensure_timestamptz_columns(conn, "user_activity", ["last_seen"])
-    except Exception:
-        conn.close()
-        raise
-
-    return conn
+    """
+    Acquire a pooled connection (services/db_pool.py). Schema
+    creation/migration used to happen here, on every call -- it is now
+    centralized in services/db_schema.py:ensure_schema(), called once
+    at application startup (see app.py), so this is now just a pool
+    checkout.
+    """
+    return _acquire_pooled_conn()
 
 
 def init_db():
-    conn = _get_conn()
-    conn.close()
+    """
+    Kept for backward compatibility with any external caller that
+    still imports draft_storage.init_db() directly. app.py now calls
+    services.db_schema.ensure_schema() instead, which this delegates
+    to.
+    """
+    ensure_schema()
 
 
 def update_user_activity(user_name, user_role):
