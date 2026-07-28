@@ -1,6 +1,9 @@
 import psycopg2
-from datetime import datetime, timezone
 from config import DATABASE_URL
+from services.db_time import now_utc, iso_row, get_logger
+from services.db_migration import ensure_timestamptz_columns
+
+logger = get_logger(__name__)
 
 # Central audit trail: WHO did WHAT action, on WHICH case, WHEN.
 # Distinct from visit_log.py (which only tracks page visits/navigation)
@@ -23,106 +26,56 @@ from config import DATABASE_URL
 # Same design choice as services/draft_storage.py (see that file's
 # module docstring for the full reasoning): TIMESTAMPTZ columns return
 # native datetime objects from psycopg2, but every caller of
-# get_audit_log() (currently pages/case_history.py isn't shown reading
-# it directly, but any future admin page rendering this list will do
-# string slicing like occurred_at[:16], matching the pattern used
-# everywhere else in this app) expects a string. get_audit_log()
-# converts back to the same ISO-8601 string shape it always returned,
-# so nothing outside this file needs to change.
+# get_audit_log() expects a string. get_audit_log() converts back to
+# the same ISO-8601 string shape it always returned, so nothing outside
+# this file needs to change.
 # ---------------------------------------------------------------------
-
-# Process-level guard so the one-time TIMESTAMPTZ column migration only
-# runs once per running process, not on every _get_conn() call.
-_schema_migrated = False
-
-
-def _now_utc():
-    """Single source of truth for 'now' as a timezone-aware UTC
-    datetime, replacing the old datetime.now().isoformat() pattern."""
-    return datetime.now(timezone.utc)
-
-
-def _iso(value):
-    """Normalize a value read back from occurred_at (now TIMESTAMPTZ)
-    into the same ISO-8601 string shape this module has always
-    returned to its callers."""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return value.isoformat()
-
-
-def _iso_row(row, date_indexes):
-    """Apply _iso() to specific positions in a fetched row tuple,
-    leaving every other value untouched."""
-    row = list(row)
-    for i in date_indexes:
-        row[i] = _iso(row[i])
-    return tuple(row)
-
-
-def _ensure_timestamp_columns(conn):
-    """
-    One-time-per-process migration: convert occurred_at from TEXT to
-    TIMESTAMPTZ.
-
-    Idempotent two ways: guarded by the module-level _schema_migrated
-    flag (only runs once per process), and also checks
-    information_schema before altering, so it's safe across process
-    restarts too (a column already converted on a previous deploy is
-    left alone, avoiding a needless full-table rewrite on every app
-    start).
-
-    NULLIF(occurred_at, '') guards against an empty-string value ever
-    being cast -- every existing value here was written by
-    datetime.now().isoformat(), so this is a cheap, harmless safety
-    net rather than an expected case.
-    """
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT column_name, data_type FROM information_schema.columns
-            WHERE table_name = 'audit_log' AND column_name = 'occurred_at'
-        """)
-        row = c.fetchone()
-        current_type = row[1] if row else None
-        if current_type != "timestamp with time zone":
-            c.execute("""
-                ALTER TABLE audit_log
-                ALTER COLUMN occurred_at TYPE TIMESTAMPTZ
-                USING NULLIF(occurred_at, '')::timestamptz
-            """)
-    conn.commit()
+#
+# Engineering-quality pass (see accompanying handoff notes)
+# ---------------------------------------------------------------------
+#   Change 1: connection is always closed via try/finally.
+#   Change 2: log_action() wraps its single INSERT with an explicit
+#     commit/rollback pair.
+#   Change 4: get_audit_log() gains optional limit/offset parameters,
+#     defaulting to limit=None (return everything, exactly as before)
+#     so it stays a drop-in replacement for any existing/future caller
+#     that doesn't ask for pagination. There was previously no LIMIT
+#     on this query at all -- flagged in the original schema-hardening
+#     docstring as "a pagination gap" -- this closes that gap while
+#     remaining fully backward compatible.
+#   Change 5 / 6: local _now_utc/_iso/_iso_row and
+#     _schema_migrated/_ensure_timestamp_columns are replaced by the
+#     shared services.db_time / services.db_migration modules.
+# ---------------------------------------------------------------------
 
 
 def _get_conn():
-    global _schema_migrated
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS audit_log (
-            id SERIAL PRIMARY KEY,
-            action TEXT,
-            draft_id INTEGER,
-            case_ref TEXT,
-            doc_type TEXT,
-            actor_name TEXT,
-            actor_role TEXT,
-            details TEXT,
-            occurred_at TEXT
-        )
-        """)
-        # get_audit_log()'s ORDER BY occurred_at DESC currently scans
-        # and sorts the entire table every time it's called (there is
-        # also no LIMIT on that query -- flagged separately as a
-        # pagination gap, out of scope for this schema-only pass, but
-        # worth fixing alongside this).
-        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log (occurred_at DESC)")
-    conn.commit()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id SERIAL PRIMARY KEY,
+                action TEXT,
+                draft_id INTEGER,
+                case_ref TEXT,
+                doc_type TEXT,
+                actor_name TEXT,
+                actor_role TEXT,
+                details TEXT,
+                occurred_at TEXT
+            )
+            """)
+            # get_audit_log()'s ORDER BY occurred_at DESC now supports an
+            # optional LIMIT/OFFSET (see Change 4) -- this index serves
+            # both the unpaginated and paginated forms of that query.
+            c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log (occurred_at DESC)")
+        conn.commit()
 
-    if not _schema_migrated:
-        _ensure_timestamp_columns(conn)
-        _schema_migrated = True
+        ensure_timestamptz_columns(conn, "audit_log", ["occurred_at"])
+    except Exception:
+        conn.close()
+        raise
 
     return conn
 
@@ -132,26 +85,57 @@ def log_action(action, draft_id, case_ref, doc_type, actor_name="", actor_role="
     action: one of "created", "submitted", "deleted", "restored", "purged"
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            INSERT INTO audit_log (action, draft_id, case_ref, doc_type, actor_name, actor_role, details, occurred_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO audit_log (action, draft_id, case_ref, doc_type, actor_name, actor_role, details, occurred_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                action, draft_id, case_ref, doc_type,
+                actor_name, actor_role, details,
+                now_utc(),
+            ))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        # Deliberately does not include `details` in the log message --
+        # it may echo document-adjacent free text (e.g. "edited" is
+        # fine, but a future caller could pass something more
+        # sensitive) -- only operational identifiers are logged, per
+        # Change 7's "no sensitive case content in logs" rule.
+        logger.exception(
+            "log_action FAILED: action=%r draft_id=%r case_ref=%r doc_type=%r",
             action, draft_id, case_ref, doc_type,
-            actor_name, actor_role, details,
-            _now_utc(),
-        ))
-    conn.commit()
-    conn.close()
+        )
+        raise
+    finally:
+        conn.close()
 
 
-def get_audit_log():
+def get_audit_log(limit=None, offset=0):
+    """
+    Returns audit records, most recent first.
+
+    Pagination (Change 4): `limit`/`offset` are optional and default to
+    `limit=None` (no LIMIT clause -- every row is returned, exactly as
+    before this change), so any existing caller that doesn't pass
+    `limit` sees no behavior change. Pass an explicit `limit` (and
+    optionally `offset`) to page through the audit trail.
+    """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
+    try:
+        query = """
             SELECT id, action, draft_id, case_ref, doc_type, actor_name, actor_role, details, occurred_at
             FROM audit_log ORDER BY occurred_at DESC
-        """)
-        rows = c.fetchall()
-    conn.close()
-    return [_iso_row(row, [8]) for row in rows]
+        """
+        params = []
+        if limit is not None:
+            query += " LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+
+        with conn.cursor() as c:
+            c.execute(query, tuple(params))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [8]) for row in rows]
