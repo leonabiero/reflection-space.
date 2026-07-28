@@ -40,3 +40,44 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 # Neon PostgreSQL connection string (set as a secret on Streamlit Cloud)
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+# ---------------------------------------------------------------------
+# Centralized operational constants (Change 8 -- Constants/config
+# cleanup)
+# ---------------------------------------------------------------------
+#
+# These were previously hard-coded, duplicated module-level constants
+# scattered across services/draft_storage.py (DELETION_WINDOW_HOURS)
+# and services/presence.py (ACTIVE_WINDOW_MINUTES,
+# RECENT_WINDOW_MINUTES). Moving them here means every deployment-
+# tunable "how long/how many" knob for the storage layer lives in one
+# place, consistent with how every other environment-configurable
+# value in this app (ANTHROPIC_API_KEY, VOYAGE_API_KEY, QDRANT_URL,
+# etc.) is already defined here.
+#
+# Values are unchanged from their previous hard-coded defaults, so this
+# is a pure relocation -- nothing about actual runtime behavior changes
+# unless one of these environment variables is explicitly set.
+
+# GDPR right-to-erasure: how long a soft-deleted case stays restorable
+# in services/draft_storage.py before purge_expired_deletions() removes
+# it permanently. Previously a hard-coded module constant in
+# draft_storage.py.
+DELETION_WINDOW_HOURS = int(os.getenv("DELETION_WINDOW_HOURS", "48"))
+
+# Team Presence (services/presence.py) status-classification windows.
+# Previously hard-coded module constants in presence.py.
+PRESENCE_ACTIVE_WINDOW_MINUTES = int(os.getenv("PRESENCE_ACTIVE_WINDOW_MINUTES", "5"))
+PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES", "15"))
+
+# Default page size used ONLY when a caller of one of the newly
+# paginated read functions (see Change 4 -- get_audit_log(),
+# get_completed_drafts(), get_all_feedback(), get_pending_deletions())
+# explicitly opts into pagination without specifying their own limit.
+# It is NOT applied automatically -- every one of those functions still
+# defaults its own `limit` parameter to None (meaning "return
+# everything", exactly as before this pass), so existing call sites
+# that don't pass `limit` see zero behavior change. This constant is
+# just a convenient, centrally-tunable default for any NEW call site
+# that wants pagination but doesn't want to pick its own page size.
+DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
