@@ -1,7 +1,10 @@
 import json
 import psycopg2
-from datetime import datetime, timezone
 from config import DATABASE_URL
+from services.db_time import now_utc, iso_row, get_logger
+from services.db_migration import ensure_timestamptz_columns
+
+logger = get_logger(__name__)
 
 # --- Schema hardening (audit Issue 1 / Issue 2) ---------------------------
 #
@@ -9,7 +12,7 @@ from config import DATABASE_URL
 # (datetime.now().isoformat() strings) -- no timezone info, string-only
 # comparisons, no real date arithmetic in SQL. It is now a proper
 # TIMESTAMPTZ column. Every INSERT below now writes a timezone-aware UTC
-# datetime object (via _now_utc()) instead of a plain isoformat() string.
+# datetime object (via now_utc()) instead of a plain isoformat() string.
 #
 # Issue 2: this table had no index beyond its implicit primary key,
 # despite get_recent_theme_counts() ORDER-ing by created_at DESC and
@@ -20,8 +23,24 @@ from config import DATABASE_URL
 # None of this changes what any function outside this file sees:
 # whichever functions here select a date column still hand back the
 # same ISO-8601 string shape callers (pages/, rdi/) have always
-# received -- see _iso()/_iso_row() below. Function signatures and
-# return shapes are unchanged.
+# received -- see services.db_time.iso()/iso_row(). Function signatures
+# and return shapes are unchanged.
+#
+# Engineering-quality pass (see accompanying handoff notes)
+# ---------------------------------------------------------------------
+#   Change 1: connection always closed via try/finally.
+#   Change 2: log_reflection() wraps its single INSERT with an explicit
+#     commit/rollback pair.
+#   Change 5 / 6: local _now_utc/_iso/_iso_row and
+#     _schema_migrated/_ensure_timestamp_columns are replaced by the
+#     shared services.db_time / services.db_migration modules.
+#   (No pagination added here -- get_recent_theme_counts() already
+#   takes an explicit `limit` parameter, and get_theme_flag_counts()/
+#   get_total_reflection_count() must read every matching row to
+#   compute a correct aggregate, so they are intentionally not
+#   paginated, matching the reasoning in feedback_store.py /
+#   exploration_log.py.)
+# ---------------------------------------------------------------------
 
 # Keys must match reflection_prompt.txt / reflection_service.py output,
 # and are in the same order as T["themes"] / T["section_labels"] in
@@ -37,100 +56,36 @@ THEME_KEYS = [
     "continuity",
 ]
 
-# One-time-per-process guard for the TIMESTAMPTZ migration below -- an
-# ALTER COLUMN TYPE is not a cheap no-op like ADD COLUMN IF NOT EXISTS,
-# so it must only ever run once per process, not on every _get_conn()
-# call.
-_schema_migrated = False
-
-
-def _now_utc():
-    """Single source of truth for 'now' as a timezone-aware UTC
-    datetime, replacing the old datetime.now().isoformat() pattern."""
-    return datetime.now(timezone.utc)
-
-
-def _iso(value):
-    """Normalize a value read back from a TIMESTAMPTZ column into the
-    same ISO-8601 string shape this module has always returned to its
-    callers -- every downstream caller (pages/, rdi/) does string
-    operations on these values (e.g. slicing), so this keeps the
-    TIMESTAMPTZ migration self-contained to the database layer."""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return value.isoformat()
-
-
-def _iso_row(row, date_indexes):
-    """Apply _iso() to specific positions in a fetched row tuple."""
-    row = list(row)
-    for i in date_indexes:
-        row[i] = _iso(row[i])
-    return tuple(row)
-
-
-def _ensure_timestamp_columns(conn):
-    """
-    One-time-per-process migration: convert `reflections.created_at`
-    from TEXT to TIMESTAMPTZ, if it isn't already.
-
-    Checks information_schema.columns for the column's current
-    data_type first, and only runs the ALTER TABLE if it isn't already
-    'timestamp with time zone' -- so this is safe to have called on
-    every process start, even against a database that was already
-    migrated by an earlier process/deploy.
-    """
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT data_type FROM information_schema.columns
-            WHERE table_name = 'reflections' AND column_name = 'created_at'
-        """)
-        row = c.fetchone()
-        current_type = row[0] if row else None
-
-        if current_type != "timestamp with time zone":
-            c.execute("""
-                ALTER TABLE reflections
-                ALTER COLUMN created_at TYPE TIMESTAMPTZ
-                USING NULLIF(created_at, '')::timestamptz
-            """)
-    conn.commit()
-
 
 def _get_conn():
-    global _schema_migrated
-
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS reflections (
-            id SERIAL PRIMARY KEY,
-            case_ref TEXT,
-            flags TEXT,
-            created_by TEXT,
-            created_by_role TEXT,
-            created_at TEXT
-        )
-        """)
-        # Issue 2: index to support both the ORDER BY created_at DESC
-        # in get_recent_theme_counts() and the WHERE created_at >= %s
-        # filters in get_theme_flag_counts() / get_total_reflection_count().
-        # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
-        # pattern already used elsewhere in this codebase.
-        c.execute("""
-        CREATE INDEX IF NOT EXISTS idx_reflections_created_at
-        ON reflections (created_at DESC)
-        """)
-    conn.commit()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS reflections (
+                id SERIAL PRIMARY KEY,
+                case_ref TEXT,
+                flags TEXT,
+                created_by TEXT,
+                created_by_role TEXT,
+                created_at TEXT
+            )
+            """)
+            # Issue 2: index to support both the ORDER BY created_at DESC
+            # in get_recent_theme_counts() and the WHERE created_at >= %s
+            # filters in get_theme_flag_counts() / get_total_reflection_count().
+            # Cheap to run every call, same as the ADD COLUMN IF NOT EXISTS
+            # pattern already used elsewhere in this codebase.
+            c.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reflections_created_at
+            ON reflections (created_at DESC)
+            """)
+        conn.commit()
 
-    # Issue 1: migrate created_at TEXT -> TIMESTAMPTZ. Guarded by the
-    # module-level flag so this only ever runs once per process, not on
-    # every _get_conn() call.
-    if not _schema_migrated:
-        _ensure_timestamp_columns(conn)
-        _schema_migrated = True
+        ensure_timestamptz_columns(conn, "reflections", ["created_at"])
+    except Exception:
+        conn.close()
+        raise
 
     return conn
 
@@ -151,13 +106,27 @@ def log_reflection(case_ref, reflection_result, created_by="", created_by_role="
         flags[key] = bool(observation)
 
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            INSERT INTO reflections (case_ref, flags, created_by, created_by_role, created_at)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (case_ref, json.dumps(flags), created_by, created_by_role, _now_utc()))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO reflections (case_ref, flags, created_by, created_by_role, created_at)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (case_ref, json.dumps(flags), created_by, created_by_role, now_utc()))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        # Only theme FLAGS (booleans) and operational identifiers are
+        # ever logged here -- never `reflection_result` itself, which
+        # can contain the actual observation/question text derived
+        # from case documentation (Change 7's "no sensitive case
+        # content in logs" rule).
+        logger.exception(
+            "log_reflection FAILED: case_ref=%r created_by=%r flags=%r",
+            case_ref, created_by, flags,
+        )
+        raise
+    finally:
+        conn.close()
 
 
 def get_recent_theme_counts(limit=10):
@@ -169,14 +138,16 @@ def get_recent_theme_counts(limit=10):
         and 0 if none exist yet)
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        c.execute("""
-            SELECT flags FROM reflections
-            ORDER BY created_at DESC
-            LIMIT %s
-        """, (limit,))
-        rows = c.fetchall()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT flags FROM reflections
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (limit,))
+            rows = c.fetchall()
+    finally:
+        conn.close()
 
     counts = {key: 0 for key in THEME_KEYS}
     for (flags_json,) in rows:
@@ -208,15 +179,20 @@ def get_theme_flag_counts(since_iso=None):
     docstring), but a plain ISO-8601 string still compares correctly --
     PostgreSQL casts the untyped string literal to timestamptz for the
     comparison.
+
+    Not paginated: must aggregate every matching row for a correct
+    total per theme.
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        if since_iso:
-            c.execute("SELECT flags FROM reflections WHERE created_at >= %s", (since_iso,))
-        else:
-            c.execute("SELECT flags FROM reflections")
-        rows = c.fetchall()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            if since_iso:
+                c.execute("SELECT flags FROM reflections WHERE created_at >= %s", (since_iso,))
+            else:
+                c.execute("SELECT flags FROM reflections")
+            rows = c.fetchall()
+    finally:
+        conn.close()
 
     counts = {key: 0 for key in THEME_KEYS}
     for (flags_json,) in rows:
@@ -238,11 +214,13 @@ def get_total_reflection_count(since_iso=None):
     count for research purposes.
     """
     conn = _get_conn()
-    with conn.cursor() as c:
-        if since_iso:
-            c.execute("SELECT COUNT(*) FROM reflections WHERE created_at >= %s", (since_iso,))
-        else:
-            c.execute("SELECT COUNT(*) FROM reflections")
-        (count,) = c.fetchone()
-    conn.close()
+    try:
+        with conn.cursor() as c:
+            if since_iso:
+                c.execute("SELECT COUNT(*) FROM reflections WHERE created_at >= %s", (since_iso,))
+            else:
+                c.execute("SELECT COUNT(*) FROM reflections")
+            (count,) = c.fetchone()
+    finally:
+        conn.close()
     return count
