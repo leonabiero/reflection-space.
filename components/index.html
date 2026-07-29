@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<!--
+  Screenshot Reporter -- a minimal, hand-written Streamlit component.
+
+  WHY THIS EXISTS
+  ------------------
+  Leon (the app's non-developer owner) wants a "Report a problem" button
+  that captures a screenshot of the app automatically. Streamlit has no
+  built-in screenshot API, so this component does it in the browser
+  (via the well-known html2canvas library) and sends the image back to
+  the Python side.
+
+  HOW IT WORKS / HOW FRAGILE THIS IS -- please read before touching
+  --------------------------------------------------------------------
+  A normal Streamlit custom component is a small React app built with
+  streamlit-component-lib and a build step (npm/webpack). To avoid
+  requiring Leon to run any build tooling, this file instead talks to
+  Streamlit's frontend directly using the same underlying browser
+  messages (window.postMessage) that streamlit-component-lib sends
+  under the hood. This is the SAME technique used by a few known
+  no-build-step community components (e.g. "streamlit-javascript").
+
+  This is NOT a documented, version-guaranteed public API -- it is the
+  actual wire protocol Streamlit's frontend currently listens for. If a
+  future Streamlit release changes it, this component could silently
+  stop returning a screenshot. That is why:
+    - Every failure path below falls back to sending `value: null`
+      rather than hanging forever.
+    - services/report_widget.py NEVER blocks sending a report on this
+      succeeding -- a report with no screenshot still gets logged and
+      emailed. The screenshot is a nice-to-have, not a dependency.
+
+  If reports stop including screenshots after a Streamlit upgrade, that
+  is the first thing to suspect -- ask Claude to re-check the current
+  Streamlit component message protocol and update this file only.
+-->
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body style="margin:0;">
+<div id="status" style="font-family: sans-serif; font-size: 13px; color: #666; padding: 4px;">
+  Capturing screenshot...
+</div>
+<script>
+(function () {
+  var SENT = false;
+
+  function postToStreamlit(type, extra) {
+    var msg = Object.assign({ isStreamlitMessage: true, type: type }, extra || {});
+    window.parent.postMessage(msg, "*");
+  }
+
+  function sendValue(value) {
+    if (SENT) return; // never send twice
+    SENT = true;
+    postToStreamlit("streamlit:setComponentValue", { value: value, dataType: "json" });
+  }
+
+  function setStatus(text) {
+    var el = document.getElementById("status");
+    if (el) el.innerText = text;
+  }
+
+  // Tell Streamlit this component iframe is alive, and give it a
+  // small fixed height (this component has no meaningful visible UI
+  // -- the real UI is the Python-side status/preview in the sidebar).
+  postToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+  postToStreamlit("streamlit:setFrameHeight", { height: 24 });
+
+  // Safety net: if capture hasn't finished within 8 seconds for any
+  // reason (slow page, blocked script, unexpected error), give up and
+  // report "no screenshot" rather than leaving the report form stuck.
+  window.setTimeout(function () {
+    if (!SENT) {
+      setStatus("Screenshot capture timed out -- continuing without it.");
+      sendValue(null);
+    }
+  }, 8000);
+
+  try {
+    var target = (window.parent && window.parent.document && window.parent.document.body)
+      ? window.parent.document.body
+      : document.body;
+
+    html2canvas(target, { logging: false, useCORS: true, scale: 1 }).then(function (canvas) {
+      try {
+        // JPEG at moderate quality keeps the payload well under any
+        // reasonable database column / email attachment size limit.
+        var dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        setStatus("Screenshot captured.");
+        sendValue(dataUrl);
+      } catch (e) {
+        setStatus("Could not encode screenshot -- continuing without it.");
+        sendValue(null);
+      }
+    }).catch(function () {
+      setStatus("Could not capture screenshot -- continuing without it.");
+      sendValue(null);
+    });
+  } catch (e) {
+    setStatus("Screenshot capture unavailable -- continuing without it.");
+    sendValue(null);
+  }
+})();
+</script>
+</body>
+</html>
