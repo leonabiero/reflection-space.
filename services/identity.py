@@ -4,6 +4,12 @@ from navigation.permissions import (
     can_access_workspace,
     landing_page_for_workspace,
 )
+from services.login_security import verify_password
+from services.login_rate_limiter import (
+    is_locked_out,
+    record_failed_attempt,
+    clear_failed_attempts,
+)
 
 # FR-001/NFR-011 (authentication) + FR-002/FR-003 (identity, roles).
 # Each professional has their own username and password, defined in
@@ -145,15 +151,30 @@ CASE_HISTORY_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Adminis
 # not for a particular professional's account.
 LOGOUT_KEEP_KEYS = {"lang"}
 
+# Used only by _check_login() below, for an unknown username, so that
+# checking a password always costs the same bcrypt comparison whether
+# or not the username exists -- see _check_login()'s docstring. This
+# is a fixed, valid bcrypt hash of an arbitrary placeholder string; it
+# is not a real account and does not need to be kept secret.
+_DUMMY_HASH = "$2b$12$CwTycUXWue0Thq9StjUM0uJ8i6XZg8x0N.9E6Dn3ORaTgvtdcOaWq"
+
 
 def _load_users():
     """
     Reads user accounts from Streamlit Cloud Secrets, structured as:
 
         [users.jmwangi]
-        password = "..."
+        password = "$2b$12$...."   # a bcrypt HASH, not a plain password
         name = "John Mwangi"
         role = "Social Worker"
+
+    IMPORTANT (password hashing change): `password` must be a bcrypt
+    hash, not the account holder's actual password. Use
+    generate_password_hash.py (project root) to turn a chosen password
+    into the hash string to paste here -- see that script for
+    instructions. An account whose `password` value is not a valid
+    bcrypt hash will simply be unable to log in (see _check_login()
+    below), rather than falling back to a plain-text comparison.
 
     Add accounts under Settings -> Secrets in the Streamlit Cloud
     dashboard for this app. Returns an empty dict (rather than raising)
@@ -167,8 +188,22 @@ def _load_users():
 
 
 def _check_login(username, password, users):
+    """
+    Verifies a submitted username/password pair against the bcrypt
+    hash stored for that account in secrets.toml (see _load_users()
+    docstring). Returns the matching user dict on success, else None.
+
+    Deliberately does the same amount of work (a bcrypt comparison)
+    whether or not `username` exists, using a fixed dummy hash for
+    unknown usernames -- this avoids letting someone learn which
+    usernames are valid accounts purely by measuring how fast the app
+    responds (an unknown username used to fail instantly, before ever
+    reaching the password check).
+    """
     user = users.get(username)
-    if user and password and user.get("password") == password:
+    stored_hash = user.get("password") if user else _DUMMY_HASH
+    valid = verify_password(password, stored_hash) if password else False
+    if user and valid:
         return user
     return None
 
@@ -268,8 +303,18 @@ def init_identity(T):
     password = st.text_input(T["password_label"], type="password")
 
     if st.button(T["login_button"]):
+        locked_out, retry_after_seconds = is_locked_out(username)
+        if locked_out:
+            minutes = max(1, (retry_after_seconds + 59) // 60)
+            st.error(T["login_locked"].format(minutes=minutes))
+            st.stop()
+
         user = _check_login(username, password, users)
         if user:
+            # Successful login: forget any recent failed attempts for
+            # this username, so a couple of earlier typos don't count
+            # toward a future lockout.
+            clear_failed_attempts(username)
             # Belt-and-braces: a login is always the start of a brand
             # new session for whoever is now authenticated. Wipe
             # anything that might still be sitting in session_state
@@ -301,6 +346,7 @@ def init_identity(T):
             # the same tab).
             st.switch_page(landing_page_for_workspace(st.session_state.active_work_mode))
         else:
+            record_failed_attempt(username)
             st.error(T["login_error"])
 
     st.stop()
