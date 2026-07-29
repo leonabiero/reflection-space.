@@ -36,7 +36,7 @@ import streamlit as st
 
 from services.error_log import log_user_report
 
-_COMPONENT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "components", "screenshot_reporter")
+_COMPONENT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "components")
 _component_func = None
 
 
