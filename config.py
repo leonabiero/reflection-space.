@@ -103,3 +103,15 @@ DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
 # just a convenient, centrally-tunable default for any NEW call site
 # that wants pagination but doesn't want to pick its own page size.
 DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
+
+# ---------------------------------------------------------------------
+# Login security: brute-force lockout (services/login_rate_limiter.py)
+# ---------------------------------------------------------------------
+# After LOGIN_MAX_ATTEMPTS failed logins for the same username within
+# LOGIN_LOCKOUT_WINDOW_MINUTES, that username is temporarily blocked
+# from attempting another login for LOGIN_LOCKOUT_DURATION_MINUTES.
+# This does not affect people typing their own password correctly --
+# it only slows down repeated guessing.
+LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15"))
+LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
