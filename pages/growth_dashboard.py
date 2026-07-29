@@ -2,6 +2,7 @@ import streamlit as st
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
+from services.error_log import error_boundary
 from services.exploration_log import get_personal_exploration_history
 from services.reflection_log import THEME_KEYS
 
@@ -30,57 +31,61 @@ from services.reflection_log import THEME_KEYS
 T = init_language()
 user_name, user_role = init_identity(T)
 require_work_mode(T, "Practitioner")
-render_nav(T)
+render_nav(T, page_name="growth_dashboard")
 render_identity_footer(T)
 
-st.title(T["growth_title"])
-st.caption(T["growth_intro"])
+with error_boundary(
+    "growth_dashboard", T=T, user_name=user_name, user_role=user_role,
+):
 
-HISTORY_LIMIT = 50
-rows = get_personal_exploration_history(user_name, limit=HISTORY_LIMIT)
-# rows: (case_ref, trigger, turn_count, explored_at), most recent first
+    st.title(T["growth_title"])
+    st.caption(T["growth_intro"])
 
-if not rows:
-    st.info(T["growth_no_data"])
-    st.stop()
+    HISTORY_LIMIT = 50
+    rows = get_personal_exploration_history(user_name, limit=HISTORY_LIMIT)
+    # rows: (case_ref, trigger, turn_count, explored_at), most recent first
 
-total = len(rows)
-st.write(f"**{T['growth_session_count_label']}:** {total}")
+    if not rows:
+        st.info(T["growth_no_data"])
+        st.stop()
 
-# --- Most explored areas: personal frequency only, no comparison to
-# anyone else and no percentage-improvement framing -- just how often
-# each theme has come up for this professional, most-explored first. ---
-st.subheader(T["growth_themes_header"])
-st.caption(T["growth_themes_caption"].format(total=total))
+    total = len(rows)
+    st.write(f"**{T['growth_session_count_label']}:** {total}")
 
-counts = {key: 0 for key in THEME_KEYS}
-for case_ref, trigger, turn_count, explored_at in rows:
-    if trigger in counts:
-        counts[trigger] += 1
+    # --- Most explored areas: personal frequency only, no comparison to
+    # anyone else and no percentage-improvement framing -- just how often
+    # each theme has come up for this professional, most-explored first. ---
+    st.subheader(T["growth_themes_header"])
+    st.caption(T["growth_themes_caption"].format(total=total))
 
-ordered_keys = sorted(THEME_KEYS, key=lambda k: counts[k], reverse=True)
-for key in ordered_keys:
-    count = counts[key]
-    if count == 0:
-        continue
-    theme_label = T["section_labels"].get(key, key.replace("_", " ").title())
-    st.write(f"**{theme_label}**")
-    st.progress(count / total)
-    st.caption(str(count))
+    counts = {key: 0 for key in THEME_KEYS}
+    for case_ref, trigger, turn_count, explored_at in rows:
+        if trigger in counts:
+            counts[trigger] += 1
 
-st.divider()
+    ordered_keys = sorted(THEME_KEYS, key=lambda k: counts[k], reverse=True)
+    for key in ordered_keys:
+        count = counts[key]
+        if count == 0:
+            continue
+        theme_label = T["section_labels"].get(key, key.replace("_", " ").title())
+        st.write(f"**{theme_label}**")
+        st.progress(count / total)
+        st.caption(str(count))
 
-# --- Recent reflective moments: a personal timeline, not a report card.
-# Shows what was explored, on which of the professional's own cases,
-# and how many exchanges it took -- never the conversation content
-# itself, which was never persisted (see exploration_log.py). ---
-st.subheader(T["growth_history_header"])
+    st.divider()
 
-RECENT_DISPLAY_LIMIT = 15
-for case_ref, trigger, turn_count, explored_at in rows[:RECENT_DISPLAY_LIMIT]:
-    theme_label = T["section_labels"].get(trigger, trigger.replace("_", " ").title())
-    date_part = (explored_at or "")[:16]
-    case_label = case_ref or T["reflection_no_case_ref"]
-    st.write(T["growth_entry_line"].format(
-        theme=theme_label, case=case_label, count=turn_count, date=date_part,
-    ))
+    # --- Recent reflective moments: a personal timeline, not a report card.
+    # Shows what was explored, on which of the professional's own cases,
+    # and how many exchanges it took -- never the conversation content
+    # itself, which was never persisted (see exploration_log.py). ---
+    st.subheader(T["growth_history_header"])
+
+    RECENT_DISPLAY_LIMIT = 15
+    for case_ref, trigger, turn_count, explored_at in rows[:RECENT_DISPLAY_LIMIT]:
+        theme_label = T["section_labels"].get(trigger, trigger.replace("_", " ").title())
+        date_part = (explored_at or "")[:16]
+        case_label = case_ref or T["reflection_no_case_ref"]
+        st.write(T["growth_entry_line"].format(
+            theme=theme_label, case=case_label, count=turn_count, date=date_part,
+        ))
