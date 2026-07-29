@@ -163,6 +163,24 @@ def ensure_schema():
                 """)
                 c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log (occurred_at DESC)")
 
+                # --- services/error_log.py: error_log ---
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS error_log (
+                    id SERIAL PRIMARY KEY,
+                    occurred_at TIMESTAMPTZ,
+                    page TEXT,
+                    error_type TEXT,
+                    message TEXT,
+                    traceback TEXT,
+                    user_name TEXT,
+                    user_role TEXT,
+                    context TEXT,
+                    severity TEXT,
+                    screenshot TEXT
+                )
+                """)
+                c.execute("CREATE INDEX IF NOT EXISTS idx_error_log_occurred_at ON error_log (occurred_at DESC)")
+
                 # --- services/reflection_log.py: reflections ---
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS reflections (
