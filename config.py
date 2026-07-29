@@ -35,6 +35,8 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "rdi_documents")
 
 APP_NAME = "Reflection Space"
+# Password to view the private visit log page (set this as a secret on Streamlit Cloud)
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 # Neon PostgreSQL connection string (set as a secret on Streamlit Cloud)
 DATABASE_URL = os.getenv("DATABASE_URL", "")
@@ -103,13 +105,34 @@ DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
 DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
 
 # ---------------------------------------------------------------------
-# Login security: brute-force lockout (services/login_rate_limiter.py)
+# Production error email alerts (services/email_alert.py)
 # ---------------------------------------------------------------------
-# After LOGIN_MAX_ATTEMPTS failed logins for the same username within
-# LOGIN_LOCKOUT_WINDOW_MINUTES, that username is temporarily blocked
-# from attempting another login for LOGIN_LOCKOUT_DURATION_MINUTES.
-# This does not affect people typing their own password correctly --
-# it only slows down repeated guessing.
-LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
-LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15"))
-LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
+# Lets Leon get notified by email the moment a real error is logged
+# (an automatic crash, or someone using the "Report a problem" button)
+# -- even when he isn't actively looking at the app.
+#
+# Disabled by default. To enable, add these as secrets on Streamlit
+# Cloud (Settings -> Secrets, same place ANTHROPIC_API_KEY/DATABASE_URL
+# already live):
+#
+#   SMTP_HOST      e.g. smtp.gmail.com
+#   SMTP_PORT      e.g. 587 (STARTTLS) or 465 (SSL) -- 587 is the
+#                  common default for most providers
+#   SMTP_USER      the mailbox username/address that sends the alert
+#   SMTP_PASSWORD  an APP PASSWORD, not your normal account password
+#                  -- for Gmail: Google Account -> Security -> 2-Step
+#                  Verification -> App passwords. Most providers have
+#                  an equivalent; using your real login password here
+#                  either won't work or is a bad idea.
+#   ALERT_EMAIL_TO      the address that should receive alerts (yours)
+#   ALERT_EMAIL_FROM     optional, defaults to SMTP_USER if not set
+#
+# If SMTP_HOST or ALERT_EMAIL_TO is missing, email alerting is simply
+# skipped (logged to stdout only) -- nothing else in the app depends
+# on it, so leaving it unconfigured never breaks anything.
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
+ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "") or SMTP_USER
