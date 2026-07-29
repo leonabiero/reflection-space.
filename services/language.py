@@ -135,6 +135,7 @@ LANG = {
         "password_label": "Contraseña",
         "login_button": "Iniciar sesión",
         "login_error": "Usuario o contraseña incorrectos.",
+        "login_locked": "Demasiados intentos fallidos. Por favor, espera {minutes} minuto(s) antes de volver a intentarlo.",
         "no_users_configured": "Aún no hay cuentas de usuario configuradas. Añádelas en Configuración → Secretos en Streamlit Cloud.",
         "logout": "Cerrar sesión",
         "role_labels": {
@@ -502,6 +503,7 @@ LANG = {
         "password_label": "Pasahitza",
         "login_button": "Hasi saioa",
         "login_error": "Erabiltzaile-izena edo pasahitza okerra.",
+        "login_locked": "Saiakera huts gehiegi. Itxaron {minutes} minutu berriro saiatu aurretik.",
         "no_users_configured": "Oraindik ez dago erabiltzaile-konturik konfiguratuta. Gehitu Ezarpenak → Sekretuak atalean Streamlit Cloud-en.",
         "logout": "Saioa itxi",
         "role_labels": {
@@ -870,6 +872,7 @@ LANG = {
         "password_label": "Password",
         "login_button": "Log in",
         "login_error": "Incorrect username or password.",
+        "login_locked": "Too many failed attempts. Please wait {minutes} minute(s) before trying again.",
         "no_users_configured": "No user accounts are configured yet. Add them under Settings → Secrets in Streamlit Cloud.",
         "logout": "Log out",
         "role_labels": {
