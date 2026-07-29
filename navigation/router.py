@@ -5,6 +5,7 @@ from navigation.permissions import (
     landing_page_for_workspace,
 )
 from navigation.menus import render_workspace_menu
+from services.report_widget import render_report_button
 
 # Work-mode labels shown in the switcher -- localized via the existing
 # language service (services/language.py), never a second translation
@@ -99,7 +100,7 @@ def _label(T, workspace):
 # ---------------------------------------------------------------------
 
 
-def render_nav(T):
+def render_nav(T, page_name="app"):
     """
     Renders the sidebar: the work-mode switcher (only when appropriate
     -- see below) and the current work mode's page links.
@@ -153,6 +154,7 @@ def render_nav(T):
 
     if not options:
         render_workspace_menu(T)
+        render_report_button(T, page_name, user_name=st.session_state.get("user_name", ""), user_role=role)
         return
     if active not in options:
         active = options[0]
@@ -209,3 +211,4 @@ def render_nav(T):
             st.switch_page(landing_page_for_workspace(selected))
 
     render_workspace_menu(T)
+    render_report_button(T, page_name, user_name=st.session_state.get("user_name", ""), user_role=role)
