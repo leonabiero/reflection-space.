@@ -67,6 +67,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from services.anonymizer import anonymize
 from services.reflection_service import generate_companion_reflection
+from services.error_log import log_error
 from rdi.companions import COMPANIONS
 from rdi.reflection_objects import ReflectiveOpportunity
 
@@ -114,6 +115,22 @@ def _generate_companion_with_retry(companion, safe_text, lang):
         last_result = result
         if attempt < MAX_ATTEMPTS:
             time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+
+    # Every attempt failed for this one companion. This is exactly the
+    # "Claude API call failed" case -- log it so it shows up on the
+    # System Administration Error Log, even though run_reflection()
+    # itself will still succeed overall (the other companions likely
+    # worked, and the practitioner sees an honest "N areas couldn't be
+    # generated" notice, not a crash).
+    log_error(
+        page="reflection_space (companion API call)",
+        error_type="CompanionGenerationFailed",
+        message=f"Companion '{companion.get('label', companion.get('key'))}' failed "
+                f"after {MAX_ATTEMPTS} attempts.",
+        traceback_text=str(last_result.get("raw", "")),
+        context={"companion_key": companion.get("key"), "lang": lang, "attempts": MAX_ATTEMPTS},
+        severity="warning",
+    )
 
     return last_result
 
@@ -175,6 +192,14 @@ def run_reflection(text, lang="Español", context_description=""):
     if len(failed_labels) == len(COMPANIONS):
         # Total failure -- behave like the old single-call error case so
         # the page's existing error handling catches this unchanged.
+        log_error(
+            page="reflection_space (companion API call)",
+            error_type="AllCompanionsFailed",
+            message="All 8 reflection companions failed to return a valid response.",
+            traceback_text="",
+            context={"lang": lang, "failed_labels": failed_labels},
+            severity="error",
+        )
         return {
             "error": "Failed to generate reflection",
             "raw": "All reflection companions failed to return a valid response.",
