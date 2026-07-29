@@ -136,3 +136,16 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
 ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "") or SMTP_USER
+
+# ---------------------------------------------------------------------
+# Login lockout / brute-force guard (services/login_rate_limiter.py)
+# ---------------------------------------------------------------------
+# After LOGIN_MAX_ATTEMPTS failed logins for the same username within
+# LOGIN_LOCKOUT_WINDOW_MINUTES, that username is locked out for
+# LOGIN_LOCKOUT_DURATION_MINUTES. See services/login_rate_limiter.py
+# for the full design notes. Defaults below are sensible out of the
+# box -- override via Streamlit Cloud secrets only if you want
+# different thresholds.
+LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15"))
+LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
