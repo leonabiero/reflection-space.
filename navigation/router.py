@@ -6,6 +6,7 @@ from navigation.permissions import (
 )
 from navigation.menus import render_workspace_menu
 from services.report_widget import render_report_button
+from services.evidence_timeline import record_page_visit
 
 # Work-mode labels shown in the switcher -- localized via the existing
 # language service (services/language.py), never a second translation
@@ -148,6 +149,12 @@ def render_nav(T, page_name="app"):
     permissions changed mid-session) -- so the button can never send
     someone somewhere they're not authorized for.
     """
+    # Phase 1 Diagnostic Engine (services/evidence_timeline.py):
+    # every page already calls render_nav() before anything else, so
+    # this one call is enough to record "Opened page" / "Changed page"
+    # events for every page in the app, with no per-page changes.
+    record_page_visit(page_name)
+
     role = st.session_state.get("user_role", "")
     options = available_workspaces(role)
     active = st.session_state.get("active_work_mode", "Practitioner")
