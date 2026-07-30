@@ -410,9 +410,33 @@
     return { target: fallback, usingWindowScroll: fallback === (parentDoc.body || docEl), label: "fallback/no-scroller" };
   }
 
+  // Marks, on the REAL page's window object (not this iframe's own
+  // window, which is a fresh one every time), that a capture is
+  // currently in progress. This is a belt-and-braces guard: even if
+  // something outside our control (a slow network causing Streamlit
+  // to reconnect and re-render mid-capture, a stray double click that
+  // slips past the overlay, etc.) causes this script to start running
+  // a second time while a first capture hasn't finished, this flag
+  // makes the second run refuse to show a second overlay or start a
+  // second html2canvas pass -- it just quietly reports "no screenshot"
+  // instead. Cleared on every exit path via restoreFns/restoreAll(),
+  // same as the scroll position and overlay.
+  var CAPTURE_IN_PROGRESS_FLAG = "__reflection_space_capture_in_progress__";
+
   async function run() {
     var parentWin = window.parent || window;
     var parentDoc = getParentDocument(parentWin) || document;
+
+    if (parentWin[CAPTURE_IN_PROGRESS_FLAG]) {
+      dlog("a capture is already in progress on the real page -- refusing to start a second one.");
+      setStatus("A capture is already in progress -- continuing without a second one.");
+      sendValue(null);
+      return;
+    }
+    parentWin[CAPTURE_IN_PROGRESS_FLAG] = true;
+    restoreFns.push(function () {
+      try { delete parentWin[CAPTURE_IN_PROGRESS_FLAG]; } catch (e) { parentWin[CAPTURE_IN_PROGRESS_FLAG] = false; }
+    });
 
     // Identify the actual scrolling container by testing candidates
     // empirically (see detectScrollOwner above) rather than assuming
@@ -535,18 +559,39 @@
       // 6/9. Capture ONLY the currently visible viewport.
       dlog("iteration " + steps + ": starting html2canvas...");
       var captureStartedAt = performance.now();
+      // IMPORTANT: windowWidth/windowHeight tell html2canvas how big a
+      // "browser window" to lay the page out in before drawing it. We
+      // deliberately set these to the REAL viewport size (not the full
+      // page height) so html2canvas draws only what's genuinely on
+      // screen right now -- the same content the browser already
+      // rendered when we scrolled to this position a moment ago.
+      //
+      // Earlier versions of this call set windowHeight to the FULL
+      // page height on every iteration (so it could crop a slice out
+      // afterwards). That silently resurrected the "unclip everything
+      // and render it all in one giant pass" approach this file's own
+      // history notes above say was abandoned -- it just did it once
+      // per scroll step instead of once overall. Elements that behave
+      // differently at real viewport size than at full-page size
+      // (sticky headers, dropdowns, virtualized widgets) then painted
+      // in the wrong place on each pass, which is what produced the
+      // overlapping/duplicated/shifted content and large white gaps.
+      //
+      // We also do NOT pass scrollX/scrollY here. Leaving them unset
+      // lets html2canvas read the REAL current scroll position (the
+      // one we just set with setScroll(y) above) instead of forcing
+      // the clone to pretend it's scrolled to the top -- which is what
+      // let each "crop" actually land on the right content.
       var canvas = await html2canvas(target, {
         logging: false,
         useCORS: true,
         scale: 1,
         x: 0,
-        y: usingWindowScroll ? actualY : 0,
-        scrollX: 0,
-        scrollY: 0,
+        y: 0,
         width: viewportWidth,
         height: viewportHeight,
-        windowWidth: usingWindowScroll ? Math.max(parentDoc.documentElement.scrollWidth, viewportWidth) : viewportWidth,
-        windowHeight: usingWindowScroll ? Math.max(contentHeight, viewportHeight) : viewportHeight,
+        windowWidth: viewportWidth,
+        windowHeight: viewportHeight,
         ignoreElements: shouldIgnoreElement,
       });
       // This log line only ever appears AFTER html2canvas's promise
