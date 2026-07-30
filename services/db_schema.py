@@ -180,6 +180,14 @@ def ensure_schema():
                 )
                 """)
                 c.execute("CREATE INDEX IF NOT EXISTS idx_error_log_occurred_at ON error_log (occurred_at DESC)")
+                # Phase 1 Diagnostic Engine (services/diagnostics.py):
+                # holds the full structured diagnostic package (JSON
+                # text) built automatically alongside every error_log
+                # row. Nullable/additive -- existing rows and every
+                # existing read of this table are unaffected. Nothing
+                # reads this column yet (that's a later phase); it is
+                # only written to, behind the scenes.
+                c.execute("ALTER TABLE error_log ADD COLUMN IF NOT EXISTS diagnostic_package TEXT")
 
                 # --- services/reflection_log.py: reflections ---
                 c.execute("""
