@@ -44,6 +44,8 @@ import streamlit as st
 from services.db_time import now_utc, iso_row, get_logger
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.email_alert import send_alert_email
+from services.diagnostics import build_diagnostic_package
+from services.evidence_timeline import record_event
 
 logger = get_logger(__name__)
 
@@ -77,6 +79,36 @@ def log_error(page, error_type, message, traceback_text,
         except Exception:
             context_json = str(context)
 
+    # Phase 1 Diagnostic Engine (services/diagnostics.py): build the
+    # full AI Diagnostic Package behind the scenes, every single time
+    # a row is written here -- whether that's an automatic exception
+    # (via error_boundary, below) or a user-submitted report
+    # (log_user_report calls this same function). This is the ONE
+    # place both triggers already funnel through, so hooking in here
+    # covers both without touching either caller's own logic. Never
+    # allowed to prevent the error itself from being logged.
+    diagnostic_package_json = "{}"
+    try:
+        if error_type != "UserReport":
+            record_event(
+                "Exception occurred" if severity == "error" else "Error logged",
+                detail=f"{error_type}: {message}",
+                page=page,
+            )
+        package = build_diagnostic_package(
+            page=page,
+            error_type=error_type,
+            message=message,
+            traceback_text=traceback_text,
+            user_name=user_name,
+            user_role=user_role,
+            severity=severity,
+            context=context,
+        )
+        diagnostic_package_json = package.to_json()
+    except Exception:
+        logger.exception("Diagnostic package build failed for this error (non-fatal)")
+
     conn = None
     new_id = None
     try:
@@ -85,12 +117,14 @@ def log_error(page, error_type, message, traceback_text,
             c.execute("""
                 INSERT INTO error_log
                     (occurred_at, page, error_type, message, traceback,
-                     user_name, user_role, context, severity, screenshot)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     user_name, user_role, context, severity, screenshot,
+                     diagnostic_package)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 now_utc(), page, error_type, message, traceback_text,
                 user_name, user_role, context_json, severity, screenshot_b64,
+                diagnostic_package_json,
             ))
             new_id = c.fetchone()[0]
         conn.commit()
@@ -138,11 +172,13 @@ def log_error(page, error_type, message, traceback_text,
             # consistency and to avoid this exact bug recurring.
             "screenshot": screenshot_b64,
         }
-        send_alert_email(
+        was_sent = send_alert_email(
             subject=f"[Reflection Space] Error on {page} (#{new_id})",
             body_text=build_email_summary(record),
             screenshot_b64=screenshot_b64,
         )
+        if was_sent:
+            record_event("Email sent", detail=f"error alert for #{new_id}", page=page)
 
     return new_id
 
@@ -154,6 +190,8 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
     a person deliberately flagged this, unlike an automatically
     detected error, which only emails for severity == "error".
     """
+    record_event("User submitted report", detail=description, page=page)
+
     new_id = log_error(
         page=page,
         error_type="UserReport",
@@ -178,12 +216,14 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
         # actual attached image.
         "screenshot": screenshot_b64,
     }
-    send_alert_email(
+    was_sent = send_alert_email(
         subject=f"[Reflection Space] Problem reported on {page}"
                 + (f" (#{new_id})" if new_id else ""),
         body_text=build_email_summary(record),
         screenshot_b64=screenshot_b64,
     )
+    if was_sent:
+        record_event("Email sent", detail=f"report alert for #{new_id}", page=page)
 
     return new_id
 
@@ -201,7 +241,7 @@ def get_recent_errors(limit=50):
             c.execute("""
                 SELECT id, occurred_at, page, error_type, message,
                        traceback, user_name, user_role, context, severity,
-                       screenshot
+                       screenshot, diagnostic_package
                 FROM error_log
                 ORDER BY occurred_at DESC
                 LIMIT %s
@@ -217,7 +257,8 @@ def get_recent_errors(limit=50):
     records = []
     for row in iso_row_list(rows, [1]):
         (rid, occurred_at, page, error_type, message, tb,
-         user_name, user_role, context, severity, screenshot) = row
+         user_name, user_role, context, severity, screenshot,
+         diagnostic_package) = row
         records.append({
             "id": rid,
             "occurred_at": occurred_at,
@@ -230,6 +271,11 @@ def get_recent_errors(limit=50):
             "context": context,
             "severity": severity,
             "screenshot": screenshot,
+            # Phase 1 Diagnostic Engine: JSON text built by
+            # services/diagnostics.py. Not displayed anywhere yet --
+            # included here so a later phase can show it without any
+            # further change to this function.
+            "diagnostic_package": diagnostic_package,
         })
     return records
 
