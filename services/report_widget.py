@@ -73,6 +73,11 @@ def render_report_button(T, page_name, user_name="", user_role=""):
         capture_clicked = st.button(
             T.get("report_problem_capture_button", "1. Capture screenshot"),
             key="_report_capture_button",
+            # Belt-and-braces alongside the capture-side re-entrancy
+            # guard in components/index.html: this stops a person from
+            # starting a second capture (a second trigger/key, and so
+            # a second component mount) while one is already running.
+            disabled=st.session_state.get("_report_capture_active", False),
         )
         if capture_clicked:
             st.session_state["_report_capture_active"] = True
