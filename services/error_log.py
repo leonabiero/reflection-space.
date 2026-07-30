@@ -130,7 +130,7 @@ def log_error(page, error_type, message, traceback_text,
         }
         send_alert_email(
             subject=f"[Reflection Space] Error on {page} (#{new_id})",
-            body_text=build_ai_prompt(record),
+            body_text=build_email_summary(record),
             screenshot_b64=screenshot_b64,
         )
 
@@ -163,7 +163,7 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
     send_alert_email(
         subject=f"[Reflection Space] Problem reported on {page}"
                 + (f" (#{new_id})" if new_id else ""),
-        body_text=build_ai_prompt(record),
+        body_text=build_email_summary(record),
         screenshot_b64=screenshot_b64,
     )
 
@@ -222,6 +222,32 @@ def iso_row_list(rows, date_indexes):
     that doesn't exist in db_time.py) to avoid touching that shared
     module for a one-line convenience."""
     return [iso_row(row, date_indexes) for row in rows]
+
+
+def build_email_summary(record):
+    """
+    Short, plain-language summary for the ALERT EMAIL -- distinct from
+    build_ai_prompt (below), which is a long, AI-assistant-oriented
+    prompt meant for the System Administration > Error Log page, not
+    for an inbox. Keeping these separate means the email stays quick
+    to read on a phone, while the full AI-ready prompt is still one
+    click away whenever it's actually needed.
+    """
+    ctx_line = f"\nContext: {record['context']}" if record.get("context") else ""
+    screenshot_note = (
+        "\nA screenshot is attached." if record.get("screenshot")
+        else "\nNo screenshot was captured for this report."
+    )
+    return f"""A problem was reported in Reflection Space.
+
+Page: {record.get('page')}
+When: {record.get('occurred_at')}
+Reported by (role): {record.get('user_role') or 'unknown'}
+Description: {record.get('message')}{ctx_line}{screenshot_note}
+
+For full technical detail, or to copy a ready-made prompt for Claude to help \
+diagnose it, open System Administration > Error Log in the app.
+"""
 
 
 def build_ai_prompt(record):
