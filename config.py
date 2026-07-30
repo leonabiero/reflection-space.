@@ -35,6 +35,12 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "rdi_documents")
 
 APP_NAME = "Reflection Space"
+# Optional deployment/version label, shown only inside diagnostic
+# packages built by services/diagnostics.py (Phase 1 Diagnostic
+# Engine) -- has no effect on anything else. Leave unset unless you
+# want a specific build/release label to show up in the AI-ready
+# diagnostic prompt.
+APP_VERSION = os.getenv("APP_VERSION", "unspecified")
 # Password to view the private visit log page (set this as a secret on Streamlit Cloud)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
