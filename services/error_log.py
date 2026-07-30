@@ -127,6 +127,16 @@ def log_error(page, error_type, message, traceback_text,
             "error_type": error_type, "message": message,
             "traceback": traceback_text, "user_role": user_role,
             "context": context_json,
+            # BUG FIX (2026-07-30): this key was previously missing here,
+            # even though screenshot_b64 is passed to send_alert_email()
+            # a few lines down as the actual attachment. build_email_summary()
+            # reads record["screenshot"] to decide what the email SAYS, so
+            # without this key the email always claimed "no screenshot"
+            # regardless of whether one was really attached. Automatic
+            # errors never have a screenshot in practice (see log_error's
+            # docstring), but the key is included here anyway for
+            # consistency and to avoid this exact bug recurring.
+            "screenshot": screenshot_b64,
         }
         send_alert_email(
             subject=f"[Reflection Space] Error on {page} (#{new_id})",
@@ -159,6 +169,14 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
         "id": new_id, "occurred_at": now_utc(), "page": page,
         "error_type": "UserReport", "message": description,
         "traceback": "(user-submitted report)", "user_role": user_role,
+        # BUG FIX (2026-07-30): this key was previously missing here, even
+        # though screenshot_b64 is passed to send_alert_email() a few lines
+        # down as the actual attachment. This is the main report path (the
+        # "Report a problem" button always has a real chance of a
+        # screenshot), so this was the record that most often produced a
+        # mismatched email -- "No screenshot was captured" text next to an
+        # actual attached image.
+        "screenshot": screenshot_b64,
     }
     send_alert_email(
         subject=f"[Reflection Space] Problem reported on {page}"
@@ -234,16 +252,22 @@ def build_email_summary(record):
     click away whenever it's actually needed.
     """
     ctx_line = f"\nContext: {record['context']}" if record.get("context") else ""
-    screenshot_note = (
-        "\nA screenshot is attached." if record.get("screenshot")
-        else "\nNo screenshot was captured for this report."
-    )
+    # NOTE (2026-07-30 bug fix): the actual "screenshot attached" / "no
+    # screenshot" wording is intentionally NOT decided here. It used to be
+    # decided here, based solely on whether a screenshot_b64 string existed
+    # -- but that could still disagree with the real email, e.g. if the
+    # attachment step in services/email_alert.py later failed to decode the
+    # image. To guarantee the wording and the actual attachment can never
+    # disagree, we leave this placeholder token and let send_alert_email()
+    # (the one place that knows whether the attachment truly succeeded)
+    # fill it in right before sending. See services/email_alert.py.
     return f"""A problem was reported in Reflection Space.
 
 Page: {record.get('page')}
 When: {record.get('occurred_at')}
 Reported by (role): {record.get('user_role') or 'unknown'}
-Description: {record.get('message')}{ctx_line}{screenshot_note}
+Description: {record.get('message')}{ctx_line}
+%%SCREENSHOT_STATUS%%
 
 For full technical detail, or to copy a ready-made prompt for Claude to help \
 diagnose it, open System Administration > Error Log in the app.
