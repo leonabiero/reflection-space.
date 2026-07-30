@@ -33,6 +33,26 @@
   If reports stop including screenshots after a Streamlit upgrade, that
   is the first thing to suspect -- ask Claude to re-check the current
   Streamlit component message protocol and update this file only.
+
+  2026-07-30 UPDATE -- fixed a real browser-freeze bug
+  --------------------------------------------------------------------
+  On pages with a large data table (e.g. the System Administration
+  user list), html2canvas had to walk thousands of DOM elements to
+  build the screenshot. That work runs on the browser's single main
+  thread, so on a big enough page it could tie the tab up for so long
+  that Chrome showed its "Page Unresponsive" dialog and the whole app
+  stopped responding to clicks -- the 8-second safety timer below
+  never got a chance to fire, because the browser was too busy to even
+  check the clock.
+
+  Fix: before attempting anything, we now count how many elements are
+  on the page. If it's above a safe threshold, we skip the screenshot
+  immediately (a near-instant, cheap check) instead of asking
+  html2canvas to render it. We also only render the part of the page
+  the user can currently see (not the full scrollable page) and skip
+  known-heavy repeating elements (tables/grids), which keeps normal
+  reflection pages screenshotting exactly as before while making
+  heavy admin/table pages safe.
 -->
 <html>
 <head>
@@ -45,6 +65,15 @@
 <script>
 (function () {
   var SENT = false;
+
+  // If the page has more elements than this, we skip the screenshot
+  // rather than risk freezing the tab. Typical reflection pages have
+  // a few hundred elements; a table listing 70-100 users can have
+  // several thousand. This number is intentionally conservative.
+  var MAX_SAFE_ELEMENT_COUNT = 1800;
+
+  // Give up and continue without a screenshot after this long.
+  var TIMEOUT_MS = 4000;
 
   function postToStreamlit(type, extra) {
     var msg = Object.assign({ isStreamlitMessage: true, type: type }, extra || {});
@@ -68,22 +97,67 @@
   postToStreamlit("streamlit:componentReady", { apiVersion: 1 });
   postToStreamlit("streamlit:setFrameHeight", { height: 24 });
 
-  // Safety net: if capture hasn't finished within 8 seconds for any
+  // Safety net: if capture hasn't finished within TIMEOUT_MS for any
   // reason (slow page, blocked script, unexpected error), give up and
   // report "no screenshot" rather than leaving the report form stuck.
+  // (This still exists as a backstop, but the real fix is the
+  // element-count check below, which prevents the freeze in the
+  // first place instead of trying to recover from it.)
   window.setTimeout(function () {
     if (!SENT) {
       setStatus("Screenshot capture timed out -- continuing without it.");
       sendValue(null);
     }
-  }, 8000);
+  }, TIMEOUT_MS);
 
   try {
-    var target = (window.parent && window.parent.document && window.parent.document.body)
-      ? window.parent.document.body
-      : document.body;
+    var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+    var target = parentDoc.body || document.body;
 
-    html2canvas(target, { logging: false, useCORS: true, scale: 1 }).then(function (canvas) {
+    // Cheap, near-instant safety check -- does NOT redraw anything,
+    // just counts existing elements. This is what actually prevents
+    // the freeze on heavy pages like System Administration.
+    var elementCount = target.querySelectorAll("*").length;
+    if (elementCount > MAX_SAFE_ELEMENT_COUNT) {
+      setStatus("This page is too large to screenshot automatically -- continuing without it.");
+      sendValue(null);
+      return;
+    }
+
+    var win = window.parent || window;
+    var scrollX = win.scrollX || 0;
+    var scrollY = win.scrollY || 0;
+    var viewportWidth = win.innerWidth || document.documentElement.clientWidth;
+    var viewportHeight = win.innerHeight || document.documentElement.clientHeight;
+
+    html2canvas(target, {
+      logging: false,
+      useCORS: true,
+      scale: 1,
+      // Only render what's currently visible on screen, not the full
+      // scrollable page -- much cheaper, and it's what the user
+      // actually saw when they noticed the problem.
+      x: scrollX,
+      y: scrollY,
+      width: viewportWidth,
+      height: viewportHeight,
+      windowWidth: viewportWidth,
+      windowHeight: viewportHeight,
+      // Skip large repeating structures (tables, data grids) -- these
+      // are the most expensive part to redraw and rarely the reason
+      // someone is reporting a problem. A short note is drawn in
+      // their place instead of leaving a blank gap.
+      ignoreElements: function (el) {
+        try {
+          if (el.tagName === "TABLE") return true;
+          if (el.getAttribute && el.getAttribute("role") === "table") return true;
+          if (el.querySelectorAll && el.children && el.children.length > 40) return true;
+        } catch (e) {
+          return false;
+        }
+        return false;
+      },
+    }).then(function (canvas) {
       try {
         // JPEG at moderate quality keeps the payload well under any
         // reasonable database column / email attachment size limit.
