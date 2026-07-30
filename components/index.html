@@ -158,10 +158,12 @@
   var MAX_SAFE_ELEMENT_COUNT = 6000;
 
   // Give up on the ENTIRE multi-step capture after this long. Raised
-  // from earlier single-shot values because scroll-and-stitch takes
-  // several capture passes; this is still a backstop, not the expected
-  // path -- normal pages finish well within this.
-  var TIMEOUT_MS = 20000;
+  // again (from 20000) because each step now waits ADAPTIVELY for the
+  // page to actually finish settling (up to ~1.2s worst case per step,
+  // versus a fixed 120ms before) rather than a constant short delay --
+  // this is still just a backstop for genuinely pathological pages,
+  // normal pages finish well within this.
+  var TIMEOUT_MS = 35000;
 
   // Hard cap on how many viewport "steps" we'll take down the page,
   // regardless of measured height. This protects against a page whose
@@ -257,13 +259,53 @@
     return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
   }
 
+  // ------------------------------------------------------------------
+  // DIAGNOSTIC ONLY -- lets a person confirm whether each individual
+  // viewport capture is already corrupted BEFORE stitching, without
+  // needing developer tools skills. Off by default (zero effect on
+  // normal use). To turn on for one test: open the browser's console
+  // (F12), paste `window.__RS_DEBUG__ = true`, press Enter, then click
+  // "Capture screenshot" as normal. A row of small thumbnails -- one
+  // per raw capture, in order -- appears in the top-left corner of the
+  // real page for a few seconds after the capture finishes, and the
+  // full-size data URLs are also left on `window.__RS_DEBUG_CAPTURES__`
+  // for closer inspection. Safe to leave in permanently.
+  // ------------------------------------------------------------------
+  function debugShowRawCaptures(parentDoc, parentWin, captures) {
+    if (!parentWin.__RS_DEBUG__) return;
+    try {
+      parentWin.__RS_DEBUG_CAPTURES__ = captures.map(function (c) {
+        return { y: c.y, dataUrl: c.canvas.toDataURL("image/png") };
+      });
+      var panel = parentDoc.createElement("div");
+      panel.setAttribute("style", [
+        "position:fixed", "top:8px", "left:8px", "z-index:2147483647",
+        "background:#111", "padding:6px", "border-radius:6px",
+        "display:flex", "gap:4px", "overflow-x:auto", "max-width:96vw",
+      ].join(";"));
+      captures.forEach(function (c, i) {
+        var img = parentDoc.createElement("img");
+        img.src = c.canvas.toDataURL("image/png");
+        img.title = "capture " + i + " @ scrollTop=" + c.y;
+        img.setAttribute("style", "height:140px;border:1px solid #555;");
+        panel.appendChild(img);
+      });
+      parentDoc.body.appendChild(panel);
+      window.setTimeout(function () {
+        if (panel.parentNode) panel.parentNode.removeChild(panel);
+      }, 15000);
+    } catch (e) { dlog("debugShowRawCaptures failed:", e); }
+  }
+
   // Forces any lazy-loaded images anywhere in `root` to load right now
   // (instead of waiting for them to individually scroll into view,
   // which we want to short-circuit since we're about to scroll through
   // everything ourselves anyway), then resolves once all of them have
-  // finished or a short backstop timer elapses. Run once, up front, so
-  // no viewport along the way shows a blank image box.
-  function forceEagerImages(root) {
+  // finished or a bounded backstop timer elapses. Called once up front
+  // for the whole page (long timeout), and again before EVERY
+  // individual viewport capture with a much shorter timeout, to catch
+  // images that weren't even in the DOM yet the first time around.
+  function forceEagerImages(root, maxWaitMs) {
     return new Promise(function (resolve) {
       var imgs = root.querySelectorAll('img[loading="lazy"]');
       var pending = 0;
@@ -288,11 +330,47 @@
         }
       });
 
-      // Backstop: never wait more than 1.5s on images, even if some
-      // never finish loading.
-      window.setTimeout(proceed, 1500);
+      window.setTimeout(proceed, maxWaitMs || 1500);
 
       if (pending === 0) proceed();
+    });
+  }
+
+  // Waits for `root`'s subtree to stop mutating (no DOM
+  // additions/removals/attribute changes for `quietMs`) before
+  // resolving, bounded by `maxWaitMs` so a page with genuinely
+  // continuous updates (a live-updating chart, a ticking clock) can
+  // never stall the capture indefinitely. This is what actually tells
+  // us Streamlit/React has finished committing whatever the recent
+  // scroll triggered (chart auto-sizing, custom-component iframes
+  // reporting their real height back after mount, expanders finishing
+  // their open/close re-render, etc.) instead of guessing with a fixed
+  // sleep.
+  function waitForStableFrame(root, quietMs, maxWaitMs) {
+    return new Promise(function (resolve) {
+      var start = performance.now();
+      var lastMutation = start;
+      var observer = null;
+      try {
+        observer = new MutationObserver(function () { lastMutation = performance.now(); });
+        observer.observe(root, { attributes: true, childList: true, subtree: true, characterData: true });
+      } catch (e) { /* MutationObserver unavailable -- fall through to the time cap below */ }
+
+      function tick() {
+        var now = performance.now();
+        var quiet = now - lastMutation >= quietMs;
+        var timedOut = now - start >= maxWaitMs;
+        if (quiet || timedOut || !observer) {
+          if (observer) observer.disconnect();
+          if (timedOut && !quiet) {
+            dlog("waitForStableFrame: hit the", maxWaitMs + "ms cap while the page was still mutating -- capturing anyway rather than stalling.");
+          }
+          resolve();
+          return;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
     });
   }
 
@@ -518,7 +596,7 @@
 
     // One-time, whole-page pass so no viewport along the way shows a
     // blank lazy-loaded image.
-    await forceEagerImages(target);
+    await forceEagerImages(target, 1500);
 
     function getScroll() {
       return usingWindowScroll
@@ -614,11 +692,36 @@
         break;
       }
 
-      // 8. Wait for Streamlit to finish rendering newly visible
-      // content: two animation frames plus a short bounded delay,
-      // rather than an arbitrary long sleep.
+      // 8. Wait for Streamlit to actually finish rendering newly
+      // visible content before capturing it, instead of guessing with
+      // a fixed sleep. A fixed delay was the root cause of corruption
+      // that got WORSE further down the page: content revealed by a
+      // scroll step for the first time (charts auto-sizing via
+      // ResizeObserver, custom-component iframes reporting their real
+      // height back after mount, expanders finishing their
+      // open/close re-render, images not yet decoded) needs a
+      // variable amount of time to settle, not a constant one. Near
+      // the top of the page there's usually little or nothing left to
+      // settle, so a short fixed delay happened to be enough and the
+      // first capture looked fine -- but each step further down can
+      // reveal progressively more never-before-rendered widgets all
+      // settling at once, and the same fixed delay increasingly
+      // failed to cover it. html2canvas synchronously reads the live
+      // DOM's current computed styles and positions the moment it
+      // starts, so capturing mid-settle bakes in whatever was still
+      // mid-transition or not yet painted -- that is what produced
+      // misplaced icons, duplicated-looking labels, and a growing
+      // white background further down. waitForStableFrame actually
+      // watches the DOM and only proceeds once it has genuinely
+      // stopped changing (or a hard cap is hit, so a widget with truly
+      // continuous updates can't stall the capture forever).
       await twoAnimationFrames();
-      await delay(120);
+      await waitForStableFrame(target, 150, 900);
+      // Catch any images that have entered the DOM (or come into
+      // view for the first time) since the up-front forceEagerImages
+      // call at the very start of the whole capture -- short timeout
+      // since this runs once per viewport, not once total.
+      await forceEagerImages(target, 300);
 
       // 6/9. Capture ONLY the currently visible viewport.
       dlog("iteration " + steps + ": starting html2canvas...");
@@ -688,6 +791,13 @@
 
     dlog("capture loop finished after", steps, "iteration(s),",
       captures.length, "viewport(s) captured");
+
+    // DIAGNOSTIC ONLY (see debugShowRawCaptures above) -- shows the
+    // raw, pre-stitch captures exactly as html2canvas produced them,
+    // so corruption can be confirmed to exist (or not) before the
+    // stitching step below ever runs. No effect unless
+    // window.__RS_DEBUG__ was set to true before capture started.
+    debugShowRawCaptures(parentDoc, parentWin, captures);
 
     // Re-measure content height after the scroll pass in case
     // anything settled to a slightly different final size.
