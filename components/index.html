@@ -34,134 +34,108 @@
   is the first thing to suspect -- ask Claude to re-check the current
   Streamlit component message protocol and update this file only.
 
-  2026-07-30 UPDATE -- fixed a real browser-freeze bug
+  HISTORY (condensed) -- why the old "one giant html2canvas render"
+  approach was abandoned
   --------------------------------------------------------------------
-  On pages with a large plain HTML table (built with Streamlit's
-  st.table, which creates one <tr> element per row), html2canvas had
-  to walk thousands of DOM elements to build the screenshot. That work
-  runs on the browser's single main thread, so on a big enough page it
-  could tie the tab up for so long that Chrome showed its "Page
-  Unresponsive" dialog and the whole app stopped responding to clicks
-  -- the 8-second safety timer below never got a chance to fire,
-  because the browser was too busy to even check the clock.
+  Earlier versions of this file tried to capture the ENTIRE scrollable
+  page in a single html2canvas call, by temporarily forcing Streamlit's
+  scroll container (`[data-testid="stAppViewContainer"]`) to
+  `overflow: visible; height: auto; max-height: none` so the browser
+  would lay out and paint content that is normally clipped off-screen,
+  then asking html2canvas to render that whole unclipped subtree at
+  once. Along the way this surfaced (and eventually fixed) some real
+  bugs worth remembering:
+    - A page containing a large plain HTML table (st.table -- NOT
+      st.dataframe, which is a lightweight canvas widget regardless of
+      row count) could make html2canvas walk thousands of DOM nodes on
+      the browser's single main thread, long enough to trigger
+      Chrome's "Page Unresponsive" dialog.
+    - This component itself lives inside an <iframe> (every Streamlit
+      custom component does). Pointing html2canvas at the whole page
+      made it try to capture itself mid-capture, which can hang.
+    - Forcing `overflow: visible` did make full content PAINT, but the
+      whole "unclip everything and render it all in one pass" strategy
+      is fundamentally fragile: it depends on every descendant
+      re-laying-out correctly outside its normal clipped/scrolled
+      context, which virtualized widgets and some canvas-backed
+      widgets don't do reliably. That is a structural ceiling, not
+      something fixable with more CSS overrides -- so as of this
+      rewrite we've stopped doing it.
 
-  Note: Streamlit's st.dataframe (used for the System Administration
-  user list) is NOT the same as st.table -- it renders as a single
-  lightweight canvas element regardless of row count, so it was never
-  actually the expensive part here.
-
-  Fix, two layers:
-    1. `ignoreElements` below skips plain <table> elements and any
-       element with more than 40 children when drawing -- this
-       removes the actual expensive content (st.table output)
-       specifically, with no visible effect on st.dataframe grids.
-    2. As a backstop only (not the primary fix), we also count total
-       page elements before attempting anything and skip entirely if
-       it's above MAX_SAFE_ELEMENT_COUNT. Because layer 1 already
-       removes the known expensive content, this threshold is set
-       high -- it exists only to catch genuinely unusual pages, not
-       to limit normal use of the app.
-
-  2026-07-30 UPDATE 2 -- found the real cause of the freeze
+  CURRENT APPROACH (this rewrite) -- scroll, capture, stitch
   --------------------------------------------------------------------
-  Raising the element-count threshold above didn't fully fix the
-  freeze. The actual cause: this component itself lives inside an
-  <iframe> that Streamlit places in the sidebar on every page (every
-  custom component gets wrapped in one). Because we screenshot
-  window.parent.document.body -- the WHOLE page -- that capture
-  target includes this very iframe, i.e. the tool ends up trying to
-  take a picture of itself while it's actively mid-capture. Browser
-  rendering tools are known to hang or loop on this kind of
-  self-reference, regardless of how big or small the rest of the page
-  is -- which is why raising the threshold alone didn't help.
+  Instead of forcing the whole page to render unclipped in one pass, we
+  now do what a real screenshot browser extension does: scroll the
+  actual Streamlit scroll container to each position a person would
+  really scroll to, let it render normally (nothing is unclipped or
+  forced), capture ONLY the currently-visible viewport with
+  html2canvas, then move on to the next viewport. Once we've covered
+  the full scrollHeight, all the viewport captures are drawn onto one
+  tall off-screen <canvas> at their real scroll offsets and exported
+  exactly as before: `canvas.toDataURL("image/jpeg", 0.6)`. The
+  reporting API (what services/report_widget.py receives) is
+  unchanged -- it is still just that same base64 JPEG data URL, or
+  null on failure.
 
-  Fix: `ignoreElements` below now explicitly skips ALL <iframe>
-  elements, not just tables. There's nothing worth capturing inside
-  an iframe here anyway (this component has no visible UI), and
-  skipping iframes entirely also protects against any other iframe
-  based content added to the app later.
+  Why this is more reliable: every individual capture is a small,
+  cheap, "what's on screen right now" render -- exactly the kind of
+  capture that already worked reliably here before any full-page
+  attempts. Nothing has to be unclipped, re-laid-out, or rendered
+  outside its normal scrolled context, because at each step the
+  content genuinely IS on screen, the same way it would be for a human
+  scrolling through the page.
 
-  2026-07-30 UPDATE 3 -- capture the full page again, not just what's
-  visible on screen
-  --------------------------------------------------------------------
-  UPDATE 1 limited capture to the visible viewport as part of fixing
-  the freeze. That had a side effect: if the error text or content
-  someone wanted to report ran below the fold, it got cut off, and the
-  only workaround was zooming out first.
+  Known remaining limitation: a widget that virtualizes its OWN
+  internal scrolling (renders only its currently-visible rows inside
+  its own internal scroll region, independent of the page scroll) will
+  only show whatever rows happen to be visible inside it when the page
+  scroll passes that widget -- scrolling the page does not scroll
+  inside such a widget. This is a structural limit of any DOM-based
+  capture technique, including real browser extensions, not something
+  particular to this implementation.
 
-  Now that UPDATE 2 identified and excluded the ACTUAL freeze causes
-  (this component's own iframe, and plain HTML tables) separately, we
-  no longer need the viewport crop as a safety measure -- so it's
-  removed. This makes captures include the full scrollable page again,
-  automatically, so no one needs to zoom out to fit content in.
+  Safety measures carried over unchanged from before:
+    - ALL <iframe> elements are skipped (ignoreElements) -- this is
+      what stops the component from trying to capture itself.
+    - Plain <table> elements / role="table" / elements with more than
+      40 children are skipped -- these are the expensive st.table-style
+      structures that could freeze the tab.
+    - A cheap total-element-count check happens once up front as a
+      backstop; pages above MAX_SAFE_ELEMENT_COUNT are skipped entirely
+      rather than risking a freeze.
+    - A global TIMEOUT_MS safety net still guarantees we eventually
+      call sendValue(null) and restore everything if anything above
+      takes too long or throws.
 
-  2026-07-30 UPDATE 4 -- capture the right element for full height
-  --------------------------------------------------------------------
-  UPDATE 3 removed the crop but still targeted the outer page
-  (<body>), which doesn't actually grow with content in a Streamlit
-  app -- Streamlit scrolls an inner panel
-  ([data-testid="stAppViewContainer"]) instead, while the outer page
-  stays fixed to the window height. That meant screenshots kept only
-  showing the top of the page even with no crop applied.
-
-  Fix: capture that inner panel specifically (falling back to <body>
-  if Streamlit's internal structure ever changes), and explicitly
-  measure its true scrollHeight/scrollWidth ourselves rather than
-  trusting html2canvas to infer it, since the panel's own on-screen
-  box is only as tall as the visible window even though its content
-  is taller.
-
-  2026-07-30 UPDATE 5 -- fixed the actual remaining crop: content
-  below the fold was measured correctly, but never actually PAINTED
-  --------------------------------------------------------------------
-  UPDATE 4 measured the panel's true scrollHeight/scrollWidth and told
-  html2canvas to use those as the output canvas size. That's necessary
-  but not sufficient: passing `width`/`height` to html2canvas only sets
-  the size of the canvas it draws onto. It does NOT make the browser
-  lay out and paint content that is currently clipped by the panel's
-  own CSS (overflow: auto + a height capped to the visible window). A
-  scrolled-out-of-view row in a CSS-scrolling container is still
-  off-screen from the renderer's point of view no matter how big a
-  canvas you ask for -- so anything below the fold kept coming out
-  blank/cropped even though the *measurement* was already correct.
-
-  Fix: immediately before capturing, we temporarily override the
-  target panel's own inline style (overflow -> visible, height -> auto,
-  max-height -> none) so the browser actually lays out and paints its
-  entire content, and reset its scrollTop to 0 so the capture always
-  starts from the top -- exactly as if the page had been scrolled from
-  top to bottom. The panel's ORIGINAL inline style is saved first and
-  restored immediately after the capture finishes (success, failure,
-  or timeout), so this is invisible to the person using the app --
-  it's on screen for well under a second, only inside this hidden
-  iframe's view of the page, and the page is back to normal by the
-  time they even notice the "Screenshot captured" message.
-
-  We also no longer fire the capture immediately. Two things changed:
-    1. Any <img loading="lazy"> inside the target is switched to
-       eager loading and we wait for it to actually finish loading
-       (bounded by a short backstop timer) -- otherwise a lazy image
-       that never scrolled into view before would render as a blank
-       box in the screenshot.
-    2. We wait two animation frames after that before measuring/
-       capturing, so the browser has had a chance to finish any
-       reflow/paint work triggered by the style changes above (and by
-       whatever Streamlit was doing right when the button was
-       clicked) before we take the picture.
-  TIMEOUT_MS was raised from 4000ms to 10000ms to comfortably fit
-  these waits on a slower page/connection; the timeout is still a
-  backstop, not the expected path, and it (like every other exit path)
-  restores the temporary style changes before giving up.
-
-  Everything from UPDATE 1 and UPDATE 2 (the iframe/table freeze
-  fixes) is unchanged and still active below.
+  New in this rewrite, to satisfy "capture exactly what the user sees,
+  without letting the page change mid-capture":
+    - The user's real scroll position is saved before we start and
+      restored (on every exit path: success, failure, or timeout)
+      immediately before we hand control back.
+    - A full-screen overlay is shown on the actual visible page (not
+      just inside this hidden iframe) telling the person a screenshot
+      is being captured and not to interact. Because it sits on top of
+      everything with pointer-events enabled on itself, it also
+      physically blocks clicks from reaching the app underneath while
+      capture is in progress.
+    - Consecutive viewport captures deliberately OVERLAP by a small
+      percentage of the viewport height (rather than being placed
+      edge-to-edge). This is what the prompt calls for explicitly:
+      sticky headers, browser zoom, and fractional-pixel scroll
+      rounding can otherwise leave a thin missing (or misaligned)
+      strip between two captures. Because each capture is stitched
+      onto the output canvas at the exact scroll offset it was taken
+      at (not at an assumed fixed increment), the overlapping region
+      is simply painted over by the next capture down -- no gap, no
+      double-counted height.
 
   Separately (see services/report_widget.py for the actual fix): a
   capture that legitimately finishes with no screenshot (page skipped
   as too large, or timed out) was being mistaken for "still in
   progress" forever, which could let a report get sent without a
   screenshot the person thought they'd already captured. That's a
-  Python-side state-tracking fix, not something in this file.
+  Python-side state-tracking fix, not something in this file, and it
+  remains unaffected by this rewrite.
 -->
 <html>
 <head>
@@ -176,22 +150,33 @@
   var SENT = false;
 
   // If the page has more elements than this, we skip the screenshot
-  // rather than risk freezing the tab. This is a rare-case backstop,
-  // not the main defense -- the ignoreElements rule below already
-  // removes the actual expensive content (plain HTML tables) before
-  // we get here, so this threshold is set high on purpose. It exists
-  // to catch genuinely unusual pages, not to limit normal use.
+  // rather than risk freezing the tab. This is a rare-case backstop --
+  // the ignoreElements rule below already removes the actual expensive
+  // content (plain HTML tables, iframes) before we get here, so this
+  // threshold is set high on purpose. It exists to catch genuinely
+  // unusual pages, not to limit normal use.
   var MAX_SAFE_ELEMENT_COUNT = 6000;
 
-  // Give up and continue without a screenshot after this long. Raised
-  // from 4000 -> 10000 in UPDATE 5 to comfortably fit the render/lazy
-  // image waits added below, without making a genuinely stuck capture
-  // hang around too long.
-  var TIMEOUT_MS = 10000;
+  // Give up on the ENTIRE multi-step capture after this long. Raised
+  // from earlier single-shot values because scroll-and-stitch takes
+  // several capture passes; this is still a backstop, not the expected
+  // path -- normal pages finish well within this.
+  var TIMEOUT_MS = 20000;
 
-  // Collected as we temporarily change styles to un-clip the target
-  // panel, so we can always put things back exactly as they were --
-  // on every exit path (success, failure, or timeout).
+  // Hard cap on how many viewport "steps" we'll take down the page,
+  // regardless of measured height. This protects against a page whose
+  // scrollHeight keeps growing while we capture it (e.g. infinite
+  // scroll) turning into an unbounded loop.
+  var MAX_STEPS = 25;
+
+  // Marks the overlay element so ignoreElements can exclude it from
+  // any capture in the rare fallback case where the capture target IS
+  // the overlay's parent (see below).
+  var OVERLAY_ID = "__reflection_space_capture_overlay__";
+
+  // Collected as we make temporary changes (scroll position, overlay,
+  // interaction blocking) so we can always put things back exactly as
+  // they were -- on every exit path (success, failure, or timeout).
   var restoreFns = [];
   function restoreAll() {
     while (restoreFns.length) {
@@ -218,13 +203,17 @@
 
   // Tell Streamlit this component iframe is alive, and give it a
   // small fixed height (this component has no meaningful visible UI
-  // -- the real UI is the Python-side status/preview in the sidebar).
+  // -- the real UI is the Python-side status/preview in the sidebar,
+  // plus the full-screen capture overlay this file injects into the
+  // parent page while a capture is running).
   postToStreamlit("streamlit:componentReady", { apiVersion: 1 });
   postToStreamlit("streamlit:setFrameHeight", { height: 24 });
 
-  // Safety net: if capture hasn't finished within TIMEOUT_MS for any
-  // reason (slow page, blocked script, unexpected error), give up and
-  // report "no screenshot" rather than leaving the report form stuck.
+  // Safety net: if the whole capture hasn't finished within
+  // TIMEOUT_MS for any reason (slow page, blocked script, unexpected
+  // error), give up and report "no screenshot" rather than leaving the
+  // report form stuck. sendValue() -> restoreAll() guarantees the
+  // overlay/scroll/interaction state gets put back even here.
   window.setTimeout(function () {
     if (!SENT) {
       setStatus("Screenshot capture timed out -- continuing without it.");
@@ -232,63 +221,135 @@
     }
   }, TIMEOUT_MS);
 
-  // Forces any lazy-loaded images inside `target` to load right now
-  // (instead of waiting for them to scroll into view, which may never
-  // happen before we capture), then waits for either all of them to
-  // finish or a short backstop timer, then gives the browser two
-  // animation frames to finish painting before calling `callback`.
-  function waitForRenderReady(target, callback) {
-    var imgs = target.querySelectorAll('img[loading="lazy"]');
-    var pending = 0;
-    var settled = false;
-
-    function proceed() {
-      if (settled) return;
-      settled = true;
+  // rAF x2: gives the browser two animation frames to finish any
+  // reflow/paint work (e.g. from the scroll we just performed) before
+  // we consider the page "settled" enough to capture.
+  function twoAnimationFrames() {
+    return new Promise(function (resolve) {
       requestAnimationFrame(function () {
-        requestAnimationFrame(callback);
+        requestAnimationFrame(resolve);
       });
-    }
-
-    imgs.forEach(function (img) {
-      img.loading = "eager";
-      if (!img.complete) {
-        pending++;
-        var done = function () {
-          pending -= 1;
-          if (pending <= 0) proceed();
-        };
-        img.addEventListener("load", done, { once: true });
-        img.addEventListener("error", done, { once: true });
-      }
     });
-
-    // Backstop: never wait more than 1.5s on images, even if some
-    // never finish loading.
-    window.setTimeout(proceed, 1500);
-
-    if (pending === 0) proceed();
   }
 
-  try {
-    var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+  function delay(ms) {
+    return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
+  }
+
+  // Forces any lazy-loaded images anywhere in `root` to load right now
+  // (instead of waiting for them to individually scroll into view,
+  // which we want to short-circuit since we're about to scroll through
+  // everything ourselves anyway), then resolves once all of them have
+  // finished or a short backstop timer elapses. Run once, up front, so
+  // no viewport along the way shows a blank image box.
+  function forceEagerImages(root) {
+    return new Promise(function (resolve) {
+      var imgs = root.querySelectorAll('img[loading="lazy"]');
+      var pending = 0;
+      var settled = false;
+
+      function proceed() {
+        if (settled) return;
+        settled = true;
+        resolve();
+      }
+
+      imgs.forEach(function (img) {
+        img.loading = "eager";
+        if (!img.complete) {
+          pending++;
+          var done = function () {
+            pending -= 1;
+            if (pending <= 0) proceed();
+          };
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+        }
+      });
+
+      // Backstop: never wait more than 1.5s on images, even if some
+      // never finish loading.
+      window.setTimeout(proceed, 1500);
+
+      if (pending === 0) proceed();
+    });
+  }
+
+  // Shared ignoreElements rule for every html2canvas call below.
+  function shouldIgnoreElement(el) {
+    try {
+      // Skip ALL iframes -- this is what stops the component from
+      // trying to capture itself (it lives inside one).
+      if (el.tagName === "IFRAME") return true;
+      if (el.tagName === "TABLE") return true;
+      if (el.getAttribute && el.getAttribute("role") === "table") return true;
+      if (el.id === OVERLAY_ID) return true;
+      if (el.children && el.children.length > 40) return true;
+    } catch (e) {
+      return false;
+    }
+    return false;
+  }
+
+  // Builds the "please don't interact" overlay directly on the real,
+  // visible page (window.parent's document) -- not inside this hidden
+  // iframe, since that's not where the person is looking. Being
+  // position:fixed, full-screen, and on top of everything with
+  // pointer-events enabled on itself, it both communicates what's
+  // happening and physically absorbs clicks so the page can't change
+  // mid-capture. Returns a remove() function.
+  function showCaptureOverlay(parentDoc) {
+    var overlay = parentDoc.createElement("div");
+    overlay.id = OVERLAY_ID;
+    overlay.setAttribute("style", [
+      "position:fixed", "inset:0", "z-index:2147483647",
+      "background:rgba(255,255,255,0.55)",
+      "display:flex", "align-items:center", "justify-content:center",
+      "text-align:center", "cursor:wait",
+      "font-family:sans-serif", "font-size:15px", "color:#222",
+      "pointer-events:auto",
+    ].join(";"));
+    overlay.innerHTML =
+      '<div style="background:#fff;border:1px solid #ddd;border-radius:8px;' +
+      'padding:20px 28px;box-shadow:0 4px 20px rgba(0,0,0,0.15);max-width:320px;">' +
+      "Capturing screenshot...<br>Please don't interact for a moment." +
+      "</div>";
+    // Block keyboard-driven interaction too (e.g. Tab/Enter reaching
+    // an already-focused element underneath).
+    var blockEvent = function (e) { e.stopPropagation(); e.preventDefault(); };
+    ["click", "mousedown", "mouseup", "keydown", "keyup", "wheel", "touchstart", "touchmove"]
+      .forEach(function (evt) {
+        overlay.addEventListener(evt, blockEvent, { capture: true });
+      });
+    parentDoc.body.appendChild(overlay);
+    return function remove() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+  }
+
+  function getParentDocument(w) {
+    try { return w && w.document ? w.document : null; } catch (e) { return null; }
+  }
+
+  async function run() {
+    var parentWin = window.parent || window;
+    var parentDoc = getParentDocument(parentWin) || document;
 
     // Streamlit doesn't scroll the whole browser page -- the outer
     // <body> stays fixed to the window height, and an inner panel
-    // (identified by this data-testid) scrolls independently. If we
-    // hand html2canvas the outer body, it measures a height equal to
-    // the visible window, not the true page content, and everything
-    // below the fold gets left out even with no crop applied. So we
-    // capture that inner panel specifically, and fall back to body
-    // only if Streamlit's internal structure ever changes and this
-    // selector stops matching.
-    var target = parentDoc.querySelector('[data-testid="stAppViewContainer"]')
-      || parentDoc.body
-      || document.body;
+    // (identified by this data-testid) scrolls independently. Capture
+    // that inner panel specifically; fall back to scrolling the actual
+    // browser window/body only if Streamlit's internal structure ever
+    // changes and this selector stops matching.
+    var target = parentDoc.querySelector('[data-testid="stAppViewContainer"]');
+    var usingWindowScroll = false;
+    if (!target) {
+      target = parentDoc.body || document.body;
+      usingWindowScroll = true;
+    }
 
     // Cheap, near-instant safety check -- does NOT redraw anything,
-    // just counts existing elements. This is what actually prevents
-    // the freeze on heavy pages like System Administration.
+    // just counts existing elements.
     var elementCount = target.querySelectorAll("*").length;
     if (elementCount > MAX_SAFE_ELEMENT_COUNT) {
       setStatus("This page is too large to screenshot automatically -- continuing without it.");
@@ -296,94 +357,138 @@
       return;
     }
 
-    // UPDATE 5 fix: measuring scrollHeight/scrollWidth (below) tells
-    // us how TALL the content is, but the browser only actually PAINTS
-    // content that isn't clipped by the panel's own overflow/height.
-    // Temporarily remove that clipping so everything gets laid out and
-    // painted, and remember the original inline style so we can put it
-    // back the instant we're done.
-    var originalStyleAttr = target.getAttribute("style");
+    // 1. Save the user's current scroll position, and register its
+    // restoration on every exit path.
+    var originalScroll = usingWindowScroll
+      ? (parentWin.scrollY || parentDoc.documentElement.scrollTop || 0)
+      : target.scrollTop;
     restoreFns.push(function () {
-      if (originalStyleAttr === null) target.removeAttribute("style");
-      else target.setAttribute("style", originalStyleAttr);
+      if (usingWindowScroll) parentWin.scrollTo(0, originalScroll);
+      else target.scrollTop = originalScroll;
     });
-    target.style.setProperty("overflow", "visible", "important");
-    target.style.setProperty("height", "auto", "important");
-    target.style.setProperty("max-height", "none", "important");
 
-    // Always capture starting from the top of the page, exactly as if
-    // it had been scrolled top to bottom -- not from wherever the
-    // person happened to have scrolled to when they clicked "Capture".
-    var originalScrollTop = target.scrollTop;
-    target.scrollTop = 0;
-    restoreFns.push(function () { target.scrollTop = originalScrollTop; });
+    // 2 & 3. Show the "capturing" overlay and block interaction; also
+    // guarantee its removal on every exit path.
+    var removeOverlay = showCaptureOverlay(parentDoc);
+    restoreFns.push(removeOverlay);
 
-    waitForRenderReady(target, function () {
-      try {
-        // Explicitly measure the full content size ourselves rather
-        // than trusting html2canvas's own measurement -- now that
-        // overflow/height clipping is removed above, scrollHeight/
-        // scrollWidth reliably reflect the true, fully-laid-out
-        // content size.
-        var fullHeight = Math.max(target.scrollHeight, target.offsetHeight, target.clientHeight);
-        var fullWidth = Math.max(target.scrollWidth, target.offsetWidth, target.clientWidth);
+    setStatus("Capturing screenshot...");
 
-        html2canvas(target, {
-          logging: false,
-          useCORS: true,
-          scale: 1,
-          x: 0,
-          y: 0,
-          scrollX: 0,
-          scrollY: 0,
-          width: fullWidth,
-          height: fullHeight,
-          windowWidth: fullWidth,
-          windowHeight: fullHeight,
-          // Skip large repeating structures (tables, data grids) --
-          // these are the most expensive part to redraw and rarely
-          // the reason someone is reporting a problem.
-          ignoreElements: function (el) {
-            try {
-              // Skip ALL iframes -- this is the main freeze fix from
-              // UPDATE 2. Without this, html2canvas ends up trying to
-              // capture this very component (which lives in an
-              // iframe) while it's mid-capture, which is a known way
-              // to make it hang or loop indefinitely.
-              if (el.tagName === "IFRAME") return true;
-              if (el.tagName === "TABLE") return true;
-              if (el.getAttribute && el.getAttribute("role") === "table") return true;
-              if (el.querySelectorAll && el.children && el.children.length > 40) return true;
-            } catch (e) {
-              return false;
-            }
-            return false;
-          },
-        }).then(function (canvas) {
-          try {
-            // JPEG at moderate quality keeps the payload well under
-            // any reasonable database column / email attachment size
-            // limit.
-            var dataUrl = canvas.toDataURL("image/jpeg", 0.6);
-            setStatus("Screenshot captured.");
-            sendValue(dataUrl);
-          } catch (e) {
-            setStatus("Could not encode screenshot -- continuing without it.");
-            sendValue(null);
-          }
-        }).catch(function () {
-          setStatus("Could not capture screenshot -- continuing without it.");
-          sendValue(null);
-        });
-      } catch (e) {
-        setStatus("Screenshot capture unavailable -- continuing without it.");
-        sendValue(null);
-      }
+    // One-time, whole-page pass so no viewport along the way shows a
+    // blank lazy-loaded image.
+    await forceEagerImages(target);
+
+    function getScroll() {
+      return usingWindowScroll
+        ? (parentWin.scrollY || parentDoc.documentElement.scrollTop || 0)
+        : target.scrollTop;
+    }
+    function setScroll(y) {
+      if (usingWindowScroll) parentWin.scrollTo(0, y);
+      else target.scrollTop = y;
+    }
+
+    var viewportWidth = usingWindowScroll ? parentWin.innerWidth : target.clientWidth;
+    var viewportHeight = usingWindowScroll ? parentWin.innerHeight : target.clientHeight;
+    var contentHeight = Math.max(
+      usingWindowScroll ? parentDoc.documentElement.scrollHeight : target.scrollHeight,
+      viewportHeight
+    );
+
+    if (!viewportWidth || !viewportHeight) {
+      setStatus("Screenshot capture unavailable -- continuing without it.");
+      sendValue(null);
+      return;
+    }
+
+    // Do NOT assume viewport height divides evenly into page height,
+    // and deliberately OVERLAP consecutive captures so that sticky
+    // headers, browser zoom, and fractional-pixel scroll rounding
+    // can't leave a thin missing strip between two captures. Each
+    // capture is later stitched onto the output at the exact scroll
+    // offset it was actually taken at, so the overlap is simply
+    // painted over -- no gap, no double-counted height.
+    var overlapPx = Math.max(24, Math.round(viewportHeight * 0.08));
+    var step = Math.max(1, viewportHeight - overlapPx);
+    var maxScroll = Math.max(0, contentHeight - viewportHeight);
+
+    // 4 & 5. Identify the scrolling container (done above) and scroll
+    // to the top before the first capture.
+    setScroll(0);
+    await twoAnimationFrames();
+    await delay(120);
+
+    var captures = [];
+    var y = 0;
+    var steps = 0;
+
+    while (true) {
+      setScroll(y);
+      var actualY = getScroll(); // account for any browser clamping/rounding
+
+      // 8. Wait for Streamlit to finish rendering newly visible
+      // content: two animation frames plus a short bounded delay,
+      // rather than an arbitrary long sleep.
+      await twoAnimationFrames();
+      await delay(120);
+
+      // 6/9. Capture ONLY the currently visible viewport.
+      var canvas = await html2canvas(target, {
+        logging: false,
+        useCORS: true,
+        scale: 1,
+        x: 0,
+        y: usingWindowScroll ? actualY : 0,
+        scrollX: 0,
+        scrollY: 0,
+        width: viewportWidth,
+        height: viewportHeight,
+        windowWidth: usingWindowScroll ? Math.max(parentDoc.documentElement.scrollWidth, viewportWidth) : viewportWidth,
+        windowHeight: usingWindowScroll ? Math.max(contentHeight, viewportHeight) : viewportHeight,
+        ignoreElements: shouldIgnoreElement,
+      });
+
+      captures.push({ y: actualY, canvas: canvas });
+      steps++;
+
+      if (actualY >= maxScroll || steps >= MAX_STEPS) break;
+      y = Math.min(actualY + step, maxScroll);
+    }
+
+    // Re-measure content height after the scroll pass in case
+    // anything settled to a slightly different final size.
+    var finalContentHeight = Math.max(
+      contentHeight,
+      usingWindowScroll ? parentDoc.documentElement.scrollHeight : target.scrollHeight
+    );
+    // Canvas height ceiling as a defensive cap for pathologically long
+    // pages (browsers impose their own limits well beyond this).
+    var stitchedHeight = Math.min(Math.round(finalContentHeight), 20000);
+
+    // 11. Stitch all captured viewports into one tall off-screen
+    // canvas, each drawn at the real scroll offset it was captured at
+    // (this is what correctly absorbs the deliberate overlap between
+    // consecutive captures -- later, lower captures simply repaint the
+    // small overlapping strip from the capture above them).
+    var stitched = document.createElement("canvas");
+    stitched.width = viewportWidth;
+    stitched.height = stitchedHeight;
+    var ctx = stitched.getContext("2d");
+    captures.forEach(function (c) {
+      ctx.drawImage(c.canvas, 0, c.y);
     });
-  } catch (e) {
-    setStatus("Screenshot capture unavailable -- continuing without it.");
-    sendValue(null);
+
+    // 12. Export using the exact same format the Python side already
+    // expects -- no change to the reporting API.
+    var dataUrl = stitched.toDataURL("image/jpeg", 0.6);
+    setStatus("Screenshot captured.");
+    sendValue(dataUrl);
   }
+
+  run().catch(function () {
+    setStatus("Could not capture screenshot -- continuing without it.");
+    sendValue(null);
+  });
 })();
 </script>
 </body>
