@@ -93,6 +93,29 @@
   no longer need the viewport crop as a safety measure -- so it's
   removed. This makes captures include the full scrollable page again,
   automatically, so no one needs to zoom out to fit content in.
+
+  2026-07-30 UPDATE 4 -- capture the right element for full height
+  --------------------------------------------------------------------
+  UPDATE 3 removed the crop but still targeted the outer page
+  (<body>), which doesn't actually grow with content in a Streamlit
+  app -- Streamlit scrolls an inner panel
+  ([data-testid="stAppViewContainer"]) instead, while the outer page
+  stays fixed to the window height. That meant screenshots kept only
+  showing the top of the page even with no crop applied.
+
+  Fix: capture that inner panel specifically (falling back to <body>
+  if Streamlit's internal structure ever changes), and explicitly
+  measure its true scrollHeight/scrollWidth ourselves rather than
+  trusting html2canvas to infer it, since the panel's own on-screen
+  box is only as tall as the visible window even though its content
+  is taller.
+
+  Separately (see services/report_widget.py for the actual fix): a
+  capture that legitimately finishes with no screenshot (page skipped
+  as too large, or timed out) was being mistaken for "still in
+  progress" forever, which could let a report get sent without a
+  screenshot the person thought they'd already captured. That's a
+  Python-side state-tracking fix, not something in this file.
 -->
 <html>
 <head>
@@ -154,7 +177,19 @@
 
   try {
     var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-    var target = parentDoc.body || document.body;
+
+    // Streamlit doesn't scroll the whole browser page -- the outer
+    // <body> stays fixed to the window height, and an inner panel
+    // (identified by this data-testid) scrolls independently. If we
+    // hand html2canvas the outer body, it measures a height equal to
+    // the visible window, not the true page content, and everything
+    // below the fold gets left out even with no crop applied. So we
+    // capture that inner panel specifically, and fall back to body
+    // only if Streamlit's internal structure ever changes and this
+    // selector stops matching.
+    var target = parentDoc.querySelector('[data-testid="stAppViewContainer"]')
+      || parentDoc.body
+      || document.body;
 
     // Cheap, near-instant safety check -- does NOT redraw anything,
     // just counts existing elements. This is what actually prevents
@@ -166,15 +201,24 @@
       return;
     }
 
+    // Explicitly measure the full content height ourselves rather
+    // than trusting html2canvas's own measurement of this element --
+    // scrollHeight reliably reflects the true content height of a
+    // scrolling panel like this one, even though its own on-screen
+    // box is only as tall as the visible window.
+    var fullHeight = Math.max(target.scrollHeight, target.offsetHeight, target.clientHeight);
+    var fullWidth = Math.max(target.scrollWidth, target.offsetWidth, target.clientWidth);
+
     html2canvas(target, {
       logging: false,
       useCORS: true,
       scale: 1,
-      // No x/y/width/height crop here on purpose -- capturing the
-      // full scrollable page (the html2canvas default) so nothing
-      // below the fold gets cut off. Safe now because the actual
-      // freeze causes (this component's own iframe, and plain HTML
-      // tables) are excluded below instead of relying on a crop.
+      x: 0,
+      y: 0,
+      width: fullWidth,
+      height: fullHeight,
+      windowWidth: fullWidth,
+      windowHeight: fullHeight,
       // Skip large repeating structures (tables, data grids) -- these
       // are the most expensive part to redraw and rarely the reason
       // someone is reporting a problem. A short note is drawn in
