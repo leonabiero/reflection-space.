@@ -61,6 +61,25 @@
        removes the known expensive content, this threshold is set
        high -- it exists only to catch genuinely unusual pages, not
        to limit normal use of the app.
+
+  2026-07-30 UPDATE 2 -- found the real cause of the freeze
+  --------------------------------------------------------------------
+  Raising the element-count threshold above didn't fully fix the
+  freeze. The actual cause: this component itself lives inside an
+  <iframe> that Streamlit places in the sidebar on every page (every
+  custom component gets wrapped in one). Because we screenshot
+  window.parent.document.body -- the WHOLE page -- that capture
+  target includes this very iframe, i.e. the tool ends up trying to
+  take a picture of itself while it's actively mid-capture. Browser
+  rendering tools are known to hang or loop on this kind of
+  self-reference, regardless of how big or small the rest of the page
+  is -- which is why raising the threshold alone didn't help.
+
+  Fix: `ignoreElements` below now explicitly skips ALL <iframe>
+  elements, not just tables. There's nothing worth capturing inside
+  an iframe here anyway (this component has no visible UI), and
+  skipping iframes entirely also protects against any other iframe
+  based content added to the app later.
 -->
 <html>
 <head>
@@ -159,6 +178,11 @@
       // their place instead of leaving a blank gap.
       ignoreElements: function (el) {
         try {
+          // Skip ALL iframes -- this is the main fix. Without this,
+          // html2canvas ends up trying to capture this very component
+          // (which lives in an iframe) while it's mid-capture, which
+          // is a known way to make it hang or loop indefinitely.
+          if (el.tagName === "IFRAME") return true;
           if (el.tagName === "TABLE") return true;
           if (el.getAttribute && el.getAttribute("role") === "table") return true;
           if (el.querySelectorAll && el.children && el.children.length > 40) return true;
