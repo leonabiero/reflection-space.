@@ -80,6 +80,19 @@
   an iframe here anyway (this component has no visible UI), and
   skipping iframes entirely also protects against any other iframe
   based content added to the app later.
+  2026-07-30 UPDATE 3 -- capture the full page again, not just what's
+  visible on screen
+  --------------------------------------------------------------------
+  UPDATE 1 limited capture to the visible viewport as part of fixing
+  the freeze. That had a side effect: if the error text or content
+  someone wanted to report ran below the fold, it got cut off, and the
+  only workaround was zooming out first.
+
+  Now that UPDATE 2 identified and excluded the ACTUAL freeze causes
+  (this component's own iframe, and plain HTML tables) separately, we
+  no longer need the viewport crop as a safety measure -- so it's
+  removed. This makes captures include the full scrollable page again,
+  automatically, so no one needs to zoom out to fit content in.
 -->
 <html>
 <head>
@@ -153,25 +166,15 @@
       return;
     }
 
-    var win = window.parent || window;
-    var scrollX = win.scrollX || 0;
-    var scrollY = win.scrollY || 0;
-    var viewportWidth = win.innerWidth || document.documentElement.clientWidth;
-    var viewportHeight = win.innerHeight || document.documentElement.clientHeight;
-
     html2canvas(target, {
       logging: false,
       useCORS: true,
       scale: 1,
-      // Only render what's currently visible on screen, not the full
-      // scrollable page -- much cheaper, and it's what the user
-      // actually saw when they noticed the problem.
-      x: scrollX,
-      y: scrollY,
-      width: viewportWidth,
-      height: viewportHeight,
-      windowWidth: viewportWidth,
-      windowHeight: viewportHeight,
+      // No x/y/width/height crop here on purpose -- capturing the
+      // full scrollable page (the html2canvas default) so nothing
+      // below the fold gets cut off. Safe now because the actual
+      // freeze causes (this component's own iframe, and plain HTML
+      // tables) are excluded below instead of relying on a crop.
       // Skip large repeating structures (tables, data grids) -- these
       // are the most expensive part to redraw and rarely the reason
       // someone is reporting a problem. A short note is drawn in
