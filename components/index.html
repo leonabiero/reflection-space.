@@ -189,12 +189,33 @@
     window.parent.postMessage(msg, "*");
   }
 
+  // Marks, on the REAL page's window object (survives even if THIS
+  // iframe instance gets torn down and reloaded), that a capture
+  // already ran to completion and what it returned. This file never
+  // listens for Streamlit's "streamlit:render" message (it only sends
+  // messages), so it has no way to tell "this load is a genuinely new
+  // capture request" apart from "this iframe got (re)loaded for some
+  // other reason" (for example a Streamlit rerun rebuilding the
+  // sidebar after "Send report" is clicked, which can reload a
+  // component iframe even though Python has already stopped asking
+  // for one). This flag is what lets a second, later load of this
+  // script notice "a result already exists -- replay it, don't redo
+  // the whole overlay+capture routine" -- see the check at the top of
+  // run(). It is consumed (deleted) the moment it is read, so it never
+  // blocks a real, later, intentional capture (a fresh "Capture
+  // screenshot" click).
+  var CAPTURE_COMPLETED_FLAG = "__reflection_space_capture_completed__";
+
   function sendValue(value) {
     if (SENT) return; // never send twice
     SENT = true;
     restoreAll();
+    try { parentWinRef[CAPTURE_COMPLETED_FLAG] = { value: value }; } catch (e) { /* best effort */ }
     postToStreamlit("streamlit:setComponentValue", { value: value, dataType: "json" });
   }
+  // Set as soon as we know parentWin (top of run()) so sendValue() can
+  // use it even from the very first paths inside run().
+  var parentWinRef = window.parent || window;
 
   function setStatus(text) {
     var el = document.getElementById("status");
@@ -426,6 +447,26 @@
   async function run() {
     var parentWin = window.parent || window;
     var parentDoc = getParentDocument(parentWin) || document;
+    parentWinRef = parentWin;
+
+    // If a capture already completed earlier on the real page, this
+    // load is almost certainly a spurious remount of this same
+    // component (for example Streamlit rebuilding the sidebar after
+    // "Send report" triggers st.rerun()), not a genuine new capture
+    // request -- a real new request only ever happens after the person
+    // clicks "Capture screenshot" again, which this file can't
+    // directly observe, but which also can't happen before this stale
+    // leftover flag has been read at least once. Replay the previous
+    // result immediately (no overlay, no re-capture), then consume the
+    // flag so a real future capture is never blocked by it.
+    if (Object.prototype.hasOwnProperty.call(parentWin, CAPTURE_COMPLETED_FLAG)) {
+      var replay = parentWin[CAPTURE_COMPLETED_FLAG];
+      try { delete parentWin[CAPTURE_COMPLETED_FLAG]; } catch (e) { parentWin[CAPTURE_COMPLETED_FLAG] = undefined; }
+      dlog("a capture already completed earlier on the real page -- this load looks like a spurious remount, not a new request. Replaying the previous result without showing the overlay or capturing again.");
+      SENT = true;
+      postToStreamlit("streamlit:setComponentValue", { value: replay.value, dataType: "json" });
+      return;
+    }
 
     if (parentWin[CAPTURE_IN_PROGRESS_FLAG]) {
       dlog("a capture is already in progress on the real page -- refusing to start a second one.");
@@ -502,6 +543,29 @@
       return;
     }
 
+    // IMPORTANT: this is intentionally the REAL browser window size,
+    // not viewportWidth/viewportHeight above. html2canvas's
+    // windowWidth/windowHeight options do not control the crop -- they
+    // control how big a "browser window" it lays the WHOLE cloned page
+    // out in (header, sidebar, everything) before painting anything.
+    // When target is an internal scroll container (not the window
+    // itself), target.clientWidth/clientHeight are SMALLER than the
+    // real window (e.g. they exclude a header above target), so
+    // passing those as windowWidth/windowHeight forced Streamlit's
+    // viewport-relative layout (flex containers, 100vh regions,
+    // responsive breakpoints) to recompute at the wrong size on every
+    // single scroll step -- reflowing headers, sidebars, and widgets
+    // into different positions each time. That mismatch between
+    // "what the real page looks like" and "what got rendered at this
+    // fake smaller size" is what produced the overlapping text,
+    // duplicated widgets, doubled expanders, and shifted/blank regions
+    // in the final screenshot. Using the real window size here makes
+    // the clone lay out identically to what the person actually sees;
+    // width/height (the crop) still correctly stay at target's own
+    // (possibly smaller) box size below.
+    var realWindowWidth = parentWin.innerWidth || viewportWidth;
+    var realWindowHeight = parentWin.innerHeight || viewportHeight;
+
     // Do NOT assume viewport height divides evenly into page height,
     // and deliberately OVERLAP consecutive captures so that sticky
     // headers, browser zoom, and fractional-pixel scroll rounding
@@ -560,22 +624,35 @@
       dlog("iteration " + steps + ": starting html2canvas...");
       var captureStartedAt = performance.now();
       // IMPORTANT: windowWidth/windowHeight tell html2canvas how big a
-      // "browser window" to lay the page out in before drawing it. We
-      // deliberately set these to the REAL viewport size (not the full
-      // page height) so html2canvas draws only what's genuinely on
-      // screen right now -- the same content the browser already
-      // rendered when we scrolled to this position a moment ago.
+      // "browser window" to lay the WHOLE cloned page out in (header,
+      // sidebar, everything -- not just target) before drawing
+      // anything. These MUST be the real browser window's actual size
+      // (realWindowWidth/realWindowHeight, computed above from
+      // parentWin.innerWidth/innerHeight) so Streamlit's
+      // viewport-relative layout (flex containers, 100vh regions,
+      // responsive breakpoints) computes the exact same positions the
+      // person actually sees.
       //
       // Earlier versions of this call set windowHeight to the FULL
       // page height on every iteration (so it could crop a slice out
       // afterwards). That silently resurrected the "unclip everything
       // and render it all in one giant pass" approach this file's own
       // history notes above say was abandoned -- it just did it once
-      // per scroll step instead of once overall. Elements that behave
-      // differently at real viewport size than at full-page size
-      // (sticky headers, dropdowns, virtualized widgets) then painted
-      // in the wrong place on each pass, which is what produced the
-      // overlapping/duplicated/shifted content and large white gaps.
+      // per scroll step instead of once overall, and was fixed by
+      // switching to viewport-sized windowWidth/windowHeight.
+      //
+      // A related, subtler version of that same mistake crept back in
+      // later: using viewportWidth/viewportHeight (target's OWN box
+      // size -- smaller than the real window whenever target sits
+      // below a header/toolbar) for windowWidth/windowHeight too. That
+      // forced the ENTIRE page to re-layout inside a fake window
+      // shorter than reality on every single scroll step, reflowing
+      // headers/sidebars/widgets into different positions each pass --
+      // which is what produced the overlapping text, duplicated
+      // widgets, doubled expanders, and shifted/blank regions. The
+      // crop size (width/height below) correctly stays at target's own
+      // box size; only the LAYOUT window size needed to be the real
+      // one.
       //
       // We also do NOT pass scrollX/scrollY here. Leaving them unset
       // lets html2canvas read the REAL current scroll position (the
@@ -590,8 +667,8 @@
         y: 0,
         width: viewportWidth,
         height: viewportHeight,
-        windowWidth: viewportWidth,
-        windowHeight: viewportHeight,
+        windowWidth: realWindowWidth,
+        windowHeight: realWindowHeight,
         ignoreElements: shouldIgnoreElement,
       });
       // This log line only ever appears AFTER html2canvas's promise
