@@ -83,12 +83,22 @@ def render_report_button(T, page_name, user_name="", user_role=""):
         if st.session_state.get("_report_capture_active"):
             st.caption(T.get("report_problem_capturing", "Capturing a screenshot of the app..."))
             component_func = _get_component_func()
+            # IMPORTANT: default is a sentinel, not None. A finished
+            # capture can legitimately resolve to "no screenshot"
+            # (e.g. the page was skipped as too large, or it timed
+            # out) -- that result is also None, which is otherwise
+            # indistinguishable from "hasn't responded yet". Without
+            # this sentinel, a capture that finishes with "no
+            # screenshot" gets mistaken for "still in progress"
+            # forever, and the report can silently go out without a
+            # screenshot the person thought they'd captured.
+            _PENDING = "__reflection_space_capture_pending__"
             result = component_func(
                 key=f"_report_screenshot_component_{st.session_state.get('_report_capture_trigger', '0')}",
-                default=None,
+                default=_PENDING,
             )
-            if result:
-                st.session_state["_report_screenshot"] = result
+            if result != _PENDING:
+                st.session_state["_report_screenshot"] = result  # may legitimately be None
                 st.session_state["_report_capture_active"] = False
             screenshot_b64 = st.session_state.get("_report_screenshot")
 
@@ -100,11 +110,25 @@ def render_report_button(T, page_name, user_name="", user_role=""):
                     st.image(base64.b64decode(b64data), caption=T.get("report_problem_preview", "Attached to your report"))
                 except Exception:
                     pass
+            elif not st.session_state.get("_report_capture_active"):
+                # Capture finished (the sentinel check above resolved
+                # it), but there's no image -- tell the person plainly
+                # rather than leaving it ambiguous. Their report can
+                # still be sent without one.
+                st.info(T.get(
+                    "report_problem_no_screenshot",
+                    "No screenshot could be captured automatically for this page. "
+                    "You can still send your report without one.",
+                ))
 
         send_clicked = st.button(
             T.get("report_problem_send_button", "2. Send report"),
             key="_report_send_button",
             type="primary",
+            # Prevents sending before a capture finishes, which used
+            # to be able to send a report without the screenshot the
+            # person had just seen appear on screen.
+            disabled=st.session_state.get("_report_capture_active", False),
         )
 
         if send_clicked:
