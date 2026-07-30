@@ -36,23 +36,31 @@
 
   2026-07-30 UPDATE -- fixed a real browser-freeze bug
   --------------------------------------------------------------------
-  On pages with a large data table (e.g. the System Administration
-  user list), html2canvas had to walk thousands of DOM elements to
-  build the screenshot. That work runs on the browser's single main
-  thread, so on a big enough page it could tie the tab up for so long
-  that Chrome showed its "Page Unresponsive" dialog and the whole app
-  stopped responding to clicks -- the 8-second safety timer below
-  never got a chance to fire, because the browser was too busy to even
-  check the clock.
+  On pages with a large plain HTML table (built with Streamlit's
+  st.table, which creates one <tr> element per row), html2canvas had
+  to walk thousands of DOM elements to build the screenshot. That work
+  runs on the browser's single main thread, so on a big enough page it
+  could tie the tab up for so long that Chrome showed its "Page
+  Unresponsive" dialog and the whole app stopped responding to clicks
+  -- the 8-second safety timer below never got a chance to fire,
+  because the browser was too busy to even check the clock.
 
-  Fix: before attempting anything, we now count how many elements are
-  on the page. If it's above a safe threshold, we skip the screenshot
-  immediately (a near-instant, cheap check) instead of asking
-  html2canvas to render it. We also only render the part of the page
-  the user can currently see (not the full scrollable page) and skip
-  known-heavy repeating elements (tables/grids), which keeps normal
-  reflection pages screenshotting exactly as before while making
-  heavy admin/table pages safe.
+  Note: Streamlit's st.dataframe (used for the System Administration
+  user list) is NOT the same as st.table -- it renders as a single
+  lightweight canvas element regardless of row count, so it was never
+  actually the expensive part here.
+
+  Fix, two layers:
+    1. `ignoreElements` below skips plain <table> elements and any
+       element with more than 40 children when drawing -- this
+       removes the actual expensive content (st.table output)
+       specifically, with no visible effect on st.dataframe grids.
+    2. As a backstop only (not the primary fix), we also count total
+       page elements before attempting anything and skip entirely if
+       it's above MAX_SAFE_ELEMENT_COUNT. Because layer 1 already
+       removes the known expensive content, this threshold is set
+       high -- it exists only to catch genuinely unusual pages, not
+       to limit normal use of the app.
 -->
 <html>
 <head>
@@ -67,10 +75,12 @@
   var SENT = false;
 
   // If the page has more elements than this, we skip the screenshot
-  // rather than risk freezing the tab. Typical reflection pages have
-  // a few hundred elements; a table listing 70-100 users can have
-  // several thousand. This number is intentionally conservative.
-  var MAX_SAFE_ELEMENT_COUNT = 1800;
+  // rather than risk freezing the tab. This is a rare-case backstop,
+  // not the main defense -- the ignoreElements rule below already
+  // removes the actual expensive content (plain HTML tables) before
+  // we get here, so this threshold is set high on purpose. It exists
+  // to catch genuinely unusual pages, not to limit normal use.
+  var MAX_SAFE_ELEMENT_COUNT = 6000;
 
   // Give up and continue without a screenshot after this long.
   var TIMEOUT_MS = 4000;
