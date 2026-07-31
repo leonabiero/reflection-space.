@@ -12,14 +12,21 @@ failure to send email is logged to stdout and swallowed, never raised.
 Email is a convenience notification layer on top of the Error Log
 (services/error_log.py), which remains the source of truth regardless
 of whether any email ever successfully sends.
+
+Phase 3: screenshots have been retired. Every alert email is now
+entirely text-based -- no attachments, no images, no Base64. The full
+"Diagnostic Report" body (see services/error_log.py:
+build_diagnostic_report_email) already contains everything an
+administrator needs: the plain-language explanation, the evidence
+checklist, the AI Readiness score, the recent timeline, and the
+complete AI-ready prompt, all as plain text that's immediately
+readable and copyable from any inbox.
 """
 
-import base64
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
 
 from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, ALERT_EMAIL_TO, ALERT_EMAIL_FROM
 from services.db_time import get_logger
@@ -31,56 +38,22 @@ def is_configured():
     return bool(SMTP_HOST and ALERT_EMAIL_TO)
 
 
-def send_alert_email(subject, body_text, screenshot_b64=None):
+def send_alert_email(subject, body_text):
     """
-    Sends a plain-text alert email, with an optional screenshot
-    attachment. Returns True on success, False otherwise -- never
-    raises, so a broken mail server can never be the reason a report
-    or an error-logging call fails.
-
-    BUG FIX (2026-07-30): the email's wording ("A screenshot is
-    attached." / "No screenshot was captured for this report.") used to
-    be decided separately, in services/error_log.py:build_email_summary(),
-    purely from whether a screenshot_b64 string existed. That could
-    disagree with what this function actually did -- e.g. if decoding
-    the image below failed, the email body would still claim a
-    screenshot was attached even though none was. This function is the
-    ONLY place that knows whether the attachment truly succeeded, so it
-    is now also the only place that decides the wording: body_text is
-    expected to contain the literal placeholder "%%SCREENSHOT_STATUS%%"
-    (see build_email_summary), which gets replaced here with the real
-    status right before sending. This makes it structurally impossible
-    for the attachment and the wording to disagree.
+    Sends a plain-text alert email. Returns True on success, False
+    otherwise -- never raises, so a broken mail server can never be
+    the reason a report or an error-logging call fails.
     """
     if not is_configured():
         logger.info("Email alerting not configured -- skipping alert email: %s", subject)
         return False
 
     try:
-        image_part = None
-        if screenshot_b64:
-            try:
-                _header, _, b64data = screenshot_b64.partition(",")
-                image_bytes = base64.b64decode(b64data)
-                if image_bytes:
-                    image_part = MIMEImage(image_bytes, name="screenshot.jpg")
-            except Exception:
-                logger.exception("Failed to decode screenshot for alert email -- sending without it")
-
-        screenshot_status = (
-            "A screenshot is attached." if image_part is not None
-            else "No screenshot was captured for this report."
-        )
-        body_text = body_text.replace("%%SCREENSHOT_STATUS%%", screenshot_status)
-
         msg = MIMEMultipart()
         msg["Subject"] = subject
         msg["From"] = ALERT_EMAIL_FROM
         msg["To"] = ALERT_EMAIL_TO
         msg.attach(MIMEText(body_text, "plain"))
-
-        if image_part is not None:
-            msg.attach(image_part)
 
         if SMTP_PORT == 465:
             context = ssl.create_default_context()
