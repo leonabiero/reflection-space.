@@ -21,6 +21,7 @@ from services.error_log import (
     compute_ai_readiness,
     group_errors_by_signature,
 )
+from services import case_knowledge
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
 from rdi.retrieval_service import retrieve_historical_context, retrieve_global_context
 from rdi.context_engine import DEFAULT_HISTORY_LIMIT
@@ -392,6 +393,10 @@ with error_boundary(
             "Investigating": "#2980b9",
             "Fixed": "#27ae60",
             "Closed": "#7f8c8d",
+            # Phase 4 (reopening): a previously Fixed/Closed issue that
+            # has just recurred -- deliberately distinct from "New" so
+            # it's immediately clear this came back, not a fresh bug.
+            "Recurred": "#8e44ad",
         }
         color = colors.get(status, "#7f8c8d")
         return (
@@ -447,7 +452,7 @@ with error_boundary(
             )
             status_filter = st.selectbox(
                 T.get("admin_error_log_status_filter_label", "Filter by status"),
-                options=["All", "New", "Investigating", "Fixed", "Closed"],
+                options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
                 key="admin_error_log_status_filter",
             )
             severity_filter = st.selectbox(
@@ -526,7 +531,7 @@ with error_boundary(
                     )
 
                     # --- Status (manual lifecycle) --------------------------------
-                    status_options = ["New", "Investigating", "Fixed", "Closed"]
+                    status_options = ["New", "Investigating", "Recurred", "Fixed", "Closed"]
                     safe_status = current_status if current_status in status_options else "New"
                     new_status = st.selectbox(
                         T.get("admin_error_log_status_label", "Status"),
@@ -587,6 +592,290 @@ with error_boundary(
                                 who = occ.get("user_name") or "—"
                                 role = occ.get("user_role") or "unknown role"
                                 st.markdown(f"- `{occ_when}` — {who} ({role})")
+
+                    st.divider()
+
+                    # =================================================================
+                    # Phase 4: Case Knowledge (resolution, AI investigation history,
+                    # possible similar issues, export). Everything below EXTENDS this
+                    # issue -- it never re-collects evidence already in the Diagnostic
+                    # Package above, and it's only available for records that have a
+                    # stable issue reference (issue_id). Records from before Phase 2.1
+                    # never got one, so they fall back to a short explanatory caption.
+                    # =================================================================
+                    stable_issue_id = issue.get("issue_id")
+                    if stable_issue_id is None:
+                        st.caption(T.get(
+                            "admin_case_knowledge_no_issue_id",
+                            "This record predates stable issue references, so case "
+                            "knowledge (resolution tracking, AI investigation history, "
+                            "similar issues, export) isn't available for it.",
+                        ))
+                    else:
+                        # --- Resolution Workflow + Case Knowledge ---------------------
+                        st.markdown(f"**{T.get('admin_case_resolution_header', '✅ Resolution & Case Knowledge')}**")
+                        existing_resolution = case_knowledge.get_resolution(stable_issue_id) or {}
+                        if existing_resolution.get("updated_at"):
+                            st.caption(
+                                T.get("admin_case_resolution_last_updated", "Last updated {when} by {who}").format(
+                                    when=(existing_resolution.get("updated_at") or "")[:16].replace("T", " "),
+                                    who=existing_resolution.get("updated_by") or "—",
+                                )
+                            )
+
+                        with st.form(key=f"admin_case_resolution_form_{stable_issue_id}"):
+                            r_summary = st.text_area(
+                                T.get("admin_case_field_resolution_summary", "Resolution summary"),
+                                value=existing_resolution.get("resolution_summary") or "",
+                                key=f"case_resolution_summary_{stable_issue_id}",
+                            )
+                            r_root_cause = st.text_area(
+                                T.get("admin_case_field_root_cause", "Root cause (administrator's conclusion)"),
+                                value=existing_resolution.get("root_cause") or "",
+                                key=f"case_root_cause_{stable_issue_id}",
+                            )
+                            r_fix_applied = st.text_area(
+                                T.get("admin_case_field_fix_applied", "Fix applied"),
+                                value=existing_resolution.get("fix_applied") or "",
+                                key=f"case_fix_applied_{stable_issue_id}",
+                            )
+                            col_a, col_b = st.columns(2)
+                            with col_a:
+                                r_version_fixed = st.text_input(
+                                    T.get("admin_case_field_version_fixed", "Version fixed"),
+                                    value=existing_resolution.get("version_fixed") or "",
+                                    key=f"case_version_fixed_{stable_issue_id}",
+                                )
+                            with col_b:
+                                r_deployment_date = st.text_input(
+                                    T.get("admin_case_field_deployment_date", "Deployment date (if applicable)"),
+                                    value=existing_resolution.get("deployment_date") or "",
+                                    key=f"case_deployment_date_{stable_issue_id}",
+                                )
+                            r_lessons_learned = st.text_area(
+                                T.get("admin_case_field_lessons_learned", "Lessons learned"),
+                                value=existing_resolution.get("lessons_learned") or "",
+                                key=f"case_lessons_learned_{stable_issue_id}",
+                            )
+                            r_prevention_notes = st.text_area(
+                                T.get("admin_case_field_prevention_notes", "Future prevention notes"),
+                                value=existing_resolution.get("prevention_notes") or "",
+                                key=f"case_prevention_notes_{stable_issue_id}",
+                            )
+
+                            st.markdown(f"_{T.get('admin_case_knowledge_subheader', 'Case knowledge (all optional)')}_")
+                            r_common_cause = st.text_input(
+                                T.get("admin_case_field_common_cause", "Common cause"),
+                                value=existing_resolution.get("common_cause") or "",
+                                key=f"case_common_cause_{stable_issue_id}",
+                            )
+                            r_known_fix = st.text_input(
+                                T.get("admin_case_field_known_fix", "Known fix"),
+                                value=existing_resolution.get("known_fix") or "",
+                                key=f"case_known_fix_{stable_issue_id}",
+                            )
+                            r_known_workaround = st.text_input(
+                                T.get("admin_case_field_known_workaround", "Known workaround"),
+                                value=existing_resolution.get("known_workaround") or "",
+                                key=f"case_known_workaround_{stable_issue_id}",
+                            )
+                            col_c, col_d = st.columns(2)
+                            with col_c:
+                                r_doc_link = st.text_input(
+                                    T.get("admin_case_field_documentation_link", "Documentation link"),
+                                    value=existing_resolution.get("documentation_link") or "",
+                                    key=f"case_doc_link_{stable_issue_id}",
+                                )
+                            with col_d:
+                                r_git_commit = st.text_input(
+                                    T.get("admin_case_field_git_commit", "Git commit"),
+                                    value=existing_resolution.get("git_commit") or "",
+                                    key=f"case_git_commit_{stable_issue_id}",
+                                )
+                            r_external_ref = st.text_input(
+                                T.get("admin_case_field_external_reference", "External reference"),
+                                value=existing_resolution.get("external_reference") or "",
+                                key=f"case_external_ref_{stable_issue_id}",
+                            )
+
+                            if st.form_submit_button(T.get("admin_case_resolution_save", "💾 Save resolution & case knowledge")):
+                                saved = case_knowledge.save_resolution(
+                                    stable_issue_id,
+                                    {
+                                        "resolution_summary": r_summary,
+                                        "root_cause": r_root_cause,
+                                        "fix_applied": r_fix_applied,
+                                        "version_fixed": r_version_fixed,
+                                        "deployment_date": r_deployment_date,
+                                        "lessons_learned": r_lessons_learned,
+                                        "prevention_notes": r_prevention_notes,
+                                        "common_cause": r_common_cause,
+                                        "known_fix": r_known_fix,
+                                        "known_workaround": r_known_workaround,
+                                        "documentation_link": r_doc_link,
+                                        "git_commit": r_git_commit,
+                                        "external_reference": r_external_ref,
+                                    },
+                                    actor_name=st.session_state.get("user_name", ""),
+                                    actor_role=st.session_state.get("user_role", ""),
+                                )
+                                if saved:
+                                    st.success(T.get("admin_case_resolution_saved", "Saved."))
+                                    st.rerun()
+                                else:
+                                    st.error(T.get("admin_case_resolution_save_failed", "Could not save -- please try again."))
+
+                        # --- Previous Resolution History (Phase 4 reopening) -----------
+                        resolution_history = case_knowledge.get_resolution_history(stable_issue_id)
+                        if resolution_history:
+                            with st.expander(
+                                T.get(
+                                    "admin_case_resolution_history_header",
+                                    "📜 Previous resolution history ({n} preserved)",
+                                ).format(n=len(resolution_history))
+                            ):
+                                st.caption(T.get(
+                                    "admin_case_resolution_history_caption",
+                                    "This issue was previously marked Fixed or Closed and has since "
+                                    "recurred. The resolution recorded before each recurrence is "
+                                    "preserved below, even though the form above now reflects the "
+                                    "current investigation.",
+                                ))
+                                for snap in resolution_history:
+                                    when = (snap.get("reopened_at") or "")[:16].replace("T", " ")
+                                    st.markdown(
+                                        f"**{T.get('admin_case_resolution_history_reopened_at', 'Reopened at')} "
+                                        f"{when}** "
+                                        f"({T.get('admin_case_resolution_history_occurrence', 'occurrence')} "
+                                        f"#{snap.get('occurrence_count_at_reopen') or '—'})"
+                                    )
+                                    snap_data = snap.get("snapshot_data") or {}
+                                    for label, key in case_knowledge.RESOLUTION_LABELS:
+                                        if snap_data.get(key):
+                                            st.markdown(f"- **{label}:** {snap_data[key]}")
+                                    st.markdown("---")
+
+                        st.divider()
+
+                        # --- AI Investigation History -----------------------------------
+                        st.markdown(f"**{T.get('admin_case_investigations_header', '🧠 AI Investigation History')}**")
+                        st.caption(T.get(
+                            "admin_case_investigations_caption",
+                            "Reflection Space never calls an AI automatically here -- this is "
+                            "simply a place to preserve investigations you've already done "
+                            "elsewhere (ChatGPT, Claude, Gemini, or a manual investigation), so "
+                            "the next person doesn't have to redo the work.",
+                        ))
+                        investigations = case_knowledge.get_investigations(stable_issue_id)
+                        if investigations:
+                            for inv in investigations:
+                                inv_when = (inv.get("investigated_at") or "")[:16].replace("T", " ")
+                                with st.expander(f"{inv.get('tool_used') or 'Investigation'} — {inv_when}"):
+                                    if inv.get("prompt"):
+                                        st.markdown(f"**{T.get('admin_case_investigation_prompt', 'Prompt')}:**")
+                                        st.code(inv["prompt"], language=None, wrap_lines=True)
+                                    if inv.get("ai_response"):
+                                        st.markdown(f"**{T.get('admin_case_investigation_response', 'AI response')}:**")
+                                        st.code(inv["ai_response"], language=None, wrap_lines=True)
+                                    if inv.get("admin_notes"):
+                                        st.markdown(f"**{T.get('admin_case_investigation_notes', 'Administrator notes')}:**")
+                                        st.write(inv["admin_notes"])
+                                    st.caption(f"{T.get('admin_case_investigation_by', 'Added by')}: {inv.get('created_by') or '—'}")
+                                    if st.button(
+                                        T.get("admin_case_investigation_delete", "🗑️ Remove this entry"),
+                                        key=f"delete_investigation_{inv['id']}",
+                                    ):
+                                        case_knowledge.delete_investigation(inv["id"])
+                                        st.rerun()
+                        else:
+                            st.caption(T.get("admin_case_investigations_empty", "No investigations preserved yet."))
+
+                        with st.form(key=f"admin_case_investigation_form_{stable_issue_id}", clear_on_submit=True):
+                            st.markdown(f"_{T.get('admin_case_investigation_add', 'Preserve a new investigation')}_")
+                            inv_tool = st.selectbox(
+                                T.get("admin_case_investigation_tool", "Tool used"),
+                                options=["ChatGPT", "Claude", "Gemini", "Manual Investigation", "Other"],
+                                key=f"case_inv_tool_{stable_issue_id}",
+                            )
+                            inv_prompt = st.text_area(
+                                T.get("admin_case_investigation_prompt_input", "Prompt"),
+                                key=f"case_inv_prompt_{stable_issue_id}",
+                            )
+                            inv_response = st.text_area(
+                                T.get("admin_case_investigation_response_input", "AI response"),
+                                key=f"case_inv_response_{stable_issue_id}",
+                            )
+                            inv_notes = st.text_area(
+                                T.get("admin_case_investigation_notes_input", "Administrator notes"),
+                                key=f"case_inv_notes_{stable_issue_id}",
+                            )
+                            if st.form_submit_button(T.get("admin_case_investigation_save", "💾 Save investigation")):
+                                added = case_knowledge.add_investigation(
+                                    stable_issue_id,
+                                    tool_used=inv_tool,
+                                    prompt=inv_prompt,
+                                    ai_response=inv_response,
+                                    admin_notes=inv_notes,
+                                    actor_name=st.session_state.get("user_name", ""),
+                                    actor_role=st.session_state.get("user_role", ""),
+                                )
+                                if added:
+                                    st.success(T.get("admin_case_investigation_saved", "Investigation preserved."))
+                                    st.rerun()
+                                else:
+                                    st.error(T.get("admin_case_investigation_save_failed", "Could not save -- please try again."))
+
+                        st.divider()
+
+                        # --- Possible Similar Issues -------------------------------------
+                        st.markdown(f"**{T.get('admin_case_similar_header', '🔍 Possible Similar Issues')}**")
+                        st.caption(T.get(
+                            "admin_case_similar_caption",
+                            "Simple heuristics only (same exception, same page, same file, or a "
+                            "similar message) -- not AI clustering. You decide whether these are "
+                            "actually related.",
+                        ))
+                        similar = case_knowledge.find_similar_issues(
+                            stable_issue_id,
+                            page=err.get("page"),
+                            error_type=(package or {}).get("exception_type") or err.get("error_type"),
+                            message=(package or {}).get("exception_message") or err.get("message"),
+                            traceback_text=(package or {}).get("traceback") or err.get("traceback") or "",
+                        )
+                        if similar:
+                            for s in similar:
+                                s_when = (s.get("last_seen") or "")[:16].replace("T", " ")
+                                st.markdown(
+                                    f"- **#{s['issue_id']}** — {s.get('page') or '—'} — "
+                                    f"{s.get('error_type') or '—'} — {s.get('status') or '—'} "
+                                    f"(×{s.get('occurrence_count') or 1}, last seen {s_when})  \n"
+                                    f"  _{', '.join(s.get('reasons') or [])}_"
+                                )
+                        else:
+                            st.caption(T.get("admin_case_similar_empty", "No similar issues found."))
+
+                        st.divider()
+
+                        # --- Export --------------------------------------------------------
+                        st.markdown(f"**{T.get('admin_case_export_header', '📤 Export this case')}**")
+                        export_format = st.selectbox(
+                            T.get("admin_case_export_format", "Format"),
+                            options=["Markdown", "JSON", "Plain Text"],
+                            key=f"case_export_format_{stable_issue_id}",
+                        )
+                        fmt_map = {"Markdown": "markdown", "JSON": "json", "Plain Text": "text"}
+                        ext_map = {"Markdown": "md", "JSON": "json", "Plain Text": "txt"}
+                        export_text = case_knowledge.build_case_export(stable_issue_id, fmt=fmt_map[export_format])
+                        if export_text:
+                            st.download_button(
+                                T.get("admin_case_export_download", "Download case #{n}").format(n=stable_issue_id),
+                                data=export_text,
+                                file_name=f"case_{stable_issue_id}.{ext_map[export_format]}",
+                                mime="text/plain",
+                                key=f"case_export_download_{stable_issue_id}_{export_format}",
+                            )
+                        else:
+                            st.caption(T.get("admin_case_export_failed", "Could not build export."))
 
                     st.divider()
 
@@ -707,3 +996,75 @@ with error_boundary(
                         "Hover over the box below and click the copy icon in the top-right corner.",
                     ))
                     st.code(ai_prompt_text, language=None, wrap_lines=True)
+
+    # =============================================================================
+    # 9. Case Knowledge Search (Phase 4)
+    # =============================================================================
+    # Searches across everything Phase 4 adds -- root cause, resolution,
+    # lessons learned, AI tool used, status, version fixed, occurrence
+    # count, page, exception, and user -- without re-reading every issue
+    # above. See services/case_knowledge.py:search_cases.
+    with st.expander(T.get("admin_case_search_header", "🔎 Case Knowledge Search"), expanded=False):
+        st.caption(T.get(
+            "admin_case_search_caption",
+            "Search resolved and unresolved cases by what you know about them, not just "
+            "when they happened. Fill in any combination of fields below -- results match "
+            "ALL fields you provide.",
+        ))
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            s_root_cause = st.text_input(T.get("admin_case_search_root_cause", "Root cause contains"), key="admin_case_search_root_cause")
+            s_resolution = st.text_input(T.get("admin_case_search_resolution", "Resolution contains"), key="admin_case_search_resolution")
+            s_lesson = st.text_input(T.get("admin_case_search_lesson", "Lesson learned contains"), key="admin_case_search_lesson")
+        with col2:
+            s_ai_tool = st.text_input(T.get("admin_case_search_ai_tool", "AI tool used"), key="admin_case_search_ai_tool")
+            s_status = st.selectbox(
+                T.get("admin_case_search_status", "Status"),
+                options=["Any", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+                key="admin_case_search_status",
+            )
+            s_version_fixed = st.text_input(T.get("admin_case_search_version_fixed", "Version fixed"), key="admin_case_search_version_fixed")
+        with col3:
+            s_page = st.text_input(T.get("admin_case_search_page", "Page"), key="admin_case_search_page")
+            s_exception = st.text_input(T.get("admin_case_search_exception", "Exception type"), key="admin_case_search_exception")
+            s_user = st.text_input(T.get("admin_case_search_user", "User"), key="admin_case_search_user")
+
+        s_min_occurrences = st.number_input(
+            T.get("admin_case_search_min_occurrences", "Minimum occurrence count"),
+            min_value=0, value=0, step=1, key="admin_case_search_min_occurrences",
+        )
+
+        if st.button(T.get("admin_case_search_button", "Search"), key="admin_case_search_go"):
+            results = case_knowledge.search_cases(
+                root_cause=s_root_cause or None,
+                resolution=s_resolution or None,
+                lesson=s_lesson or None,
+                ai_tool=s_ai_tool or None,
+                status=None if s_status == "Any" else s_status,
+                version_fixed=s_version_fixed or None,
+                min_occurrences=s_min_occurrences or None,
+                page=s_page or None,
+                exception_type=s_exception or None,
+                user=s_user or None,
+            )
+            if not results:
+                st.info(T.get("admin_case_search_no_results", "No cases match those filters. Try fewer fields."))
+            else:
+                st.caption(T.get("admin_case_search_result_count", "{n} case(s) found.").format(n=len(results)))
+                for r in results:
+                    when = (r.get("last_seen") or "")[:16].replace("T", " ")
+                    st.markdown(
+                        f"**#{r['issue_id']}** — {r.get('page') or '—'} — {r.get('error_type') or '—'} — "
+                        f"{r.get('status') or '—'} (×{r.get('occurrence_count') or 1}, last seen {when})"
+                    )
+                    if r.get("resolution_summary"):
+                        st.caption(f"{T.get('admin_case_search_resolution_label', 'Resolution')}: {r['resolution_summary']}")
+                    if r.get("root_cause"):
+                        st.caption(f"{T.get('admin_case_search_root_cause_label', 'Root cause')}: {r['root_cause']}")
+                    st.markdown("---")
+                st.caption(T.get(
+                    "admin_case_search_find_hint",
+                    "Open the matching case above in AI Diagnostic Centre (by its # reference) "
+                    "for the full record.",
+                ))
