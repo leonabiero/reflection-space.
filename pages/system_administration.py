@@ -461,6 +461,29 @@ with error_boundary(
                 key="admin_error_log_severity_filter",
             )
 
+            def _normalize_ref_text(text):
+                # Keeps only letters/digits, lowercased -- so "REF-000124",
+                # "ref 000124", and "REF000124" all normalize the same way.
+                return "".join(ch for ch in str(text or "").lower() if ch.isalnum())
+
+            def _ref_candidates(issue):
+                # Same reference number shown on screen for this issue
+                # (see display_ref below, in the render loop) -- computed
+                # here too so search matches exactly what the admin sees.
+                latest = issue["latest"]
+                ref_num = issue.get("issue_id")
+                if ref_num is None:
+                    ref_num = latest.get("id")
+                if ref_num is None:
+                    return ""
+                # Zero-padded to 6 digits so a partial search like "124"
+                # still matches "REF-000124" (it's a substring of the
+                # padded form). Both the padded and plain form are
+                # included so "ref124" (no padding) also matches.
+                if isinstance(ref_num, int):
+                    return _normalize_ref_text(f"ref{ref_num:06d}ref{ref_num}")
+                return _normalize_ref_text(f"ref{ref_num}")
+
             def _matches_filters(issue):
                 latest = issue["latest"]
                 current_status = latest.get("status") or "New"
@@ -472,7 +495,13 @@ with error_boundary(
                     haystack = " ".join(
                         str(latest.get(f) or "") for f in ("page", "error_type", "message")
                     ).lower()
-                    if search_term.lower() not in haystack:
+                    term_matches_haystack = search_term.lower() in haystack
+                    # Additional field: Reference Number (e.g. "REF-000124",
+                    # "000124", or "124" all match) -- purely additive, does
+                    # not change how the existing fields above are matched.
+                    normalized_term = _normalize_ref_text(search_term)
+                    term_matches_ref = bool(normalized_term) and normalized_term in _ref_candidates(issue)
+                    if not (term_matches_haystack or term_matches_ref):
                         return False
                 return True
 
