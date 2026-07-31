@@ -27,10 +27,10 @@ This is intentionally NOT:
 Design
 --------
 Storage is plain st.session_state, exactly like every other piece of
-per-session state already used throughout this app (active_work_mode,
-_report_screenshot, etc.) -- no new infrastructure, no new database
-table. Every function here is defensive: a failure to record or read
-the timeline must never be the reason a page breaks, so every public
+per-session state already used throughout this app (e.g.
+active_work_mode) -- no new infrastructure, no new database table.
+Every function here is defensive: a failure to record or read the
+timeline must never be the reason a page breaks, so every public
 function swallows its own errors and falls back to a safe default
 (recording becomes a no-op; reading returns an empty list).
 
