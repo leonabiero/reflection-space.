@@ -391,7 +391,13 @@ def compute_ai_readiness(package):
     the corresponding diagnostic package field(s) -- nothing clever
     and nothing AI-driven:
       - Exception: exception_type or exception_message is set
-      - Traceback: traceback is set
+      - Traceback: traceback is set AND this wasn't a user-submitted
+        report. User reports (exception_type == "UserReport") always
+        carry a fixed placeholder string in the traceback field
+        (see services/error_log.py:log_user_report) explaining that
+        no traceback exists -- that placeholder is not technical
+        evidence, so it must never count toward the score or be
+        confused with a genuine traceback.
       - Timeline: navigation_timeline is a non-empty list
       - Session Context: session_context is a non-empty dict
       - Environment: environment is a non-empty dict, OR
@@ -406,9 +412,10 @@ def compute_ai_readiness(package):
         presence = [(label, False) for _, label in _AI_READINESS_CATEGORIES]
         return 0, presence
 
+    is_user_report = package.get("exception_type") == "UserReport"
     checks = {
         "exception": bool(package.get("exception_type") or package.get("exception_message")),
-        "traceback_evidence": bool(package.get("traceback")),
+        "traceback_evidence": bool(package.get("traceback")) and not is_user_report,
         "timeline": bool(package.get("navigation_timeline")),
         "session_context": bool(package.get("session_context")),
         "environment": bool(package.get("environment"))
