@@ -60,21 +60,41 @@ def _issue_signature(page, error_type, message):
 
 def _get_or_create_issue(page, error_type, message, severity):
     """
-    Phase 2.1 (Stable Issue References): resolve the stable
+    Phase 2.1 (Stable Issue References), updated by Phase 4
+    (REOPENING -- see services/case_knowledge.py): resolve the stable
     error_issues.id for one occurrence of a problem.
 
-    If an OPEN (status not Fixed/Closed) issue already exists with the
-    exact same (page, error_type, message) signature, this occurrence
-    is folded into it: its occurrence_count goes up by one and
-    last_seen is refreshed, and its existing id is reused -- so every
-    person who hits the same unresolved bug sees the same reference
-    number, and the admin sees one entry, not one per person.
+    If ANY issue already exists with the exact same (page, error_type,
+    message) signature -- regardless of its current status -- this
+    occurrence is folded into it: its occurrence_count goes up by one
+    and last_seen is refreshed, and its existing id is reused.
 
-    If no open issue matches (either this is a brand-new problem, or
-    the previous issue with this exact signature was already marked
-    Fixed/Closed), a new error_issues row is created and its new id
-    becomes the stable reference number going forward -- correctly
-    treating a recurrence AFTER a fix as a fresh issue to investigate.
+    This is a deliberate change from the original Phase 2.1 behavior,
+    which excluded Fixed/Closed issues here and gave a recurrence a
+    brand-new id. Phase 4's whole point is a growing knowledge base
+    PER PROBLEM -- so a recurrence after a fix must reuse the same
+    issue (and therefore the same resolution history, AI
+    investigations, and case knowledge already attached to it), not
+    silently start a fresh, disconnected record:
+
+      - If the matched issue was NOT previously Fixed/Closed, this is
+        just another occurrence of an already-open issue -- status is
+        left untouched.
+      - If the matched issue WAS previously Fixed/Closed, this is a
+        genuine recurrence after resolution. Its status is set to
+        'Recurred' (a clearly-flagged state distinct from 'New', so
+        the administrator immediately sees "this came back" rather
+        than mistaking it for a fresh problem), and whatever
+        resolution/case-knowledge was recorded for it is preserved
+        into case_resolution_history BEFORE any further editing (see
+        services/case_knowledge.py:snapshot_resolution_on_reopen).
+        The administrator can then explicitly reopen it (move it to
+        Investigating) via the existing status control -- see
+        update_issue_status below and pages/system_administration.py.
+
+    If no issue at all matches this signature (a brand-new problem),
+    a new error_issues row is created and its new id becomes the
+    stable reference number going forward.
 
     Never raises. Returns None if the database work fails, in which
     case the caller (log_error) simply proceeds without issue linking
@@ -83,13 +103,15 @@ def _get_or_create_issue(page, error_type, message, severity):
     """
     signature = _issue_signature(page, error_type, message)
     conn = None
+    issue_id = None
+    was_reopened = False
     try:
         conn = _get_conn()
         with conn.cursor() as c:
             c.execute(
                 """
-                SELECT id FROM error_issues
-                WHERE signature = %s AND status NOT IN ('Fixed', 'Closed')
+                SELECT id, status FROM error_issues
+                WHERE signature = %s
                 ORDER BY id DESC LIMIT 1
                 """,
                 (signature,),
@@ -97,15 +119,28 @@ def _get_or_create_issue(page, error_type, message, severity):
             row = c.fetchone()
             now = now_utc()
             if row:
-                issue_id = row[0]
-                c.execute(
-                    """
-                    UPDATE error_issues
-                    SET occurrence_count = occurrence_count + 1, last_seen = %s
-                    WHERE id = %s
-                    """,
-                    (now, issue_id),
-                )
+                issue_id, previous_status = row
+                was_reopened = previous_status in ("Fixed", "Closed")
+                if was_reopened:
+                    c.execute(
+                        """
+                        UPDATE error_issues
+                        SET occurrence_count = occurrence_count + 1,
+                            last_seen = %s,
+                            status = 'Recurred'
+                        WHERE id = %s
+                        """,
+                        (now, issue_id),
+                    )
+                else:
+                    c.execute(
+                        """
+                        UPDATE error_issues
+                        SET occurrence_count = occurrence_count + 1, last_seen = %s
+                        WHERE id = %s
+                        """,
+                        (now, issue_id),
+                    )
             else:
                 c.execute(
                     """
@@ -119,7 +154,6 @@ def _get_or_create_issue(page, error_type, message, severity):
                 )
                 issue_id = c.fetchone()[0]
         conn.commit()
-        return issue_id
     except Exception:
         if conn is not None:
             try:
@@ -131,6 +165,21 @@ def _get_or_create_issue(page, error_type, message, severity):
     finally:
         if conn is not None:
             conn.close()
+
+    if was_reopened and issue_id is not None:
+        # Best-effort, and deliberately AFTER the commit above -- a
+        # failure here must never lose the occurrence that was just
+        # recorded. See services/case_knowledge.py for what this
+        # preserves and why.
+        try:
+            from services.case_knowledge import snapshot_resolution_on_reopen
+            snapshot_resolution_on_reopen(issue_id)
+        except Exception:
+            logger.exception(
+                "snapshot_resolution_on_reopen failed for issue_id=%s (non-fatal)", issue_id
+            )
+
+    return issue_id
 
 
 def update_issue_status(issue_id, new_status):
