@@ -241,7 +241,7 @@ def get_recent_errors(limit=50):
             c.execute("""
                 SELECT id, occurred_at, page, error_type, message,
                        traceback, user_name, user_role, context, severity,
-                       screenshot, diagnostic_package
+                       screenshot, diagnostic_package, status
                 FROM error_log
                 ORDER BY occurred_at DESC
                 LIMIT %s
@@ -258,7 +258,7 @@ def get_recent_errors(limit=50):
     for row in iso_row_list(rows, [1]):
         (rid, occurred_at, page, error_type, message, tb,
          user_name, user_role, context, severity, screenshot,
-         diagnostic_package) = row
+         diagnostic_package, status) = row
         records.append({
             "id": rid,
             "occurred_at": occurred_at,
@@ -272,10 +272,13 @@ def get_recent_errors(limit=50):
             "severity": severity,
             "screenshot": screenshot,
             # Phase 1 Diagnostic Engine: JSON text built by
-            # services/diagnostics.py. Not displayed anywhere yet --
-            # included here so a later phase can show it without any
-            # further change to this function.
+            # services/diagnostics.py. Displayed on the System
+            # Administration > Error Log page as of Phase 2 -- see
+            # parse_diagnostic_package() below.
             "diagnostic_package": diagnostic_package,
+            # Phase 2 AI Diagnostic Centre: manual lifecycle status.
+            # NULL (older records, or never touched) reads as "New".
+            "status": status or "New",
         })
     return records
 
@@ -286,6 +289,198 @@ def iso_row_list(rows, date_indexes):
     that doesn't exist in db_time.py) to avoid touching that shared
     module for a one-line convenience."""
     return [iso_row(row, date_indexes) for row in rows]
+
+
+def update_error_status(error_id, new_status):
+    """
+    Phase 2 AI Diagnostic Centre: manually set the lifecycle status of
+    one error_log row. The System Administration > Error Log page only
+    ever offers "New" / "Investigating" / "Fixed" / "Closed", but this
+    function itself doesn't enforce that list -- it just writes
+    whatever string it's given.
+
+    No automation, no duplicate-detection side effects -- this only
+    ever touches the single row identified by error_id.
+
+    Never raises. Returns True on success, False if the write failed
+    (in which case the failure is logged, exactly like every other
+    database write in this module).
+    """
+    conn = None
+    try:
+        conn = _get_conn()
+        with conn.cursor() as c:
+            c.execute(
+                "UPDATE error_log SET status = %s WHERE id = %s",
+                (new_status, error_id),
+            )
+        conn.commit()
+        return True
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        logger.exception("update_error_status FAILED for id=%s", error_id)
+        return False
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def parse_diagnostic_package(diagnostic_package_json):
+    """
+    Phase 2 AI Diagnostic Centre: safely parse the JSON text stored in
+    error_log.diagnostic_package (built by services/diagnostics.py)
+    back into a plain dict for display.
+
+    Returns None -- never raises, never returns something the caller
+    would need to guard against separately -- if the value is:
+      - missing / empty
+      - the "{}" placeholder written when the Phase 1 diagnostic
+        package build itself failed (see log_error above)
+      - not valid JSON (e.g. a record logged before the Diagnostic
+        Engine existed, which never wrote this column at all)
+
+    Callers (pages/system_administration.py) treat a None return as
+    "no Diagnostic Package for this record" and fall back to the
+    older, plainer fields already stored directly on the row.
+    """
+    if not diagnostic_package_json:
+        return None
+    try:
+        data = json.loads(diagnostic_package_json)
+    except Exception:
+        return None
+    if not isinstance(data, dict) or not data:
+        return None
+    return data
+
+
+# Fixed, documented order for the "Evidence Collected" checklist and
+# the AI Readiness Score (see compute_ai_readiness below). Each entry
+# is (internal_key, display_label).
+_AI_READINESS_CATEGORIES = (
+    ("exception", "Exception"),
+    ("traceback_evidence", "Traceback"),
+    ("timeline", "Timeline"),
+    ("session_context", "Session Context"),
+    ("environment", "Environment"),
+    ("user_information", "User Information"),
+    ("configuration", "Configuration"),
+)
+
+
+def compute_ai_readiness(package):
+    """
+    Phase 2 AI Diagnostic Centre: a plain completeness score -- NOT an
+    AI judgement of anything, and NOT a measure of severity -- based
+    only on how many of 7 fixed evidence categories are present in an
+    already-parsed diagnostic package (see parse_diagnostic_package
+    above).
+
+    Returns (score_percent, presence):
+      - score_percent: int 0-100, simply
+        round(100 * present_count / total_categories)
+      - presence: an ordered list of (label, is_present) tuples, in
+        the fixed order defined by _AI_READINESS_CATEGORIES above,
+        ready to render directly as a checklist.
+
+    A category counts as present using a simple non-empty check on
+    the corresponding diagnostic package field(s) -- nothing clever
+    and nothing AI-driven:
+      - Exception: exception_type or exception_message is set
+      - Traceback: traceback is set
+      - Timeline: navigation_timeline is a non-empty list
+      - Session Context: session_context is a non-empty dict
+      - Environment: environment is a non-empty dict, OR
+        python_version / operating_system is set
+      - User Information: user or role is set
+      - Configuration: config_values is a non-empty dict
+
+    If package is None (no Diagnostic Package at all -- e.g. an older
+    record), every category is False and the score is 0.
+    """
+    if not package:
+        presence = [(label, False) for _, label in _AI_READINESS_CATEGORIES]
+        return 0, presence
+
+    checks = {
+        "exception": bool(package.get("exception_type") or package.get("exception_message")),
+        "traceback_evidence": bool(package.get("traceback")),
+        "timeline": bool(package.get("navigation_timeline")),
+        "session_context": bool(package.get("session_context")),
+        "environment": bool(package.get("environment"))
+        or bool(package.get("python_version"))
+        or bool(package.get("operating_system")),
+        "user_information": bool(package.get("user") or package.get("role")),
+        "configuration": bool(package.get("config_values")),
+    }
+    presence = [(label, checks[key]) for key, label in _AI_READINESS_CATEGORIES]
+    present_count = sum(1 for _, is_present in presence if is_present)
+    score = round((present_count / len(presence)) * 100)
+    return score, presence
+
+
+def group_errors_by_signature(errors):
+    """
+    Phase 2 AI Diagnostic Centre: lightweight grouping of already-
+    fetched error records (from get_recent_errors -- newest first)
+    into "issues", so the same problem happening repeatedly shows up
+    once with an occurrence count, rather than as many separate
+    entries.
+
+    This is deliberately simple EXACT-MATCH grouping on
+    (page, error_type, message) -- not sophisticated duplicate
+    detection (no fuzzy traceback comparison, no time-window logic).
+    User-submitted reports (error_type == "UserReport") are never
+    grouped with one another, since each one is independent free text
+    describing a different situation -- every UserReport row is its
+    own single-occurrence group.
+
+    Returns a list of dicts, in the same newest-first order as the
+    input, one per distinct signature:
+        {
+            "signature": str,
+            "occurrences": int,
+            "first_seen": str (ISO timestamp, oldest occurrence),
+            "last_seen": str (ISO timestamp, newest occurrence),
+            "latest": dict,       # the newest record in this group --
+                                   # used for all display purposes,
+                                   # since it has the most complete
+                                   # diagnostic package
+            "all_ids": [int, ...],  # newest first
+        }
+    """
+    groups = {}
+    order = []
+    for err in errors:
+        if err.get("error_type") == "UserReport":
+            sig = f"UserReport:{err.get('id')}"
+        else:
+            sig = f"{err.get('page')}|{err.get('error_type')}|{err.get('message')}"
+
+        if sig not in groups:
+            groups[sig] = {
+                "signature": sig,
+                "occurrences": 0,
+                "first_seen": err.get("occurred_at"),
+                "last_seen": err.get("occurred_at"),
+                "latest": err,
+                "all_ids": [],
+            }
+            order.append(sig)
+
+        group = groups[sig]
+        group["occurrences"] += 1
+        group["all_ids"].append(err.get("id"))
+        # errors is newest-first, so the LAST occurrence encountered
+        # for a given signature (i.e. the final write on each loop
+        # pass) is always the oldest -- that becomes first_seen.
+        group["first_seen"] = err.get("occurred_at") or group["first_seen"]
+
+    return [groups[sig] for sig in order]
 
 
 def build_email_summary(record):
