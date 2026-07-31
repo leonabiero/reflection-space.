@@ -628,7 +628,7 @@ def compute_ai_readiness(package):
         "user_information": bool(package.get("user") or package.get("role")),
         "configuration": bool(package.get("config_values")),
     }
-    presence = [(label, checks[key]) for key, label in _AI_READINESS_CATEGORIES]
+    presence = [(key, checks[key]) for key, _label in _AI_READINESS_CATEGORIES]
     present_count = sum(1 for _, is_present in presence if is_present)
     score = round((present_count / len(presence)) * 100)
     return score, presence
