@@ -1662,6 +1662,29 @@ def init_language():
         key="lang",
     )
 
-    _sync_browser_language(st.session_state.lang)
+    # Fix -- language selector needing two attempts to take effect
+    # ------------------------------------------------------------
+    # _sync_browser_language() calls components.html(), which mounts a
+    # brand-new iframe (with its own <script>, including a
+    # MutationObserver watching the entire page body) every single time
+    # this function runs. Previously that happened on EVERY rerun of
+    # EVERY page -- not just when the language actually changed -- so
+    # the very rerun that was supposed to show the newly picked
+    # language was also busy tearing down and remounting that iframe
+    # component. That extra, unnecessary component work competed with
+    # the selectbox's own re-render, which is what made the first
+    # selection appear to do nothing until a second attempt.
+    #
+    # The fix: remember the language we last synced to the browser in
+    # st.session_state, and only call _sync_browser_language() again
+    # when it has actually changed. This removes the redundant
+    # iframe/component churn on every ordinary rerun (page navigation,
+    # button clicks, etc.) and leaves only the one rerun that follows
+    # an actual language change to do that extra work -- so that
+    # rerun's job is simply "show the new language", with nothing else
+    # competing for the render.
+    if st.session_state.get("_synced_lang") != st.session_state.lang:
+        _sync_browser_language(st.session_state.lang)
+        st.session_state["_synced_lang"] = st.session_state.lang
 
     return get_lang(st.session_state.lang)
