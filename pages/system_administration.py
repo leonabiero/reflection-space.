@@ -412,6 +412,28 @@ with error_boundary(
             f'{T.get("admin_error_log_readiness_label", "AI Readiness")}: {score}%</span>'
         )
 
+    def _copy_button(label, text, key):
+        # Plain HTML + JS clipboard button -- no new dependency, and
+        # deliberately NOT st.tabs()/st.columns()/st.dataframe() (those
+        # are avoided on this admin page due to prior segfault issues).
+        # The prompt text still also appears in the read-only text_area
+        # right below, so copying always works even if a browser blocks
+        # the clipboard API.
+        payload = json.dumps(text)
+        button_html = f"""
+        <div style="margin: 4px 0 8px 0;">
+          <button onclick="navigator.clipboard.writeText({payload});
+                            this.innerText='✅ {T.get('admin_error_log_copied', 'Copied!')}';
+                            setTimeout(() => {{ this.innerText='{label}'; }}, 1500);"
+                  style="background-color:#2c3e50;color:white;border:none;
+                         padding:6px 14px;border-radius:6px;cursor:pointer;
+                         font-size:0.85rem;">
+            {label}
+          </button>
+        </div>
+        """
+        st.markdown(button_html, unsafe_allow_html=True)
+
     with st.expander(T.get("admin_error_log_header", "🩺 AI Diagnostic Centre"), expanded=False):
         st.caption(T.get(
             "admin_error_log_caption",
@@ -639,15 +661,16 @@ with error_boundary(
                     # records that predate it, so nothing here ever breaks for
                     # older data.
                     st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
-                    st.caption(T.get(
-                        "admin_error_log_copy_hint",
-                        "Hover over the box below and click the copy icon in its top-right corner.",
-                    ))
                     ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
-                    # Streamlit strips raw <button onclick=...> HTML for
-                    # security even with unsafe_allow_html=True, which is
-                    # why the previous custom copy button never rendered.
-                    # st.code() ships with its own built-in copy-to-clipboard
-                    # icon (hover top-right corner), so this needs no custom
-                    # HTML/JS at all and works in every Streamlit version.
-                    st.code(ai_prompt_text, language=None, wrap_lines=True)
+                    _copy_button(
+                        T.get("admin_error_log_copy_button", "📋 Copy AI Prompt"),
+                        ai_prompt_text,
+                        key=f"copy_{err['id']}",
+                    )
+                    st.text_area(
+                        label="",
+                        value=ai_prompt_text,
+                        height=280,
+                        key=f"admin_error_ai_prompt_{err['id']}",
+                        label_visibility="collapsed",
+                    )
