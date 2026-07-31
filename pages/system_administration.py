@@ -862,14 +862,14 @@ with error_boundary(
 
                         st.divider()
 
-                        # --- Possible Similar Issues -------------------------------------
-                        st.markdown(f"**{T.get('admin_case_similar_header', '🔍 Possible Similar Issues')}**")
-                        st.caption(T.get(
-                            "admin_case_similar_caption",
-                            "Simple heuristics only (same exception, same page, same file, or a "
-                            "similar message) -- not AI clustering. You decide whether these are "
-                            "actually related.",
-                        ))
+                        # --- Similar Previous Issues ---------------------------------------
+                        # Deliberately lightweight (Phase 5): a plain memory-aid list, not a
+                        # recurrence-management system. Reuses the exact same
+                        # case_knowledge.find_similar_issues() heuristics as before -- only the
+                        # DISPLAY is simplified (no reasons, no occurrence counts, no scores).
+                        # The administrator decides whether any of these are actually related;
+                        # Reflection Space never makes that call.
+                        st.markdown(f"**{T.get('admin_case_similar_header', 'Similar Previous Issues')}**")
                         similar = case_knowledge.find_similar_issues(
                             stable_issue_id,
                             page=err.get("page"),
@@ -879,15 +879,10 @@ with error_boundary(
                         )
                         if similar:
                             for s in similar:
-                                s_when = (s.get("last_seen") or "")[:16].replace("T", " ")
-                                st.markdown(
-                                    f"- **#{s['issue_id']}** — {s.get('page') or '—'} — "
-                                    f"{s.get('error_type') or '—'} — {T.get('status_labels', {}).get(s.get('status'), s.get('status')) or '—'} "
-                                    f"(×{s.get('occurrence_count') or 1}, last seen {s_when})  \n"
-                                    f"  _{', '.join(s.get('reasons') or [])}_"
-                                )
+                                status_label = T.get("status_labels", {}).get(s.get("status"), s.get("status")) or "—"
+                                st.markdown(f"- #{s['issue_id']} ({status_label})")
                         else:
-                            st.caption(T.get("admin_case_similar_empty", "No similar issues found."))
+                            st.caption(T.get("admin_case_similar_empty", "No similar previous issues found."))
 
                         st.divider()
 
