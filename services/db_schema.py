@@ -197,6 +197,51 @@ def ensure_schema():
                 # this column existed.
                 c.execute("ALTER TABLE error_log ADD COLUMN IF NOT EXISTS status TEXT")
 
+                # Phase 2.1 (Stable Issue References): previously, every
+                # single occurrence of the same bug got its own brand-new
+                # error_log row and its own id -- so if 70 people hit the
+                # identical crash, the person using the app saw 70 different
+                # reference numbers, and the admin saw 70 separate-looking
+                # entries (grouped only cosmetically at display time).
+                #
+                # error_issues is the new source of truth for "one distinct
+                # problem". Every occurrence of the SAME (page, error_type,
+                # message) combination, while it is still unresolved, shares
+                # one row here and one stable id -- that id is what gets
+                # shown to the person on screen and used as the admin's
+                # reference number. Once an issue's status is set to Fixed
+                # or Closed, the NEXT occurrence (if the bug isn't actually
+                # fixed) no longer matches it and gets a brand-new
+                # error_issues row -- a new number, as it should be, since
+                # from the admin's point of view it's a fresh recurrence to
+                # investigate.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS error_issues (
+                    id SERIAL PRIMARY KEY,
+                    signature TEXT NOT NULL,
+                    status TEXT DEFAULT 'New',
+                    severity TEXT,
+                    page TEXT,
+                    error_type TEXT,
+                    message TEXT,
+                    occurrence_count INTEGER DEFAULT 0,
+                    first_seen TIMESTAMPTZ,
+                    last_seen TIMESTAMPTZ,
+                    resolved_at TIMESTAMPTZ
+                )
+                """)
+                c.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_error_issues_signature_status "
+                    "ON error_issues (signature, status)"
+                )
+                # Additive/nullable on error_log: old rows (written before
+                # this phase) read back as NULL, and every place that reads
+                # this column treats NULL exactly like the old, pre-Phase-2.1
+                # behavior (falls back to the row's own id) -- so nothing
+                # breaks for historical records.
+                c.execute("ALTER TABLE error_log ADD COLUMN IF NOT EXISTS issue_id INTEGER")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_error_log_issue_id ON error_log (issue_id)")
+
                 # --- services/reflection_log.py: reflections ---
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS reflections (
