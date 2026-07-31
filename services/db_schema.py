@@ -285,6 +285,81 @@ def ensure_schema():
                     CREATE INDEX IF NOT EXISTS idx_reflection_explorations_explored_at
                     ON reflection_explorations (explored_at)
                 """)
+
+                # --- Phase 4 (services/case_knowledge.py): Operational Knowledge Base ---
+                #
+                # error_issues (above) is already the stable "one distinct
+                # problem" record. Phase 4 adds three additive tables on top
+                # of it -- nothing here changes error_issues or error_log.
+                #
+                # case_resolutions: the CURRENT resolution + case-knowledge
+                # fields for one issue (one row per issue_id, upserted).
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS case_resolutions (
+                    id SERIAL PRIMARY KEY,
+                    issue_id INTEGER NOT NULL UNIQUE REFERENCES error_issues(id),
+                    resolution_summary TEXT,
+                    root_cause TEXT,
+                    fix_applied TEXT,
+                    version_fixed TEXT,
+                    deployment_date TEXT,
+                    lessons_learned TEXT,
+                    prevention_notes TEXT,
+                    common_cause TEXT,
+                    known_fix TEXT,
+                    known_workaround TEXT,
+                    documentation_link TEXT,
+                    git_commit TEXT,
+                    external_reference TEXT,
+                    updated_at TIMESTAMPTZ,
+                    updated_by TEXT,
+                    updated_by_role TEXT
+                )
+                """)
+
+                # case_resolution_history: a snapshot of case_resolutions,
+                # taken automatically the moment a Fixed/Closed issue
+                # recurs (see services/error_log.py:_get_or_create_issue
+                # and services/case_knowledge.py:snapshot_resolution_on_reopen)
+                # -- so the PREVIOUS investigation is never lost, even
+                # though case_resolutions itself is about to be edited
+                # again for the new occurrence.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS case_resolution_history (
+                    id SERIAL PRIMARY KEY,
+                    issue_id INTEGER NOT NULL,
+                    snapshot_data TEXT,
+                    occurrence_count_at_reopen INTEGER,
+                    reopened_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_case_resolution_history_issue_id
+                    ON case_resolution_history (issue_id, reopened_at DESC)
+                """)
+
+                # case_investigations: every AI (or manual) investigation
+                # an administrator chooses to preserve for an issue. One
+                # issue can have many rows here -- Reflection Space never
+                # calls an AI on its own; this is purely a place to paste
+                # work that was already done elsewhere.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS case_investigations (
+                    id SERIAL PRIMARY KEY,
+                    issue_id INTEGER NOT NULL,
+                    investigated_at TIMESTAMPTZ,
+                    tool_used TEXT,
+                    prompt TEXT,
+                    ai_response TEXT,
+                    admin_notes TEXT,
+                    created_by TEXT,
+                    created_by_role TEXT
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_case_investigations_issue_id
+                    ON case_investigations (issue_id, investigated_at DESC)
+                """)
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see
