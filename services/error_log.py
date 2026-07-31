@@ -292,6 +292,7 @@ def log_error(page, error_type, message, traceback_text,
             user_role=user_role,
             severity=severity,
             context=context,
+            issue_id=issue_id,
         )
         diagnostic_package_json = package.to_json()
     except Exception:
@@ -785,6 +786,21 @@ def build_diagnostic_report_email(package, status="New"):
     explanation = package.get("summary") or "(no explanation available)"
     ai_prompt = package.get("ai_prompt") or "(no AI prompt available -- open System Administration > AI Diagnostic Centre in the app)"
 
+    # Similar Previous Issues (Phase 5): reuses the same simplified list
+    # already computed once, when the package was built (see
+    # services/diagnostics.py:_collect_similar_issues), which itself just
+    # calls services/case_knowledge.py:find_similar_issues() -- the same
+    # heuristics used by System Administration > AI Diagnostic Centre.
+    # No separate lookup happens here.
+    similar_issues = package.get("similar_issues") or []
+    if similar_issues:
+        similar_lines = "\n".join(
+            f"#{s['issue_id']} ({s.get('status') or 'unknown status'})"
+            for s in similar_issues
+        )
+    else:
+        similar_lines = "No similar previous issues found."
+
     divider = "-" * 50
 
     return f"""Reflection Space Diagnostic Report
@@ -812,6 +828,11 @@ Score: {score}%
 Human Explanation
 
 {explanation}
+
+{divider}
+Similar Previous Issues
+
+{similar_lines}
 
 {divider}
 Recent Timeline
