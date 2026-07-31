@@ -41,15 +41,6 @@ with error_boundary(
     st.title(T["growth_title"])
     st.caption(T["growth_intro"])
 
-    # ===== TEMPORARY TEST-ONLY LINE — DELETE AFTER PHASE 2 TESTING =====
-    # This deliberately crashes the page every time it loads, so we can
-    # verify the automatic exception capture (AI Diagnostic Centre).
-    # Safe: it's caught by error_boundary above, same as any real bug
-    # would be. Remove this block and restore the original file when
-    # testing is done.
-    raise Exception("TEST: Phase 2 diagnostic test — safe to ignore, remove after testing")
-    # ===== END TEMPORARY TEST-ONLY LINE =====
-
     HISTORY_LIMIT = 50
     rows = get_personal_exploration_history(user_name, limit=HISTORY_LIMIT)
     # rows: (case_ref, trigger, turn_count, explored_at), most recent first
