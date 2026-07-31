@@ -1,6 +1,4 @@
 import time
-import json
-import html
 import base64
 import psycopg2
 import pandas as pd
@@ -414,41 +412,16 @@ with error_boundary(
             f'{T.get("admin_error_log_readiness_label", "AI Readiness")}: {score}%</span>'
         )
 
-    def _copy_button(label, text, key):
-        # Plain HTML + JS clipboard button -- no new dependency, and
-        # deliberately NOT st.tabs()/st.columns()/st.dataframe() (those
-        # are avoided on this admin page due to prior segfault issues).
-        # The prompt text still also appears in the read-only text_area
-        # right below, so copying always works even if a browser blocks
-        # the clipboard API.
-        #
-        # BUG FIX: `text` is arbitrary content -- an AI prompt built
-        # from a real error message/traceback, which routinely
-        # contains double quotes (e.g. the app name in quotes) and
-        # angle brackets (e.g. Python's own "<module>" in a
-        # traceback). json.dumps() alone makes it valid JS, but this
-        # is then placed inside an onclick="..." HTML attribute that
-        # is ALSO delimited by double quotes -- so the very first
-        # unescaped " in the JSON payload closed the attribute early
-        # and corrupted the whole button, which is why the button
-        # wasn't appearing/working at all. html.escape() on the full
-        # JSON string converts those characters to &quot; / &lt; /
-        # &gt; so the browser decodes them back to real characters
-        # inside the attribute, safely, before running the script.
-        payload = html.escape(json.dumps(text), quote=True)
-        button_html = f"""
-        <div style="margin: 4px 0 8px 0;">
-          <button onclick="navigator.clipboard.writeText({payload});
-                            this.innerText='✅ {T.get('admin_error_log_copied', 'Copied!')}';
-                            setTimeout(() => {{ this.innerText='{label}'; }}, 1500);"
-                  style="background-color:#2c3e50;color:white;border:none;
-                         padding:6px 14px;border-radius:6px;cursor:pointer;
-                         font-size:0.85rem;">
-            {label}
-          </button>
-        </div>
-        """
-        st.markdown(button_html, unsafe_allow_html=True)
+    # NOTE: an earlier version of this page used a hand-rolled HTML/JS
+    # button here (navigator.clipboard.writeText(...) via st.markdown
+    # unsafe_allow_html) to copy the AI prompt. That approach turned
+    # out to be unreliable in practice (it depends on the browser
+    # treating a raw injected <button onclick=...> exactly like a
+    # normal click-triggered script, which isn't guaranteed, and one
+    # bug in it was already fixed once). It's been removed entirely in
+    # favor of st.code() below, which Streamlit gives a native,
+    # built-in copy icon for -- no custom JavaScript involved, so it
+    # can't break the same way.
 
     with st.expander(T.get("admin_error_log_header", "🩺 AI Diagnostic Centre"), expanded=False):
         st.caption(T.get(
@@ -725,15 +698,8 @@ with error_boundary(
                     # older data.
                     st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
                     ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
-                    _copy_button(
-                        T.get("admin_error_log_copy_button", "📋 Copy AI Prompt"),
-                        ai_prompt_text,
-                        key=f"copy_{err['id']}",
-                    )
-                    st.text_area(
-                        label="",
-                        value=ai_prompt_text,
-                        height=280,
-                        key=f"admin_error_ai_prompt_{err['id']}",
-                        label_visibility="collapsed",
-                    )
+                    st.caption(T.get(
+                        "admin_error_log_copy_hint",
+                        "Hover over the box below and click the copy icon in the top-right corner.",
+                    ))
+                    st.code(ai_prompt_text, language=None)
