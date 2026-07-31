@@ -702,4 +702,4 @@ with error_boundary(
                         "admin_error_log_copy_hint",
                         "Hover over the box below and click the copy icon in the top-right corner.",
                     ))
-                    st.code(ai_prompt_text, language=None)
+                    st.code(ai_prompt_text, language=None, wrap_lines=True)
