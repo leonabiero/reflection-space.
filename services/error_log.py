@@ -54,14 +54,141 @@ def _get_conn():
     return _acquire_pooled_conn()
 
 
+def _issue_signature(page, error_type, message):
+    return f"{page}|{error_type}|{message}"
+
+
+def _get_or_create_issue(page, error_type, message, severity):
+    """
+    Phase 2.1 (Stable Issue References): resolve the stable
+    error_issues.id for one occurrence of a problem.
+
+    If an OPEN (status not Fixed/Closed) issue already exists with the
+    exact same (page, error_type, message) signature, this occurrence
+    is folded into it: its occurrence_count goes up by one and
+    last_seen is refreshed, and its existing id is reused -- so every
+    person who hits the same unresolved bug sees the same reference
+    number, and the admin sees one entry, not one per person.
+
+    If no open issue matches (either this is a brand-new problem, or
+    the previous issue with this exact signature was already marked
+    Fixed/Closed), a new error_issues row is created and its new id
+    becomes the stable reference number going forward -- correctly
+    treating a recurrence AFTER a fix as a fresh issue to investigate.
+
+    Never raises. Returns None if the database work fails, in which
+    case the caller (log_error) simply proceeds without issue linking
+    -- the individual error_log row is still written either way, so an
+    issue-linking failure never loses the underlying error record.
+    """
+    signature = _issue_signature(page, error_type, message)
+    conn = None
+    try:
+        conn = _get_conn()
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT id FROM error_issues
+                WHERE signature = %s AND status NOT IN ('Fixed', 'Closed')
+                ORDER BY id DESC LIMIT 1
+                """,
+                (signature,),
+            )
+            row = c.fetchone()
+            now = now_utc()
+            if row:
+                issue_id = row[0]
+                c.execute(
+                    """
+                    UPDATE error_issues
+                    SET occurrence_count = occurrence_count + 1, last_seen = %s
+                    WHERE id = %s
+                    """,
+                    (now, issue_id),
+                )
+            else:
+                c.execute(
+                    """
+                    INSERT INTO error_issues
+                        (signature, status, severity, page, error_type, message,
+                         occurrence_count, first_seen, last_seen)
+                    VALUES (%s, 'New', %s, %s, %s, %s, 1, %s, %s)
+                    RETURNING id
+                    """,
+                    (signature, severity, page, error_type, message, now, now),
+                )
+                issue_id = c.fetchone()[0]
+        conn.commit()
+        return issue_id
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        logger.exception("_get_or_create_issue FAILED for signature=%r", signature)
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def update_issue_status(issue_id, new_status):
+    """
+    Phase 2.1: set the lifecycle status of a whole ISSUE (not a single
+    occurrence row). This is the authoritative status used everywhere
+    an issue has a stable issue_id. Setting status to Fixed or Closed
+    also stamps resolved_at -- that's what makes the NEXT occurrence
+    of the same signature start a brand-new issue instead of reopening
+    this one (see _get_or_create_issue above).
+
+    Never raises. Returns True on success, False if the write failed.
+    """
+    conn = None
+    try:
+        conn = _get_conn()
+        with conn.cursor() as c:
+            if new_status in ("Fixed", "Closed"):
+                c.execute(
+                    "UPDATE error_issues SET status = %s, resolved_at = %s WHERE id = %s",
+                    (new_status, now_utc(), issue_id),
+                )
+            else:
+                c.execute(
+                    "UPDATE error_issues SET status = %s, resolved_at = NULL WHERE id = %s",
+                    (new_status, issue_id),
+                )
+        conn.commit()
+        return True
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        logger.exception("update_issue_status FAILED for issue_id=%s", issue_id)
+        return False
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def log_error(page, error_type, message, traceback_text,
               user_name="", user_role="", context=None, severity="error",
               screenshot_b64=None):
     """
-    Write one error record. Returns the new row's id on success, or
-    None if writing to the database itself failed (in which case the
-    error is still written to stdout via the logger, so it is never
-    silently lost).
+    Write one error record. Returns a (new_id, issue_id) tuple:
+      - new_id: the id of this individual occurrence row, or None if
+        writing to the database itself failed (in which case the
+        error is still written to stdout via the logger, so it is
+        never silently lost).
+      - issue_id: the STABLE, shared reference number for this
+        problem (Phase 2.1) -- the same number every person sees for
+        as long as the issue stays unresolved, and what the admin
+        should treat as "the" reference. None for user-submitted
+        reports (each is its own independent case, never grouped) or
+        if issue-linking itself failed (in which case new_id is still
+        valid and the occurrence was still logged).
 
     context: an optional dict of small, non-sensitive operational
     details (e.g. {"companion": "possible_bias", "attempt": 3}) --
@@ -72,6 +199,16 @@ def log_error(page, error_type, message, traceback_text,
     for user-submitted reports (see log_user_report below); automatic
     crash detection has no screenshot to attach.
     """
+    # Phase 2.1 (Stable Issue References): resolve/reuse a stable
+    # issue id for this exact (page, error_type, message) BEFORE
+    # writing the occurrence row, so the row can store it. Skipped for
+    # user-submitted reports -- those are always independent, never
+    # grouped (see _get_or_create_issue's docstring and
+    # group_errors_by_signature below).
+    issue_id = None
+    if error_type != "UserReport":
+        issue_id = _get_or_create_issue(page, error_type, message, severity)
+
     context_json = ""
     if context:
         try:
@@ -118,19 +255,19 @@ def log_error(page, error_type, message, traceback_text,
                 INSERT INTO error_log
                     (occurred_at, page, error_type, message, traceback,
                      user_name, user_role, context, severity, screenshot,
-                     diagnostic_package)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     diagnostic_package, issue_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 now_utc(), page, error_type, message, traceback_text,
                 user_name, user_role, context_json, severity, screenshot_b64,
-                diagnostic_package_json,
+                diagnostic_package_json, issue_id,
             ))
             new_id = c.fetchone()[0]
         conn.commit()
         logger.error(
-            "Logged error #%s page=%r type=%r message=%r",
-            new_id, page, error_type, message,
+            "Logged error #%s (issue #%s) page=%r type=%r message=%r",
+            new_id, issue_id, page, error_type, message,
         )
     except Exception:
         if conn is not None:
@@ -172,15 +309,16 @@ def log_error(page, error_type, message, traceback_text,
             # consistency and to avoid this exact bug recurring.
             "screenshot": screenshot_b64,
         }
+        ref_for_email = issue_id if issue_id is not None else new_id
         was_sent = send_alert_email(
-            subject=f"[Reflection Space] Error on {page} (#{new_id})",
+            subject=f"[Reflection Space] Error on {page} (#{ref_for_email})",
             body_text=build_email_summary(record),
             screenshot_b64=screenshot_b64,
         )
         if was_sent:
-            record_event("Email sent", detail=f"error alert for #{new_id}", page=page)
+            record_event("Email sent", detail=f"error alert for #{ref_for_email}", page=page)
 
-    return new_id
+    return new_id, issue_id
 
 
 def log_user_report(page, description, user_name="", user_role="", screenshot_b64=None):
@@ -192,7 +330,9 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
     """
     record_event("User submitted report", detail=description, page=page)
 
-    new_id = log_error(
+    # UserReport rows are never issue-linked (see log_error), so the
+    # second value here is always None -- only new_id is used below.
+    new_id, _issue_id = log_error(
         page=page,
         error_type="UserReport",
         message=description,
@@ -238,12 +378,21 @@ def get_recent_errors(limit=50):
     try:
         conn = _get_conn()
         with conn.cursor() as c:
+            # LEFT JOIN error_issues: rows written before Phase 2.1 (or
+            # a UserReport row, which is never issue-linked) have
+            # issue_id = NULL, so every ei.* column below comes back
+            # NULL for them too -- handled explicitly in the dict
+            # below, same "NULL means older/ungrouped record" pattern
+            # already used for the plain error_log.status column.
             c.execute("""
-                SELECT id, occurred_at, page, error_type, message,
-                       traceback, user_name, user_role, context, severity,
-                       screenshot, diagnostic_package, status
-                FROM error_log
-                ORDER BY occurred_at DESC
+                SELECT el.id, el.occurred_at, el.page, el.error_type, el.message,
+                       el.traceback, el.user_name, el.user_role, el.context,
+                       el.severity, el.screenshot, el.diagnostic_package,
+                       el.status, el.issue_id,
+                       ei.status, ei.occurrence_count, ei.first_seen, ei.last_seen
+                FROM error_log el
+                LEFT JOIN error_issues ei ON ei.id = el.issue_id
+                ORDER BY el.occurred_at DESC
                 LIMIT %s
             """, (limit,))
             rows = c.fetchall()
@@ -255,10 +404,12 @@ def get_recent_errors(limit=50):
             conn.close()
 
     records = []
-    for row in iso_row_list(rows, [1]):
+    for row in iso_row_list(rows, [1, 16, 17]):
         (rid, occurred_at, page, error_type, message, tb,
          user_name, user_role, context, severity, screenshot,
-         diagnostic_package, status) = row
+         diagnostic_package, legacy_status, issue_id,
+         issue_status, issue_occurrence_count,
+         issue_first_seen, issue_last_seen) = row
         records.append({
             "id": rid,
             "occurred_at": occurred_at,
@@ -276,9 +427,27 @@ def get_recent_errors(limit=50):
             # Administration > Error Log page as of Phase 2 -- see
             # parse_diagnostic_package() below.
             "diagnostic_package": diagnostic_package,
+            # Phase 2.1 (Stable Issue References): issue_id is the
+            # number shown to the person on screen and used as the
+            # admin's reference -- None only for UserReport rows and
+            # for rows written before this phase existed. When
+            # present, issue_status/occurrence_count/first_seen/
+            # last_seen are the AUTHORITATIVE, database-tracked values
+            # for the whole issue (not just what happens to be in this
+            # one fetched batch of `limit` rows) -- see
+            # group_errors_by_signature below, which prefers these
+            # over anything counted locally.
+            "issue_id": issue_id,
+            "issue_status": issue_status,
+            "issue_occurrence_count": issue_occurrence_count,
+            "issue_first_seen": issue_first_seen,
+            "issue_last_seen": issue_last_seen,
             # Phase 2 AI Diagnostic Centre: manual lifecycle status.
-            # NULL (older records, or never touched) reads as "New".
-            "status": status or "New",
+            # For an issue-linked row, issue_status (above) is now the
+            # authoritative one -- this legacy per-row column only
+            # still matters for older records that predate issue
+            # linking (issue_id is None for those).
+            "status": (issue_status or legacy_status or "New"),
         })
     return records
 
@@ -432,24 +601,33 @@ def compute_ai_readiness(package):
 
 def group_errors_by_signature(errors):
     """
-    Phase 2 AI Diagnostic Centre: lightweight grouping of already-
-    fetched error records (from get_recent_errors -- newest first)
-    into "issues", so the same problem happening repeatedly shows up
-    once with an occurrence count, rather than as many separate
-    entries.
+    Phase 2 AI Diagnostic Centre (updated for Phase 2.1 Stable Issue
+    References): groups already-fetched error records (from
+    get_recent_errors -- newest first) into "issues", so the same
+    problem happening repeatedly shows up once with an occurrence
+    count, rather than as many separate entries.
 
-    This is deliberately simple EXACT-MATCH grouping on
-    (page, error_type, message) -- not sophisticated duplicate
-    detection (no fuzzy traceback comparison, no time-window logic).
-    User-submitted reports (error_type == "UserReport") are never
-    grouped with one another, since each one is independent free text
-    describing a different situation -- every UserReport row is its
-    own single-occurrence group.
+    Grouping key: the row's stable issue_id when present (the
+    database-authoritative grouping set by _get_or_create_issue at
+    write time -- see services/error_log.py:log_error). Rows written
+    before Phase 2.1 existed have issue_id = None and fall back to the
+    old exact-match-on-(page, error_type, message) grouping so they
+    still display sensibly. User-submitted reports (error_type ==
+    "UserReport") are never grouped with one another, since each one
+    is independent free text describing a different situation --
+    every UserReport row is its own single-occurrence group.
+
+    occurrences / first_seen / last_seen come from the AUTHORITATIVE
+    error_issues counters when a row is issue-linked -- not merely
+    counted within this fetched batch -- so the numbers stay correct
+    even when an issue has recurred more times than the current fetch
+    limit shows.
 
     Returns a list of dicts, in the same newest-first order as the
-    input, one per distinct signature:
+    input, one per distinct issue:
         {
             "signature": str,
+            "issue_id": int | None,
             "occurrences": int,
             "first_seen": str (ISO timestamp, oldest occurrence),
             "last_seen": str (ISO timestamp, newest occurrence),
@@ -457,35 +635,66 @@ def group_errors_by_signature(errors):
                                    # used for all display purposes,
                                    # since it has the most complete
                                    # diagnostic package
-            "all_ids": [int, ...],  # newest first
+            "all_ids": [int, ...],       # newest first
+            "occurrence_list": [dict],   # newest first, from THIS fetched
+                                          # batch only -- {id, occurred_at,
+                                          # user_name, user_role} -- used
+                                          # for the admin's expandable
+                                          # "who hit this" list
         }
     """
     groups = {}
     order = []
     for err in errors:
+        issue_id = err.get("issue_id")
         if err.get("error_type") == "UserReport":
             sig = f"UserReport:{err.get('id')}"
+        elif issue_id is not None:
+            sig = f"issue:{issue_id}"
         else:
+            # Pre-Phase-2.1 record: no stable issue_id was ever
+            # assigned to it, so fall back to matching on content.
             sig = f"{err.get('page')}|{err.get('error_type')}|{err.get('message')}"
 
         if sig not in groups:
             groups[sig] = {
                 "signature": sig,
+                "issue_id": issue_id,
                 "occurrences": 0,
                 "first_seen": err.get("occurred_at"),
                 "last_seen": err.get("occurred_at"),
                 "latest": err,
                 "all_ids": [],
+                "occurrence_list": [],
             }
             order.append(sig)
 
         group = groups[sig]
         group["occurrences"] += 1
         group["all_ids"].append(err.get("id"))
+        group["occurrence_list"].append({
+            "id": err.get("id"),
+            "occurred_at": err.get("occurred_at"),
+            "user_name": err.get("user_name"),
+            "user_role": err.get("user_role"),
+        })
         # errors is newest-first, so the LAST occurrence encountered
         # for a given signature (i.e. the final write on each loop
         # pass) is always the oldest -- that becomes first_seen.
         group["first_seen"] = err.get("occurred_at") or group["first_seen"]
+
+    # Prefer the authoritative error_issues counters over whatever was
+    # merely counted in this one fetched batch, for any group that has
+    # a real issue_id.
+    for sig, group in groups.items():
+        latest = group["latest"]
+        if latest.get("issue_id") is not None:
+            if latest.get("issue_occurrence_count"):
+                group["occurrences"] = latest["issue_occurrence_count"]
+            if latest.get("issue_first_seen"):
+                group["first_seen"] = latest["issue_first_seen"]
+            if latest.get("issue_last_seen"):
+                group["last_seen"] = latest["issue_last_seen"]
 
     return [groups[sig] for sig in order]
 
@@ -597,7 +806,7 @@ def error_boundary(page, T=None, user_name="", user_role="",
         yield
     except Exception as e:
         tb = traceback.format_exc()
-        error_id = log_error(
+        error_id, issue_id = log_error(
             page=page,
             error_type=type(e).__name__,
             message=str(e),
@@ -611,7 +820,15 @@ def error_boundary(page, T=None, user_name="", user_role="",
         for key in (reset_flags or []):
             st.session_state[key] = False
 
-        ref = f"#{error_id}" if error_id is not None else "(not saved -- see app logs)"
+        # Phase 2.1 (Stable Issue References): the number shown on
+        # screen is the STABLE issue reference, not the raw row id --
+        # every person who hits the same unresolved bug sees the same
+        # number here, and it only changes once an administrator marks
+        # the issue Fixed/Closed and it happens again. Falls back to
+        # the row id only if issue-linking itself failed (issue_id is
+        # None) but the error was still logged (error_id is not None).
+        display_ref = issue_id if issue_id is not None else error_id
+        ref = f"#{display_ref}" if display_ref is not None else "(not saved -- see app logs)"
         if T is not None:
             heading = T.get(
                 "error_boundary_heading",
