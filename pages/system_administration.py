@@ -17,6 +17,7 @@ from services.error_log import (
     build_ai_prompt,
     error_boundary,
     update_error_status,
+    update_issue_status,
     parse_diagnostic_package,
     compute_ai_readiness,
     group_errors_by_signature,
@@ -412,6 +413,28 @@ with error_boundary(
             f'{T.get("admin_error_log_readiness_label", "AI Readiness")}: {score}%</span>'
         )
 
+    def _copy_button(label, text, key):
+        # Plain HTML + JS clipboard button -- no new dependency, and
+        # deliberately NOT st.tabs()/st.columns()/st.dataframe() (those
+        # are avoided on this admin page due to prior segfault issues).
+        # The prompt text still also appears in the read-only text_area
+        # right below, so copying always works even if a browser blocks
+        # the clipboard API.
+        payload = json.dumps(text)
+        button_html = f"""
+        <div style="margin: 4px 0 8px 0;">
+          <button onclick="navigator.clipboard.writeText({payload});
+                            this.innerText='✅ {T.get('admin_error_log_copied', 'Copied!')}';
+                            setTimeout(() => {{ this.innerText='{label}'; }}, 1500);"
+                  style="background-color:#2c3e50;color:white;border:none;
+                         padding:6px 14px;border-radius:6px;cursor:pointer;
+                         font-size:0.85rem;">
+            {label}
+          </button>
+        </div>
+        """
+        st.markdown(button_html, unsafe_allow_html=True)
+
     with st.expander(T.get("admin_error_log_header", "🩺 AI Diagnostic Centre"), expanded=False):
         st.caption(T.get(
             "admin_error_log_caption",
@@ -482,8 +505,16 @@ with error_boundary(
                 icon = severity_icons.get(err.get("severity"), "⚪")
                 occurred = (err.get("occurred_at") or "")[:19].replace("T", " ")
                 occ_suffix = f" ×{issue['occurrences']}" if issue["occurrences"] > 1 else ""
+                # Phase 2.1 (Stable Issue References): show the same
+                # stable issue_id the person saw on screen when this
+                # happened to them, not the raw row id -- so the
+                # number here always matches what they'd tell you.
+                # Falls back to the row id only for records from
+                # before this phase (issue_id is None) or
+                # user-submitted reports (never issue-linked).
+                display_ref = issue.get("issue_id") if issue.get("issue_id") is not None else err["id"]
                 title = (
-                    f"{icon} #{err['id']}{occ_suffix} -- {occurred} -- "
+                    f"{icon} #{display_ref}{occ_suffix} -- {occurred} -- "
                     f"{err.get('page') or 'unknown page'} -- {err.get('error_type') or 'Error'} -- "
                     f"{current_status}"
                 )
@@ -516,7 +547,19 @@ with error_boundary(
                         key=f"admin_error_status_{err['id']}",
                     )
                     if new_status != safe_status:
-                        update_error_status(err["id"], new_status)
+                        # Phase 2.1: an issue-linked record's status
+                        # lives on the shared error_issues row, so
+                        # every occurrence moves together -- and
+                        # marking it Fixed/Closed is exactly what
+                        # makes the NEXT occurrence (if it recurs)
+                        # start a brand-new issue with a new number,
+                        # instead of silently reopening this one.
+                        # Records from before Phase 2.1 (issue_id is
+                        # None) fall back to the old per-row update.
+                        if issue.get("issue_id") is not None:
+                            update_issue_status(issue["issue_id"], new_status)
+                        else:
+                            update_error_status(err["id"], new_status)
                         st.rerun()
 
                     # --- Occurrences -------------------------------------------------
@@ -529,6 +572,33 @@ with error_boundary(
                             f"**{T.get('admin_error_log_first_seen_label', 'First seen')}:** {first_seen}  \n"
                             f"**{T.get('admin_error_log_last_seen_label', 'Last seen')}:** {last_seen}"
                         )
+
+                        # --- Who experienced this (Phase 2.1) ------------------------
+                        # Expandable, on-demand -- not shown by default, so an
+                        # issue with 70 occurrences doesn't dump 70 lines into
+                        # the page. Built from whichever occurrences happen to
+                        # be in the current fetch batch (get_recent_errors'
+                        # limit=50), so for very old, very frequent issues this
+                        # list may show fewer entries than the true count above
+                        # -- the count itself is always the real, full total.
+                        occ_list = issue.get("occurrence_list") or []
+                        with st.expander(
+                            T.get(
+                                "admin_error_log_who_experienced_label",
+                                "👥 Who experienced this ({n} shown)",
+                            ).format(n=len(occ_list))
+                        ):
+                            if len(occ_list) < issue["occurrences"]:
+                                st.caption(T.get(
+                                    "admin_error_log_who_experienced_partial",
+                                    "Showing the occurrences currently loaded; the total "
+                                    "count above reflects every occurrence recorded.",
+                                ))
+                            for occ in occ_list:
+                                occ_when = (occ.get("occurred_at") or "")[:19].replace("T", " ")
+                                who = occ.get("user_name") or "—"
+                                role = occ.get("user_role") or "unknown role"
+                                st.markdown(f"- `{occ_when}` — {who} ({role})")
 
                     st.divider()
 
@@ -639,15 +709,16 @@ with error_boundary(
                     # records that predate it, so nothing here ever breaks for
                     # older data.
                     st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
-                    st.caption(T.get(
-                        "admin_error_log_copy_hint",
-                        "Hover over the box below and click the copy icon in its top-right corner.",
-                    ))
                     ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
-                    # Streamlit strips raw <button onclick=...> HTML for
-                    # security even with unsafe_allow_html=True, which is
-                    # why the previous custom copy button never rendered.
-                    # st.code() ships with its own built-in copy-to-clipboard
-                    # icon (hover top-right corner), so this needs no custom
-                    # HTML/JS at all and works in every Streamlit version.
-                    st.code(ai_prompt_text, language=None, wrap_lines=True)
+                    _copy_button(
+                        T.get("admin_error_log_copy_button", "📋 Copy AI Prompt"),
+                        ai_prompt_text,
+                        key=f"copy_{err['id']}",
+                    )
+                    st.text_area(
+                        label="",
+                        value=ai_prompt_text,
+                        height=280,
+                        key=f"admin_error_ai_prompt_{err['id']}",
+                        label_visibility="collapsed",
+                    )
