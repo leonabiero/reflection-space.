@@ -164,6 +164,13 @@ def ensure_schema():
                 c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_occurred_at ON audit_log (occurred_at DESC)")
 
                 # --- services/error_log.py: error_log ---
+                # Phase 3: the screenshot subsystem has been retired --
+                # the "screenshot" column below is kept ONLY so older
+                # rows written before Phase 3 continue to load and
+                # display correctly in System Administration > AI
+                # Diagnostic Centre. No code writes to this column
+                # anymore (see services/error_log.py:log_error); every
+                # new row leaves it NULL.
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS error_log (
                     id SERIAL PRIMARY KEY,
