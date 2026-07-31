@@ -74,8 +74,45 @@ import streamlit as st
 import config
 from services.db_time import now_utc, get_logger, get_recent_log_entries
 from services.evidence_timeline import get_timeline
+from services.case_knowledge import find_similar_issues
 
 logger = get_logger(__name__)
+
+# Similar Previous Issues (Phase 5)
+# -----------------------------------
+# Deliberately tiny: reuses services/case_knowledge.py:find_similar_issues()
+# -- the SAME heuristic matching already used by System Administration >
+# AI Diagnostic Centre -- as the one and only source of truth for "have we
+# seen this before?". Nothing here re-implements or extends that matching
+# logic; this module only trims the result down to the two fields (issue
+# id + status) that belong in a plain-text AI prompt / email, on purpose,
+# so there is never a second, different-looking list of "similar issues"
+# anywhere in the app.
+_SIMILAR_ISSUES_LIMIT = 5
+
+
+def _collect_similar_issues(issue_id, page, error_type, message, traceback_text):
+    """
+    Returns a small list of {"issue_id", "status"} dicts for issues that
+    look similar to this one -- or an empty list if there's no stable
+    issue_id yet (e.g. user-submitted reports, which are never grouped),
+    or if anything about the lookup fails. Never raises.
+    """
+    if not issue_id:
+        return []
+    try:
+        candidates = find_similar_issues(
+            issue_id, page, error_type, message,
+            traceback_text=traceback_text or "",
+            limit=_SIMILAR_ISSUES_LIMIT,
+        )
+        return [
+            {"issue_id": c["issue_id"], "status": c.get("status")}
+            for c in candidates
+        ]
+    except Exception:
+        logger.exception("_collect_similar_issues failed (non-fatal)")
+        return []
 
 
 # ---------------------------------------------------------------------
@@ -273,6 +310,7 @@ class DiagnosticPackage:
     recent_log_entries: list = field(default_factory=list)
     navigation_timeline: list = field(default_factory=list)
     additional_context: Optional[dict] = None
+    similar_issues: list = field(default_factory=list)
     ai_prompt: str = ""
 
     def to_dict(self):
@@ -367,6 +405,15 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
         for k, v in pkg.additional_context.items():
             lines.append(f"{k}: {v}")
 
+    if pkg.similar_issues:
+        lines.append("")
+        lines.append("=== Similar previous issues ===")
+        for s in pkg.similar_issues:
+            lines.append(f"#{s['issue_id']} -- {s.get('status') or 'unknown status'}")
+        lines.append(
+            "Review these previous investigations if they appear relevant."
+        )
+
     lines.append("")
     lines.append(
         "Please: 1) tell me in plain non-technical language what most "
@@ -387,6 +434,7 @@ def build_diagnostic_package(
     user_role="",
     severity="error",
     context=None,
+    issue_id=None,
 ):
     """
     The one entry point every other part of the app should use:
@@ -396,6 +444,15 @@ def build_diagnostic_package(
     collect_session_context above), and returns a fully-populated
     DiagnosticPackage -- including a ready-to-paste AI prompt
     (package.ai_prompt).
+
+    issue_id: the stable issue reference for this problem, if one
+    already exists (services/error_log.py:log_error resolves this
+    BEFORE calling here). Optional and additive -- used only to look
+    up "Similar Previous Issues" via the existing
+    services/case_knowledge.py:find_similar_issues() heuristics
+    (Phase 5). None for user-submitted reports, which are never
+    grouped into a stable issue and so never get a similar-issues
+    list here -- same as the existing System Administration panel.
 
     Never raises. If anything here fails, a minimal-but-valid package
     describing the failure is returned instead, so a broken diagnostic
@@ -425,6 +482,9 @@ def build_diagnostic_package(
             recent_log_entries=get_recent_log_entries(limit=20),
             navigation_timeline=get_timeline(),
             additional_context=context if isinstance(context, dict) else None,
+            similar_issues=_collect_similar_issues(
+                issue_id, page, error_type, message, traceback_text
+            ),
         )
         pkg.ai_prompt = _build_ai_prompt(pkg)
         return pkg
