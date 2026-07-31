@@ -1,5 +1,6 @@
 import time
 import json
+import html
 import base64
 import psycopg2
 import pandas as pd
@@ -420,7 +421,21 @@ with error_boundary(
         # The prompt text still also appears in the read-only text_area
         # right below, so copying always works even if a browser blocks
         # the clipboard API.
-        payload = json.dumps(text)
+        #
+        # BUG FIX: `text` is arbitrary content -- an AI prompt built
+        # from a real error message/traceback, which routinely
+        # contains double quotes (e.g. the app name in quotes) and
+        # angle brackets (e.g. Python's own "<module>" in a
+        # traceback). json.dumps() alone makes it valid JS, but this
+        # is then placed inside an onclick="..." HTML attribute that
+        # is ALSO delimited by double quotes -- so the very first
+        # unescaped " in the JSON payload closed the attribute early
+        # and corrupted the whole button, which is why the button
+        # wasn't appearing/working at all. html.escape() on the full
+        # JSON string converts those characters to &quot; / &lt; /
+        # &gt; so the browser decodes them back to real characters
+        # inside the attribute, safely, before running the script.
+        payload = html.escape(json.dumps(text), quote=True)
         button_html = f"""
         <div style="margin: 4px 0 8px 0;">
           <button onclick="navigator.clipboard.writeText({payload});
