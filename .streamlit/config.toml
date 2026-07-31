@@ -1,2 +1,10 @@
 [client]
 showSidebarNavigation = false
+
+# Security hardening: never show raw Python tracebacks / exception
+# details to end users if an error somehow escapes the app's own
+# error_boundary() handling (services/error_log.py). Users only ever
+# see the friendly "Something went wrong, here's a reference number"
+# message; full technical detail still goes to the private Error Log
+# on the System Administration page.
+showErrorDetails = false
