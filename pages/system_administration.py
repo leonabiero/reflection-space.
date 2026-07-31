@@ -65,7 +65,7 @@ with error_boundary(
     user_role=st.session_state.get("user_role", ""),
 ):
     st.title(T.get("nav_system_admin", "🛠️ System Administration"))
-    st.caption("Administration console for Reflection Space -- system status, indexing, and diagnostic tools.")
+    st.caption(T.get("admin_console_caption", "Administration console for Reflection Space -- system status, indexing, and diagnostic tools."))
 
     # --- shared badge/label helpers --------------------------------------------
 
@@ -399,9 +399,10 @@ with error_boundary(
             "Recurred": "#8e44ad",
         }
         color = colors.get(status, "#7f8c8d")
+        display_label = T.get("status_labels", {}).get(status, status)
         return (
             f'<span style="background-color:{color};color:white;padding:2px 10px;'
-            f'border-radius:10px;font-size:0.78rem;font-weight:600;">{status}</span>'
+            f'border-radius:10px;font-size:0.78rem;font-weight:600;">{display_label}</span>'
         )
 
     def _readiness_badge(score):
@@ -453,11 +454,13 @@ with error_boundary(
             status_filter = st.selectbox(
                 T.get("admin_error_log_status_filter_label", "Filter by status"),
                 options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+                format_func=lambda s: T.get("status_labels", {}).get(s, s),
                 key="admin_error_log_status_filter",
             )
             severity_filter = st.selectbox(
                 T.get("admin_error_log_severity_filter_label", "Filter by severity"),
                 options=["All", "error", "warning", "user_reported"],
+                format_func=lambda s: T.get("severity_labels", {}).get(s, s),
                 key="admin_error_log_severity_filter",
             )
 
@@ -537,8 +540,9 @@ with error_boundary(
                 display_ref = issue.get("issue_id") if issue.get("issue_id") is not None else err["id"]
                 title = (
                     f"{icon} #{display_ref}{occ_suffix} -- {occurred} -- "
-                    f"{err.get('page') or 'unknown page'} -- {err.get('error_type') or 'Error'} -- "
-                    f"{current_status}"
+                    f"{err.get('page') or T.get('admin_error_log_unknown_page', 'unknown page')} -- "
+                    f"{err.get('error_type') or T.get('admin_error_log_generic_error', 'Error')} -- "
+                    f"{T.get('status_labels', {}).get(current_status, current_status)}"
                 )
 
                 with st.expander(title):
@@ -547,16 +551,17 @@ with error_boundary(
                         _issue_status_badge(current_status) + "&nbsp;&nbsp;" + _readiness_badge(score),
                         unsafe_allow_html=True,
                     )
-                    summary_text = (package or {}).get("summary") or err.get("message") or "(no message)"
+                    summary_text = (package or {}).get("summary") or err.get("message") or T.get("admin_error_log_no_message", "(no message)")
                     st.markdown(f"**{T.get('admin_error_log_summary_label', 'Summary')}:** {summary_text}")
+                    severity_display = T.get("severity_labels", {}).get(err.get("severity"), err.get("severity")) or "—"
                     st.markdown(
                         f"**{T.get('admin_error_log_category_label', 'Category')}:** "
                         f"{(package or {}).get('category', '—')}  \n"
-                        f"**{T.get('admin_error_log_severity_label', 'Severity')}:** {err.get('severity') or '—'}  \n"
+                        f"**{T.get('admin_error_log_severity_label', 'Severity')}:** {severity_display}  \n"
                         f"**{T.get('admin_error_log_when_label', 'When')}:** {occurred}  \n"
                         f"**{T.get('admin_error_log_page_label', 'Page')}:** {err.get('page') or '—'}  \n"
                         f"**{T.get('admin_error_log_user_label', 'User')}:** "
-                        f"{err.get('user_name') or '—'} ({err.get('user_role') or 'unknown role'})"
+                        f"{err.get('user_name') or '—'} ({err.get('user_role') or T.get('admin_error_log_unknown_role', 'unknown role')})"
                     )
 
                     # --- Status (manual lifecycle) --------------------------------
@@ -565,6 +570,7 @@ with error_boundary(
                     new_status = st.selectbox(
                         T.get("admin_error_log_status_label", "Status"),
                         options=status_options,
+                        format_func=lambda s: T.get("status_labels", {}).get(s, s),
                         index=status_options.index(safe_status),
                         key=f"admin_error_status_{err['id']}",
                     )
@@ -619,7 +625,7 @@ with error_boundary(
                             for occ in occ_list:
                                 occ_when = (occ.get("occurred_at") or "")[:19].replace("T", " ")
                                 who = occ.get("user_name") or "—"
-                                role = occ.get("user_role") or "unknown role"
+                                role = occ.get("user_role") or T.get("admin_error_log_unknown_role", "unknown role")
                                 st.markdown(f"- `{occ_when}` — {who} ({role})")
 
                     st.divider()
@@ -876,7 +882,7 @@ with error_boundary(
                                 s_when = (s.get("last_seen") or "")[:16].replace("T", " ")
                                 st.markdown(
                                     f"- **#{s['issue_id']}** — {s.get('page') or '—'} — "
-                                    f"{s.get('error_type') or '—'} — {s.get('status') or '—'} "
+                                    f"{s.get('error_type') or '—'} — {T.get('status_labels', {}).get(s.get('status'), s.get('status')) or '—'} "
                                     f"(×{s.get('occurrence_count') or 1}, last seen {s_when})  \n"
                                     f"  _{', '.join(s.get('reasons') or [])}_"
                                 )
@@ -954,7 +960,7 @@ with error_boundary(
                         for entry in timeline:
                             at_full = entry.get("at") or ""
                             at = at_full[11:19] if len(at_full) >= 19 else at_full
-                            line = f"`{at}` {entry.get('event', '')}"
+                            line = f"`{at}` {T.get('event_labels', {}).get(entry.get('event', ''), entry.get('event', ''))}"
                             if entry.get("page"):
                                 line += f" _(page: {entry['page']})_"
                             if entry.get("detail"):
@@ -992,7 +998,7 @@ with error_boundary(
                         "record.",
                     ))
                     checklist_lines = [
-                        f"{'✅' if is_present else '⬜'} {label}" for label, is_present in presence
+                        f"{'✅' if is_present else '⬜'} {T.get('readiness_category_' + key, key)}" for key, is_present in presence
                     ]
                     st.markdown("  \n".join(checklist_lines))
                     st.progress(score / 100)
@@ -1051,6 +1057,7 @@ with error_boundary(
             s_status = st.selectbox(
                 T.get("admin_case_search_status", "Status"),
                 options=["Any", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+                format_func=lambda s: T.get("status_labels", {}).get(s, s),
                 key="admin_case_search_status",
             )
             s_version_fixed = st.text_input(T.get("admin_case_search_version_fixed", "Version fixed"), key="admin_case_search_version_fixed")
@@ -1085,7 +1092,7 @@ with error_boundary(
                     when = (r.get("last_seen") or "")[:16].replace("T", " ")
                     st.markdown(
                         f"**#{r['issue_id']}** — {r.get('page') or '—'} — {r.get('error_type') or '—'} — "
-                        f"{r.get('status') or '—'} (×{r.get('occurrence_count') or 1}, last seen {when})"
+                        f"{T.get('status_labels', {}).get(r.get('status'), r.get('status')) or '—'} (×{r.get('occurrence_count') or 1}, last seen {when})"
                     )
                     if r.get("resolution_summary"):
                         st.caption(f"{T.get('admin_case_search_resolution_label', 'Resolution')}: {r['resolution_summary']}")
