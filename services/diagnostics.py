@@ -12,9 +12,11 @@ automatically, behind the scenes, every single time.
 Nothing in this module is shown to anyone yet. It is deliberately
 independent of:
   - the UI (nothing here calls st.error / st.write / renders anything)
-  - email formatting (services/email_alert.py and
-    services/error_log.py:build_email_summary are untouched and know
-    nothing about this module)
+  - email formatting (services/email_alert.py knows nothing about the
+    shape of this module -- it just sends whatever text body it's
+    given; services/error_log.py:build_diagnostic_report_email is the
+    one place that turns a DiagnosticPackage into the actual email
+    text)
   - the Error Log page (pages/system_administration.py is untouched --
     it still calls services/error_log.py:build_ai_prompt exactly as it
     always has)
@@ -105,7 +107,7 @@ _SENSITIVE_KEY_MARKERS = (
 # useful in a diagnostic prompt (large opaque objects, per-widget
 # plumbing) -- excluded by exact name or prefix, separately from the
 # sensitive-marker filter above.
-_EXCLUDED_KEY_PREFIXES = ("_report_screenshot", "_diagnostic_")
+_EXCLUDED_KEY_PREFIXES = ("_diagnostic_",)
 
 # Any single session_state value is truncated to this many characters
 # once stringified, so one large object (e.g. a full draft's text)
@@ -129,8 +131,8 @@ def collect_session_context():
       - its name contains a sensitive marker (password, api_key,
         token, secret, auth, cookie, etc. -- see
         _SENSITIVE_KEY_MARKERS above)
-      - it matches a known structurally-unhelpful key (e.g. the
-        in-progress base64 screenshot capture)
+      - it matches a known structurally-unhelpful key (e.g. internal
+        diagnostic-timeline bookkeeping)
       - its value can't be safely turned into a short string at all
 
     Every value that IS included is stringified and truncated to
@@ -203,12 +205,10 @@ def _collect_environment():
 def _detect_browser():
     """
     Best-effort browser identification. Reflection Space does not
-    currently capture the browser's user agent anywhere (the
-    screenshot capture component -- components/screenshot_reporter --
-    does not report it back), so this is None for now. Left as an
-    explicit field/hook so a later phase can populate it (e.g. by
-    having that component also return navigator.userAgent) without
-    any change to the shape of the diagnostic package.
+    currently capture the browser's user agent anywhere, so this is
+    None for now. Left as an explicit field/hook so a later phase can
+    populate it without any change to the shape of the diagnostic
+    package.
     """
     return None
 
