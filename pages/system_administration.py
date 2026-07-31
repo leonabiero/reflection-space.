@@ -573,12 +573,22 @@ with error_boundary(
                     exc_type = (package or {}).get("exception_type") or err.get("error_type")
                     exc_msg = (package or {}).get("exception_message") or err.get("message")
                     tb = (package or {}).get("traceback") or err.get("traceback")
+                    is_user_report = exc_type == "UserReport"
                     st.markdown(f"**{T.get('admin_error_log_exception_type_label', 'Exception type')}:** `{exc_type or '—'}`")
                     st.markdown(f"**{T.get('admin_error_log_exception_message_label', 'Exception message')}:** {exc_msg or '—'}")
                     if err.get("context"):
                         st.markdown(f"**{T.get('admin_error_log_context_label', 'Context')}:**")
                         st.code(err["context"], language="json")
-                    if tb:
+                    if is_user_report:
+                        # User reports carry a fixed placeholder string in the
+                        # traceback field (see services/error_log.py:
+                        # log_user_report) -- that's not a real traceback, so
+                        # it's never shown as one here.
+                        st.caption(T.get(
+                            "admin_error_log_no_traceback",
+                            "No traceback -- this was a user-submitted report, not an automatic exception.",
+                        ))
+                    elif tb:
                         st.markdown(f"**{T.get('admin_error_log_traceback_label', 'Full technical traceback')}:**")
                         st.code(tb, language="python")
 
