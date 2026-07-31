@@ -112,7 +112,7 @@ with error_boundary(
     # =============================================================================
     # 1. User Management
     # =============================================================================
-    with st.expander(T["admin_user_mgmt_header"], expanded=True):
+    with st.expander(T["admin_user_mgmt_header"], expanded=False):
         st.info(T["admin_user_mgmt_info"])
         users = dict(st.secrets.get("users", {}))
         if users:
