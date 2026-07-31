@@ -1,4 +1,6 @@
 import time
+import json
+import base64
 import psycopg2
 import pandas as pd
 import streamlit as st
@@ -10,7 +12,15 @@ from services.qdrant_service import get_diagnostics, is_available as qdrant_avai
 from services.embedding_service import is_available as embeddings_available
 from services.draft_storage import get_completed_drafts
 from services.anonymizer import anonymize
-from services.error_log import get_recent_errors, build_ai_prompt, error_boundary
+from services.error_log import (
+    get_recent_errors,
+    build_ai_prompt,
+    error_boundary,
+    update_error_status,
+    parse_diagnostic_package,
+    compute_ai_readiness,
+    group_errors_by_signature,
+)
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
 from rdi.retrieval_service import retrieve_historical_context, retrieve_global_context
 from rdi.context_engine import DEFAULT_HISTORY_LIMIT
@@ -357,20 +367,80 @@ with error_boundary(
         st.caption(T["admin_tools_future"])
 
     # =============================================================================
-    # 8. Error Log
+    # 8. Error Log -> AI Diagnostic Centre (Phase 2)
     # =============================================================================
-    # What this section is for: when the app breaks for someone during
-    # real use, this is where it shows up. Every entry pairs the technical
-    # detail (which you don't need to read yourself) with a ready-made
-    # prompt you can copy and paste straight into a chat with Claude (or
-    # any AI assistant) to get it diagnosed and fixed.
-    with st.expander(T.get("admin_error_log_header", "🚨 Error Log"), expanded=False):
+    # Phase 1 (services/diagnostics.py) already builds a complete AI
+    # Diagnostic Package behind the scenes for every error_log row
+    # (see services/error_log.py:log_error). Phase 2 does NOT re-collect
+    # any of that evidence -- it only DISPLAYS the Diagnostic Package
+    # that already exists, plus a small, honest completeness score
+    # ("AI Readiness Score" -- NOT an AI judgement, just a count of
+    # which evidence categories are present) and a manual status field
+    # (New / Investigating / Fixed / Closed) so Leon can track what
+    # he's already looked at.
+    #
+    # Records logged BEFORE the Phase 1 Diagnostic Engine existed have
+    # no diagnostic_package -- parse_diagnostic_package() (see
+    # services/error_log.py) returns None for those, and every section
+    # below falls back gracefully to the older, plainer fields already
+    # stored directly on the error_log row (message / traceback /
+    # context), exactly as the page displayed them before this phase.
+
+    def _issue_status_badge(status):
+        colors = {
+            "New": "#e67e22",
+            "Investigating": "#2980b9",
+            "Fixed": "#27ae60",
+            "Closed": "#7f8c8d",
+        }
+        color = colors.get(status, "#7f8c8d")
+        return (
+            f'<span style="background-color:{color};color:white;padding:2px 10px;'
+            f'border-radius:10px;font-size:0.78rem;font-weight:600;">{status}</span>'
+        )
+
+    def _readiness_badge(score):
+        if score >= 80:
+            color = "#27ae60"
+        elif score >= 50:
+            color = "#e67e22"
+        else:
+            color = "#c0392b"
+        return (
+            f'<span style="background-color:{color};color:white;padding:2px 10px;'
+            f'border-radius:10px;font-size:0.78rem;font-weight:600;">'
+            f'{T.get("admin_error_log_readiness_label", "AI Readiness")}: {score}%</span>'
+        )
+
+    def _copy_button(label, text, key):
+        # Plain HTML + JS clipboard button -- no new dependency, and
+        # deliberately NOT st.tabs()/st.columns()/st.dataframe() (those
+        # are avoided on this admin page due to prior segfault issues).
+        # The prompt text still also appears in the read-only text_area
+        # right below, so copying always works even if a browser blocks
+        # the clipboard API.
+        payload = json.dumps(text)
+        button_html = f"""
+        <div style="margin: 4px 0 8px 0;">
+          <button onclick="navigator.clipboard.writeText({payload});
+                            this.innerText='✅ {T.get('admin_error_log_copied', 'Copied!')}';
+                            setTimeout(() => {{ this.innerText='{label}'; }}, 1500);"
+                  style="background-color:#2c3e50;color:white;border:none;
+                         padding:6px 14px;border-radius:6px;cursor:pointer;
+                         font-size:0.85rem;">
+            {label}
+          </button>
+        </div>
+        """
+        st.markdown(button_html, unsafe_allow_html=True)
+
+    with st.expander(T.get("admin_error_log_header", "🩺 AI Diagnostic Centre"), expanded=False):
         st.caption(T.get(
             "admin_error_log_caption",
-            "Errors recorded automatically anywhere in the app -- crashes, failed AI "
-            "companion calls, etc. Newest first. Open an entry, then copy the "
-            "\"Prompt for AI help\" block and paste it into a chat with Claude to get it "
-            "diagnosed.",
+            "Every problem recorded in the app -- crashes, failed AI companion calls, or "
+            "problems people reported -- shown as a full diagnostic workspace: what happened, "
+            "how serious it is, and a ready-made prompt you can copy straight into a chat with "
+            "Claude to get it diagnosed and fixed.",
         ))
 
         errors = get_recent_errors(limit=50)
@@ -378,45 +448,218 @@ with error_boundary(
         if not errors:
             st.success(T.get("admin_error_log_empty", "No errors recorded. Everything looks clean."))
         else:
-            severity_icons = {"error": "🔴", "warning": "🟡"}
+            issues = group_errors_by_signature(errors)
 
-            for err in errors:
+            # --- Filters (keeps the log searchable; extended for the
+            # richer information Phase 2 adds) ---------------------------
+            search_term = st.text_input(
+                T.get("admin_error_log_search_label", "🔍 Search (page, error type, or message)"),
+                key="admin_error_log_search",
+            )
+            status_filter = st.selectbox(
+                T.get("admin_error_log_status_filter_label", "Filter by status"),
+                options=["All", "New", "Investigating", "Fixed", "Closed"],
+                key="admin_error_log_status_filter",
+            )
+            severity_filter = st.selectbox(
+                T.get("admin_error_log_severity_filter_label", "Filter by severity"),
+                options=["All", "error", "warning", "user_reported"],
+                key="admin_error_log_severity_filter",
+            )
+
+            def _matches_filters(issue):
+                latest = issue["latest"]
+                current_status = latest.get("status") or "New"
+                if status_filter != "All" and current_status != status_filter:
+                    return False
+                if severity_filter != "All" and latest.get("severity") != severity_filter:
+                    return False
+                if search_term:
+                    haystack = " ".join(
+                        str(latest.get(f) or "") for f in ("page", "error_type", "message")
+                    ).lower()
+                    if search_term.lower() not in haystack:
+                        return False
+                return True
+
+            visible_issues = [issue for issue in issues if _matches_filters(issue)]
+
+            st.caption(
+                T.get("admin_error_log_count_caption", "Showing {n} of {total} issue(s).").format(
+                    n=len(visible_issues), total=len(issues)
+                )
+            )
+
+            if not visible_issues:
+                st.info(T.get("admin_error_log_no_matches", "No errors match the current filters."))
+
+            severity_icons = {"error": "🔴", "warning": "🟡", "user_reported": "🗣️"}
+
+            for issue in visible_issues:
+                err = issue["latest"]
+                package = parse_diagnostic_package(err.get("diagnostic_package"))
+                score, presence = compute_ai_readiness(package)
+                current_status = err.get("status") or "New"
+
                 icon = severity_icons.get(err.get("severity"), "⚪")
                 occurred = (err.get("occurred_at") or "")[:19].replace("T", " ")
-                title = f"{icon} #{err['id']} -- {occurred} -- {err.get('page') or 'unknown page'} -- {err.get('error_type') or 'Error'}"
+                occ_suffix = f" ×{issue['occurrences']}" if issue["occurrences"] > 1 else ""
+                title = (
+                    f"{icon} #{err['id']}{occ_suffix} -- {occurred} -- "
+                    f"{err.get('page') or 'unknown page'} -- {err.get('error_type') or 'Error'} -- "
+                    f"{current_status}"
+                )
 
                 with st.expander(title):
-                    st.markdown(f"**{T.get('admin_error_log_message_label', 'What happened')}:** {err.get('message') or '(no message)'}")
+                    # --- Summary -------------------------------------------------
+                    st.markdown(
+                        _issue_status_badge(current_status) + "&nbsp;&nbsp;" + _readiness_badge(score),
+                        unsafe_allow_html=True,
+                    )
+                    summary_text = (package or {}).get("summary") or err.get("message") or "(no message)"
+                    st.markdown(f"**{T.get('admin_error_log_summary_label', 'Summary')}:** {summary_text}")
+                    st.markdown(
+                        f"**{T.get('admin_error_log_category_label', 'Category')}:** "
+                        f"{(package or {}).get('category', '—')}  \n"
+                        f"**{T.get('admin_error_log_severity_label', 'Severity')}:** {err.get('severity') or '—'}  \n"
+                        f"**{T.get('admin_error_log_when_label', 'When')}:** {occurred}  \n"
+                        f"**{T.get('admin_error_log_page_label', 'Page')}:** {err.get('page') or '—'}  \n"
+                        f"**{T.get('admin_error_log_user_label', 'User')}:** "
+                        f"{err.get('user_name') or '—'} ({err.get('user_role') or 'unknown role'})"
+                    )
 
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        st.markdown(f"**{T.get('admin_error_log_page_label', 'Page')}:** {err.get('page') or '—'}")
-                        st.markdown(f"**{T.get('admin_error_log_user_label', 'User role')}:** {err.get('user_role') or '—'}")
-                    with col_b:
-                        st.markdown(f"**{T.get('admin_error_log_when_label', 'When')}:** {occurred}")
-                        st.markdown(f"**{T.get('admin_error_log_severity_label', 'Severity')}:** {err.get('severity') or '—'}")
+                    # --- Status (manual lifecycle) --------------------------------
+                    status_options = ["New", "Investigating", "Fixed", "Closed"]
+                    safe_status = current_status if current_status in status_options else "New"
+                    new_status = st.selectbox(
+                        T.get("admin_error_log_status_label", "Status"),
+                        options=status_options,
+                        index=status_options.index(safe_status),
+                        key=f"admin_error_status_{err['id']}",
+                    )
+                    if new_status != safe_status:
+                        update_error_status(err["id"], new_status)
+                        st.rerun()
 
+                    # --- Occurrences -------------------------------------------------
+                    if issue["occurrences"] > 1:
+                        first_seen = (issue["first_seen"] or "")[:19].replace("T", " ")
+                        last_seen = (issue["last_seen"] or "")[:19].replace("T", " ")
+                        st.markdown(
+                            f"**{T.get('admin_error_log_occurrences_label', 'Occurrences')}:** "
+                            f"{issue['occurrences']}  \n"
+                            f"**{T.get('admin_error_log_first_seen_label', 'First seen')}:** {first_seen}  \n"
+                            f"**{T.get('admin_error_log_last_seen_label', 'Last seen')}:** {last_seen}"
+                        )
+
+                    st.divider()
+
+                    # --- Human Explanation ------------------------------------------
+                    st.markdown(f"**{T.get('admin_error_log_explanation_label', '🗣️ What happened, in plain language')}**")
+                    if package:
+                        st.write(package.get("summary") or "—")
+                    else:
+                        st.caption(T.get(
+                            "admin_error_log_no_package",
+                            "No AI Diagnostic Package was generated for this record -- it was logged "
+                            "before the Diagnostic Engine existed. The technical details below are "
+                            "still available.",
+                        ))
+
+                    st.divider()
+
+                    # --- Technical Details --------------------------------------------
+                    st.markdown(f"**{T.get('admin_error_log_technical_label', '🔧 Technical Details')}**")
+                    exc_type = (package or {}).get("exception_type") or err.get("error_type")
+                    exc_msg = (package or {}).get("exception_message") or err.get("message")
+                    tb = (package or {}).get("traceback") or err.get("traceback")
+                    st.markdown(f"**{T.get('admin_error_log_exception_type_label', 'Exception type')}:** `{exc_type or '—'}`")
+                    st.markdown(f"**{T.get('admin_error_log_exception_message_label', 'Exception message')}:** {exc_msg or '—'}")
                     if err.get("context"):
                         st.markdown(f"**{T.get('admin_error_log_context_label', 'Context')}:**")
                         st.code(err["context"], language="json")
-
-                    if err.get("traceback"):
+                    if tb:
                         st.markdown(f"**{T.get('admin_error_log_traceback_label', 'Full technical traceback')}:**")
-                        st.code(err["traceback"], language="python")
+                        st.code(tb, language="python")
 
+                    # --- Evidence Timeline --------------------------------------------
+                    timeline = (package or {}).get("navigation_timeline") or []
+                    if timeline:
+                        st.markdown(f"**{T.get('admin_error_log_timeline_label', '🕒 Evidence Timeline')}**")
+                        timeline_lines = []
+                        for entry in timeline:
+                            at_full = entry.get("at") or ""
+                            at = at_full[11:19] if len(at_full) >= 19 else at_full
+                            line = f"`{at}` {entry.get('event', '')}"
+                            if entry.get("page"):
+                                line += f" _(page: {entry['page']})_"
+                            if entry.get("detail"):
+                                line += f" — {entry['detail']}"
+                            timeline_lines.append(line)
+                        st.markdown("  \n".join(timeline_lines))
+
+                    # --- Session Context --------------------------------------------
+                    session_ctx = (package or {}).get("session_context") or {}
+                    if session_ctx:
+                        st.markdown(f"**{T.get('admin_error_log_session_label', '🧭 Session Context')}**")
+                        st.markdown("  \n".join(f"- `{k}`: {v}" for k, v in session_ctx.items()))
+
+                    # --- Environment --------------------------------------------
+                    if package:
+                        st.markdown(f"**{T.get('admin_error_log_environment_label', '💻 Environment')}**")
+                        env_lines = [
+                            f"- {T.get('admin_error_log_env_app_version', 'App version')}: {package.get('app_version', '—')}",
+                            f"- {T.get('admin_error_log_env_python', 'Python version')}: {package.get('python_version', '—')}",
+                            f"- {T.get('admin_error_log_env_os', 'Operating system')}: {package.get('operating_system', '—')}",
+                            f"- {T.get('admin_error_log_env_browser', 'Browser')}: {package.get('browser') or T.get('admin_error_log_not_available', 'not available')}",
+                        ]
+                        for k, v in (package.get("environment") or {}).items():
+                            if k in ("python_version",):
+                                continue
+                            env_lines.append(f"- {k}: {v}")
+                        st.markdown("  \n".join(env_lines))
+
+                    # --- Evidence Collected + AI Readiness Score -----------------------
+                    st.markdown(f"**{T.get('admin_error_log_evidence_label', '📋 Evidence Collected')}**")
+                    st.caption(T.get(
+                        "admin_error_log_readiness_explainer",
+                        "The AI Readiness Score is not AI-generated -- it's a simple completeness "
+                        "count of how many of the 7 evidence categories below are present for this "
+                        "record.",
+                    ))
+                    checklist_lines = [
+                        f"{'✅' if is_present else '⬜'} {label}" for label, is_present in presence
+                    ]
+                    st.markdown("  \n".join(checklist_lines))
+                    st.progress(score / 100)
+
+                    # --- Screenshot --------------------------------------------
                     if err.get("screenshot"):
                         st.markdown(f"**{T.get('admin_error_log_screenshot_label', 'Screenshot')}:**")
                         try:
-                            import base64
                             _hdr, _, _b64data = err["screenshot"].partition(",")
                             st.image(base64.b64decode(_b64data))
                         except Exception:
                             st.caption(T.get("admin_error_log_screenshot_error", "(could not display screenshot)"))
 
-                    st.markdown(f"**{T.get('admin_error_log_prompt_label', 'Prompt for AI help (click inside, Ctrl+A, Ctrl+C):')}**")
+                    st.divider()
+
+                    # --- AI Prompt --------------------------------------------
+                    # Prefer the ready-made prompt already built by the Phase 1
+                    # Diagnostic Engine (services/diagnostics.py) -- fall back to
+                    # the older services/error_log.py:build_ai_prompt() only for
+                    # records that predate it, so nothing here ever breaks for
+                    # older data.
+                    st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
+                    ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
+                    _copy_button(
+                        T.get("admin_error_log_copy_button", "📋 Copy AI Prompt"),
+                        ai_prompt_text,
+                        key=f"copy_{err['id']}",
+                    )
                     st.text_area(
                         label="",
-                        value=build_ai_prompt(err),
+                        value=ai_prompt_text,
                         height=280,
                         key=f"admin_error_ai_prompt_{err['id']}",
                         label_visibility="collapsed",
