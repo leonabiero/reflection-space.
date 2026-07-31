@@ -679,7 +679,11 @@ with error_boundary(
                     st.markdown("  \n".join(checklist_lines))
                     st.progress(score / 100)
 
-                    # --- Screenshot --------------------------------------------
+                    # --- Screenshot (legacy only) --------------------------------
+                    # Phase 3 retired the screenshot subsystem entirely --
+                    # no new record can have a value here. This block only
+                    # ever renders for older rows logged before Phase 3,
+                    # so those reports continue to display correctly.
                     if err.get("screenshot"):
                         st.markdown(f"**{T.get('admin_error_log_screenshot_label', 'Screenshot')}:**")
                         try:
