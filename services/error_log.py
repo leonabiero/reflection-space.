@@ -174,8 +174,7 @@ def update_issue_status(issue_id, new_status):
 
 
 def log_error(page, error_type, message, traceback_text,
-              user_name="", user_role="", context=None, severity="error",
-              screenshot_b64=None):
+              user_name="", user_role="", context=None, severity="error"):
     """
     Write one error record. Returns a (new_id, issue_id) tuple:
       - new_id: the id of this individual occurrence row, or None if
@@ -194,10 +193,12 @@ def log_error(page, error_type, message, traceback_text,
     details (e.g. {"companion": "possible_bias", "attempt": 3}) --
     stored as JSON text. Never put case/client content in here.
 
-    screenshot_b64: optional data-URL string ("data:image/jpeg;base64,...")
-    captured by components/screenshot_reporter -- only ever populated
-    for user-submitted reports (see log_user_report below); automatic
-    crash detection has no screenshot to attach.
+    Phase 3: screenshots have been retired entirely. Every error and
+    every user-submitted report is now diagnosed from the AI
+    Diagnostic Package alone (services/diagnostics.py), and every
+    alert email is built from that same package (see
+    build_diagnostic_report_email below) -- entirely text-based, no
+    attachments.
     """
     # Phase 2.1 (Stable Issue References): resolve/reuse a stable
     # issue id for this exact (page, error_type, message) BEFORE
@@ -225,6 +226,7 @@ def log_error(page, error_type, message, traceback_text,
     # covers both without touching either caller's own logic. Never
     # allowed to prevent the error itself from being logged.
     diagnostic_package_json = "{}"
+    package = None
     try:
         if error_type != "UserReport":
             record_event(
@@ -251,16 +253,22 @@ def log_error(page, error_type, message, traceback_text,
     try:
         conn = _get_conn()
         with conn.cursor() as c:
+            # Phase 3: the "screenshot" column still exists in the
+            # table (services/db_schema.py) purely for backward
+            # compatibility with older rows -- new rows are never
+            # written with a screenshot, so it's simply left out of
+            # this INSERT (it stays NULL, which every reader already
+            # treats as "no screenshot for this record").
             c.execute("""
                 INSERT INTO error_log
                     (occurred_at, page, error_type, message, traceback,
-                     user_name, user_role, context, severity, screenshot,
+                     user_name, user_role, context, severity,
                      diagnostic_package, issue_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 now_utc(), page, error_type, message, traceback_text,
-                user_name, user_role, context_json, severity, screenshot_b64,
+                user_name, user_role, context_json, severity,
                 diagnostic_package_json, issue_id,
             ))
             new_id = c.fetchone()[0]
@@ -287,46 +295,47 @@ def log_error(page, error_type, message, traceback_text,
         if conn is not None:
             conn.close()
 
-    # Email alerting: only for genuine errors, not routine "one
-    # companion had to retry" warnings -- otherwise a single slow API
-    # response could trigger an email every few minutes during a busy
-    # pilot day. User reports (log_user_report, below) always email,
-    # since a person deliberately flagged something.
-    if severity == "error":
-        record = {
-            "id": new_id, "occurred_at": now_utc(), "page": page,
-            "error_type": error_type, "message": message,
-            "traceback": traceback_text, "user_role": user_role,
-            "context": context_json,
-            # BUG FIX (2026-07-30): this key was previously missing here,
-            # even though screenshot_b64 is passed to send_alert_email()
-            # a few lines down as the actual attachment. build_email_summary()
-            # reads record["screenshot"] to decide what the email SAYS, so
-            # without this key the email always claimed "no screenshot"
-            # regardless of whether one was really attached. Automatic
-            # errors never have a screenshot in practice (see log_error's
-            # docstring), but the key is included here anyway for
-            # consistency and to avoid this exact bug recurring.
-            "screenshot": screenshot_b64,
-        }
+    # Email alerting (Phase 3 redesign): only for genuine errors, not
+    # routine "one companion had to retry" warnings -- otherwise a
+    # single slow API response could trigger an email every few
+    # minutes during a busy pilot day. User-submitted reports always
+    # email, since a person deliberately flagged something -- both
+    # cases are handled here now, from the SAME AI Diagnostic Package
+    # already built above, so there is exactly one place that builds
+    # and sends this email regardless of which of the two ways it was
+    # triggered.
+    if severity in ("error", "user_reported"):
         ref_for_email = issue_id if issue_id is not None else new_id
+        if error_type == "UserReport":
+            subject = f"[Reflection Space] Problem reported on {page}" + (
+                f" (#{ref_for_email})" if ref_for_email else ""
+            )
+        else:
+            subject = f"[Reflection Space] Error on {page} (#{ref_for_email})"
+
+        package_dict = package.to_dict() if package is not None else {}
         was_sent = send_alert_email(
-            subject=f"[Reflection Space] Error on {page} (#{ref_for_email})",
-            body_text=build_email_summary(record),
-            screenshot_b64=screenshot_b64,
+            subject=subject,
+            body_text=build_diagnostic_report_email(package_dict, status="New"),
         )
         if was_sent:
-            record_event("Email sent", detail=f"error alert for #{ref_for_email}", page=page)
+            kind = "report" if error_type == "UserReport" else "error"
+            record_event("Email sent", detail=f"{kind} alert for #{ref_for_email}", page=page)
 
     return new_id, issue_id
 
 
-def log_user_report(page, description, user_name="", user_role="", screenshot_b64=None):
+def log_user_report(page, description, user_name="", user_role=""):
     """
     Records a report submitted through the "Report a problem" sidebar
     widget (services/report_widget.py). Always sends an email alert --
     a person deliberately flagged this, unlike an automatically
     detected error, which only emails for severity == "error".
+
+    Phase 3: this is now a thin wrapper around log_error() -- log_error
+    itself builds the Diagnostic Package and sends the Diagnostic
+    Report email for BOTH automatic errors and user reports, so this
+    function no longer needs (or has) any email logic of its own.
     """
     record_event("User submitted report", detail=description, page=page)
 
@@ -340,30 +349,7 @@ def log_user_report(page, description, user_name="", user_role="", screenshot_b6
         user_name=user_name,
         user_role=user_role,
         severity="user_reported",
-        screenshot_b64=screenshot_b64,
     )
-
-    record = {
-        "id": new_id, "occurred_at": now_utc(), "page": page,
-        "error_type": "UserReport", "message": description,
-        "traceback": "(user-submitted report)", "user_role": user_role,
-        # BUG FIX (2026-07-30): this key was previously missing here, even
-        # though screenshot_b64 is passed to send_alert_email() a few lines
-        # down as the actual attachment. This is the main report path (the
-        # "Report a problem" button always has a real chance of a
-        # screenshot), so this was the record that most often produced a
-        # mismatched email -- "No screenshot was captured" text next to an
-        # actual attached image.
-        "screenshot": screenshot_b64,
-    }
-    was_sent = send_alert_email(
-        subject=f"[Reflection Space] Problem reported on {page}"
-                + (f" (#{new_id})" if new_id else ""),
-        body_text=build_email_summary(record),
-        screenshot_b64=screenshot_b64,
-    )
-    if was_sent:
-        record_event("Email sent", detail=f"report alert for #{new_id}", page=page)
 
     return new_id
 
@@ -699,35 +685,96 @@ def group_errors_by_signature(errors):
     return [groups[sig] for sig in order]
 
 
-def build_email_summary(record):
+def build_diagnostic_report_email(package, status="New"):
     """
-    Short, plain-language summary for the ALERT EMAIL -- distinct from
-    build_ai_prompt (below), which is a long, AI-assistant-oriented
-    prompt meant for the System Administration > Error Log page, not
-    for an inbox. Keeping these separate means the email stays quick
-    to read on a phone, while the full AI-ready prompt is still one
-    click away whenever it's actually needed.
+    Phase 3: builds the complete, entirely text-based "Diagnostic
+    Report" alert email -- sent for both automatic errors and
+    user-submitted reports (see log_error above, the single place that
+    calls this). Replaces the old screenshot-carrying email entirely:
+    no attachments, no images, no Base64, nothing that can silently
+    fail to attach.
+
+    Built directly from the AI Diagnostic Package (services/diagnostics.py)
+    that is already generated for every error_log row, so the email and
+    the record shown in System Administration > AI Diagnostic Centre
+    are always built from the exact same data.
+
+    package: dict (DiagnosticPackage.to_dict()) for this occurrence --
+    may be an empty dict in the rare case the diagnostic build itself
+    failed, in which case every section below degrades gracefully to
+    a placeholder rather than raising.
+
+    status: the lifecycle status to show for this issue. Every email
+    is sent the moment an issue is created or recurs, so this is
+    always "New" today -- kept as a parameter (rather than hardcoded)
+    so a future phase could pass the real current status without
+    changing this function's shape.
     """
-    ctx_line = f"\nContext: {record['context']}" if record.get("context") else ""
-    # NOTE (2026-07-30 bug fix): the actual "screenshot attached" / "no
-    # screenshot" wording is intentionally NOT decided here. It used to be
-    # decided here, based solely on whether a screenshot_b64 string existed
-    # -- but that could still disagree with the real email, e.g. if the
-    # attachment step in services/email_alert.py later failed to decode the
-    # image. To guarantee the wording and the actual attachment can never
-    # disagree, we leave this placeholder token and let send_alert_email()
-    # (the one place that knows whether the attachment truly succeeded)
-    # fill it in right before sending. See services/email_alert.py.
-    return f"""A problem was reported in Reflection Space.
+    package = package or {}
+    score, presence = compute_ai_readiness(package)
 
-Page: {record.get('page')}
-When: {record.get('occurred_at')}
-Reported by (role): {record.get('user_role') or 'unknown'}
-Description: {record.get('message')}{ctx_line}
-%%SCREENSHOT_STATUS%%
+    evidence_lines = "\n".join(
+        f"{'✓' if is_present else '✗'} {label}" for label, is_present in presence
+    )
 
-For full technical detail, or to copy a ready-made prompt for Claude to help \
-diagnose it, open System Administration > Error Log in the app.
+    timeline = package.get("navigation_timeline") or []
+    if timeline:
+        timeline_lines = []
+        for entry in timeline:
+            at_full = entry.get("at") or ""
+            at = at_full[11:19] if len(at_full) >= 19 else at_full
+            line = f"{at}  {entry.get('event', '')}"
+            if entry.get("page"):
+                line += f" (page: {entry['page']})"
+            if entry.get("detail"):
+                line += f" -- {entry['detail']}"
+            timeline_lines.append(line)
+        timeline_text = "\n".join(timeline_lines)
+    else:
+        timeline_text = "(no recent activity recorded for this session)"
+
+    explanation = package.get("summary") or "(no explanation available)"
+    ai_prompt = package.get("ai_prompt") or "(no AI prompt available -- open System Administration > AI Diagnostic Centre in the app)"
+
+    divider = "-" * 50
+
+    return f"""Reflection Space Diagnostic Report
+
+Summary
+Category: {package.get('category', '-')}
+Severity: {package.get('severity', '-')}
+Status: {status}
+Timestamp: {package.get('timestamp', '-')}
+Page: {package.get('page', '-')}
+User: {package.get('user') or 'unknown'}
+Role: {package.get('role') or 'unknown'}
+
+{divider}
+Evidence Collected
+
+{evidence_lines}
+
+{divider}
+AI Readiness
+
+Score: {score}%
+
+{divider}
+Human Explanation
+
+{explanation}
+
+{divider}
+Recent Timeline
+
+{timeline_text}
+
+{divider}
+AI Prompt
+
+{ai_prompt}
+
+For status updates and the full record, open System Administration > AI Diagnostic Centre in the app.
 """
 
 
@@ -744,15 +791,6 @@ def build_ai_prompt(record):
     ctx_line = ""
     if record.get("context"):
         ctx_line = f"\nAdditional context: {record['context']}\n"
-
-    screenshot_line = ""
-    if record.get("screenshot"):
-        screenshot_line = (
-            "\nA screenshot was attached to this report. It is not included in this text -- "
-            "if you're pasting this into a chat with an AI that can see images, also attach/paste "
-            "the screenshot image itself (visible on the System Administration > Error Log page, "
-            "or in the alert email you received).\n"
-        )
 
     return f"""I'm the non-developer owner of a Streamlit app called "Reflection Space" \
 (GitHub repo: leonabiero/reflection-space, deployed on Streamlit Community Cloud, \
@@ -772,7 +810,7 @@ An error occurred in production. Here is everything I have on it:
 {ctx_line}
 Full technical traceback:
 {record.get('traceback')}
-{screenshot_line}
+
 Please:
 1. Tell me, in plain non-technical language, what most likely caused this.
 2. Tell me if you need to see the current contents of a specific file to be sure -- \
