@@ -188,6 +188,14 @@ def ensure_schema():
                 # reads this column yet (that's a later phase); it is
                 # only written to, behind the scenes.
                 c.execute("ALTER TABLE error_log ADD COLUMN IF NOT EXISTS diagnostic_package TEXT")
+                # Phase 2 AI Diagnostic Centre (pages/system_administration.py):
+                # a simple, manually-set lifecycle status per error --
+                # "New" / "Investigating" / "Fixed" / "Closed". Additive and
+                # nullable -- existing rows read back as NULL, and
+                # services/error_log.py:get_recent_errors() treats NULL the
+                # same as "New", so nothing breaks for records written before
+                # this column existed.
+                c.execute("ALTER TABLE error_log ADD COLUMN IF NOT EXISTS status TEXT")
 
                 # --- services/reflection_log.py: reflections ---
                 c.execute("""
