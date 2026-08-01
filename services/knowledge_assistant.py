@@ -74,12 +74,14 @@ for how this scales with actual Knowledge Assistant usage.
 """
 
 import json
+import traceback
 import anthropic
 
 from config import ANTHROPIC_API_KEY
 from services.anonymizer import anonymize
 from rdi.retrieval_service import retrieve_global_context
 from services.research_metrics_SERVICE import build_research_summary
+from services.error_log import log_error
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -234,7 +236,18 @@ def ask(question, lang="Español", evidence_limit=DEFAULT_EVIDENCE_LIMIT,
             "evidence_count": int,
         }
       or, on any failure:
-        {"error": "...", "raw": "..."}
+        {"error": "...", "raw": "...", "issue_id": int|None, "error_id": int|None}
+
+    issue_id / error_id are only populated when the failure came from an
+    unexpected exception (the Anthropic API call itself failing) -- that
+    case is logged via services/error_log.py:log_error() so it gets the
+    SAME stable reference number and shows the SAME "Something went
+    wrong" screen (services/error_log.py:render_application_error_screen)
+    as every other unexpected error in the app, instead of a silent
+    failure with a generic message and no way to look it up later. The
+    "Empty question" / "Empty response" cases are not logged -- they are
+    not unexpected application errors (the first is just an empty text
+    box, the second is treated as a normal, if unhelpful, model reply).
     """
     question = (question or "").strip()
     if not question:
@@ -267,7 +280,15 @@ AGGREGATE STATISTICS:
             messages=[{"role": "user", "content": user_content}],
         )
     except Exception as e:
-        return {"error": "API call failed", "raw": str(e)}
+        error_id, issue_id = log_error(
+            page="learning (knowledge assistant)",
+            error_type=type(e).__name__,
+            message=str(e),
+            traceback_text=traceback.format_exc(),
+            context={"question_length": len(question)},
+            severity="error",
+        )
+        return {"error": "API call failed", "raw": str(e), "issue_id": issue_id, "error_id": error_id}
 
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
     if not raw.strip():
