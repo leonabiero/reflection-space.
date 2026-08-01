@@ -453,6 +453,9 @@ with error_boundary(
                             opportunity.add_ai_message(result["reply"])
                         else:
                             st.session_state[f"convo_error_{opportunity.trigger}"] = True
+                            st.session_state[f"convo_error_ref_{opportunity.trigger}"] = (
+                                result.get("issue_id"), result.get("error_id"),
+                            )
 
                         # Flag the conversation input box to be cleared on
                         # the next run (right before it's re-instantiated
@@ -471,7 +474,13 @@ with error_boundary(
                     st.rerun()
 
             if st.session_state.pop(f"convo_error_{opportunity.trigger}", False):
-                st.error(T["workspace_conversation_error"])
+                convo_issue_id, convo_error_id = st.session_state.pop(
+                    f"convo_error_ref_{opportunity.trigger}", (None, None),
+                )
+                render_application_error_screen(
+                    T, convo_issue_id, convo_error_id,
+                    friendly_message=T["workspace_conversation_error"],
+                )
 
 
     # ---------------------------------------------------------------------
@@ -752,7 +761,7 @@ with error_boundary(
                         else:
                             session.save()
                     else:
-                        st.error(T["error_parsing"])
+                        st.error(T["submit_draft_failed"])
 
                     st.rerun()
 
@@ -835,7 +844,7 @@ with error_boundary(
                                     st.success(T["reflection_deleted_success"])
                                 else:
                                     st.session_state.pop(confirm_key, None)
-                                    st.error(T["error_parsing"])
+                                    st.error(T["delete_draft_failed"])
                                 st.rerun()
                         with cc2:
                             if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
