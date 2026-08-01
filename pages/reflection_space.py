@@ -13,7 +13,7 @@ from services.explanation_builder import build_explanations, similarity_category
 from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
-from services.error_log import error_boundary
+from services.error_log import error_boundary, render_application_error_screen
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
@@ -652,8 +652,15 @@ with error_boundary(
 
         if session.has_error():
             _render_journey(active_step=3)
-            st.error(T["error_parsing"])
-            st.text(session.error_raw)
+            # Phase 3 (Reflection Generation): Complete Failure now
+            # shows the SAME numbered "Something went wrong" screen as
+            # any other unexpected error in the app, instead of a
+            # generic message with no reference number -- the
+            # underlying failure was already logged, once, by
+            # rdi/orchestrator.py:run_reflection with full evidence
+            # (root cause, a representative traceback, every failed
+            # companion's raw response) before this page ever saw it.
+            render_application_error_screen(T, session.issue_id, session.error_id)
             st.stop()
 
         # Professional Reflection is the third and final stage of the
