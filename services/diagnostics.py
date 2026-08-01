@@ -72,7 +72,7 @@ from typing import Optional
 import streamlit as st
 
 import config
-from services.db_time import now_utc, get_logger, get_recent_log_entries
+from services.db_time import now_utc, get_logger
 from services.evidence_timeline import get_timeline
 from services.case_knowledge import find_similar_issues
 
@@ -315,6 +315,7 @@ def build_error_summary(page, category, error_type, message):
 _AI_READINESS_CATEGORIES = (
     ("exception", "Exception"),
     ("traceback_evidence", "Traceback"),
+    ("root_cause", "Root Cause"),
     ("timeline", "Timeline"),
     ("session_context", "Session Context"),
     ("environment", "Environment"),
@@ -326,7 +327,7 @@ _AI_READINESS_CATEGORIES = (
 def compute_ai_readiness(package):
     """
     A plain completeness score -- NOT an AI judgement of anything, and
-    NOT a measure of severity -- based only on how many of 7 fixed
+    NOT a measure of severity -- based only on how many of 8 fixed
     evidence categories are present in an already-parsed diagnostic
     package (a dict, e.g. DiagnosticPackage.to_dict() or a package
     parsed back out of storage).
@@ -348,6 +349,9 @@ def compute_ai_readiness(package):
         explaining that no traceback exists -- that placeholder is
         not technical evidence, so it must never count toward the
         score or be confused with a genuine traceback.
+      - Root Cause (Phase 5): root_cause is set AND this wasn't a
+        user-submitted report -- same reasoning as Traceback above;
+        there's no exception to classify a root cause from.
       - Timeline: navigation_timeline is a non-empty list
       - Session Context: session_context is a non-empty dict
       - Environment: environment is a non-empty dict, OR
@@ -366,6 +370,7 @@ def compute_ai_readiness(package):
     checks = {
         "exception": bool(package.get("exception_type") or package.get("exception_message")),
         "traceback_evidence": bool(package.get("traceback")) and not is_user_report,
+        "root_cause": bool(package.get("root_cause")) and not is_user_report,
         "timeline": bool(package.get("navigation_timeline")),
         "session_context": bool(package.get("session_context")),
         "environment": bool(package.get("environment"))
@@ -429,10 +434,18 @@ class DiagnosticPackage:
     traceback_unavailable_reason: Optional[str] = None
     config_values: dict = field(default_factory=dict)
     environment: dict = field(default_factory=dict)
-    recent_log_entries: list = field(default_factory=list)
     navigation_timeline: list = field(default_factory=list)
     additional_context: Optional[dict] = None
     similar_issues: list = field(default_factory=list)
+    # Root Cause Classification (see services/issue_fingerprint.py) --
+    # Phase 5: previously computed for fingerprinting/issue-matching in
+    # services/error_log.py:_get_or_create_issue and then discarded.
+    # Now carried through here so it's part of the one canonical
+    # object every consumer (AI prompt, email, admin page) reads, the
+    # same way issue_number already is. None for user-submitted
+    # reports (there's no exception to classify) -- the AI prompt and
+    # email both say so explicitly rather than omitting the section.
+    root_cause: Optional[str] = None
     # The stable issue/reference number (services/error_log.py's
     # error_issues.id) for this problem, if one exists yet -- None for
     # user-submitted reports (never issue-linked) or if issue linking
@@ -473,19 +486,30 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
 
     Deliberately concise: only information that materially helps
     diagnose the error. Two things this DOES NOT include on purpose,
-    even though they're both collected and stored on the package
-    itself (for the database record and the full email report):
+    even though one of them is still collected and stored on the
+    package itself (for the database record and the full email
+    report):
       - Environment / app version / config values -- rarely relevant
-        to one specific error, and mostly unchanging noise.
-      - Raw recent application log lines (services/db_time.py's
-        rolling buffer) -- this can include unrelated startup output,
-        schema-migration logs, etc. from anywhere in the process, not
-        just this error's own path.
+        to one specific error, and mostly unchanging noise. (Still
+        collected and shown on the admin Error Log page, since it's
+        occasionally useful there -- just never in the prompt.)
+      - Raw recent application log lines -- Phase 1 originally
+        collected up to 20 of these per error (services/db_time.py's
+        process-wide rolling buffer), but that buffer mixes in
+        unrelated output from anywhere in the process at the same
+        moment -- schema-migration logs, startup logs, other
+        sessions' activity -- none of which is scoped to THIS error.
+        It was never rendered anywhere (not this prompt, not the
+        email, not the admin page), so Phase 5 removed the collection
+        entirely rather than just filtering it out here.
 
     There is NEVER a version of this prompt without a Traceback
     section -- see the "if pkg.traceback" branch below. If no
     traceback exists, the section says so explicitly, with a reason,
-    instead of being silently omitted.
+    instead of being silently omitted. Root Cause (below) follows the
+    same rule: always its own section, with an explicit reason when
+    no classification exists (e.g. user-submitted reports), never
+    just omitted.
     """
     lines = []
     lines.append(
@@ -547,6 +571,19 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
         for k, v in (pkg.additional_context or {}).items():
             lines.append(f"{k}: {v}")
 
+    # Root Cause -- ALWAYS present, same rule as Traceback above: never
+    # silently omitted. User-submitted reports (and, rarely, a record
+    # where classification itself failed) explain why no
+    # classification exists instead of the section just being absent.
+    lines.append("")
+    lines.append("=== Root Cause ===")
+    if pkg.root_cause:
+        lines.append(pkg.root_cause)
+    elif pkg.exception_type == "UserReport":
+        lines.append("Not classified -- this is a user-submitted report, not an automatic exception.")
+    else:
+        lines.append("Not classified for this occurrence.")
+
     if pkg.similar_issues:
         lines.append("")
         lines.append("=== Similar Previous Issues ===")
@@ -600,6 +637,7 @@ def build_diagnostic_package(
     context=None,
     issue_id=None,
     traceback_unavailable_reason=None,
+    root_cause=None,
 ):
     """
     The one entry point every other part of the app should use:
@@ -619,6 +657,15 @@ def build_diagnostic_package(
     to populate package.issue_number so the reference number travels
     with the rest of the diagnostic evidence. None for user-submitted
     reports, which are never grouped into a stable issue.
+
+    root_cause: the Root Cause Classification for this occurrence (see
+    services/issue_fingerprint.py), also resolved by
+    services/error_log.py:log_error BEFORE calling here (it's a
+    byproduct of the same fingerprinting work that resolves issue_id).
+    Optional -- None for user-submitted reports, since there's no
+    exception to classify. Carried straight onto package.root_cause so
+    it appears as its own section in the AI prompt and email, the same
+    way issue_number does.
 
     traceback_text: pass the ACTUAL traceback (e.g.
     traceback.format_exc()) whenever one genuinely exists. If it
@@ -663,12 +710,12 @@ def build_diagnostic_package(
             traceback_unavailable_reason=tb_reason,
             config_values=_collect_config_values(),
             environment=environment,
-            recent_log_entries=get_recent_log_entries(limit=20),
             navigation_timeline=get_timeline(),
             additional_context=context if isinstance(context, dict) else None,
             similar_issues=_collect_similar_issues(
                 issue_id, page, error_type, message, traceback_text
             ),
+            root_cause=root_cause,
             issue_number=issue_id,
         )
         pkg.evidence_summary = _build_evidence_summary(pkg.to_dict())
@@ -699,6 +746,7 @@ def build_diagnostic_package(
                        "be determined."
                 )
             ),
+            root_cause=root_cause,
             issue_number=issue_id,
         )
         fallback.evidence_summary = _build_evidence_summary(fallback.to_dict())
