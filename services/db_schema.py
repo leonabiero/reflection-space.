@@ -241,6 +241,83 @@ def ensure_schema():
                     "CREATE INDEX IF NOT EXISTS idx_error_issues_signature_status "
                     "ON error_issues (signature, status)"
                 )
+
+                # Phase 2 (Issue Tracking): replaces exact-string
+                # (page, error_type, message) matching with a stable
+                # Diagnostic Fingerprint (see
+                # services/issue_fingerprint.py) -- so the SAME
+                # underlying bug is recognised as the same issue even
+                # when the message text differs between occurrences.
+                # `signature` (above) is kept for backward
+                # compatibility with rows/reads that predate this
+                # phase -- it is no longer used for matching, only as
+                # a legacy display fallback.
+                #
+                # Additive/nullable, exactly like every other
+                # cross-phase column here: existing rows read back
+                # with fingerprint = NULL and simply won't be matched
+                # against by the new fingerprint-based lookup -- the
+                # next occurrence of an old, un-fingerprinted issue
+                # gets its own new, correctly-fingerprinted issue
+                # rather than risking an incorrect merge.
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS fingerprint TEXT")
+                c.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_error_issues_fingerprint "
+                    "ON error_issues (fingerprint)"
+                )
+                # A short, human-scannable title (e.g. "AI / Claude API
+                # failure in generate_companion_reflection
+                # (reflection_space)") -- see
+                # services/error_log.py:_build_issue_title.
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS title TEXT")
+                # The same category a reader sees on this issue's own
+                # occurrences' AI prompts (see
+                # services/diagnostics.py:categorize_error) -- stored
+                # here too so the Issue list itself can show/filter by
+                # it without re-parsing a diagnostic package.
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS category TEXT")
+                # A more technical, mechanism-level classification (see
+                # services/issue_fingerprint.py:classify_root_cause) --
+                # deliberately a SEPARATE field from category: category
+                # answers "which part of the system", this answers
+                # "what kind of failure, mechanically".
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS root_cause_classification TEXT")
+                # A one-line, human-readable summary of the issue (see
+                # services/diagnostics.py:build_error_summary) -- the
+                # same summary text shown on an occurrence's own
+                # diagnostic package, but attached to the issue too so
+                # the issue list can show it without opening one.
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS summary TEXT")
+                # How many DISTINCT users have hit this issue -- kept
+                # up to date by services/error_log.py:_record_affected_user
+                # every time an occurrence is logged. Distinct from
+                # occurrence_count (above), which counts EVENTS, not
+                # people -- one person retrying the same broken action
+                # five times is 5 occurrences but 1 affected user.
+                c.execute("ALTER TABLE error_issues ADD COLUMN IF NOT EXISTS affected_user_count INTEGER DEFAULT 0")
+
+                # error_issue_users: which named users have hit which
+                # issue -- purely so affected_user_count (above) can be
+                # computed as a true DISTINCT count rather than a
+                # naive increment-every-time counter (which would
+                # double-count the same person retrying repeatedly).
+                # Anonymous occurrences (no user_name) are simply never
+                # inserted here -- see _record_affected_user.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS error_issue_users (
+                    id SERIAL PRIMARY KEY,
+                    issue_id INTEGER NOT NULL REFERENCES error_issues(id),
+                    user_name TEXT NOT NULL,
+                    first_seen TIMESTAMPTZ,
+                    last_seen TIMESTAMPTZ,
+                    UNIQUE (issue_id, user_name)
+                )
+                """)
+                c.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_error_issue_users_issue_id "
+                    "ON error_issue_users (issue_id)"
+                )
+
                 # Additive/nullable on error_log: old rows (written before
                 # this phase) read back as NULL, and every place that reads
                 # this column treats NULL exactly like the old, pre-Phase-2.1
