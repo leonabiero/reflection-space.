@@ -1,7 +1,9 @@
 import anthropic
 import json
+import traceback
 from config import ANTHROPIC_API_KEY
 from services.anonymizer import anonymize
+from services.error_log import log_error
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -136,7 +138,13 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
     Unlike generate_companion_reflection(), this does NOT ask for JSON.
     It returns plain text -- one short conversational reply -- or an
     error dict on failure, in the same {"error": ..., "raw": ...} shape
-    used elsewhere so callers can handle both paths identically.
+    used elsewhere so callers can handle both paths identically. When
+    the failure is an unexpected exception (the Anthropic API call
+    itself failing), the dict also carries "issue_id"/"error_id" --
+    the failure is logged via services/error_log.py:log_error() first,
+    the same way rdi/orchestrator.py logs a Complete Failure, so the
+    page can show the SAME standard "Something went wrong" screen with
+    a real reference number instead of a generic, unlogged message.
 
     Parameters
     ----------
@@ -238,7 +246,15 @@ Your original reflective question(s) were:
             messages=messages,
         )
     except Exception as e:
-        return {"error": "API call failed", "raw": str(e)}
+        error_id, issue_id = log_error(
+            page="reflection_space (workspace conversation)",
+            error_type=type(e).__name__,
+            message=str(e),
+            traceback_text=traceback.format_exc(),
+            context={"companion": companion.get("key")},
+            severity="error",
+        )
+        return {"error": "API call failed", "raw": str(e), "issue_id": issue_id, "error_id": error_id}
 
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
 
