@@ -1625,66 +1625,81 @@ def init_language():
     """
     Single source of truth for the active UI language: st.session_state["lang"].
 
-    Fix (removes the Streamlit warning "The widget with key 'lang' was
-    created with a default value but also had its value set via the
-    Session State API"):
+    ROOT CAUSE of "must pick the language twice" (this revision)
+    ------------------------------------------------------------
+    This app is pinned to streamlit==1.47.1 (see requirements.txt),
+    which predates Streamlit 1.55.0 -- the release that made an
+    explicit `key` the SOLE determinant of a widget's identity. Before
+    1.55.0, a widget's `label` still counted toward its identity even
+    when a `key` was supplied ("limited exceptions", per Streamlit's
+    own widget-behaviour docs): if the label differs from the one used
+    on the previous render, Streamlit can treat it as a different
+    widget and reset it, discarding whatever value the frontend had
+    just sent up for that rerun.
 
-    That warning fires whenever a widget's `key` already has a value in
-    st.session_state (which "lang" always does here, after the first
-    line below) AND the widget constructor is ALSO given an explicit
-    default (`index=`/`value=`). Previously this selectbox passed BOTH
-    `index=LANGUAGE_ORDER.index(st.session_state.lang)` and
-    `key="lang"` at the same time, which is exactly that conflicting
-    combination.
+    That is exactly what the previous version of this selectbox did:
+    its label was `get_lang(st.session_state.lang)["language"]` --
+    i.e. it read the language that had JUST changed, so the label
+    itself flipped ("Idioma" -> "Language") on the very same rerun
+    that carried the newly picked value. Label + key both changing at
+    once is precisely the reset case above, so the fresh selection was
+    dropped on that run and the dropdown fell back toward its old
+    value. Picking again worked because, on that second run, the label
+    was already stable (no longer changing), so nothing reset it.
 
-    The fix: st.session_state["lang"] is still set once, up front, as
-    the one and only default (same as before -- first-ever visit still
-    starts on "Español", and nothing about persistence changes). The
-    selectbox itself is then created with ONLY `key="lang"` and no
-    `index`/`value` argument at all -- Streamlit reads the widget's
-    current value directly from st.session_state["lang"] in that case,
-    so the dropdown still shows/keeps whatever language is active, and
-    picking a new language still updates st.session_state["lang"]
-    exactly as before. Behaviour, translations, and persistence across
-    reruns/pages are all unchanged -- only the double-default conflict
-    is removed.
+    THE FIX: the selectbox's own `label` argument is now a fixed,
+    language-independent string that never changes between reruns --
+    its identity now depends on `key="lang"` alone, exactly as
+    intended. The live, translated label ("Idioma" / "Hizkuntza" /
+    "Language") is still shown, but as a plain `st.sidebar.caption`,
+    which is not a stateful widget, so it can change text every run
+    with no effect on the selector's identity.
+
+    Belt-and-braces hardening on top of that real fix: `_lang_applied`
+    is a single tracker for "which language has the rest of the page
+    already been fully rendered with". The moment st.session_state.lang
+    no longer matches it, that's a genuine, just-applied language
+    change, so we update the tracker (so this can only fire once per
+    change -- no rerun loop) and call st.rerun() immediately, from the
+    plain script body rather than a widget callback (same pattern
+    already used elsewhere in this app, e.g. navigation/router.py).
+    That guarantees every part of the page -- not just the sidebar --
+    picks up the new translations on the very next paint, with no
+    flicker of stale text in between.
+
+    Persistence note: language selection lives only in
+    st.session_state["lang"] -- it is the single source of truth, with
+    no second/duplicate state variable anywhere else in the app. There
+    is also no browser localStorage/cookie sync that writes back into
+    Python state; _sync_browser_language() below only sets the <html>
+    lang/spellcheck attributes in the DOM, it never reads from or
+    overwrites st.session_state, so it cannot race with or clobber a
+    freshly picked language.
     """
     if "lang" not in st.session_state:
         st.session_state.lang = "Español"
 
-    # Read the label ("Idioma" / "Hizkuntza" / "Language") using the
-    # CURRENT language, before the widget is instantiated.
+    # Live, translated label ("Idioma" / "Hizkuntza" / "Language"),
+    # shown as a plain caption -- NOT passed as the selectbox's own
+    # `label`, so it's free to change every run without resetting the
+    # widget below.
     current_label = get_lang(st.session_state.lang)["language"]
+    st.sidebar.caption(current_label)
 
     st.sidebar.selectbox(
-        current_label,
+        "🌐",  # fixed, language-independent label -- never changes
         LANGUAGE_ORDER,
         key="lang",
+        label_visibility="collapsed",
     )
 
-    # Fix -- language selector needing two attempts to take effect
-    # ------------------------------------------------------------
-    # _sync_browser_language() calls components.html(), which mounts a
-    # brand-new iframe (with its own <script>, including a
-    # MutationObserver watching the entire page body) every single time
-    # this function runs. Previously that happened on EVERY rerun of
-    # EVERY page -- not just when the language actually changed -- so
-    # the very rerun that was supposed to show the newly picked
-    # language was also busy tearing down and remounting that iframe
-    # component. That extra, unnecessary component work competed with
-    # the selectbox's own re-render, which is what made the first
-    # selection appear to do nothing until a second attempt.
-    #
-    # The fix: remember the language we last synced to the browser in
-    # st.session_state, and only call _sync_browser_language() again
-    # when it has actually changed. This removes the redundant
-    # iframe/component churn on every ordinary rerun (page navigation,
-    # button clicks, etc.) and leaves only the one rerun that follows
-    # an actual language change to do that extra work -- so that
-    # rerun's job is simply "show the new language", with nothing else
-    # competing for the render.
-    if st.session_state.get("_synced_lang") != st.session_state.lang:
-        _sync_browser_language(st.session_state.lang)
-        st.session_state["_synced_lang"] = st.session_state.lang
+    # One-shot, guarded rerun: fires only on an actual language
+    # change, and only once per change (the tracker is updated before
+    # rerun() is called), so this cannot loop.
+    if st.session_state.get("_lang_applied") != st.session_state.lang:
+        st.session_state["_lang_applied"] = st.session_state.lang
+        st.rerun()
+
+    _sync_browser_language(st.session_state.lang)
 
     return get_lang(st.session_state.lang)
