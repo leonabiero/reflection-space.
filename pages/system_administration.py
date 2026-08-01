@@ -989,7 +989,7 @@ with error_boundary(
                     st.caption(T.get(
                         "admin_error_log_readiness_explainer",
                         "The AI Readiness Score is not AI-generated -- it's a simple completeness "
-                        "count of how many of the 7 evidence categories below are present for this "
+                        "count of how many of the 8 evidence categories below are present for this "
                         "record.",
                     ))
                     checklist_lines = [
