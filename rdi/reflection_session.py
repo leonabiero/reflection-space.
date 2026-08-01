@@ -53,6 +53,13 @@ class ReflectionSession:
         #  "failed_labels": [...], "safe_text": ...}
         self.error = result.get("error")
         self.error_raw = result.get("raw") if self.error else None
+        # Phase 3 (Reflection Generation): only ever set when self.error
+        # is set (Complete Failure) -- see rdi/orchestrator.py:run_reflection.
+        # Lets the page show the SAME numbered "Something went wrong"
+        # screen as any other unexpected error -- see
+        # services/error_log.py:render_application_error_screen.
+        self.issue_id = result.get("issue_id") if self.error else None
+        self.error_id = result.get("error_id") if self.error else None
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
         self.failed_count = result.get("failed_count", 0)
