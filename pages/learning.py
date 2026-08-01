@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode, can_see_learning
-from services.error_log import error_boundary
+from services.error_log import error_boundary, render_application_error_screen
 from services.reflection_log import get_recent_theme_counts, THEME_KEYS
 from services.exploration_log import get_aggregated_theme_counts
 from services.presence import get_active_social_workers
@@ -90,7 +90,12 @@ with error_boundary(
                     result = ask_knowledge_assistant(question.strip(), lang=st.session_state.lang)
 
                 if "error" in result:
-                    st.error(T["ka_error"])
+                    render_application_error_screen(
+                        T,
+                        result.get("issue_id"),
+                        result.get("error_id"),
+                        friendly_message=T["ka_error"],
+                    )
                 else:
                     st.session_state["ka_last_result"] = result
                     st.session_state["ka_last_question"] = question.strip()
