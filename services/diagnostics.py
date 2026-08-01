@@ -285,6 +285,123 @@ def _build_summary(page, category, error_type, message):
     )
 
 
+# Public wrappers -- Phase 2 (Issue Tracking / services/issue_fingerprint.py)
+# reuses these EXACT SAME functions for an Issue's "Category" and "Summary"
+# fields, so an issue's category is always identical to the category shown
+# in its own occurrences' AI prompts -- one source of truth, not two
+# categorizers that could drift apart.
+def categorize_error(error_type, message, traceback_text):
+    return _categorize(error_type, message, traceback_text)
+
+
+def build_error_summary(page, category, error_type, message):
+    return _build_summary(page, category, error_type, message)
+
+
+# ---------------------------------------------------------------------
+# Evidence summary
+# ---------------------------------------------------------------------
+#
+# Fixed, documented order for the "Evidence Collected" checklist and
+# the AI Readiness Score. Each entry is (internal_key, display_label).
+# Moved here from services/error_log.py so that evidence collection --
+# including this completeness summary -- lives entirely in one place
+# (this module), per the Phase 1 architecture: diagnostics.py collects
+# evidence and builds the diagnostic object; error_log.py only logs/
+# stores it and assigns issue information; email_alert.py only renders.
+# services/error_log.py still exposes `compute_ai_readiness` (it just
+# imports it from here) so nothing that already calls
+# `from services.error_log import compute_ai_readiness` needs to change.
+_AI_READINESS_CATEGORIES = (
+    ("exception", "Exception"),
+    ("traceback_evidence", "Traceback"),
+    ("timeline", "Timeline"),
+    ("session_context", "Session Context"),
+    ("environment", "Environment"),
+    ("user_information", "User Information"),
+    ("configuration", "Configuration"),
+)
+
+
+def compute_ai_readiness(package):
+    """
+    A plain completeness score -- NOT an AI judgement of anything, and
+    NOT a measure of severity -- based only on how many of 7 fixed
+    evidence categories are present in an already-parsed diagnostic
+    package (a dict, e.g. DiagnosticPackage.to_dict() or a package
+    parsed back out of storage).
+
+    Returns (score_percent, presence):
+      - score_percent: int 0-100, simply
+        round(100 * present_count / total_categories)
+      - presence: an ordered list of (label, is_present) tuples, in
+        the fixed order defined by _AI_READINESS_CATEGORIES above,
+        ready to render directly as a checklist.
+
+    A category counts as present using a simple non-empty check on
+    the corresponding diagnostic package field(s) -- nothing clever
+    and nothing AI-driven:
+      - Exception: exception_type or exception_message is set
+      - Traceback: traceback is set AND this wasn't a user-submitted
+        report. User reports (exception_type == "UserReport") always
+        carry a fixed placeholder string in the traceback field
+        explaining that no traceback exists -- that placeholder is
+        not technical evidence, so it must never count toward the
+        score or be confused with a genuine traceback.
+      - Timeline: navigation_timeline is a non-empty list
+      - Session Context: session_context is a non-empty dict
+      - Environment: environment is a non-empty dict, OR
+        python_version / operating_system is set
+      - User Information: user or role is set
+      - Configuration: config_values is a non-empty dict
+
+    If package is None (no Diagnostic Package at all -- e.g. an older
+    record), every category is False and the score is 0.
+    """
+    if not package:
+        presence = [(label, False) for _, label in _AI_READINESS_CATEGORIES]
+        return 0, presence
+
+    is_user_report = package.get("exception_type") == "UserReport"
+    checks = {
+        "exception": bool(package.get("exception_type") or package.get("exception_message")),
+        "traceback_evidence": bool(package.get("traceback")) and not is_user_report,
+        "timeline": bool(package.get("navigation_timeline")),
+        "session_context": bool(package.get("session_context")),
+        "environment": bool(package.get("environment"))
+        or bool(package.get("python_version"))
+        or bool(package.get("operating_system")),
+        "user_information": bool(package.get("user") or package.get("role")),
+        "configuration": bool(package.get("config_values")),
+    }
+    presence = [(key, checks[key]) for key, _label in _AI_READINESS_CATEGORIES]
+    present_count = sum(1 for _, is_present in presence if is_present)
+    score = round((present_count / len(presence)) * 100)
+    return score, presence
+
+
+def _build_evidence_summary(package_dict):
+    """
+    Runs compute_ai_readiness() once, at build time, and reshapes it
+    into the plain-dict form stored on DiagnosticPackage.evidence_summary
+    (see that field's docstring). Never raises.
+    """
+    try:
+        score, presence = compute_ai_readiness(package_dict)
+        return {
+            "score": score,
+            "presence": [
+                {"key": key, "label": T_label, "present": is_present}
+                for (key, T_label), (_key2, is_present) in zip(
+                    _AI_READINESS_CATEGORIES, presence
+                )
+            ],
+        }
+    except Exception:
+        logger.exception("_build_evidence_summary failed (non-fatal)")
+        return {}
+
+
 # ---------------------------------------------------------------------
 # The package itself
 # ---------------------------------------------------------------------
@@ -305,12 +422,31 @@ class DiagnosticPackage:
     exception_type: Optional[str] = None
     exception_message: Optional[str] = None
     traceback: Optional[str] = None
+    # If `traceback` is empty/None, this ALWAYS explains why -- see
+    # build_diagnostic_package's docstring and _build_ai_prompt below.
+    # A missing traceback must never just be silently absent; the
+    # reason it's missing is itself diagnostic information.
+    traceback_unavailable_reason: Optional[str] = None
     config_values: dict = field(default_factory=dict)
     environment: dict = field(default_factory=dict)
     recent_log_entries: list = field(default_factory=list)
     navigation_timeline: list = field(default_factory=list)
     additional_context: Optional[dict] = None
     similar_issues: list = field(default_factory=list)
+    # The stable issue/reference number (services/error_log.py's
+    # error_issues.id) for this problem, if one exists yet -- None for
+    # user-submitted reports (never issue-linked) or if issue linking
+    # itself failed. Resolved by error_log.py BEFORE this package is
+    # built and simply carried through here so it's part of the one
+    # canonical object, instead of being bolted on separately by each
+    # consumer (email, AI prompt, admin page).
+    issue_number: Optional[int] = None
+    # Standardized evidence-completeness summary (see
+    # compute_ai_readiness below) -- computed once, here, at build
+    # time, so every consumer (email, AI prompt, admin page) reads the
+    # SAME evidence summary instead of each recomputing its own.
+    # {"score": int 0-100, "presence": [{"key", "label", "present"}, ...]}
+    evidence_summary: dict = field(default_factory=dict)
     ai_prompt: str = ""
 
     def to_dict(self):
@@ -327,12 +463,29 @@ class DiagnosticPackage:
 def _build_ai_prompt(pkg: DiagnosticPackage):
     """
     Builds a complete, ready-to-paste-into-Claude-or-ChatGPT prompt
-    from an already-assembled DiagnosticPackage. This is a NEW,
-    separate prompt from services/error_log.py:build_ai_prompt() (the
-    one used TODAY on the System Administration > Error Log page) --
-    that function is untouched, and this one is not used anywhere
-    visible yet. It exists now so a later phase can surface it without
-    any change to how it's built.
+    from an already-assembled DiagnosticPackage. This is the ONE AI
+    prompt builder used for every unexpected exception, regardless of
+    where it originated -- services/error_log.py:build_ai_prompt() is
+    a separate, older function kept only as a display fallback for
+    records written before this engine existed (see
+    pages/system_administration.py); it is never used for anything
+    logged through build_diagnostic_package().
+
+    Deliberately concise: only information that materially helps
+    diagnose the error. Two things this DOES NOT include on purpose,
+    even though they're both collected and stored on the package
+    itself (for the database record and the full email report):
+      - Environment / app version / config values -- rarely relevant
+        to one specific error, and mostly unchanging noise.
+      - Raw recent application log lines (services/db_time.py's
+        rolling buffer) -- this can include unrelated startup output,
+        schema-migration logs, etc. from anywhere in the process, not
+        just this error's own path.
+
+    There is NEVER a version of this prompt without a Traceback
+    section -- see the "if pkg.traceback" branch below. If no
+    traceback exists, the section says so explicitly, with a reason,
+    instead of being silently omitted.
     """
     lines = []
     lines.append(
@@ -344,48 +497,35 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
     )
     lines.append("")
     lines.append("=== Summary ===")
-    lines.append(pkg.summary)
+    lines.append(f"Issue Number: {pkg.issue_number if pkg.issue_number is not None else 'not yet assigned'}")
     lines.append(f"Category: {pkg.category}")
     lines.append(f"Severity: {pkg.severity}")
-    lines.append(f"When: {pkg.timestamp}")
     lines.append(f"Page: {pkg.page}")
-    lines.append(f"User: {pkg.user or 'unknown'} (role: {pkg.role or 'unknown'})")
-
-    if pkg.exception_type or pkg.exception_message:
-        lines.append("")
-        lines.append("=== Exception ===")
-        lines.append(f"Type: {pkg.exception_type}")
-        lines.append(f"Message: {pkg.exception_message}")
-
-    if pkg.traceback:
-        lines.append("")
-        lines.append("=== Full traceback ===")
-        lines.append(pkg.traceback)
+    lines.append(f"User: {pkg.user or 'unknown'}")
+    lines.append(f"Role: {pkg.role or 'unknown'}")
+    lines.append(f"Timestamp: {pkg.timestamp}")
 
     lines.append("")
-    lines.append("=== Environment ===")
-    lines.append(f"App version: {pkg.app_version}")
-    lines.append(f"Python version: {pkg.python_version}")
-    lines.append(f"Operating system: {pkg.operating_system}")
-    lines.append(f"Browser: {pkg.browser or 'not available'}")
-    for k, v in (pkg.environment or {}).items():
-        lines.append(f"{k}: {v}")
+    lines.append("=== Exception ===")
+    lines.append(f"Type: {pkg.exception_type or 'unknown'}")
+    lines.append(f"Message: {pkg.exception_message or 'unknown'}")
 
-    if pkg.config_values:
+    # Full Traceback -- ALWAYS present, never silently omitted. See
+    # DiagnosticPackage.traceback_unavailable_reason's docstring.
+    lines.append("")
+    lines.append("=== Full Traceback ===")
+    if pkg.traceback:
+        lines.append(pkg.traceback)
+    else:
+        lines.append("Not available.")
         lines.append("")
-        lines.append("=== Relevant configuration (no secrets included) ===")
-        for k, v in pkg.config_values.items():
-            lines.append(f"{k}: {v}")
-
-    if pkg.session_context:
-        lines.append("")
-        lines.append("=== Relevant session state (filtered, no secrets) ===")
-        for k, v in pkg.session_context.items():
-            lines.append(f"{k}: {v}")
+        lines.append(
+            f"Reason: {pkg.traceback_unavailable_reason or 'No reason was recorded for the missing traceback.'}"
+        )
 
     if pkg.navigation_timeline:
         lines.append("")
-        lines.append("=== Recent activity leading up to this (oldest first) ===")
+        lines.append("=== Recent Timeline ===")
         for entry in pkg.navigation_timeline:
             piece = f"- {entry.get('at')}: {entry.get('event')}"
             if entry.get("page"):
@@ -394,20 +534,22 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
                 piece += f" -- {entry['detail']}"
             lines.append(piece)
 
-    if pkg.recent_log_entries:
+    # Relevant Context -- the filtered session state (already
+    # collected non-sensitively, see collect_session_context above)
+    # plus any caller-supplied additional_context, combined into one
+    # section since both are "context relevant to this one error", not
+    # two different kinds of thing worth separate headers.
+    if pkg.session_context or pkg.additional_context:
         lines.append("")
-        lines.append("=== Recent application log lines ===")
-        lines.extend(pkg.recent_log_entries)
-
-    if pkg.additional_context:
-        lines.append("")
-        lines.append("=== Additional context ===")
-        for k, v in pkg.additional_context.items():
+        lines.append("=== Relevant Context ===")
+        for k, v in (pkg.session_context or {}).items():
+            lines.append(f"{k}: {v}")
+        for k, v in (pkg.additional_context or {}).items():
             lines.append(f"{k}: {v}")
 
     if pkg.similar_issues:
         lines.append("")
-        lines.append("=== Similar previous issues ===")
+        lines.append("=== Similar Previous Issues ===")
         for s in pkg.similar_issues:
             lines.append(f"#{s['issue_id']} -- {s.get('status') or 'unknown status'}")
         lines.append(
@@ -425,6 +567,28 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
     return "\n".join(lines)
 
 
+def _default_traceback_unavailable_reason(error_type):
+    """
+    Used only when traceback_text is empty/None AND the caller didn't
+    supply its own traceback_unavailable_reason -- i.e. as a last
+    resort, so the Traceback section NEVER just says "Not available"
+    with no explanation at all. Callers that know exactly why a
+    traceback doesn't exist (e.g. rdi/orchestrator.py, when a
+    companion call failed without raising a Python exception) should
+    always pass their own, more specific reason instead.
+    """
+    if error_type == "UserReport":
+        return (
+            "This is a user-submitted problem report, not an automatic "
+            "exception -- no traceback exists because no Python error was "
+            "raised."
+        )
+    return (
+        "No traceback text was provided when this event was logged, and no "
+        "more specific reason was recorded."
+    )
+
+
 def build_diagnostic_package(
     page,
     error_type=None,
@@ -435,6 +599,7 @@ def build_diagnostic_package(
     severity="error",
     context=None,
     issue_id=None,
+    traceback_unavailable_reason=None,
 ):
     """
     The one entry point every other part of the app should use:
@@ -443,16 +608,31 @@ def build_diagnostic_package(
     Gathers technical evidence, sanitizes it (see
     collect_session_context above), and returns a fully-populated
     DiagnosticPackage -- including a ready-to-paste AI prompt
-    (package.ai_prompt).
+    (package.ai_prompt) and a standardized evidence summary
+    (package.evidence_summary).
 
     issue_id: the stable issue reference for this problem, if one
     already exists (services/error_log.py:log_error resolves this
-    BEFORE calling here). Optional and additive -- used only to look
+    BEFORE calling here). Optional and additive -- used both to look
     up "Similar Previous Issues" via the existing
-    services/case_knowledge.py:find_similar_issues() heuristics
-    (Phase 5). None for user-submitted reports, which are never
-    grouped into a stable issue and so never get a similar-issues
-    list here -- same as the existing System Administration panel.
+    services/case_knowledge.py:find_similar_issues() heuristics, and
+    to populate package.issue_number so the reference number travels
+    with the rest of the diagnostic evidence. None for user-submitted
+    reports, which are never grouped into a stable issue.
+
+    traceback_text: pass the ACTUAL traceback (e.g.
+    traceback.format_exc()) whenever one genuinely exists. If it
+    doesn't -- there was no Python exception, only a failure signal --
+    pass None/empty and use traceback_unavailable_reason (below) to
+    say why, rather than fabricating or omitting the traceback.
+
+    traceback_unavailable_reason: only used when traceback_text is
+    empty. Should explain, specifically, why no traceback exists for
+    THIS event (e.g. "the retried API call returned an unparseable
+    response rather than raising an exception"). Falls back to a
+    generic reason (see _default_traceback_unavailable_reason) if the
+    caller doesn't know / doesn't provide one -- but the Traceback
+    section itself is NEVER simply omitted (see _build_ai_prompt).
 
     Never raises. If anything here fails, a minimal-but-valid package
     describing the failure is returned instead, so a broken diagnostic
@@ -461,6 +641,9 @@ def build_diagnostic_package(
     try:
         category = _categorize(error_type, message, traceback_text)
         environment = _collect_environment()
+        tb_reason = None
+        if not traceback_text:
+            tb_reason = traceback_unavailable_reason or _default_traceback_unavailable_reason(error_type)
         pkg = DiagnosticPackage(
             summary=_build_summary(page, category, error_type, message),
             category=category,
@@ -477,6 +660,7 @@ def build_diagnostic_package(
             exception_type=error_type,
             exception_message=message,
             traceback=traceback_text,
+            traceback_unavailable_reason=tb_reason,
             config_values=_collect_config_values(),
             environment=environment,
             recent_log_entries=get_recent_log_entries(limit=20),
@@ -485,7 +669,9 @@ def build_diagnostic_package(
             similar_issues=_collect_similar_issues(
                 issue_id, page, error_type, message, traceback_text
             ),
+            issue_number=issue_id,
         )
+        pkg.evidence_summary = _build_evidence_summary(pkg.to_dict())
         pkg.ai_prompt = _build_ai_prompt(pkg)
         return pkg
     except Exception:
@@ -505,6 +691,16 @@ def build_diagnostic_package(
             exception_type=error_type,
             exception_message=message,
             traceback=traceback_text,
+            traceback_unavailable_reason=(
+                None if traceback_text else (
+                    traceback_unavailable_reason
+                    or "The diagnostic engine itself failed while building this "
+                       "package, before a reason for the missing traceback could "
+                       "be determined."
+                )
+            ),
+            issue_number=issue_id,
         )
+        fallback.evidence_summary = _build_evidence_summary(fallback.to_dict())
         fallback.ai_prompt = _build_ai_prompt(fallback)
         return fallback
