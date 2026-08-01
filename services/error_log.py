@@ -163,10 +163,18 @@ def _get_or_create_issue(page, error_type, message, severity,
     -- supply that directly instead of it being (re)derived generically.
     Both are optional and additive; every other caller is unaffected.
 
-    Never raises. Returns None if the database work fails, in which
-    case the caller (log_error) simply proceeds without issue linking
-    -- the individual error_log row is still written either way, so an
-    issue-linking failure never loses the underlying error record.
+    Returns a (issue_id, root_cause) tuple. root_cause is the Root
+    Cause Classification (see services/issue_fingerprint.py) that was
+    used for fingerprinting/matching -- always computed even on the
+    "matched an existing issue" path, so a caller building a diagnostic
+    package (Phase 5) can show WHY this occurrence was grouped where it
+    was, not just its reference number. issue_id is None (and
+    root_cause is still returned, since classification doesn't depend
+    on the database write succeeding) if the database work fails, in
+    which case the caller (log_error) simply proceeds without issue
+    linking -- the individual error_log row is still written either
+    way, so an issue-linking failure never loses the underlying error
+    record.
     """
     from services.issue_fingerprint import build_fingerprint
     from services.diagnostics import categorize_error, build_error_summary
@@ -243,7 +251,7 @@ def _get_or_create_issue(page, error_type, message, severity,
             except Exception:
                 pass
         logger.exception("_get_or_create_issue FAILED for fingerprint=%r", fingerprint)
-        return None
+        return None, root_cause
     finally:
         if conn is not None:
             conn.close()
@@ -261,7 +269,7 @@ def _get_or_create_issue(page, error_type, message, severity,
                 "snapshot_resolution_on_reopen failed for issue_id=%s (non-fatal)", issue_id
             )
 
-    return issue_id
+    return issue_id, root_cause
 
 
 def update_issue_status(issue_id, new_status):
@@ -340,6 +348,16 @@ def log_error(page, error_type, message, traceback_text,
     spec-mandated title and are grouped by root cause rather than by
     which of the 8 companions happened to fail.
 
+    Phase 5 (Noise Reduction): the Root Cause Classification that
+    _get_or_create_issue resolves (either from root_cause_hint above,
+    or generically classified from error_type/message/traceback) is no
+    longer discarded after fingerprinting -- it's passed straight into
+    build_diagnostic_package() below, so it appears as its own "Root
+    Cause" section in both the AI prompt and the Diagnostic Report
+    email, for every error, automatically. UserReport rows never get a
+    root cause (there's no exception to classify), and that section
+    says so explicitly rather than being left out.
+
     Phase 3: screenshots have been retired entirely. Every error and
     every user-submitted report is now diagnosed from the AI
     Diagnostic Package alone (services/diagnostics.py), and every
@@ -354,8 +372,9 @@ def log_error(page, error_type, message, traceback_text,
     # grouped (see _get_or_create_issue's docstring and
     # group_errors_by_signature below).
     issue_id = None
+    root_cause = None
     if error_type != "UserReport":
-        issue_id = _get_or_create_issue(
+        issue_id, root_cause = _get_or_create_issue(
             page, error_type, message, severity,
             traceback_text=traceback_text, user_name=user_name,
             title_override=title_override, root_cause_hint=root_cause_hint,
@@ -396,6 +415,7 @@ def log_error(page, error_type, message, traceback_text,
             context=context,
             issue_id=issue_id,
             traceback_unavailable_reason=traceback_unavailable_reason,
+            root_cause=root_cause,
         )
         diagnostic_package_json = package.to_json()
     except Exception:
@@ -789,6 +809,18 @@ def group_errors_by_signature(errors):
     return [groups[sig] for sig in order]
 
 
+def _root_cause_unavailable_text(package):
+    """
+    Phase 5: the Root Cause line in the Diagnostic Report email must
+    never just read "Root Cause: -" with no explanation -- same
+    principle as the AI prompt's Traceback section always explaining
+    WHY a traceback is missing, applied here too.
+    """
+    if package.get("exception_type") == "UserReport":
+        return "not classified (user-submitted report, no exception to classify)"
+    return "not classified for this occurrence"
+
+
 def build_diagnostic_report_email(package, status="New"):
     """
     Phase 3: builds the complete, entirely text-based "Diagnostic
@@ -879,6 +911,7 @@ Timestamp: {package.get('timestamp', '-')}
 Page: {package.get('page', '-')}
 User: {package.get('user') or 'unknown'}
 Role: {package.get('role') or 'unknown'}
+Root Cause: {package.get('root_cause') or _root_cause_unavailable_text(package)}
 
 {divider}
 Evidence Collected
@@ -956,27 +989,44 @@ the existing one(s).
 """
 
 
-def render_application_error_screen(T, issue_id, error_id=None):
+def render_application_error_screen(T, issue_id, error_id=None, friendly_message=None):
     """
     Renders the SAME calm "Something went wrong on this page" message,
     with the stable Issue Reference Number, that error_boundary()
     below shows when it catches an unexpected exception.
 
+    This is the ONE place in the app that draws the standard error
+    block -- every page and every error boundary should call THIS
+    function (directly, or indirectly via error_boundary below) rather
+    than building its own st.error() text for an unexpected failure.
+    That keeps every unexpected error looking and behaving identically,
+    and keeps the reference-number wording in exactly one place to
+    translate/maintain.
+
     Exists as its own function (Phase 3, Reflection Generation) for
     callers that detect and log a failure WITHOUT an exception ever
     being raised/caught -- e.g. rdi/orchestrator.py's Complete Failure
-    case (every one of the 8 companions failed). That path already has
-    everything error_boundary would want (a representative traceback,
-    root cause, full evidence) and calls log_error() itself so none of
-    that evidence is lost -- it just needs the exact same on-screen
-    result the person would see from any other unexpected error, which
-    this provides without going through error_boundary a second time
-    (which would also log a SECOND, less-informative record for the
-    same failure).
+    case (every one of the 8 companions failed), or a service function
+    that catches its own AI-call exception and returns an error dict
+    (e.g. services/knowledge_assistant.py:ask(),
+    services/reflection_service.py:continue_companion_conversation()).
+    Those paths already have everything error_boundary would want (a
+    traceback, root cause where available) and call log_error()
+    themselves so none of that evidence is lost -- they just need the
+    exact same on-screen result the person would see from any other
+    unexpected error, which this provides without going through
+    error_boundary a second time (which would also log a SECOND, less-
+    informative record for the same failure).
 
     issue_id: the stable issue reference to show (see log_error).
     error_id: shown only as a fallback if issue_id is None (issue
     linking itself failed, but the occurrence was still logged).
+    friendly_message: an OPTIONAL, page-specific line shown above the
+    standard block (e.g. "Could not generate the reflection.", "Could
+    not load this dashboard."). Purely cosmetic context for the
+    person -- the reference-number section below it is always the
+    same, word for word, regardless of what (if anything) is passed
+    here.
     """
     display_ref = issue_id if issue_id is not None else error_id
     ref = f"#{display_ref}" if display_ref is not None else "(not saved -- see app logs)"
@@ -996,6 +1046,8 @@ def render_application_error_screen(T, issue_id, error_id=None):
             f"This has been recorded as error {ref}. Please try again -- if it "
             "keeps happening, tell your administrator the reference number above."
         )
+    if friendly_message:
+        st.error(friendly_message)
     st.error(f"{heading}\n\n{body}")
 
 
