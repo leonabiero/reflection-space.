@@ -368,24 +368,49 @@ with error_boundary(
         st.caption(T["admin_tools_future"])
 
     # =============================================================================
-    # 8. Error Log -> AI Diagnostic Centre (Phase 2)
+    # 8. AI Diagnostic Centre -- Issue Management Dashboard (Phase 6)
     # =============================================================================
     # Phase 1 (services/diagnostics.py) already builds a complete AI
-    # Diagnostic Package behind the scenes for every error_log row
-    # (see services/error_log.py:log_error). Phase 2 does NOT re-collect
-    # any of that evidence -- it only DISPLAYS the Diagnostic Package
-    # that already exists, plus a small, honest completeness score
-    # ("AI Readiness Score" -- NOT an AI judgement, just a count of
-    # which evidence categories are present) and a manual status field
-    # (New / Investigating / Fixed / Closed) so Leon can track what
-    # he's already looked at.
+    # Diagnostic Package behind the scenes for every error_log row (see
+    # services/error_log.py:log_error). Phases 2-5 added issue tracking,
+    # case knowledge, and reopening. Phase 6 does NOT re-collect any
+    # evidence and does NOT change how evidence is gathered or stored --
+    # it only reorganizes how the existing data is DISPLAYED and
+    # SEARCHED, as a true Issue Management dashboard:
+    #
+    #   - Open Issues / Fixed Issues / Warnings are now three separate
+    #     tabs instead of one long flat list with a status dropdown.
+    #     Warnings (severity == "warning", e.g. the "Partial Reflection
+    #     Generation" issue raised by rdi/orchestrator.py) are never
+    #     mixed into the application-error tabs -- they always get
+    #     their own tab, using the same severity value that already
+    #     existed before this phase.
+    #   - One shared filter bar (Status, Severity, Root Cause, Page,
+    #     Date, User) applies across all three tabs, so switching tabs
+    #     never loses a filter you've already set.
+    #   - A new Trend Analysis tab charts occurrence volume over time
+    #     and highlights the most frequent issues -- built entirely
+    #     from data already fetched below; no new queries.
+    #   - Every issue's own detail view (the expander you open) is
+    #     unchanged from Phases 2-5: Summary, Root Cause, Occurrences,
+    #     Affected Users, Tracebacks, Evidence, Timeline, AI Prompt,
+    #     Previous Investigations, Resolution History.
+    #
+    # FUTURE-READY EVIDENCE (see EVIDENCE_SECTIONS below): the "what
+    # evidence does this issue have" part of the detail view (Technical
+    # Details, Timeline, Session Context, Environment, Evidence
+    # Checklist, Screenshot, AI Prompt) is driven by a small registry
+    # instead of a long fixed sequence of if-blocks. Adding a brand-new
+    # evidence type later (e.g. "Network Requests", "Device Logs")
+    # means appending ONE entry to that list -- an `applies()` check
+    # and a `render()` function -- nothing else on this page changes.
     #
     # Records logged BEFORE the Phase 1 Diagnostic Engine existed have
     # no diagnostic_package -- parse_diagnostic_package() (see
     # services/error_log.py) returns None for those, and every section
     # below falls back gracefully to the older, plainer fields already
     # stored directly on the error_log row (message / traceback /
-    # context), exactly as the page displayed them before this phase.
+    # context), exactly as before.
 
     def _issue_status_badge(status):
         colors = {
@@ -433,36 +458,70 @@ with error_boundary(
         st.caption(T.get(
             "admin_error_log_caption",
             "Every problem recorded in the app -- crashes, failed AI companion calls, or "
-            "problems people reported -- shown as a full diagnostic workspace: what happened, "
-            "how serious it is, and a ready-made prompt you can copy straight into a chat with "
-            "Claude to get it diagnosed and fixed.",
+            "problems people reported -- organized as an issue management workspace: what's "
+            "open, what's fixed, what's just a warning, how serious each thing is, and a "
+            "ready-made prompt you can copy straight into a chat with Claude to get it "
+            "diagnosed and fixed.",
         ))
 
-        errors = get_recent_errors(limit=50)
+        errors = get_recent_errors(limit=200)
 
         if not errors:
             st.success(T.get("admin_error_log_empty", "No errors recorded. Everything looks clean."))
         else:
             issues = group_errors_by_signature(errors)
 
-            # --- Filters (keeps the log searchable; extended for the
-            # richer information Phase 2 adds) ---------------------------
-            search_term = st.text_input(
-                T.get("admin_error_log_search_label", "🔍 Search (page, error type, or message)"),
-                key="admin_error_log_search",
-            )
-            status_filter = st.selectbox(
-                T.get("admin_error_log_status_filter_label", "Filter by status"),
-                options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
-                format_func=lambda s: T.get("status_labels", {}).get(s, s),
-                key="admin_error_log_status_filter",
-            )
-            severity_filter = st.selectbox(
-                T.get("admin_error_log_severity_filter_label", "Filter by severity"),
-                options=["All", "error", "warning", "user_reported"],
-                format_func=lambda s: T.get("severity_labels", {}).get(s, s),
-                key="admin_error_log_severity_filter",
-            )
+            # --- Shared filter bar (Phase 6) ------------------------------------
+            # Status, Severity, Root Cause, Page, Date, User -- applies across
+            # Open Issues, Fixed Issues, and Warnings alike, so switching tabs
+            # never loses a filter you've already set.
+            st.markdown(f"##### {T.get('admin_diag_filters_header', '🔍 Filters')}")
+            f_col1, f_col2, f_col3 = st.columns(3)
+            with f_col1:
+                search_term = st.text_input(
+                    T.get("admin_error_log_search_label", "Search (page, error type, or message)"),
+                    key="admin_error_log_search",
+                )
+                page_filter = st.text_input(
+                    T.get("admin_diag_filter_page", "Page contains"),
+                    key="admin_diag_filter_page",
+                )
+            with f_col2:
+                severity_filter = st.selectbox(
+                    T.get("admin_error_log_severity_filter_label", "Filter by severity"),
+                    options=["All", "error", "warning", "user_reported"],
+                    format_func=lambda s: T.get("severity_labels", {}).get(s, s),
+                    key="admin_error_log_severity_filter",
+                )
+                root_cause_filter = st.text_input(
+                    T.get("admin_diag_filter_root_cause", "Root cause contains"),
+                    key="admin_diag_filter_root_cause",
+                )
+            with f_col3:
+                status_filter = st.selectbox(
+                    T.get("admin_error_log_status_filter_label", "Filter by status"),
+                    options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+                    format_func=lambda s: T.get("status_labels", {}).get(s, s),
+                    key="admin_error_log_status_filter",
+                )
+                user_filter = st.text_input(
+                    T.get("admin_diag_filter_user", "User contains"),
+                    key="admin_diag_filter_user",
+                )
+
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                date_from = st.date_input(
+                    T.get("admin_diag_filter_date_from", "From date"),
+                    value=None,
+                    key="admin_diag_filter_date_from",
+                )
+            with d_col2:
+                date_to = st.date_input(
+                    T.get("admin_diag_filter_date_to", "To date"),
+                    value=None,
+                    key="admin_diag_filter_date_to",
+                )
 
             def _normalize_ref_text(text):
                 # Keeps only letters/digits, lowercased -- so "REF-000124",
@@ -471,8 +530,9 @@ with error_boundary(
 
             def _ref_candidates(issue):
                 # Same reference number shown on screen for this issue
-                # (see display_ref below, in the render loop) -- computed
-                # here too so search matches exactly what the admin sees.
+                # (see display_ref below, inside _render_issue_card) --
+                # computed here too so search matches exactly what the
+                # admin sees.
                 latest = issue["latest"]
                 ref_num = issue.get("issue_id")
                 if ref_num is None:
@@ -494,6 +554,26 @@ with error_boundary(
                     return False
                 if severity_filter != "All" and latest.get("severity") != severity_filter:
                     return False
+                if page_filter and page_filter.lower() not in str(latest.get("page") or "").lower():
+                    return False
+                if user_filter and user_filter.lower() not in str(latest.get("user_name") or "").lower():
+                    return False
+                if root_cause_filter:
+                    root_cause_haystack = " ".join(str(x or "") for x in (
+                        latest.get("issue_root_cause"),
+                        latest.get("issue_category"),
+                        (parse_diagnostic_package(latest.get("diagnostic_package")) or {}).get("root_cause"),
+                    )).lower()
+                    if root_cause_filter.lower() not in root_cause_haystack:
+                        return False
+                if date_from:
+                    occ_date = (latest.get("occurred_at") or "")[:10]
+                    if not occ_date or occ_date < date_from.isoformat():
+                        return False
+                if date_to:
+                    occ_date = (latest.get("occurred_at") or "")[:10]
+                    if not occ_date or occ_date > date_to.isoformat():
+                        return False
                 if search_term:
                     haystack = " ".join(
                         str(latest.get(f) or "") for f in ("page", "error_type", "message")
@@ -510,18 +590,211 @@ with error_boundary(
 
             visible_issues = [issue for issue in issues if _matches_filters(issue)]
 
+            # --- Bucket into Open / Fixed / Warnings (Phase 6) ------------------
+            # Warnings (severity == "warning") are always kept separate from
+            # application errors -- e.g. "Partial Reflection Generation"
+            # (rdi/orchestrator.py) never appears mixed in with crashes and
+            # failures, per design.
+            warning_issues = [i for i in visible_issues if i["latest"].get("severity") == "warning"]
+            open_issues = [
+                i for i in visible_issues
+                if i["latest"].get("severity") != "warning"
+                and (i["latest"].get("status") or "New") in ("New", "Investigating", "Recurred")
+            ]
+            fixed_issues = [
+                i for i in visible_issues
+                if i["latest"].get("severity") != "warning"
+                and (i["latest"].get("status") or "New") in ("Fixed", "Closed")
+            ]
+
             st.caption(
                 T.get("admin_error_log_count_caption", "Showing {n} of {total} issue(s).").format(
                     n=len(visible_issues), total=len(issues)
                 )
             )
 
-            if not visible_issues:
-                st.info(T.get("admin_error_log_no_matches", "No errors match the current filters."))
+            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+            m_col1.metric(T.get("admin_diag_metric_total", "Total issues"), len(issues))
+            m_col2.metric(T.get("admin_diag_metric_open", "🟥 Open"), len(open_issues))
+            m_col3.metric(T.get("admin_diag_metric_fixed", "✅ Fixed"), len(fixed_issues))
+            m_col4.metric(T.get("admin_diag_metric_warnings", "⚠️ Warnings"), len(warning_issues))
 
             severity_icons = {"error": "🔴", "warning": "🟡", "user_reported": "🗣️"}
 
-            for issue in visible_issues:
+            # --- Evidence section registry (Phase 6, FUTURE READY) --------------
+            # Each entry is one category of evidence shown inside an issue's
+            # detail view. To add a brand-new evidence type later, append ONE
+            # entry to EVIDENCE_SECTIONS below -- an `applies` check and a
+            # `render` function -- nothing else on this page needs to change.
+            def _render_technical_details(T, err, package, extra):
+                st.markdown(f"**{T.get('admin_error_log_technical_label', '🔧 Technical Details')}**")
+                exc_type = (package or {}).get("exception_type") or err.get("error_type")
+                exc_msg = (package or {}).get("exception_message") or err.get("message")
+                tb = (package or {}).get("traceback") or err.get("traceback")
+                is_user_report = exc_type == "UserReport"
+                st.markdown(f"**{T.get('admin_error_log_exception_type_label', 'Exception type')}:** `{exc_type or '—'}`")
+                st.markdown(f"**{T.get('admin_error_log_exception_message_label', 'Exception message')}:** {exc_msg or '—'}")
+                if err.get("context"):
+                    st.markdown(f"**{T.get('admin_error_log_context_label', 'Context')}:**")
+                    st.code(err["context"], language="json")
+                if is_user_report:
+                    st.caption(T.get(
+                        "admin_error_log_no_traceback",
+                        "No traceback -- this was a user-submitted report, not an automatic exception.",
+                    ))
+                elif tb:
+                    st.markdown(f"**{T.get('admin_error_log_traceback_label', 'Full technical traceback')}:**")
+                    st.code(tb, language="python")
+
+            def _timeline_applies(err, package):
+                return bool((package or {}).get("navigation_timeline"))
+
+            def _render_timeline(T, err, package, extra):
+                timeline = (package or {}).get("navigation_timeline") or []
+                st.markdown(f"**{T.get('admin_error_log_timeline_label', '🕒 Evidence Timeline')}**")
+                timeline_lines = []
+                for entry in timeline:
+                    at_full = entry.get("at") or ""
+                    at = at_full[11:19] if len(at_full) >= 19 else at_full
+                    line = f"`{at}` {T.get('event_labels', {}).get(entry.get('event', ''), entry.get('event', ''))}"
+                    if entry.get("page"):
+                        line += f" _(page: {entry['page']})_"
+                    if entry.get("detail"):
+                        line += f" — {entry['detail']}"
+                    timeline_lines.append(line)
+                st.markdown("  \n".join(timeline_lines))
+
+            def _session_applies(err, package):
+                return bool((package or {}).get("session_context"))
+
+            def _render_session_context(T, err, package, extra):
+                session_ctx = (package or {}).get("session_context") or {}
+                st.markdown(f"**{T.get('admin_error_log_session_label', '🧭 Session Context')}**")
+                st.markdown("  \n".join(f"- `{k}`: {v}" for k, v in session_ctx.items()))
+
+            def _environment_applies(err, package):
+                return bool(package)
+
+            def _render_environment(T, err, package, extra):
+                st.markdown(f"**{T.get('admin_error_log_environment_label', '💻 Environment')}**")
+                env_lines = [
+                    f"- {T.get('admin_error_log_env_app_version', 'App version')}: {package.get('app_version', '—')}",
+                    f"- {T.get('admin_error_log_env_python', 'Python version')}: {package.get('python_version', '—')}",
+                    f"- {T.get('admin_error_log_env_os', 'Operating system')}: {package.get('operating_system', '—')}",
+                    f"- {T.get('admin_error_log_env_browser', 'Browser')}: {package.get('browser') or T.get('admin_error_log_not_available', 'not available')}",
+                ]
+                for k, v in (package.get("environment") or {}).items():
+                    if k in ("python_version",):
+                        continue
+                    env_lines.append(f"- {k}: {v}")
+                st.markdown("  \n".join(env_lines))
+
+            def _render_evidence_checklist(T, err, package, extra):
+                score = extra["score"]
+                presence = extra["presence"]
+                st.markdown(f"**{T.get('admin_error_log_evidence_label', '📋 Evidence Collected')}**")
+                st.caption(T.get(
+                    "admin_error_log_readiness_explainer",
+                    "The AI Readiness Score is not AI-generated -- it's a simple completeness "
+                    "count of how many of the 8 evidence categories below are present for this "
+                    "record.",
+                ))
+                checklist_lines = [
+                    f"{'✅' if is_present else '⬜'} {T.get('readiness_category_' + key, key)}" for key, is_present in presence
+                ]
+                st.markdown("  \n".join(checklist_lines))
+                st.progress(score / 100)
+
+            def _screenshot_applies(err, package):
+                return bool(err.get("screenshot"))
+
+            def _render_screenshot(T, err, package, extra):
+                st.markdown(f"**{T.get('admin_error_log_screenshot_label', 'Screenshot')}:**")
+                try:
+                    _hdr, _, _b64data = err["screenshot"].partition(",")
+                    st.image(base64.b64decode(_b64data))
+                except Exception:
+                    st.caption(T.get("admin_error_log_screenshot_error", "(could not display screenshot)"))
+
+            def _render_ai_prompt(T, err, package, extra):
+                st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
+                ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
+                st.caption(T.get(
+                    "admin_error_log_copy_hint",
+                    "Hover over the box below and click the copy icon in the top-right corner.",
+                ))
+                st.code(ai_prompt_text, language=None, wrap_lines=True)
+
+            EVIDENCE_SECTIONS = [
+                {"id": "technical_details", "applies": lambda err, pkg: True, "render": _render_technical_details},
+                {"id": "timeline", "applies": _timeline_applies, "render": _render_timeline},
+                {"id": "session_context", "applies": _session_applies, "render": _render_session_context},
+                {"id": "environment", "applies": _environment_applies, "render": _render_environment},
+                {"id": "evidence_checklist", "applies": lambda err, pkg: True, "render": _render_evidence_checklist},
+                {"id": "screenshot", "applies": _screenshot_applies, "render": _render_screenshot},
+                {"id": "ai_prompt", "applies": lambda err, pkg: True, "render": _render_ai_prompt},
+            ]
+
+            # --- Trend Analysis (Phase 6) ---------------------------------------
+            # Built entirely from `issues` and `errors` already fetched above --
+            # no new queries, no new evidence collection.
+            def _render_trend_analysis(T, issues, errors):
+                st.caption(T.get(
+                    "admin_diag_trends_caption",
+                    "Built entirely from the issues already loaded above -- volume, hot spots, "
+                    "and the most frequent problems, at a glance.",
+                ))
+                if not errors:
+                    st.info(T.get("admin_diag_trends_empty", "Not enough data yet for trend analysis."))
+                    return
+
+                trend_df = pd.DataFrame(errors)
+                trend_df["occurred_date"] = trend_df["occurred_at"].astype(str).str.slice(0, 10)
+                trend_df["severity"] = trend_df["severity"].fillna("error")
+
+                st.markdown(f"**{T.get('admin_diag_trends_volume_header', '📅 Occurrences over time')}**")
+                by_day = (
+                    trend_df.groupby(["occurred_date", "severity"]).size().unstack(fill_value=0).sort_index()
+                )
+                st.bar_chart(by_day)
+
+                trend_col_a, trend_col_b = st.columns(2)
+                with trend_col_a:
+                    st.markdown(f"**{T.get('admin_diag_trends_pages_header', '📍 Most affected pages')}**")
+                    by_page = trend_df["page"].fillna(
+                        T.get("admin_error_log_unknown_page", "unknown page")
+                    ).value_counts().head(10)
+                    st.bar_chart(by_page)
+                with trend_col_b:
+                    st.markdown(f"**{T.get('admin_diag_trends_category_header', '🗂️ Occurrences by category')}**")
+                    categories = []
+                    for e in errors:
+                        pkg = parse_diagnostic_package(e.get("diagnostic_package"))
+                        categories.append(
+                            e.get("issue_category") or (pkg or {}).get("category")
+                            or T.get("admin_diag_trends_uncategorized", "Uncategorized")
+                        )
+                    by_category = pd.Series(categories).value_counts().head(10)
+                    st.bar_chart(by_category)
+
+                st.markdown(f"**{T.get('admin_diag_trends_top_issues_header', '🔁 Most frequent issues')}**")
+                sorted_issues = sorted(issues, key=lambda i: i["occurrences"], reverse=True)[:10]
+                if sorted_issues:
+                    for i in sorted_issues:
+                        latest = i["latest"]
+                        display_ref = i.get("issue_id") if i.get("issue_id") is not None else latest["id"]
+                        status_label = T.get("status_labels", {}).get(
+                            latest.get("status") or "New", latest.get("status") or "New"
+                        )
+                        severity_icon = severity_icons.get(latest.get("severity"), "⚪")
+                        st.markdown(
+                            f"- **#{display_ref}** {severity_icon} — {latest.get('page') or '—'} — "
+                            f"{latest.get('error_type') or '—'} — ×{i['occurrences']} — {status_label}"
+                        )
+                else:
+                    st.caption(T.get("admin_diag_trends_no_issues", "No issues recorded yet."))
+
+            def _render_issue_card(issue):
                 err = issue["latest"]
                 package = parse_diagnostic_package(err.get("diagnostic_package"))
                 score, presence = compute_ai_readiness(package)
@@ -922,110 +1195,42 @@ with error_boundary(
                         ))
 
                     st.divider()
+                    for _section in EVIDENCE_SECTIONS:
+                        if _section["applies"](err, package):
+                            _section["render"](T, err, package, {"score": score, "presence": presence})
 
-                    # --- Technical Details --------------------------------------------
-                    st.markdown(f"**{T.get('admin_error_log_technical_label', '🔧 Technical Details')}**")
-                    exc_type = (package or {}).get("exception_type") or err.get("error_type")
-                    exc_msg = (package or {}).get("exception_message") or err.get("message")
-                    tb = (package or {}).get("traceback") or err.get("traceback")
-                    is_user_report = exc_type == "UserReport"
-                    st.markdown(f"**{T.get('admin_error_log_exception_type_label', 'Exception type')}:** `{exc_type or '—'}`")
-                    st.markdown(f"**{T.get('admin_error_log_exception_message_label', 'Exception message')}:** {exc_msg or '—'}")
-                    if err.get("context"):
-                        st.markdown(f"**{T.get('admin_error_log_context_label', 'Context')}:**")
-                        st.code(err["context"], language="json")
-                    if is_user_report:
-                        # User reports carry a fixed placeholder string in the
-                        # traceback field (see services/error_log.py:
-                        # log_user_report) -- that's not a real traceback, so
-                        # it's never shown as one here.
-                        st.caption(T.get(
-                            "admin_error_log_no_traceback",
-                            "No traceback -- this was a user-submitted report, not an automatic exception.",
-                        ))
-                    elif tb:
-                        st.markdown(f"**{T.get('admin_error_log_traceback_label', 'Full technical traceback')}:**")
-                        st.code(tb, language="python")
+            tab_open, tab_fixed, tab_warnings, tab_trends = st.tabs([
+                T.get("admin_diag_tab_open", "🟥 Open Issues ({n})").format(n=len(open_issues)),
+                T.get("admin_diag_tab_fixed", "✅ Fixed Issues ({n})").format(n=len(fixed_issues)),
+                T.get("admin_diag_tab_warnings", "⚠️ Warnings ({n})").format(n=len(warning_issues)),
+                T.get("admin_diag_tab_trends", "📈 Trend Analysis"),
+            ])
 
-                    # --- Evidence Timeline --------------------------------------------
-                    timeline = (package or {}).get("navigation_timeline") or []
-                    if timeline:
-                        st.markdown(f"**{T.get('admin_error_log_timeline_label', '🕒 Evidence Timeline')}**")
-                        timeline_lines = []
-                        for entry in timeline:
-                            at_full = entry.get("at") or ""
-                            at = at_full[11:19] if len(at_full) >= 19 else at_full
-                            line = f"`{at}` {T.get('event_labels', {}).get(entry.get('event', ''), entry.get('event', ''))}"
-                            if entry.get("page"):
-                                line += f" _(page: {entry['page']})_"
-                            if entry.get("detail"):
-                                line += f" — {entry['detail']}"
-                            timeline_lines.append(line)
-                        st.markdown("  \n".join(timeline_lines))
+            with tab_open:
+                if not open_issues:
+                    st.info(T.get("admin_diag_open_empty", "No open issues match the current filters."))
+                for issue in open_issues:
+                    _render_issue_card(issue)
 
-                    # --- Session Context --------------------------------------------
-                    session_ctx = (package or {}).get("session_context") or {}
-                    if session_ctx:
-                        st.markdown(f"**{T.get('admin_error_log_session_label', '🧭 Session Context')}**")
-                        st.markdown("  \n".join(f"- `{k}`: {v}" for k, v in session_ctx.items()))
+            with tab_fixed:
+                if not fixed_issues:
+                    st.info(T.get("admin_diag_fixed_empty", "No fixed issues match the current filters."))
+                for issue in fixed_issues:
+                    _render_issue_card(issue)
 
-                    # --- Environment --------------------------------------------
-                    if package:
-                        st.markdown(f"**{T.get('admin_error_log_environment_label', '💻 Environment')}**")
-                        env_lines = [
-                            f"- {T.get('admin_error_log_env_app_version', 'App version')}: {package.get('app_version', '—')}",
-                            f"- {T.get('admin_error_log_env_python', 'Python version')}: {package.get('python_version', '—')}",
-                            f"- {T.get('admin_error_log_env_os', 'Operating system')}: {package.get('operating_system', '—')}",
-                            f"- {T.get('admin_error_log_env_browser', 'Browser')}: {package.get('browser') or T.get('admin_error_log_not_available', 'not available')}",
-                        ]
-                        for k, v in (package.get("environment") or {}).items():
-                            if k in ("python_version",):
-                                continue
-                            env_lines.append(f"- {k}: {v}")
-                        st.markdown("  \n".join(env_lines))
+            with tab_warnings:
+                st.caption(T.get(
+                    "admin_diag_warnings_caption",
+                    "Warnings are non-fatal conditions worth knowing about -- like a partial "
+                    "reflection generation -- kept separate from application errors above.",
+                ))
+                if not warning_issues:
+                    st.info(T.get("admin_diag_warnings_empty", "No warnings match the current filters."))
+                for issue in warning_issues:
+                    _render_issue_card(issue)
 
-                    # --- Evidence Collected + AI Readiness Score -----------------------
-                    st.markdown(f"**{T.get('admin_error_log_evidence_label', '📋 Evidence Collected')}**")
-                    st.caption(T.get(
-                        "admin_error_log_readiness_explainer",
-                        "The AI Readiness Score is not AI-generated -- it's a simple completeness "
-                        "count of how many of the 8 evidence categories below are present for this "
-                        "record.",
-                    ))
-                    checklist_lines = [
-                        f"{'✅' if is_present else '⬜'} {T.get('readiness_category_' + key, key)}" for key, is_present in presence
-                    ]
-                    st.markdown("  \n".join(checklist_lines))
-                    st.progress(score / 100)
-
-                    # --- Screenshot (legacy only) --------------------------------
-                    # Phase 3 retired the screenshot subsystem entirely --
-                    # no new record can have a value here. This block only
-                    # ever renders for older rows logged before Phase 3,
-                    # so those reports continue to display correctly.
-                    if err.get("screenshot"):
-                        st.markdown(f"**{T.get('admin_error_log_screenshot_label', 'Screenshot')}:**")
-                        try:
-                            _hdr, _, _b64data = err["screenshot"].partition(",")
-                            st.image(base64.b64decode(_b64data))
-                        except Exception:
-                            st.caption(T.get("admin_error_log_screenshot_error", "(could not display screenshot)"))
-
-                    st.divider()
-
-                    # --- AI Prompt --------------------------------------------
-                    # Prefer the ready-made prompt already built by the Phase 1
-                    # Diagnostic Engine (services/diagnostics.py) -- fall back to
-                    # the older services/error_log.py:build_ai_prompt() only for
-                    # records that predate it, so nothing here ever breaks for
-                    # older data.
-                    st.markdown(f"**{T.get('admin_error_log_prompt_label', '🤖 AI Prompt')}**")
-                    ai_prompt_text = (package or {}).get("ai_prompt") or build_ai_prompt(err)
-                    st.caption(T.get(
-                        "admin_error_log_copy_hint",
-                        "Hover over the box below and click the copy icon in the top-right corner.",
-                    ))
-                    st.code(ai_prompt_text, language=None, wrap_lines=True)
+            with tab_trends:
+                _render_trend_analysis(T, issues, errors)
 
     # =============================================================================
     # 9. Case Knowledge Search (Phase 4)
