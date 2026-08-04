@@ -375,6 +375,82 @@ def get_identity():
     return st.session_state.get("user_name", ""), st.session_state.get("user_role", "")
 
 
+def get_current_user_context():
+    """
+    THE single, central source of truth for "who is authenticated and
+    using the app right now" -- for every consumer anywhere in the
+    codebase, not just pages.
+
+    Why this exists
+    ------------------
+    Pages already get (user_name, user_role) explicitly, as the return
+    value of init_identity(T), and pass those two strings down to
+    whatever they call (error_boundary(), etc). That works fine for
+    page-level code.
+
+    It breaks down for anything that ISN'T a page: AI companion calls
+    (services/reflection_service.py), the Knowledge Assistant
+    (services/knowledge_assistant.py), the reflection orchestrator
+    (rdi/orchestrator.py), and any future helper/utility/background
+    code. None of those receive user_name/user_role as parameters from
+    whoever calls them, so when THEY needed to log an issue, the only
+    options were either (a) thread user_name/user_role through every
+    function signature between the page and the eventual log_error()
+    call -- fragile, and one missed parameter anywhere in that chain
+    silently reintroduces "unknown role" -- or (b) simply omit it,
+    which is the bug this function fixes.
+
+    Since Streamlit's st.session_state is already the ONE shared,
+    per-browser-session store that init_identity() itself writes
+    user_name/user_role into at login (see above), any code running
+    inside that same session -- page, service, helper, or utility, it
+    makes no difference -- can read it directly, right here, without
+    ever needing it passed down as a parameter. This function is that
+    one read, done once, correctly, so nothing else in the codebase
+    has to duplicate the lookup (or get it wrong).
+
+    Returns a dict:
+        {
+            "user_name": str,   # "" if nobody is authenticated
+            "user_role": str,   # "" if nobody is authenticated
+            "user_id": str,     # "" -- see note below
+            "active_work_mode": str,  # "" if not set yet
+            "lang": str,        # "" if not set yet
+        }
+
+    user_id note: accounts in this app are defined directly in
+    Streamlit Cloud Secrets, keyed by username, but only the verified
+    "name" and "role" are ever copied into session_state at login (see
+    init_identity() above) -- there is no separate numeric/opaque
+    account id anywhere in this codebase today. "user_id" is included
+    here, always "", purely so that if one is ever introduced, this is
+    the one place every logging path already reads from -- nothing
+    downstream (error logging, email, AI prompts) needs to change.
+
+    Never raises. If st.session_state is unavailable for any reason
+    (e.g. this is somehow invoked outside of an active Streamlit
+    session), every field simply comes back "" -- the same, honest
+    "Unknown" fallback already used for the "before login" / "app
+    starting up" case, never a crash.
+    """
+    try:
+        return {
+            "user_name": st.session_state.get("user_name", "") or "",
+            "user_role": st.session_state.get("user_role", "") or "",
+            "user_id": "",
+            "active_work_mode": st.session_state.get("active_work_mode", "") or "",
+            "lang": st.session_state.get("lang", "") or "",
+        }
+    except Exception:
+        return {
+            "user_name": "",
+            "user_role": "",
+            "user_id": "",
+            "active_work_mode": "",
+            "lang": "",
+        }
+
+
 def get_active_work_mode():
     return st.session_state.get("active_work_mode", "Practitioner")
 
