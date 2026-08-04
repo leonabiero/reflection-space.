@@ -1,7 +1,7 @@
 import anthropic
 import json
 import traceback
-from config import ANTHROPIC_API_KEY
+from config import ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR
 from services.anonymizer import anonymize
 from services.error_log import log_error
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
@@ -86,7 +86,17 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
       - {"observation": "...", "questions": [...]}
       - {"error": "...", "raw": "..."}  -- same error shape as
         generate_reflection(), so callers can handle both the same way.
+
+    QA testing hook (Test B -- Rate Limit): if config.SIMULATE_RATE_LIMIT_ERROR
+    is on, this raises a fake rate-limit error immediately, before any
+    real API call is made -- see config.py for how to enable/disable it.
     """
+    if SIMULATE_RATE_LIMIT_ERROR:
+        raise Exception(
+            "Simulated for testing (Test B): 429 rate_limit_error - "
+            "Number of request tokens has exceeded your per-minute rate limit"
+        )
+
     system_prompt = build_companion_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
     full_system_prompt = system_prompt + "\n\n" + lang_instruction
