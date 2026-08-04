@@ -155,3 +155,19 @@ ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "") or SMTP_USER
 LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
 LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15"))
 LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
+
+# ---------------------------------------------------------------------
+# QA testing hook: simulate a Reflection Generation "Rate Limit" failure
+# (Test B) -- services/reflection_service.py
+# ---------------------------------------------------------------------
+# Off by default -- leaving this secret unset or set to "false" means
+# ZERO change to normal behavior; no real API call is ever skipped.
+#
+# To run Test B: add a secret named SIMULATE_RATE_LIMIT_ERROR on
+# Streamlit Cloud (Settings -> Secrets, same place ANTHROPIC_API_KEY
+# lives), set it to "true", and reboot the app. Every reflection
+# companion call will then immediately fail with a fake 429/rate-limit
+# error -- no real Anthropic API call is made, so this costs nothing
+# and is 100% reproducible on demand. Set it back to "false" (or
+# delete the secret) and reboot to return to normal behavior.
+SIMULATE_RATE_LIMIT_ERROR = os.getenv("SIMULATE_RATE_LIMIT_ERROR", "false").strip().lower() == "true"
