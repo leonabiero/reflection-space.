@@ -93,10 +93,17 @@ _SIMILAR_ISSUES_LIMIT = 5
 
 def _collect_similar_issues(issue_id, page, error_type, message, traceback_text):
     """
-    Returns a small list of {"issue_id", "status"} dicts for issues that
-    look similar to this one -- or an empty list if there's no stable
-    issue_id yet (e.g. user-submitted reports, which are never grouped),
-    or if anything about the lookup fails. Never raises.
+    Returns a small list of {"issue_id", "status", "occurrence_count",
+    "last_seen"} dicts for issues that look similar to this one -- or
+    an empty list if there's no stable issue_id yet (e.g. user-
+    submitted reports, which are never grouped), or if anything about
+    the lookup fails. Never raises.
+
+    occurrence_count and last_seen are carried straight through from
+    services/case_knowledge.py:find_similar_issues() (which already
+    computes both) so the AI prompt and email can show, at a glance,
+    whether a similar-looking issue is a one-off or something that
+    keeps recurring -- not just its bare reference number and status.
     """
     if not issue_id:
         return []
@@ -107,7 +114,12 @@ def _collect_similar_issues(issue_id, page, error_type, message, traceback_text)
             limit=_SIMILAR_ISSUES_LIMIT,
         )
         return [
-            {"issue_id": c["issue_id"], "status": c.get("status")}
+            {
+                "issue_id": c["issue_id"],
+                "status": c.get("status"),
+                "occurrence_count": c.get("occurrence_count"),
+                "last_seen": c.get("last_seen"),
+            }
             for c in candidates
         ]
     except Exception:
@@ -152,6 +164,42 @@ _EXCLUDED_KEY_PREFIXES = ("_diagnostic_",)
 # AI prompt.
 _MAX_SESSION_VALUE_LENGTH = 200
 
+# ---------------------------------------------------------------------
+# Quality pass (post-Phase 5): what's ACTUALLY diagnostic
+# ---------------------------------------------------------------------
+#
+# Reflection Space has hundreds of Streamlit widget keys in total --
+# one per button, form field, checkbox, and expander, most of them
+# scoped to one specific item with a dynamic suffix (e.g.
+# "case_ref_3", "delete_pending_182", "_report_send_button",
+# "save_status", "doc_reset"). None of that is ever useful for
+# diagnosing a specific error: it's UI plumbing (button click flags,
+# per-row toggles, form-reset counters), not information about what
+# the person was doing or what state the app was in.
+#
+# Rather than trying to blocklist every one of those dynamic keys
+# individually (an endless, fragile game of whack-a-mole as new
+# widgets get added), this switches the model around: only the small,
+# fixed set of SINGLETON session values below -- the ones that
+# describe who the person is and what part of the app they were in,
+# not which specific button they clicked -- are ever included. Every
+# widget-plumbing key, by construction, is simply not on this list and
+# is therefore excluded, with zero maintenance needed as new widgets
+# are added elsewhere in the app.
+_USEFUL_SESSION_KEYS = (
+    "user_name",
+    "user_role",
+    "active_work_mode",
+    "previous_work_mode",
+    "lang",
+    # True only while a reflection/companion call is actually running --
+    # genuinely useful to know if an error happened mid-generation.
+    "_generating_reflection",
+    # True only right after the Anthropic API returned a 429 -- directly
+    # relevant if the error itself turns out to be a Rate Limit.
+    "_rate_limit_hit",
+)
+
 
 def _is_sensitive_key(key):
     lowered = key.lower()
@@ -160,36 +208,45 @@ def _is_sensitive_key(key):
 
 def collect_session_context():
     """
-    Returns a small, flat dict of the CURRENT Streamlit session_state,
-    filtered down to values that are actually useful for diagnosing a
-    problem -- never the raw, complete session_state.
+    Returns a small, flat dict of CURRENT Streamlit session_state
+    values that can realistically help diagnose a problem -- never the
+    raw, complete session_state.
 
-    Exclusion rules (a key is left out entirely if any apply):
+    Only keys in _USEFUL_SESSION_KEYS above are ever included (an
+    allowlist, not a blocklist) -- see that constant's comment for why.
+    A key is still skipped even if it's on the allowlist if:
       - its name contains a sensitive marker (password, api_key,
         token, secret, auth, cookie, etc. -- see
-        _SENSITIVE_KEY_MARKERS above)
-      - it matches a known structurally-unhelpful key (e.g. internal
-        diagnostic-timeline bookkeeping)
+        _SENSITIVE_KEY_MARKERS above) -- defence in depth, since none
+        of the allowlisted keys are sensitive today, but this keeps
+        that guarantee even if the list changes later
+      - it isn't actually present in session_state this run
+      - its value is empty/blank, since an empty value never helps
+        diagnose anything
       - its value can't be safely turned into a short string at all
 
     Every value that IS included is stringified and truncated to
     _MAX_SESSION_VALUE_LENGTH characters, so this can never smuggle a
-    large amount of text (e.g. full case/draft content) into a
-    diagnostic package.
+    large amount of text into a diagnostic package.
 
     Never raises -- returns an empty dict if session_state isn't
     available for any reason.
     """
     clean = {}
     try:
-        for key, value in st.session_state.items():
+        for key in _USEFUL_SESSION_KEYS:
+            if key not in st.session_state:
+                continue
             if _is_sensitive_key(key):
                 continue
             if any(key.startswith(p) for p in _EXCLUDED_KEY_PREFIXES):
                 continue
+            value = st.session_state[key]
             try:
                 text = str(value)
             except Exception:
+                continue
+            if not text.strip():
                 continue
             if len(text) > _MAX_SESSION_VALUE_LENGTH:
                 text = text[:_MAX_SESSION_VALUE_LENGTH] + "...(truncated)"
@@ -321,13 +378,17 @@ _AI_READINESS_CATEGORIES = (
     ("environment", "Environment"),
     ("user_information", "User Information"),
     ("configuration", "Configuration"),
+    # The AI prompt itself is part of the diagnostic package handed to
+    # Claude/ChatGPT -- its presence is evidence just like a traceback
+    # or a timeline is, so it belongs on the same checklist.
+    ("ai_prompt", "AI Prompt Generated"),
 )
 
 
 def compute_ai_readiness(package):
     """
     A plain completeness score -- NOT an AI judgement of anything, and
-    NOT a measure of severity -- based only on how many of 8 fixed
+    NOT a measure of severity -- based only on how many of 9 fixed
     evidence categories are present in an already-parsed diagnostic
     package (a dict, e.g. DiagnosticPackage.to_dict() or a package
     parsed back out of storage).
@@ -358,6 +419,9 @@ def compute_ai_readiness(package):
         python_version / operating_system is set
       - User Information: user or role is set
       - Configuration: config_values is a non-empty dict
+      - AI Prompt Generated: ai_prompt is a non-empty string -- the
+        prompt itself is part of the diagnostic package, so its
+        presence counts as evidence collected too
 
     If package is None (no Diagnostic Package at all -- e.g. an older
     record), every category is False and the score is 0.
@@ -378,6 +442,7 @@ def compute_ai_readiness(package):
         or bool(package.get("operating_system")),
         "user_information": bool(package.get("user") or package.get("role")),
         "configuration": bool(package.get("config_values")),
+        "ai_prompt": bool(package.get("ai_prompt")),
     }
     presence = [(key, checks[key]) for key, _label in _AI_READINESS_CATEGORIES]
     present_count = sum(1 for _, is_present in presence if is_present)
@@ -588,7 +653,11 @@ def _build_ai_prompt(pkg: DiagnosticPackage):
         lines.append("")
         lines.append("=== Similar Previous Issues ===")
         for s in pkg.similar_issues:
-            lines.append(f"#{s['issue_id']} -- {s.get('status') or 'unknown status'}")
+            lines.append(f"Issue #{s['issue_id']}")
+            occ = s.get("occurrence_count")
+            lines.append(f"  Occurrences: {occ if occ is not None else 'unknown'}")
+            lines.append(f"  Status: {s.get('status') or 'unknown status'}")
+            lines.append(f"  Last Seen: {s.get('last_seen') or 'unknown'}")
         lines.append(
             "Review these previous investigations if they appear relevant."
         )
@@ -718,8 +787,13 @@ def build_diagnostic_package(
             root_cause=root_cause,
             issue_number=issue_id,
         )
-        pkg.evidence_summary = _build_evidence_summary(pkg.to_dict())
+        # AI Prompt built BEFORE the evidence summary, deliberately --
+        # the evidence checklist's "AI Prompt Generated" entry (see
+        # _AI_READINESS_CATEGORIES) checks pkg.ai_prompt, so that field
+        # must already be populated by the time _build_evidence_summary
+        # inspects the package, or it would always show as missing.
         pkg.ai_prompt = _build_ai_prompt(pkg)
+        pkg.evidence_summary = _build_evidence_summary(pkg.to_dict())
         return pkg
     except Exception:
         logger.exception("build_diagnostic_package failed (non-fatal)")
@@ -749,6 +823,6 @@ def build_diagnostic_package(
             root_cause=root_cause,
             issue_number=issue_id,
         )
-        fallback.evidence_summary = _build_evidence_summary(fallback.to_dict())
         fallback.ai_prompt = _build_ai_prompt(fallback)
+        fallback.evidence_summary = _build_evidence_summary(fallback.to_dict())
         return fallback
