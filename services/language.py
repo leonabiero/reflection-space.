@@ -435,6 +435,7 @@ LANG = {
         "readiness_category_environment": "Entorno",
         "readiness_category_user_information": "Información del usuario",
         "readiness_category_configuration": "Configuración",
+        "readiness_category_ai_prompt": "Prompt de IA generado",
         "event_labels": {
             "Opened page": "Página abierta",
             "Changed page": "Página cambiada",
@@ -958,6 +959,7 @@ LANG = {
         "readiness_category_environment": "Ingurunea",
         "readiness_category_user_information": "Erabiltzailearen informazioa",
         "readiness_category_configuration": "Konfigurazioa",
+        "readiness_category_ai_prompt": "AI prompt-a sortuta",
         "event_labels": {
             "Opened page": "Orria irekita",
             "Changed page": "Orria aldatuta",
@@ -1481,6 +1483,7 @@ LANG = {
         "readiness_category_environment": "Environment",
         "readiness_category_user_information": "User Information",
         "readiness_category_configuration": "Configuration",
+        "readiness_category_ai_prompt": "AI Prompt Generated",
         "event_labels": {
             "Opened page": "Opened page",
             "Changed page": "Changed page",
