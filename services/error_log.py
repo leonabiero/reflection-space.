@@ -893,7 +893,15 @@ def build_diagnostic_report_email(package, status="New"):
     similar_issues = package.get("similar_issues") or []
     if similar_issues:
         similar_lines = "\n".join(
-            f"#{s['issue_id']} ({s.get('status') or 'unknown status'})"
+            "Issue #{issue_id}\n"
+            "  Occurrences: {occurrences}\n"
+            "  Status: {status}\n"
+            "  Last Seen: {last_seen}".format(
+                issue_id=s["issue_id"],
+                occurrences=s.get("occurrence_count") if s.get("occurrence_count") is not None else "unknown",
+                status=s.get("status") or "unknown status",
+                last_seen=s.get("last_seen") or "unknown",
+            )
             for s in similar_issues
         )
     else:
