@@ -176,36 +176,91 @@ def extract_operation(traceback_text, page):
 # recognise the same underlying bug even when it surfaces with
 # different messages. Order matters: first match wins, most specific
 # checks first.
+#
+# Quality pass (post-Phase 5): previously most "we don't recognise
+# this" occurrences fell through to a single, unhelpful
+# "Unclassified error" label -- true even for cases that ARE
+# recognisable with a bit more pattern-matching (a developer's own
+# "TEST:" exception left in a page, a person testing the "Report a
+# problem" widget by typing something like "just testing this",
+# ImportError vs. a genuine config problem, authentication vs. plain
+# permission failures, etc.). This block adds those specific,
+# actionable labels and narrows the final catch-all to "Unknown" --
+# reserved ONLY for occurrences that truly don't match anything below.
+# Order matters: first match wins, most specific checks first.
 _ROOT_CAUSE_RULES = (
     # (match test, label)
+    #
+    # -- Test traffic, checked first so it's never miscategorised as a
+    # real production failure --
+    #
+    # A developer left a deliberate, self-labelled test exception in
+    # the code (see e.g. pages/growth_dashboard.py's
+    # `raise Exception("TEST: ...")`, used to verify error capture
+    # itself works). Always starts with the literal "TEST:" marker by
+    # convention, regardless of the exception type used.
+    (lambda et, msg, tb: msg.startswith("test:") or "test:" in msg.split("\n", 1)[0],
+     "Developer Test Exception"),
+    # A person manually exercising the "Report a problem" widget to
+    # confirm it works, rather than reporting a genuine issue -- their
+    # own typed description says so (e.g. "just testing", "test
+    # report", "testing this feature").
+    (lambda et, msg, tb: et == "UserReport" and re.search(r"\btest(ing|s|ed)?\b", msg),
+     "Manual Test Exception"),
     (lambda et, msg, tb: et == "UserReport", "User-reported issue (no exception)"),
     # Phase 3 (Reflection Generation): these two error_types always
     # arrive with an explicit root_cause_hint from
     # rdi/orchestrator.py's classify_reflection_failure_root_cause()
     # (below) -- see build_fingerprint's root_cause_hint parameter.
-    # These two rules are only a defensive fallback for the rare case
-    # a caller logs one of these error_types WITHOUT a hint.
-    (lambda et, msg, tb: et == "ReflectionGenerationFailed", "Unknown"),
-    (lambda et, msg, tb: et == "PartialReflectionGeneration", "Unknown"),
+    # This rule is only a defensive fallback for the rare case a
+    # caller logs one of these error_types WITHOUT a hint -- labelled
+    # by what actually happened (reflection generation failed) rather
+    # than the uninformative generic "Unknown".
+    (lambda et, msg, tb: et in ("ReflectionGenerationFailed", "PartialReflectionGeneration"),
+     "Reflection Generation Failed"),
+    # -- Configuration, checked before the generic exception-type
+    # rules below, since a KeyError/AttributeError/ImportError whose
+    # message clearly points at missing/broken configuration is far
+    # more actionable labelled that way than as a bare "missing key"
+    # or "import error" --
+    (lambda et, msg, tb: (
+        ("config" in msg or "environment variable" in msg or "env var" in msg)
+        and et in ("KeyError", "AttributeError", "ImportError", "ModuleNotFoundError", "ValueError")
+    ) or "not configured" in msg or "misconfigured" in msg or "configuration error" in msg,
+     "Configuration Error"),
+    (lambda et, msg, tb: et in ("ImportError", "ModuleNotFoundError"), "Import Error"),
     (lambda et, msg, tb: et in ("KeyError",), "Missing key / attribute"),
     (lambda et, msg, tb: et in ("AttributeError",), "Missing attribute / None reference"),
     (lambda et, msg, tb: et in ("TypeError",), "Type mismatch"),
-    (lambda et, msg, tb: et in ("ValueError",), "Invalid value"),
+    (lambda et, msg, tb: et in ("ValueError",), "Validation Error"),
     (lambda et, msg, tb: et in ("IndexError",), "Index / bounds error"),
     (lambda et, msg, tb: "jsondecodeerror" in (et or "").lower() or "json" in msg and "pars" in msg, "Response parsing failure"),
-    (lambda et, msg, tb: "timeout" in msg or "timeout" in (et or "").lower(), "Timeout"),
-    (lambda et, msg, tb: "psycopg2" in msg or "psycopg2" in tb or "database" in msg, "Database error"),
-    (lambda et, msg, tb: "connection" in msg or "connectionerror" in (et or "").lower(), "Connectivity failure"),
-    (lambda et, msg, tb: "permission" in msg or "unauthorized" in msg or "auth" in msg, "Permission / authorization failure"),
-    (lambda et, msg, tb: "rate limit" in msg or "429" in msg, "Rate limiting"),
+    # -- Authentication vs. plain Permission, now kept separate so
+    # "wrong/expired credentials" and "logged in but not allowed to do
+    # this" no longer share one vague "Permission / authorization
+    # failure" label --
+    (lambda et, msg, tb: any(
+        s in msg for s in (
+            "authentication", "unauthorized", "401", "invalid api key",
+            "invalid x-api-key", "not authenticated", "login failed",
+            "invalid credentials",
+        )
+    ), "Authentication Error"),
+    (lambda et, msg, tb: any(
+        s in msg for s in ("permission", "forbidden", "403", "access denied", "insufficient privileges")
+    ), "Permission Error"),
+    (lambda et, msg, tb: "rate limit" in msg or "429" in msg or "overloaded" in msg, "Rate Limit"),
+    (lambda et, msg, tb: "timeout" in msg or "timed out" in msg or "timeout" in (et or "").lower(), "Timeout"),
+    (lambda et, msg, tb: "psycopg2" in msg or "psycopg2" in tb or "database" in msg, "Database Error"),
+    (lambda et, msg, tb: "connection" in msg or "network" in msg or "connectionerror" in (et or "").lower(), "Network Error"),
 )
 
 
 def classify_root_cause(error_type, message, traceback_text):
     """
     Returns a short, stable Root Cause Classification label (see
-    _ROOT_CAUSE_RULES above). Falls back to "Unclassified error" if
-    nothing matches. Never raises.
+    _ROOT_CAUSE_RULES above). Falls back to "Unknown" only when
+    nothing above recognises the occurrence. Never raises.
     """
     try:
         et = error_type or ""
@@ -214,9 +269,9 @@ def classify_root_cause(error_type, message, traceback_text):
         for test, label in _ROOT_CAUSE_RULES:
             if test(et, msg, tb):
                 return label
-        return "Unclassified error"
+        return "Unknown"
     except Exception:
-        return "Unclassified error"
+        return "Unknown"
 
 
 # ---------------------------------------------------------------------
@@ -346,7 +401,7 @@ def build_fingerprint(page, error_type, message, traceback_text, root_cause_hint
         fallback_raw = f"{(page or '').lower()}|{(error_type or '').lower()}"
         return {
             "fingerprint": hashlib.sha256(fallback_raw.encode("utf-8")).hexdigest()[:24],
-            "root_cause": root_cause_hint or "Unclassified error",
+            "root_cause": root_cause_hint or "Unknown",
             "operation": "unknown",
             "traceback_signature": "",
         }
