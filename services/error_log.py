@@ -46,6 +46,7 @@ from services.db_pool import get_conn as _acquire_pooled_conn
 from services.email_alert import send_alert_email
 from services.diagnostics import build_diagnostic_package, compute_ai_readiness
 from services.evidence_timeline import record_event
+from services.identity import get_current_user_context
 
 logger = get_logger(__name__)
 
@@ -364,7 +365,28 @@ def log_error(page, error_type, message, traceback_text,
     alert email is built from that same package (see
     build_diagnostic_report_email below) -- entirely text-based, no
     attachments.
+
+    User identity (infrastructure fix): user_name/user_role above are
+    OPTIONAL. This is the ONE place, for every logging path in the
+    entire application (error_boundary, log_user_report, and any
+    service/helper/AI-wrapper that calls log_error directly), where a
+    missing user_name or user_role is filled in automatically from
+    services.identity.get_current_user_context() -- the same
+    authenticated session every page already reads identity from.
+    Callers that already know the user (typically pages, which get it
+    from init_identity()) can keep passing it explicitly, and whatever
+    they pass is always respected -- this only fills in what's
+    missing, it never overrides a caller-supplied value. This is what
+    guarantees every issue, no matter where in the codebase it's
+    logged from, captures the authenticated practitioner or
+    administrator without every helper/service/utility function needing
+    user_name/user_role threaded through its own signature.
     """
+    if not user_name or not user_role:
+        _identity_ctx = get_current_user_context()
+        user_name = user_name or _identity_ctx["user_name"]
+        user_role = user_role or _identity_ctx["user_role"]
+
     # Phase 2.1 (Stable Issue References): resolve/reuse a stable
     # issue id for this exact (page, error_type, message) BEFORE
     # writing the occurrence row, so the row can store it. Skipped for
@@ -909,6 +931,23 @@ def build_diagnostic_report_email(package, status="New"):
 
     divider = "-" * 50
 
+    # Identity fields for the email Summary: User/Role come straight off
+    # the package (already resolved -- see log_error's identity fallback
+    # above, the one place this is ever filled in). Work Mode and
+    # Language are read from session_context, the same allowlisted
+    # snapshot of st.session_state the AI Prompt's "Relevant Context"
+    # section already uses (see services/diagnostics.py:
+    # collect_session_context) -- not recomputed separately here, so
+    # there's exactly one place that decides what those values are.
+    # User ID is included only when one is actually available -- see
+    # services/identity.py:get_current_user_context's docstring for why
+    # this app has no separate user id today.
+    session_context = package.get("session_context") or {}
+    user_id = package.get("user_id") or session_context.get("user_id") or ""
+    work_mode = session_context.get("active_work_mode") or "unknown"
+    language = session_context.get("lang") or "unknown"
+    user_id_line = f"\nUser ID: {user_id}" if user_id else ""
+
     return f"""Reflection Space Diagnostic Report
 
 Summary
@@ -918,7 +957,9 @@ Status: {status}
 Timestamp: {package.get('timestamp', '-')}
 Page: {package.get('page', '-')}
 User: {package.get('user') or 'unknown'}
-Role: {package.get('role') or 'unknown'}
+Role: {package.get('role') or 'unknown'}{user_id_line}
+Work Mode: {work_mode}
+Language: {language}
 Root Cause: {package.get('root_cause') or _root_cause_unavailable_text(package)}
 
 {divider}
