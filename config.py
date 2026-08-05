@@ -157,6 +157,44 @@ LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15
 LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
 
 # ---------------------------------------------------------------------
+# Persistent login sessions (services/session_store.py,
+# services/session_cookie.py) -- survive a browser refresh (F5)
+# ---------------------------------------------------------------------
+# Previously, authentication lived ONLY in st.session_state, which
+# Streamlit clears on every browser refresh/reconnect -- pressing F5
+# silently logged everyone out and sent them back to the login form.
+#
+# A successful login now ALSO opens a persistent, server-side session
+# (a row in the auth_sessions table -- see services/db_schema.py) and
+# writes its opaque, unguessable session_id into a browser cookie (see
+# services/session_cookie.py). Every authenticated page load re-reads
+# that cookie and revalidates the session against the database --
+# the cookie's contents are never trusted on their own -- and, as long
+# as the person keeps using the app, extends the session's expiry (a
+# "sliding" session: it only expires after this many hours of no
+# activity at all, never on a fixed clock).
+#
+# SESSION_LIFETIME_HOURS: how long an inactive session stays valid
+# before requiring login again. Also used as the browser cookie's
+# Max-Age, so the browser discards the cookie at the same moment the
+# server would have expired it anyway.
+SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "12"))
+
+# SESSION_COOKIE_NAME: the browser cookie holding the session_id
+# (meaningless on its own without the matching database row -- see
+# services/session_store.py). Change only if it collides with another
+# cookie name in your deployment.
+SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "rs_session")
+
+# SESSION_COOKIE_SECURE: whether the cookie is marked `Secure` (the
+# browser then refuses to store or send it over a plain http://
+# connection). Streamlit Cloud -- and any real deployment -- always
+# serves over https://, so leave this "true" in production. Set it to
+# "false" ONLY for local development over http://localhost, where a
+# `Secure` cookie would otherwise silently never get set at all.
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").strip().lower() == "true"
+
+# ---------------------------------------------------------------------
 # QA testing hook: simulate a Reflection Generation "Rate Limit" failure
 # (Test B) -- services/reflection_service.py
 # ---------------------------------------------------------------------
