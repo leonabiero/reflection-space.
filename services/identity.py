@@ -17,6 +17,8 @@ from services.session_store import (
     delete_session,
 )
 from services.session_cookie import (
+    get_cookie_manager,
+    cookie_manager_ready,
     get_session_id,
     set_session_cookie,
     clear_session_cookie,
@@ -83,15 +85,31 @@ from services.session_cookie import (
 # clears on every browser refresh/reconnect (pressing F5 silently
 # logged everyone out). A successful login now ALSO opens a
 # server-side session (services/session_store.py) and writes its
-# opaque id into a browser cookie (services/session_cookie.py).
-# init_identity() re-validates that cookie on every page load where
+# opaque id into a browser cookie via the streamlit-cookies-manager
+# library (services/session_cookie.py) -- see that module's docstring
+# for why a maintained component library replaced the original
+# hand-rolled `document.cookie` script (short version: that script ran
+# inside a components.html() iframe and could not reliably write a
+# cookie against the app's own domain on Streamlit Cloud, which is why
+# the cookie never actually appeared in dev tools).
+#
+# init_identity() creates ONE CookieManager for the current script run
+# (services.session_cookie.get_cookie_manager(), called exactly once,
+# right below) and threads it into every cookie read/write for the
+# rest of that run -- constructing it twice in the same run is not
+# supported by the underlying component. On the very first script run
+# of a brand-new browser tab, the component needs one round trip
+# before it can report the browser's current cookies; init_identity()
+# waits for that (a brief st.stop()) rather than guessing.
+#
+# init_identity() re-validates the cookie on every page load where
 # st.session_state isn't already authenticated, and repopulates
 # user_name/user_role/active_work_mode from it automatically -- see
 # the "Not authenticated in THIS run's..." block below. Logging out
 # (or letting the session expire/become invalid) ends it on both
 # sides: the database row is deleted and the cookie is cleared. See
 # config.py's "Persistent login sessions" block for the tunable
-# settings (session lifetime, cookie name, Secure flag).
+# settings (session lifetime, cookie name).
 #
 # ============================================================================
 # BUGFIX (this revision): "You do not have access to this workspace" after
@@ -245,20 +263,24 @@ def _touch_presence():
         pass
 
 
-def _touch_auth_session():
+def _touch_auth_session(manager):
     """
     Best-effort persistent-session heartbeat (see
     services/session_store.py, services/session_cookie.py) -- slides
     the server-side session's expiry forward and refreshes the
-    browser cookie's Max-Age to match, on every authenticated page
-    load. Mirrors _touch_presence() above: never blocks or breaks a
-    page if this fails for any reason.
+    browser cookie to match, on every authenticated page load. Mirrors
+    _touch_presence() above: never blocks or breaks a page if this
+    fails for any reason.
+
+    `manager` is the single CookieManager for this script run, created
+    once in init_identity() and passed down -- see that function and
+    services/session_cookie.py's module docstring.
     """
     try:
-        session_id = get_session_id()
+        session_id = get_session_id(manager)
         if session_id:
             touch_session(session_id, st.session_state.get("active_work_mode", ""))
-            set_session_cookie(session_id)
+            set_session_cookie(manager, session_id)
     except Exception:
         pass
 
@@ -306,6 +328,22 @@ def init_identity(T):
     from services.db_schema import ensure_schema
     ensure_schema()
 
+    # Single CookieManager for this entire script run -- see
+    # services/session_cookie.py's module docstring for why this must
+    # be created exactly once per run and threaded through every other
+    # cookie read/write below, rather than each of those functions
+    # constructing their own.
+    _cookie_manager = get_cookie_manager()
+    if not cookie_manager_ready(_cookie_manager):
+        # First script run of a brand-new browser tab: the component
+        # needs one round trip to report the browser's current
+        # cookies. Streamlit reruns automatically the moment that
+        # value arrives (typically well under a second), so simply
+        # wait rather than guessing "no cookie" and briefly flashing
+        # the login form even for someone with a valid session.
+        with st.spinner(T.get("loading_session", "Cargando…")):
+            st.stop()
+
     if "authed" not in st.session_state:
         st.session_state.authed = False
     if "user_name" not in st.session_state:
@@ -326,10 +364,10 @@ def init_identity(T):
         # clear the browser's cookie, in addition to the usual
         # in-memory wipe below -- both are needed, or the browser
         # would simply restore the same session again on next refresh.
-        _logout_session_id = get_session_id()
+        _logout_session_id = get_session_id(_cookie_manager)
         if _logout_session_id:
             delete_session(_logout_session_id)
-            clear_session_cookie()
+            clear_session_cookie(_cookie_manager)
         _wipe_session_for_logout()
         # Re-establish the plain defaults every page expects to find,
         # exactly as on a brand-new session -- _wipe_session_for_logout()
@@ -342,7 +380,7 @@ def init_identity(T):
 
     if st.session_state.authed:
         _touch_presence()
-        _touch_auth_session()
+        _touch_auth_session(_cookie_manager)
         return st.session_state.user_name, st.session_state.user_role
 
     # Not authenticated in THIS run's (freshly created) session_state --
@@ -351,7 +389,7 @@ def init_identity(T):
     # earlier login. This is exactly what happens after pressing F5:
     # Streamlit clears st.session_state, but NOT the browser's cookies.
     # See services/session_store.py for the validation/expiry rules.
-    _restore_session_id = get_session_id()
+    _restore_session_id = get_session_id(_cookie_manager)
     if _restore_session_id:
         _restored = validate_session(_restore_session_id)
         if _restored:
@@ -382,7 +420,7 @@ def init_identity(T):
                         st.session_state.user_role
                     )
                 _touch_presence()
-                _touch_auth_session()
+                _touch_auth_session(_cookie_manager)
                 return st.session_state.user_name, st.session_state.user_role
             else:
                 # The account behind this session no longer exists in
@@ -391,11 +429,11 @@ def init_identity(T):
                 # rather than leaving an orphaned row and a cookie that
                 # will never validate again.
                 delete_session(_restore_session_id)
-                clear_session_cookie()
+                clear_session_cookie(_cookie_manager)
         else:
             # Expired, or an unrecognized/tampered session_id -- clear
             # the stale cookie so the browser stops sending it.
-            clear_session_cookie()
+            clear_session_cookie(_cookie_manager)
 
     # Not logged in: block this page with a login form until a valid
     # username/password is entered.
@@ -453,7 +491,7 @@ def init_identity(T):
             # it succeeds on a later page load.
             _login_session_id = create_session(username, st.session_state.active_work_mode)
             if _login_session_id:
-                set_session_cookie(_login_session_id)
+                set_session_cookie(_cookie_manager, _login_session_id)
 
             # FIX 1 (see module docstring): redirect straight to the
             # landing page for this role's default work mode, instead of
