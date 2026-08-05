@@ -147,6 +147,27 @@ def ensure_schema():
                 )
                 """)
 
+                # --- services/session_store.py: auth_sessions ---
+                # Persistent login sessions (survive a browser refresh)
+                # -- see config.py's "Persistent login sessions" block
+                # and services/session_store.py for the full design.
+                # New table, so TIMESTAMPTZ columns are used natively
+                # from creation -- no ensure_timestamptz_columns() call
+                # is needed for this one (compare user_presence, drafts,
+                # etc. below, which started out as plain TEXT columns).
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS auth_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    active_work_mode TEXT,
+                    created_at TIMESTAMPTZ,
+                    last_seen_at TIMESTAMPTZ,
+                    expires_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions (expires_at)")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_username ON auth_sessions (username)")
+
                 # --- services/audit_log.py: audit_log ---
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS audit_log (
