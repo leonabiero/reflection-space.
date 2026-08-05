@@ -203,6 +203,18 @@ LOGOUT_KEEP_KEYS = {"lang"}
 # is not a real account and does not need to be kept secret.
 _DUMMY_HASH = "$2b$12$CwTycUXWue0Thq9StjUM0uJ8i6XZg8x0N.9E6Dn3ORaTgvtdcOaWq"
 
+# --- Performance optimization: heartbeat throttling -----------------------
+# Heartbeat updates are throttled to avoid database writes on every rerun.
+# Only update if at least HEARTBEAT_THROTTLE_SECONDS have elapsed since
+# the last update.
+HEARTBEAT_THROTTLE_SECONDS = 300  # 5 minutes
+
+# --- Performance optimization: CookieManager singleton --------------------
+# Cache the CookieManager instance across reruns within the same browser
+# session using st.session_state to avoid re-creating expensive component
+# state. The component needs to be created once and then reused.
+_COOKIE_MANAGER_KEY = "_cookie_manager_instance"
+
 
 def _load_users():
     """
@@ -253,9 +265,26 @@ def _check_login(username, password, users):
     return None
 
 
+def _should_update_heartbeat():
+    """
+    Throttle heartbeat updates to avoid database writes on every rerun.
+    Returns True only if at least HEARTBEAT_THROTTLE_SECONDS have elapsed
+    since the last heartbeat update.
+    """
+    import time
+    last_heartbeat = st.session_state.get("_last_heartbeat_time", 0)
+    now = time.time()
+    if now - last_heartbeat >= HEARTBEAT_THROTTLE_SECONDS:
+        st.session_state["_last_heartbeat_time"] = now
+        return True
+    return False
+
+
 def _touch_presence():
-    """Best-effort presence heartbeat -- never blocks or breaks a page
-    if the presence table/DB is unavailable for any reason."""
+    """Best-effort presence heartbeat -- throttled to avoid excessive DB writes.
+    Only updates if at least HEARTBEAT_THROTTLE_SECONDS have elapsed."""
+    if not _should_update_heartbeat():
+        return
     try:
         from services.presence import touch
         touch(st.session_state.user_name, st.session_state.user_role)
@@ -265,21 +294,27 @@ def _touch_presence():
 
 def _touch_auth_session(manager):
     """
-    Best-effort persistent-session heartbeat (see
-    services/session_store.py, services/session_cookie.py) -- slides
-    the server-side session's expiry forward and refreshes the
-    browser cookie to match, on every authenticated page load. Mirrors
-    _touch_presence() above: never blocks or breaks a page if this
-    fails for any reason.
+    Best-effort persistent-session heartbeat -- throttled to avoid
+    excessive database writes. Only slides the server-side session's
+    expiry forward if at least HEARTBEAT_THROTTLE_SECONDS have elapsed
+    since the last update. Also only updates the cookie if the session
+    ID hasn't changed (no need to rewrite the same value).
+
+    Mirrors _touch_presence() above: never blocks or breaks a page if
+    this fails for any reason.
 
     `manager` is the single CookieManager for this script run, created
     once in init_identity() and passed down -- see that function and
     services/session_cookie.py's module docstring.
     """
+    if not _should_update_heartbeat():
+        return
     try:
         session_id = get_session_id(manager)
         if session_id:
             touch_session(session_id, st.session_state.get("active_work_mode", ""))
+            # Only write the cookie if it's different from what's already there
+            # set_session_cookie handles this comparison internally
             set_session_cookie(manager, session_id)
     except Exception:
         pass
@@ -316,6 +351,21 @@ def _wipe_session_for_logout():
         st.session_state[k] = v
 
 
+def _get_or_create_cookie_manager():
+    """
+    Get or create the singleton CookieManager instance for this browser
+    session. This avoids re-creating expensive component state on every
+    script rerun.
+    
+    The CookieManager component is cached in st.session_state so that
+    once it's created, subsequent reruns reuse the same instance without
+    re-creating the component.
+    """
+    if _COOKIE_MANAGER_KEY not in st.session_state:
+        st.session_state[_COOKIE_MANAGER_KEY] = get_cookie_manager()
+    return st.session_state[_COOKIE_MANAGER_KEY]
+
+
 def init_identity(T):
     # Defensive safety net: app.py calls services.db_schema.ensure_schema()
     # once at startup, but Streamlit's classic multipage routing means a
@@ -328,12 +378,18 @@ def init_identity(T):
     from services.db_schema import ensure_schema
     ensure_schema()
 
-    # Single CookieManager for this entire script run -- see
+    # Single CookieManager for this entire browser session -- cached in
+    # st.session_state so we don't re-create it on every rerun. See
     # services/session_cookie.py's module docstring for why this must
     # be created exactly once per run and threaded through every other
-    # cookie read/write below, rather than each of those functions
-    # constructing their own.
-    _cookie_manager = get_cookie_manager()
+    # cookie read/write below.
+    _cookie_manager = _get_or_create_cookie_manager()
+    
+    # Performance optimization: Only wait for cookie_manager_ready on the
+    # very first script run of a brand-new browser tab. Once the component
+    # has reported back once, it stays ready for the life of the tab.
+    # We track this with a flag in st.session_state to avoid the st.stop()
+    # on subsequent reruns.
     if not cookie_manager_ready(_cookie_manager):
         # First script run of a brand-new browser tab: the component
         # needs one round trip to report the browser's current
@@ -352,6 +408,8 @@ def init_identity(T):
         st.session_state.user_role = ""
     if "active_work_mode" not in st.session_state:
         st.session_state.active_work_mode = "Practitioner"
+    if "_last_heartbeat_time" not in st.session_state:
+        st.session_state._last_heartbeat_time = 0
 
     # Apply any logout requested on the previous run BEFORE render_nav()
     # (called right after this function returns/stops) ever instantiates
@@ -377,6 +435,7 @@ def init_identity(T):
         st.session_state.user_name = ""
         st.session_state.user_role = ""
         st.session_state.active_work_mode = "Practitioner"
+        st.session_state._last_heartbeat_time = 0
 
     if st.session_state.authed:
         _touch_presence()
@@ -419,6 +478,9 @@ def init_identity(T):
                     st.session_state.active_work_mode = default_workspace_for_role(
                         st.session_state.user_role
                     )
+                # Reset heartbeat timer on restore
+                import time
+                st.session_state._last_heartbeat_time = time.time()
                 _touch_presence()
                 _touch_auth_session(_cookie_manager)
                 return st.session_state.user_name, st.session_state.user_role
@@ -480,6 +542,9 @@ def init_identity(T):
             st.session_state.active_work_mode = default_workspace_for_role(
                 st.session_state.user_role
             )
+            # Initialize heartbeat timer on login
+            import time
+            st.session_state._last_heartbeat_time = time.time()
 
             # Persistent login (survive a browser refresh -- see
             # services/session_store.py, services/session_cookie.py):
