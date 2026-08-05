@@ -167,17 +167,25 @@ LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES",
 # A successful login now ALSO opens a persistent, server-side session
 # (a row in the auth_sessions table -- see services/db_schema.py) and
 # writes its opaque, unguessable session_id into a browser cookie (see
-# services/session_cookie.py). Every authenticated page load re-reads
-# that cookie and revalidates the session against the database --
-# the cookie's contents are never trusted on their own -- and, as long
-# as the person keeps using the app, extends the session's expiry (a
+# services/session_cookie.py, written via the streamlit-cookies-manager
+# library). Every authenticated page load re-reads that cookie and
+# revalidates the session against the database -- the cookie's
+# contents are never trusted on their own -- and, as long as the
+# person keeps using the app, extends the session's expiry (a
 # "sliding" session: it only expires after this many hours of no
 # activity at all, never on a fixed clock).
 #
 # SESSION_LIFETIME_HOURS: how long an inactive session stays valid
-# before requiring login again. Also used as the browser cookie's
-# Max-Age, so the browser discards the cookie at the same moment the
-# server would have expired it anyway.
+# before requiring login again. This is enforced entirely server-side
+# (services/session_store.py:validate_session()) -- the cookie-manager
+# library used to write the browser cookie does not support a custom
+# per-cookie Max-Age (it always uses its own fixed, long browser-side
+# expiry), so this value no longer also sets the cookie's Max-Age the
+# way it did with the previous hand-rolled cookie script. That's not a
+# security gap: an expired session_id is rejected by validate_session()
+# and the now-worthless cookie is cleared on the next page load
+# regardless of how long the browser was still willing to hold onto it
+# (see services/identity.py, services/session_cookie.py).
 SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "12"))
 
 # SESSION_COOKIE_NAME: the browser cookie holding the session_id
@@ -186,12 +194,17 @@ SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "12"))
 # cookie name in your deployment.
 SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "rs_session")
 
-# SESSION_COOKIE_SECURE: whether the cookie is marked `Secure` (the
-# browser then refuses to store or send it over a plain http://
-# connection). Streamlit Cloud -- and any real deployment -- always
-# serves over https://, so leave this "true" in production. Set it to
-# "false" ONLY for local development over http://localhost, where a
-# `Secure` cookie would otherwise silently never get set at all.
+# SESSION_COOKIE_SECURE: NOT currently applied. It governed the
+# `Secure` flag on the old hand-rolled `document.cookie` script, which
+# services/session_cookie.py no longer uses -- the streamlit-cookies-
+# manager library that replaced it does not expose a way to set the
+# `Secure` (or `SameSite`) attribute (see that module's docstring for
+# the full explanation, including why this is a manageable trade-off
+# rather than a real regression: Streamlit Cloud only ever serves over
+# https://, so the cookie never travels over a plain http:// connection
+# in practice regardless of this flag). Left defined, unused, for
+# backward compatibility -- e.g. if a future cookie-writing approach
+# adds support for it again -- rather than removing the setting.
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").strip().lower() == "true"
 
 # ---------------------------------------------------------------------
