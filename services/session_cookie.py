@@ -7,191 +7,106 @@ server-side source of truth ("is this session_id still valid, and who
 does it belong to"); this module is purely the mechanics of getting
 that session_id into, and out of, the person's browser as a cookie.
 
-Why streamlit-cookies-manager (and not a hand-rolled `document.cookie`
-script) -- ROOT CAUSE of the "cookie never gets created" bug
---------------------------------------------------------------------
-The previous implementation wrote the cookie via
-`streamlit.components.v1.html("<script>document.cookie = ...</script>")`.
-A `components.html(...)` block is rendered inside its own <iframe>, and
-running `document.cookie = ...` from INSIDE that iframe sets the
-cookie against the iframe's own document/origin -- on Streamlit Cloud
-this is not reliably the same origin the main app page (and therefore
-the rest of the app, including `st.context.cookies` on the next
-request) is served from. The cookie was therefore being set somewhere
-the browser would never send back to the app -- which is exactly why
-`create_session()` succeeded (the database write is unrelated) while
-no `rs_session` cookie ever showed up in dev tools and every refresh
-came back with an empty session id.
+Why a hand-rolled cookie instead of a component/library
+-------------------------------------------------------------
+Streamlit (this app runs 1.47.1) exposes `st.context.cookies` as a
+READ-ONLY view of whatever cookies the browser sent with the current
+connection -- there is no built-in, server-side way to WRITE a cookie
+(no `Set-Cookie` response-header API). The only way to set a cookie at
+all from a plain Streamlit app is to run a small piece of JavaScript
+(`document.cookie = ...`) in the browser -- see
+https://github.com/streamlit/streamlit/issues/9421, an open Streamlit
+feature request as of this writing. This module does exactly that,
+via `streamlit.components.v1.html`, rather than adding a third-party
+cookie-manager dependency for what is a handful of lines.
 
-`streamlit-cookies-manager` (https://github.com/ktosiek/streamlit-cookies-manager)
-is a maintained Streamlit *component* (a real compiled frontend
-bundle, not an inline `<script>` block) built specifically to solve
-this. Its frontend code writes to `(window.parent || window).document`
--- i.e. explicitly targets the top-level app document rather than its
-own iframe -- and reads the cookie back the same way, then reports the
-value to Python over Streamlit's normal component protocol. That
-parent-document write is the actual fix; everything else in this
-module is just a thin, typed wrapper around it so the rest of the
-codebase (services/identity.py) doesn't need to know the library
-exists.
-
-One CookieManager instance per browser session -- reused across reruns
-----------------------------------------------------------------------
-The component this library registers is declared under a single fixed
-key. Constructing `CookieManager()` a second time within the SAME
-Streamlit script run raises a duplicate-element error. Because
-services/identity.py needs to read the cookie, and later possibly
-write or clear it, in that same run, ownership of the single
-`CookieManager()` call is centralized in `get_cookie_manager()` below.
-services.identity.init_identity() calls it exactly once, at the very
-top of the function, and threads the returned `manager` object into
-every other function in this module for the rest of that run. Do not
-call `get_cookie_manager()` anywhere else.
-
-To avoid the expensive overhead of recreating component state on every
-single script run, the manager is now cached in st.session_state and
-reused across reruns within the same browser session. On a brand-new
-tab or after a hard refresh, st.session_state is empty so a fresh
-manager is created exactly as before.
-
-A necessary, unavoidable trade-off: no HttpOnly, no Secure/SameSite
-attributes
-------------------------------------------------------------------
-Because the cookie is still ultimately set by JavaScript running in
-the browser (there is no way to write a real `Set-Cookie` response
-header from a plain Streamlit app -- see
-https://github.com/streamlit/streamlit/issues/9421, still open as of
-this writing), it cannot be marked `HttpOnly`, and this particular
-library's frontend does not add `Secure` or `SameSite` attributes
-either. This is a genuine limitation of doing this from a plain
-Streamlit app, shared by every maintained cookie-manager library for
-Streamlit (there is currently no actively-maintained alternative that
-adds those flags). The cookie IS still:
-    - only ever sent to this app's own domain (ordinary same-origin
-      cookie behaviour; Streamlit Cloud serves exclusively over
-      https://, so in practice it never travels over plain http://
-      even without an explicit `Secure` flag)
+A necessary security trade-off: no HttpOnly
+------------------------------------------------
+Because the cookie is set by client-side JavaScript, it CANNOT be
+marked `HttpOnly` -- that flag, by definition, blocks JavaScript from
+ever touching the cookie (including setting it), so a JS-set cookie
+and `HttpOnly` are mutually exclusive. This is a genuine, unavoidable
+limitation of doing this from a plain Streamlit app -- the only way
+around it would be putting a custom backend/reverse proxy in front of
+Streamlit purely to inject a `Set-Cookie` header, which is a much
+larger architectural change than this feature justifies. The cookie
+IS still:
+    - Secure (the browser refuses it over a plain http:// connection
+      -- see config.SESSION_COOKIE_SECURE)
+    - SameSite=Lax (never sent on a cross-site request)
     - an opaque, unguessable, meaningless-without-the-database token
       (see services/session_store.py) -- never the person's name,
-      role, or anything else about them
+      role, or anything else about them, so reading it tells an
+      attacker nothing on its own
     - revoked server-side immediately on logout (the matching database
       row is deleted, so even a copied cookie value stops working
       instantly -- see services/session_store.py:delete_session())
-    - re-validated against the database on every restore, never
-      trusted on its own (see services/identity.py)
-
-Cookie lifetime vs. session lifetime
------------------------------------
-This library's `CookieManager` does not expose a way to set a custom
-Max-Age/expiry per cookie (unlike the previous hand-rolled version, it
-always writes a browser-side expiry of ~365 days). The ACTUAL
-lifetime of a login is still governed entirely by
-`config.SESSION_LIFETIME_HOURS` on the server side, unchanged:
-`services.session_store.validate_session()` rejects (and
-`services.identity.init_identity()` clears the cookie for) any
-session_id whose database row has expired, regardless of how long the
-cookie itself is willing to sit in the browser. A long-lived cookie
-holding an already-expired, worthless token is not a security
-regression -- it simply means the browser stops bothering to send a
-cookie sooner than it otherwise could, exactly as before.
+This is the same trade-off any pure-JS "remember me" cookie makes
+outside a framework with native Set-Cookie support, and is meaningfully
+safer than storing anything in localStorage (no Secure/SameSite
+protection at all, and just as readable by page JavaScript).
 """
 
+import json
+
 import streamlit as st
-from streamlit_cookies_manager import CookieManager
+import streamlit.components.v1 as components
 
-from config import SESSION_COOKIE_NAME
-
-
-def get_cookie_manager():
-    """
-    Construct or reuse the ONE CookieManager for this browser session.
-    Stored in st.session_state so it is reused across Streamlit reruns
-    within the same browser session, rather than recreated on every
-    single script run. This eliminates the expensive component
-    initialization overhead that was making every authenticated page
-    load sluggish.
-    
-    On a brand-new browser tab or after a hard refresh,
-    st.session_state is empty so a fresh manager is created. The first
-    script run after that creation may need to wait one round trip for
-    the component to report back (see cookie_manager_ready()).
-    """
-    if "_cookie_manager" in st.session_state:
-        return st.session_state._cookie_manager
-    manager = CookieManager()
-    st.session_state._cookie_manager = manager
-    return manager
+from config import SESSION_COOKIE_NAME, SESSION_LIFETIME_HOURS, SESSION_COOKIE_SECURE
 
 
-def cookie_manager_ready(manager) -> bool:
-    """
-    True once the browser's current cookies have actually been read
-    back over the wire for THIS manager instance. False for one brief
-    instant on the very first script run of a brand-new browser
-    session/tab -- the component's frontend needs one round trip to
-    report back, and Streamlit automatically reruns the script the
-    moment that value arrives, so this becomes True on the very next
-    run without any action needed here. Never raises.
-    """
-    try:
-        return manager is not None and manager.ready()
-    except Exception:
-        return False
-
-
-def get_session_id(manager):
+def get_session_id():
     """
     Read the persistent-session cookie sent with THIS connection, if
-    any. Returns "" if absent, if the manager isn't ready yet, or on
-    any error -- never raises.
+    any. Returns "" if absent. Never raises -- falls back to "" if
+    st.context is unavailable for any reason (e.g. called outside a
+    real Streamlit session).
     """
     try:
-        if not cookie_manager_ready(manager):
-            return ""
-        return manager.get(SESSION_COOKIE_NAME) or ""
+        return st.context.cookies.get(SESSION_COOKIE_NAME, "") or ""
     except Exception:
         return ""
 
 
-def set_session_cookie(manager, session_id):
+def set_session_cookie(session_id):
     """
-    Write the persistent-session cookie in the browser. Call this
-    right after login, and whenever the cookie's current value does
-    not match the active session_id. Skips the write entirely if the
-    cookie already holds the identical value, preventing unnecessary
-    frontend component updates on every authenticated rerun.
+    Write/refresh the persistent-session cookie in the browser via a
+    tiny, invisible (0x0) JS snippet. Call this once right after
+    login, and again on every authenticated page load (see
+    services.identity._touch_auth_session()) to slide the cookie's
+    expiry forward in lockstep with the server-side session
+    (services.session_store.touch_session()).
     """
     if not session_id:
         return
-    try:
-        if not cookie_manager_ready(manager):
-            return
-        current = manager.get(SESSION_COOKIE_NAME)
-        if current == session_id:
-            return
-        manager[SESSION_COOKIE_NAME] = session_id
-        manager.save()
-    except Exception:
-        pass
-
-
-def clear_session_cookie(manager):
+    max_age_seconds = SESSION_LIFETIME_HOURS * 3600
+    secure_flag = "; Secure" if SESSION_COOKIE_SECURE else ""
+    # json.dumps(...) safely escapes the token for embedding inside the
+    # <script> block -- defensive even though session_id only ever
+    # contains URL-safe base64 characters (see
+    # services.session_store._new_session_id()).
+    safe_value = json.dumps(session_id)
+    js = f"""
+    <script>
+    document.cookie = "{SESSION_COOKIE_NAME}=" + {safe_value} +
+        "; Max-Age={max_age_seconds}; Path=/; SameSite=Lax{secure_flag}";
+    </script>
     """
-    Remove the persistent-session cookie from the browser immediately.
-    Call this on logout, alongside deleting the matching row via
-    services.session_store.delete_session() -- both are needed for
-    logout to fully end the persistent session, not only the
-    in-memory one. Also called whenever a restored cookie turns out to
-    be invalid/expired/orphaned (see services.identity.init_identity()),
-    so the browser stops sending a worthless token.
+    components.html(js, height=0, width=0)
 
-    Best-effort -- never raises.
+
+def clear_session_cookie():
     """
-    try:
-        if not cookie_manager_ready(manager):
-            return
-        if SESSION_COOKIE_NAME in manager:
-            del manager[SESSION_COOKIE_NAME]
-            manager.save()
-    except Exception:
-        pass
+    Expire the persistent-session cookie immediately in the browser
+    (Max-Age=0). Call this on logout, alongside deleting the matching
+    row via services.session_store.delete_session() -- both are
+    needed for logout to fully end the persistent session, not only
+    the in-memory one.
+    """
+    secure_flag = "; Secure" if SESSION_COOKIE_SECURE else ""
+    js = f"""
+    <script>
+    document.cookie = "{SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax{secure_flag}";
+    </script>
+    """
+    components.html(js, height=0, width=0)
