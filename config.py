@@ -35,8 +35,177 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "rdi_documents")
 
 APP_NAME = "Reflection Space"
+# Optional deployment/version label, shown only inside diagnostic
+# packages built by services/diagnostics.py (Phase 1 Diagnostic
+# Engine) -- has no effect on anything else. Leave unset unless you
+# want a specific build/release label to show up in the AI-ready
+# diagnostic prompt.
+APP_VERSION = os.getenv("APP_VERSION", "unspecified")
 # Password to view the private visit log page (set this as a secret on Streamlit Cloud)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 # Neon PostgreSQL connection string (set as a secret on Streamlit Cloud)
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+# ---------------------------------------------------------------------
+# Centralized operational constants (Change 8 -- Constants/config
+# cleanup)
+# ---------------------------------------------------------------------
+#
+# These were previously hard-coded, duplicated module-level constants
+# scattered across services/draft_storage.py (DELETION_WINDOW_HOURS)
+# and services/presence.py (ACTIVE_WINDOW_MINUTES,
+# RECENT_WINDOW_MINUTES). Moving them here means every deployment-
+# tunable "how long/how many" knob for the storage layer lives in one
+# place, consistent with how every other environment-configurable
+# value in this app (ANTHROPIC_API_KEY, VOYAGE_API_KEY, QDRANT_URL,
+# etc.) is already defined here.
+#
+# Values are unchanged from their previous hard-coded defaults, so this
+# is a pure relocation -- nothing about actual runtime behavior changes
+# unless one of these environment variables is explicitly set.
+
+# GDPR right-to-erasure: how long a soft-deleted case stays restorable
+# in services/draft_storage.py before purge_expired_deletions() removes
+# it permanently. Previously a hard-coded module constant in
+# draft_storage.py.
+DELETION_WINDOW_HOURS = int(os.getenv("DELETION_WINDOW_HOURS", "48"))
+
+# Team Presence (services/presence.py) status-classification windows.
+# Previously hard-coded module constants in presence.py.
+PRESENCE_ACTIVE_WINDOW_MINUTES = int(os.getenv("PRESENCE_ACTIVE_WINDOW_MINUTES", "5"))
+PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES", "15"))
+
+# ---------------------------------------------------------------------
+# PostgreSQL connection pool sizing (services/db_pool.py)
+# ---------------------------------------------------------------------
+# Previously every services/*.py module called psycopg2.connect()
+# directly, opening and tearing down a brand-new TCP/TLS connection to
+# Postgres for every single read or write -- expensive on its own, and
+# a real problem under concurrent Streamlit users (each connection
+# also re-ran full schema DDL, see services/db_schema.py). These two
+# knobs size the shared pool that replaces that pattern.
+#
+# DB_POOL_MIN_CONN: connections opened eagerly when the pool is first
+# created (kept warm even when idle).
+# DB_POOL_MAX_CONN: hard ceiling on concurrent connections this
+# process will ever hold open. Neon's free/pilot tiers commonly cap
+# total concurrent connections in the low tens, and a single
+# Streamlit process can have several user sessions running
+# concurrently (each on its own script-run thread), so this is set
+# conservatively by default -- raise it via the environment if a
+# larger Postgres plan allows it.
+DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "1"))
+DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
+
+# Default page size used ONLY when a caller of one of the newly
+# paginated read functions (see Change 4 -- get_audit_log(),
+# get_completed_drafts(), get_all_feedback(), get_pending_deletions())
+# explicitly opts into pagination without specifying their own limit.
+# It is NOT applied automatically -- every one of those functions still
+# defaults its own `limit` parameter to None (meaning "return
+# everything", exactly as before this pass), so existing call sites
+# that don't pass `limit` see zero behavior change. This constant is
+# just a convenient, centrally-tunable default for any NEW call site
+# that wants pagination but doesn't want to pick its own page size.
+DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
+
+# ---------------------------------------------------------------------
+# Production error email alerts (services/email_alert.py)
+# ---------------------------------------------------------------------
+# Lets Leon get notified by email the moment a real error is logged
+# (an automatic crash, or someone using the "Report a problem" button)
+# -- even when he isn't actively looking at the app.
+#
+# Disabled by default. To enable, add these as secrets on Streamlit
+# Cloud (Settings -> Secrets, same place ANTHROPIC_API_KEY/DATABASE_URL
+# already live):
+#
+#   SMTP_HOST      e.g. smtp.gmail.com
+#   SMTP_PORT      e.g. 587 (STARTTLS) or 465 (SSL) -- 587 is the
+#                  common default for most providers
+#   SMTP_USER      the mailbox username/address that sends the alert
+#   SMTP_PASSWORD  an APP PASSWORD, not your normal account password
+#                  -- for Gmail: Google Account -> Security -> 2-Step
+#                  Verification -> App passwords. Most providers have
+#                  an equivalent; using your real login password here
+#                  either won't work or is a bad idea.
+#   ALERT_EMAIL_TO      the address that should receive alerts (yours)
+#   ALERT_EMAIL_FROM     optional, defaults to SMTP_USER if not set
+#
+# If SMTP_HOST or ALERT_EMAIL_TO is missing, email alerting is simply
+# skipped (logged to stdout only) -- nothing else in the app depends
+# on it, so leaving it unconfigured never breaks anything.
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
+ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "") or SMTP_USER
+
+# ---------------------------------------------------------------------
+# Login lockout / brute-force guard (services/login_rate_limiter.py)
+# ---------------------------------------------------------------------
+# After LOGIN_MAX_ATTEMPTS failed logins for the same username within
+# LOGIN_LOCKOUT_WINDOW_MINUTES, that username is locked out for
+# LOGIN_LOCKOUT_DURATION_MINUTES. See services/login_rate_limiter.py
+# for the full design notes. Defaults below are sensible out of the
+# box -- override via Streamlit Cloud secrets only if you want
+# different thresholds.
+LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_WINDOW_MINUTES = int(os.getenv("LOGIN_LOCKOUT_WINDOW_MINUTES", "15"))
+LOGIN_LOCKOUT_DURATION_MINUTES = int(os.getenv("LOGIN_LOCKOUT_DURATION_MINUTES", "15"))
+
+# ---------------------------------------------------------------------
+# Persistent login sessions (services/session_store.py,
+# services/session_cookie.py) -- survive a browser refresh (F5)
+# ---------------------------------------------------------------------
+# Previously, authentication lived ONLY in st.session_state, which
+# Streamlit clears on every browser refresh/reconnect -- pressing F5
+# silently logged everyone out and sent them back to the login form.
+#
+# A successful login now ALSO opens a persistent, server-side session
+# (a row in the auth_sessions table -- see services/db_schema.py) and
+# writes its opaque, unguessable session_id into a browser cookie (see
+# services/session_cookie.py). Every authenticated page load re-reads
+# that cookie and revalidates the session against the database --
+# the cookie's contents are never trusted on their own -- and, as long
+# as the person keeps using the app, extends the session's expiry (a
+# "sliding" session: it only expires after this many hours of no
+# activity at all, never on a fixed clock).
+#
+# SESSION_LIFETIME_HOURS: how long an inactive session stays valid
+# before requiring login again. Also used as the browser cookie's
+# Max-Age, so the browser discards the cookie at the same moment the
+# server would have expired it anyway.
+SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "12"))
+
+# SESSION_COOKIE_NAME: the browser cookie holding the session_id
+# (meaningless on its own without the matching database row -- see
+# services/session_store.py). Change only if it collides with another
+# cookie name in your deployment.
+SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "rs_session")
+
+# SESSION_COOKIE_SECURE: whether the cookie is marked `Secure` (the
+# browser then refuses to store or send it over a plain http://
+# connection). Streamlit Cloud -- and any real deployment -- always
+# serves over https://, so leave this "true" in production. Set it to
+# "false" ONLY for local development over http://localhost, where a
+# `Secure` cookie would otherwise silently never get set at all.
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").strip().lower() == "true"
+
+# ---------------------------------------------------------------------
+# QA testing hook: simulate a Reflection Generation "Rate Limit" failure
+# (Test B) -- services/reflection_service.py
+# ---------------------------------------------------------------------
+# Off by default -- leaving this secret unset or set to "false" means
+# ZERO change to normal behavior; no real API call is ever skipped.
+#
+# To run Test B: add a secret named SIMULATE_RATE_LIMIT_ERROR on
+# Streamlit Cloud (Settings -> Secrets, same place ANTHROPIC_API_KEY
+# lives), set it to "true", and reboot the app. Every reflection
+# companion call will then immediately fail with a fake 429/rate-limit
+# error -- no real Anthropic API call is made, so this costs nothing
+# and is 100% reproducible on demand. Set it back to "false" (or
+# delete the secret) and reboot to return to normal behavior.
+SIMULATE_RATE_LIMIT_ERROR = os.getenv("SIMULATE_RATE_LIMIT_ERROR", "false").strip().lower() == "true"
