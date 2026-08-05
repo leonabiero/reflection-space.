@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 from navigation.permissions import (
     default_workspace_for_role,
@@ -93,14 +95,18 @@ from services.session_cookie import (
 # cookie against the app's own domain on Streamlit Cloud, which is why
 # the cookie never actually appeared in dev tools).
 #
-# init_identity() creates ONE CookieManager for the current script run
-# (services.session_cookie.get_cookie_manager(), called exactly once,
-# right below) and threads it into every cookie read/write for the
-# rest of that run -- constructing it twice in the same run is not
-# supported by the underlying component. On the very first script run
-# of a brand-new browser tab, the component needs one round trip
+# init_identity() creates ONE CookieManager for the current browser
+# session (services.session_cookie.get_cookie_manager(), called exactly
+# once, right below) and threads it into every cookie read/write for
+# the rest of that session -- constructing it twice in the same run is
+# not supported by the underlying component. On the very first script
+# run of a brand-new browser tab, the component needs one round trip
 # before it can report the browser's current cookies; init_identity()
 # waits for that (a brief st.stop()) rather than guessing.
+#
+# Once the CookieManager has initialized in a given browser session, it
+# is reused across reruns and never triggers another st.stop(), keeping
+# the app responsive.
 #
 # init_identity() re-validates the cookie on every page load where
 # st.session_state isn't already authenticated, and repopulates
@@ -203,18 +209,6 @@ LOGOUT_KEEP_KEYS = {"lang"}
 # is not a real account and does not need to be kept secret.
 _DUMMY_HASH = "$2b$12$CwTycUXWue0Thq9StjUM0uJ8i6XZg8x0N.9E6Dn3ORaTgvtdcOaWq"
 
-# --- Performance optimization: heartbeat throttling -----------------------
-# Heartbeat updates are throttled to avoid database writes on every rerun.
-# Only update if at least HEARTBEAT_THROTTLE_SECONDS have elapsed since
-# the last update.
-HEARTBEAT_THROTTLE_SECONDS = 300  # 5 minutes
-
-# --- Performance optimization: CookieManager singleton --------------------
-# Cache the CookieManager instance across reruns within the same browser
-# session using st.session_state to avoid re-creating expensive component
-# state. The component needs to be created once and then reused.
-_COOKIE_MANAGER_KEY = "_cookie_manager_instance"
-
 
 def _load_users():
     """
@@ -265,27 +259,17 @@ def _check_login(username, password, users):
     return None
 
 
-def _should_update_heartbeat():
-    """
-    Throttle heartbeat updates to avoid database writes on every rerun.
-    Returns True only if at least HEARTBEAT_THROTTLE_SECONDS have elapsed
-    since the last heartbeat update.
-    """
-    import time
-    last_heartbeat = st.session_state.get("_last_heartbeat_time", 0)
-    now = time.time()
-    if now - last_heartbeat >= HEARTBEAT_THROTTLE_SECONDS:
-        st.session_state["_last_heartbeat_time"] = now
-        return True
-    return False
-
-
 def _touch_presence():
-    """Best-effort presence heartbeat -- throttled to avoid excessive DB writes.
-    Only updates if at least HEARTBEAT_THROTTLE_SECONDS have elapsed."""
-    if not _should_update_heartbeat():
-        return
+    """Best-effort presence heartbeat -- throttled to once per 5
+    minutes to avoid a database UPSERT on every single authenticated
+    rerun. Never blocks or breaks a page if the presence table/DB is
+    unavailable for any reason."""
     try:
+        now = time.time()
+        last = st.session_state.get("_last_presence_heartbeat", 0)
+        if now - last < 300:
+            return
+        st.session_state._last_presence_heartbeat = now
         from services.presence import touch
         touch(st.session_state.user_name, st.session_state.user_role)
     except Exception:
@@ -294,76 +278,58 @@ def _touch_presence():
 
 def _touch_auth_session(manager):
     """
-    Best-effort persistent-session heartbeat -- throttled to avoid
-    excessive database writes. Only slides the server-side session's
-    expiry forward if at least HEARTBEAT_THROTTLE_SECONDS have elapsed
-    since the last update. Also only updates the cookie if the session
-    ID hasn't changed (no need to rewrite the same value).
+    Best-effort persistent-session heartbeat (see
+    services/session_store.py, services/session_cookie.py).
+    
+    Throttled to at most one database write per 5 minutes, and the
+    browser cookie is only rewritten if the session_id has actually
+    changed. This eliminates the two most expensive operations that
+    used to run on every single authenticated rerun.
 
-    Mirrors _touch_presence() above: never blocks or breaks a page if
-    this fails for any reason.
-
-    `manager` is the single CookieManager for this script run, created
-    once in init_identity() and passed down -- see that function and
-    services/session_cookie.py's module docstring.
+    `manager` is the single CookieManager for this browser session,
+    created once in init_identity() and reused across reruns -- see
+    that function and services/session_cookie.py's module docstring.
     """
-    if not _should_update_heartbeat():
-        return
     try:
         session_id = get_session_id(manager)
-        if session_id:
-            touch_session(session_id, st.session_state.get("active_work_mode", ""))
-            # Only write the cookie if it's different from what's already there
-            # set_session_cookie handles this comparison internally
-            set_session_cookie(manager, session_id)
+        if not session_id:
+            return
+        
+        now = time.time()
+        last = st.session_state.get("_last_auth_heartbeat", 0)
+        current_mode = st.session_state.get("active_work_mode", "")
+        last_mode = st.session_state.get("_last_auth_work_mode", "")
+        
+        # Touch database only if 5+ minutes elapsed OR work mode changed
+        if now - last >= 300 or current_mode != last_mode:
+            touch_session(session_id, current_mode)
+            st.session_state._last_auth_heartbeat = now
+            st.session_state._last_auth_work_mode = current_mode
+        
+        # Cookie write is skipped automatically by set_session_cookie
+        # if the value is already identical.
+        set_session_cookie(manager, session_id)
     except Exception:
         pass
 
 
 def _wipe_session_for_logout():
     """
-    Full session-state reset for logout, keeping only the keys in
-    LOGOUT_KEEP_KEYS (see module docstring, "FIX 2").
-
-    This intentionally clears far more than the old fixed list of
-    identity/work-mode keys -- it clears EVERYTHING: ReflectionContext
-    and ReflectionSession (rdi/reflection_context.py,
-    rdi/reflection_session.py), every per-document checkbox
-    (ctx_hist_*, chk_*), every open Reflection Workspace tab and its
-    conversation input (workspace_open_*, convo_input_*, convo_error_*),
-    delete-confirmation flags (confirm_delete_*), draft-editing text
-    boxes (edit_*), the Documentation page's form-reset counters
-    (doc_reset, doc_type_idx, case_ref_*, doc_type_*, text_*,
-    lang_field_*), admin-panel inputs and toggles (admin_*), the
-    Knowledge Assistant's last answer (ka_last_result, ka_last_question,
-    ka_question_input), save_status, and anything else -- known or not
-    yet invented -- that a previous person's session might have left
-    behind.
-
-    Called from init_identity() BEFORE any widget is instantiated this
-    run (see module docstring, "Logout ordering"), so removing keys
-    here -- including "active_work_mode" -- is always safe.
+    Full session-state reset on logout. Removes every key except the
+    explicit KEEP-list (currently just "lang") so that no stale state
+    from the previous user bleeds into the next login in this tab.
+    
+    This includes internal optimization keys such as
+    _cookie_manager, _cookie_manager_was_ready, _last_auth_heartbeat,
+    _last_auth_work_mode, and _last_presence_heartbeat -- all are
+    deliberately wiped so the next browser session starts completely
+    fresh.
     """
     preserved = {k: st.session_state[k] for k in LOGOUT_KEEP_KEYS if k in st.session_state}
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     for k, v in preserved.items():
         st.session_state[k] = v
-
-
-def _get_or_create_cookie_manager():
-    """
-    Get or create the singleton CookieManager instance for this browser
-    session. This avoids re-creating expensive component state on every
-    script rerun.
-    
-    The CookieManager component is cached in st.session_state so that
-    once it's created, subsequent reruns reuse the same instance without
-    re-creating the component.
-    """
-    if _COOKIE_MANAGER_KEY not in st.session_state:
-        st.session_state[_COOKIE_MANAGER_KEY] = get_cookie_manager()
-    return st.session_state[_COOKIE_MANAGER_KEY]
 
 
 def init_identity(T):
@@ -378,27 +344,28 @@ def init_identity(T):
     from services.db_schema import ensure_schema
     ensure_schema()
 
-    # Single CookieManager for this entire browser session -- cached in
-    # st.session_state so we don't re-create it on every rerun. See
-    # services/session_cookie.py's module docstring for why this must
-    # be created exactly once per run and threaded through every other
-    # cookie read/write below.
-    _cookie_manager = _get_or_create_cookie_manager()
+    # Single CookieManager for this browser session -- reused across
+    # Streamlit reruns via st.session_state to avoid expensive component
+    # re-initialization on every script run. See
+    # services/session_cookie.py's module docstring.
+    _cookie_manager = get_cookie_manager()
     
-    # Performance optimization: Only wait for cookie_manager_ready on the
-    # very first script run of a brand-new browser tab. Once the component
-    # has reported back once, it stays ready for the life of the tab.
-    # We track this with a flag in st.session_state to avoid the st.stop()
-    # on subsequent reruns.
+    # Ready logic: only wait (st.stop()) if the manager has never been
+    # ready in this browser session. Once initialized, we never block
+    # again for it, eliminating the spinner-and-stop overhead that
+    # used to happen on nearly every authenticated rerun.
     if not cookie_manager_ready(_cookie_manager):
-        # First script run of a brand-new browser tab: the component
-        # needs one round trip to report the browser's current
-        # cookies. Streamlit reruns automatically the moment that
-        # value arrives (typically well under a second), so simply
-        # wait rather than guessing "no cookie" and briefly flashing
-        # the login form even for someone with a valid session.
-        with st.spinner(T.get("loading_session", "Cargando…")):
-            st.stop()
+        if not st.session_state.get("_cookie_manager_was_ready", False):
+            # First script run of a brand-new browser tab: the component
+            # needs one round trip to report the browser's current
+            # cookies. Streamlit reruns automatically the moment that
+            # value arrives (typically well under a second), so simply
+            # wait rather than guessing "no cookie" and briefly flashing
+            # the login form even for someone with a valid session.
+            with st.spinner(T.get("loading_session", "Cargando…")):
+                st.stop()
+    else:
+        st.session_state._cookie_manager_was_ready = True
 
     if "authed" not in st.session_state:
         st.session_state.authed = False
@@ -408,8 +375,6 @@ def init_identity(T):
         st.session_state.user_role = ""
     if "active_work_mode" not in st.session_state:
         st.session_state.active_work_mode = "Practitioner"
-    if "_last_heartbeat_time" not in st.session_state:
-        st.session_state._last_heartbeat_time = 0
 
     # Apply any logout requested on the previous run BEFORE render_nav()
     # (called right after this function returns/stops) ever instantiates
@@ -435,7 +400,6 @@ def init_identity(T):
         st.session_state.user_name = ""
         st.session_state.user_role = ""
         st.session_state.active_work_mode = "Practitioner"
-        st.session_state._last_heartbeat_time = 0
 
     if st.session_state.authed:
         _touch_presence()
@@ -478,9 +442,6 @@ def init_identity(T):
                     st.session_state.active_work_mode = default_workspace_for_role(
                         st.session_state.user_role
                     )
-                # Reset heartbeat timer on restore
-                import time
-                st.session_state._last_heartbeat_time = time.time()
                 _touch_presence()
                 _touch_auth_session(_cookie_manager)
                 return st.session_state.user_name, st.session_state.user_role
@@ -542,30 +503,21 @@ def init_identity(T):
             st.session_state.active_work_mode = default_workspace_for_role(
                 st.session_state.user_role
             )
-            # Initialize heartbeat timer on login
-            import time
-            st.session_state._last_heartbeat_time = time.time()
 
-            # Persistent login (survive a browser refresh -- see
-            # services/session_store.py, services/session_cookie.py):
-            # open a server-side session and write its opaque id into
-            # a browser cookie. Best-effort -- if this fails (e.g. the
-            # database is briefly unreachable), the person is still
-            # logged in for the current tab exactly as before this
-            # feature existed; they just won't survive a refresh until
-            # it succeeds on a later page load.
-            _login_session_id = create_session(username, st.session_state.active_work_mode)
-            if _login_session_id:
-                set_session_cookie(_cookie_manager, _login_session_id)
+            # Open a server-side persistent session and write its id
+            # into the browser cookie so this login survives a refresh.
+            session_id = create_session(
+                username, st.session_state.get("active_work_mode", "")
+            )
+            if session_id:
+                set_session_cookie(_cookie_manager, session_id)
 
-            # FIX 1 (see module docstring): redirect straight to the
-            # landing page for this role's default work mode, instead of
-            # merely rerunning whatever page the login form happened to
-            # be shown on. This is what guarantees a newly authenticated
-            # person never lands back on a page their role isn't allowed
-            # into (the direct cause of the "You do not have access to
-            # this workspace" bug when logging in as a different user in
-            # the same tab).
+            # FIX 1 (see module docstring): redirect to the landing page
+            # for this role's default workspace, rather than rerunning
+            # the current page (which might be a workspace this new role
+            # is not allowed into -- the direct cause of the "You do not
+            # have access to this workspace" bug when logging in as a
+            # different user in the same tab).
             st.switch_page(landing_page_for_workspace(st.session_state.active_work_mode))
         else:
             record_failed_attempt(username)
