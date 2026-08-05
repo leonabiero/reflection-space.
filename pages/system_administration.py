@@ -22,6 +22,7 @@ from services.error_log import (
     group_errors_by_signature,
 )
 from services import case_knowledge
+from services.translation_manager import render_translation_health_panel
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
 from rdi.retrieval_service import retrieve_historical_context, retrieve_global_context
 from rdi.context_engine import DEFAULT_HISTORY_LIMIT
@@ -453,6 +454,18 @@ with error_boundary(
     # favor of st.code() below, which Streamlit gives a native,
     # built-in copy icon for -- no custom JavaScript involved, so it
     # can't break the same way.
+
+    with st.expander(T.get("admin_translation_health_header", "🌐 Translation System Health"), expanded=False):
+        # Diagnostic-only panel -- never allowed to break this page, so
+        # any unexpected error here is swallowed after being surfaced
+        # as a small caption rather than propagating up.
+        try:
+            render_translation_health_panel(T)
+        except Exception:
+            st.caption(T.get(
+                "admin_translation_panel_error",
+                "Translation health panel could not be loaded right now.",
+            ))
 
     with st.expander(T.get("admin_error_log_header", "🩺 AI Diagnostic Centre"), expanded=False):
         st.caption(T.get(
