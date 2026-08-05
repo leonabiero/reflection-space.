@@ -10,6 +10,17 @@ from services.login_rate_limiter import (
     record_failed_attempt,
     clear_failed_attempts,
 )
+from services.session_store import (
+    create_session,
+    validate_session,
+    touch_session,
+    delete_session,
+)
+from services.session_cookie import (
+    get_session_id,
+    set_session_cookie,
+    clear_session_cookie,
+)
 
 # FR-001/NFR-011 (authentication) + FR-002/FR-003 (identity, roles).
 # Each professional has their own username and password, defined in
@@ -65,6 +76,22 @@ from services.login_rate_limiter import (
 # rerun, which re-touches presence). See services/presence.py for the
 # "active now / recently active / offline" classification used by the
 # Team Presence panel on the Learning page.
+#
+# Persistent login (survive a browser refresh)
+# ------------------------------------------------
+# Authentication used to live ONLY in st.session_state, which Streamlit
+# clears on every browser refresh/reconnect (pressing F5 silently
+# logged everyone out). A successful login now ALSO opens a
+# server-side session (services/session_store.py) and writes its
+# opaque id into a browser cookie (services/session_cookie.py).
+# init_identity() re-validates that cookie on every page load where
+# st.session_state isn't already authenticated, and repopulates
+# user_name/user_role/active_work_mode from it automatically -- see
+# the "Not authenticated in THIS run's..." block below. Logging out
+# (or letting the session expire/become invalid) ends it on both
+# sides: the database row is deleted and the cookie is cleared. See
+# config.py's "Persistent login sessions" block for the tunable
+# settings (session lifetime, cookie name, Secure flag).
 #
 # ============================================================================
 # BUGFIX (this revision): "You do not have access to this workspace" after
@@ -218,6 +245,24 @@ def _touch_presence():
         pass
 
 
+def _touch_auth_session():
+    """
+    Best-effort persistent-session heartbeat (see
+    services/session_store.py, services/session_cookie.py) -- slides
+    the server-side session's expiry forward and refreshes the
+    browser cookie's Max-Age to match, on every authenticated page
+    load. Mirrors _touch_presence() above: never blocks or breaks a
+    page if this fails for any reason.
+    """
+    try:
+        session_id = get_session_id()
+        if session_id:
+            touch_session(session_id, st.session_state.get("active_work_mode", ""))
+            set_session_cookie(session_id)
+    except Exception:
+        pass
+
+
 def _wipe_session_for_logout():
     """
     Full session-state reset for logout, keeping only the keys in
@@ -276,6 +321,15 @@ def init_identity(T):
     # above ("Logout ordering") for why this can't happen inside
     # render_identity_footer itself.
     if st.session_state.pop("_logout_requested", False):
+        # Persistent-session logout (see services/session_store.py,
+        # services/session_cookie.py): end the server-side session AND
+        # clear the browser's cookie, in addition to the usual
+        # in-memory wipe below -- both are needed, or the browser
+        # would simply restore the same session again on next refresh.
+        _logout_session_id = get_session_id()
+        if _logout_session_id:
+            delete_session(_logout_session_id)
+            clear_session_cookie()
         _wipe_session_for_logout()
         # Re-establish the plain defaults every page expects to find,
         # exactly as on a brand-new session -- _wipe_session_for_logout()
@@ -288,7 +342,60 @@ def init_identity(T):
 
     if st.session_state.authed:
         _touch_presence()
+        _touch_auth_session()
         return st.session_state.user_name, st.session_state.user_role
+
+    # Not authenticated in THIS run's (freshly created) session_state --
+    # before falling back to the login form, check whether the browser
+    # is carrying a still-valid persistent-session cookie from an
+    # earlier login. This is exactly what happens after pressing F5:
+    # Streamlit clears st.session_state, but NOT the browser's cookies.
+    # See services/session_store.py for the validation/expiry rules.
+    _restore_session_id = get_session_id()
+    if _restore_session_id:
+        _restored = validate_session(_restore_session_id)
+        if _restored:
+            _restore_users = _load_users()
+            _restored_user = _restore_users.get(_restored["username"])
+            if _restored_user:
+                # Re-derive name/role fresh from secrets.toml, never
+                # trusted from the cookie or the session row itself --
+                # see services/session_store.py's module docstring
+                # ("Why the role/name are NOT stored here").
+                st.session_state.authed = True
+                st.session_state.user_name = _restored_user.get(
+                    "name", _restored["username"]
+                ).strip()
+                st.session_state.user_role = _restored_user.get("role", ROLES[0]).strip()
+                _restored_mode = _restored.get("active_work_mode") or ""
+                if _restored_mode and can_access_workspace(
+                    st.session_state.user_role, _restored_mode
+                ):
+                    # Restore the exact work mode the person was in --
+                    # e.g. a System Administrator who had switched into
+                    # Practitioner mode stays in Practitioner mode after
+                    # refreshing, rather than being bounced back to
+                    # their role's default workspace.
+                    st.session_state.active_work_mode = _restored_mode
+                else:
+                    st.session_state.active_work_mode = default_workspace_for_role(
+                        st.session_state.user_role
+                    )
+                _touch_presence()
+                _touch_auth_session()
+                return st.session_state.user_name, st.session_state.user_role
+            else:
+                # The account behind this session no longer exists in
+                # secrets.toml (removed/renamed since login) -- the
+                # persistent session is worthless now; clean it up
+                # rather than leaving an orphaned row and a cookie that
+                # will never validate again.
+                delete_session(_restore_session_id)
+                clear_session_cookie()
+        else:
+            # Expired, or an unrecognized/tampered session_id -- clear
+            # the stale cookie so the browser stops sending it.
+            clear_session_cookie()
 
     # Not logged in: block this page with a login form until a valid
     # username/password is entered.
@@ -335,6 +442,18 @@ def init_identity(T):
             st.session_state.active_work_mode = default_workspace_for_role(
                 st.session_state.user_role
             )
+
+            # Persistent login (survive a browser refresh -- see
+            # services/session_store.py, services/session_cookie.py):
+            # open a server-side session and write its opaque id into
+            # a browser cookie. Best-effort -- if this fails (e.g. the
+            # database is briefly unreachable), the person is still
+            # logged in for the current tab exactly as before this
+            # feature existed; they just won't survive a refresh until
+            # it succeeds on a later page load.
+            _login_session_id = create_session(username, st.session_state.active_work_mode)
+            if _login_session_id:
+                set_session_cookie(_login_session_id)
 
             # FIX 1 (see module docstring): redirect straight to the
             # landing page for this role's default work mode, instead of
