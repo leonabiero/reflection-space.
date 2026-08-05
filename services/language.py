@@ -1,6 +1,12 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
+from services.translation_manager import (
+    sync_missing_keys,
+    wrap_languages,
+    set_last_sync_result,
+)
+
 # BCP-47 codes for the <html>/textarea "lang" attribute, so the browser's
 # built-in spellchecker uses the right dictionary instead of defaulting to
 # English (which is what causes correctly-spelled Spanish/Basque words to
@@ -526,6 +532,14 @@ LANG = {
         "admin_error_log_first_seen_label": "Visto por primera vez",
         "admin_error_log_header": "🩺 Centro de Diagnóstico IA",
         "admin_error_log_last_seen_label": "Visto por última vez",
+        "admin_translation_health_header": "🌐 Estado del sistema de traducción",
+        "admin_translation_health_caption": "Estado en vivo del sistema de traducción Español / Euskera / English.",
+        "admin_translation_autofilled_warning": "{count} clave(s) de traducción se han rellenado automáticamente con texto provisional al iniciar.",
+        "admin_translation_autofilled_details": "Ver claves rellenadas automáticamente",
+        "admin_translation_copied_from": "copiado de",
+        "admin_translation_in_sync": "Los tres idiomas están sincronizados. No fue necesario rellenar nada.",
+        "admin_translation_runtime_gaps": "⚠️ Claves que faltaron en tiempo de ejecución esta sesión ({count})",
+        "admin_translation_panel_error": "No se ha podido cargar el panel de estado de traducción en este momento.",
         "admin_error_log_no_matches": "Ningún error coincide con los filtros actuales.",
         "admin_error_log_no_package": "No se generó ningún Paquete de Diagnóstico IA para este registro -- se registró antes de que existiera el Motor de Diagnóstico. Los detalles técnicos siguen disponibles abajo.",
         "admin_error_log_no_traceback": "Sin traceback -- esto fue un informe enviado por una persona usuaria, no una excepción automática.",
@@ -569,6 +583,8 @@ LANG = {
         "admin_diag_fixed_empty": "No hay incidencias corregidas que coincidan con los filtros actuales.",
         "admin_diag_warnings_empty": "No hay advertencias que coincidan con los filtros actuales.",
         "admin_diag_trends_empty": "Aún no hay suficientes datos para el análisis de tendencias.",
+        "admin_diag_trends_caption": "Elaborado enteramente a partir de las incidencias ya cargadas arriba: volumen, puntos críticos y los problemas más frecuentes, de un vistazo.",
+        "admin_diag_warnings_caption": "Los avisos son situaciones no críticas que conviene conocer -- como una generación de reflexión parcial -- y se mantienen separados de los errores de la aplicación de arriba.",
         "admin_diag_trends_volume_header": "📅 Ocurrencias a lo largo del tiempo",
         "admin_diag_trends_pages_header": "📍 Páginas más afectadas",
         "admin_diag_trends_category_header": "🗂️ Ocurrencias por categoría",
@@ -1073,6 +1089,14 @@ LANG = {
         "admin_error_log_explanation_label": "🗣️ Zer gertatu den, hizkuntza arruntean",
         "admin_error_log_first_seen_label": "Lehen aldiz ikusia",
         "admin_error_log_header": "🩺 IA Diagnostiko Gunea",
+        "admin_translation_health_header": "🌐 Itzulpen-sistemaren egoera",
+        "admin_translation_health_caption": "Español / Euskera / English itzulpen-sistemaren egoera zuzenean.",
+        "admin_translation_autofilled_warning": "Abioan {count} itzulpen-gako automatikoki bete dira behin-behineko testuarekin.",
+        "admin_translation_autofilled_details": "Ikusi automatikoki betetako gakoak",
+        "admin_translation_copied_from": "hemendik kopiatua:",
+        "admin_translation_in_sync": "Hiru hizkuntzak sinkronizatuta daude. Ez zen ezer bete behar.",
+        "admin_translation_runtime_gaps": "⚠️ Saio honetan exekuzio-denboran falta izan diren gakoak ({count})",
+        "admin_translation_panel_error": "Une honetan ezin izan da itzulpen-egoeraren panela kargatu.",
         "admin_error_log_last_seen_label": "Azken aldiz ikusia",
         "admin_error_log_no_matches": "Ez dago uneko iragazkiekin bat datorren errorerik.",
         "admin_error_log_no_package": "Ez zen IA Diagnostiko Paketerik sortu erregistro honentzat -- Diagnostiko Motorra existitu baino lehen erregistratu zen. Xehetasun teknikoak oraindik eskuragarri daude behean.",
@@ -1117,6 +1141,8 @@ LANG = {
         "admin_diag_fixed_empty": "Ez dago uneko iragazkiekin bat datorren konpondutako intzidentziarik.",
         "admin_diag_warnings_empty": "Ez dago uneko iragazkiekin bat datorren abisurik.",
         "admin_diag_trends_empty": "Oraindik ez dago nahikoa daturik joeren analisirako.",
+        "admin_diag_trends_caption": "Goian jadanik kargatutako gorabeherekin osorik eraikia: bolumena, arazo-guneak eta arazo ohikoenak, begi-kolpe batean.",
+        "admin_diag_warnings_caption": "Abisuak ez dira kritikoak baina jakitea komeni da -- adibidez, hausnarketa baten sorrera partziala -- eta goiko aplikazio-erroreetatik bereizita mantentzen dira.",
         "admin_diag_trends_volume_header": "📅 Gertaerak denboran zehar",
         "admin_diag_trends_pages_header": "📍 Orrialde eraginenak",
         "admin_diag_trends_category_header": "🗂️ Gertaerak kategoriaka",
@@ -1621,6 +1647,14 @@ LANG = {
         "admin_error_log_explanation_label": "🗣️ What happened, in plain language",
         "admin_error_log_first_seen_label": "First seen",
         "admin_error_log_header": "🩺 AI Diagnostic Centre",
+        "admin_translation_health_header": "🌐 Translation System Health",
+        "admin_translation_health_caption": "Live status of the Español / Euskera / English translation system.",
+        "admin_translation_autofilled_warning": "{count} translation key(s) were auto-filled with placeholder text on startup.",
+        "admin_translation_autofilled_details": "View auto-filled keys",
+        "admin_translation_copied_from": "copied from",
+        "admin_translation_in_sync": "All languages are structurally in sync. Nothing needed auto-filling.",
+        "admin_translation_runtime_gaps": "⚠️ Keys missing at runtime this session ({count})",
+        "admin_translation_panel_error": "Translation health panel could not be loaded right now.",
         "admin_error_log_last_seen_label": "Last seen",
         "admin_error_log_no_matches": "No errors match the current filters.",
         "admin_error_log_no_package": "No AI Diagnostic Package was generated for this record -- it was logged before the Diagnostic Engine existed. The technical details below are still available.",
@@ -1665,6 +1699,8 @@ LANG = {
         "admin_diag_fixed_empty": "No fixed issues match the current filters.",
         "admin_diag_warnings_empty": "No warnings match the current filters.",
         "admin_diag_trends_empty": "Not enough data yet for trend analysis.",
+        "admin_diag_trends_caption": "Built entirely from the issues already loaded above -- volume, hot spots, and the most frequent problems, at a glance.",
+        "admin_diag_warnings_caption": "Warnings are non-fatal conditions worth knowing about -- like a partial reflection generation -- kept separate from application errors above.",
         "admin_diag_trends_volume_header": "📅 Occurrences over time",
         "admin_diag_trends_pages_header": "📍 Most affected pages",
         "admin_diag_trends_category_header": "🗂️ Occurrences by category",
@@ -1700,9 +1736,36 @@ LANG = {
 
 LANGUAGE_ORDER = ["Español", "Euskera", "English"]
 
+# ---------------------------------------------------------------------------
+# Translation system hardening (Translation Manager)
+# ---------------------------------------------------------------------------
+# On import, make sure the three language dictionaries above are
+# structurally identical -- any key present in one language but
+# missing from another gets auto-filled with the best available
+# fallback text (Español, the master language, is preferred; English
+# is the secondary source). This mutates LANG in place, so it only
+# ever ADDS missing entries; every real translation already written
+# above is preserved untouched. It is a fast no-op once everything is
+# already in sync, which is the normal case.
+#
+# On top of that, `wrap_languages()` builds a fallback-aware version
+# of each language dict so that even a key missing from ALL THREE
+# dictionaries (e.g. a future typo in a T["..."] call) degrades
+# gracefully instead of crashing the app, following the required
+# lookup order: selected language -> Español -> English -> key name.
+#
+# `get_lang()` below returns these wrapped dicts. Every existing call
+# site across the app (`T["key"]`, `T.get("key", ...)`, nested lookups
+# like `T["role_labels"][role]`) keeps working exactly as before --
+# this is purely additive safety, not a change in behaviour for any
+# key that already exists.
+_SYNC_RESULT = sync_missing_keys(LANG, LANGUAGE_ORDER, master="Español", secondary="English")
+set_last_sync_result(_SYNC_RESULT)
+_WRAPPED_LANG = wrap_languages(LANG, LANGUAGE_ORDER, master="Español", secondary="English")
+
 
 def get_lang(lang):
-    return LANG.get(lang, LANG["Español"])
+    return _WRAPPED_LANG.get(lang, _WRAPPED_LANG["Español"])
 
 
 def init_language():
