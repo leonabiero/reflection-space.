@@ -669,7 +669,10 @@ with error_boundary(
             # rdi/orchestrator.py:run_reflection with full evidence
             # (root cause, a representative traceback, every failed
             # companion's raw response) before this page ever saw it.
-            render_application_error_screen(T, session.issue_id, session.error_id)
+            render_application_error_screen(
+                T, session.issue_id, session.error_id,
+                friendly_message=session.friendly_message,
+            )
             st.stop()
 
         # Professional Reflection is the third and final stage of the
