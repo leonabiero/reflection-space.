@@ -60,6 +60,12 @@ class ReflectionSession:
         # services/error_log.py:render_application_error_screen.
         self.issue_id = result.get("issue_id") if self.error else None
         self.error_id = result.get("error_id") if self.error else None
+        # September pilot hardening: only set for
+        # rdi/orchestrator.py's capacity-timeout outcome -- lets the
+        # "Something went wrong" screen explain (truthfully) that this
+        # was a timing/capacity issue, not a bug. None for every other
+        # error, which keeps that screen's normal, generic wording.
+        self.friendly_message = result.get("friendly_message") if self.error else None
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
         self.failed_count = result.get("failed_count", 0)
