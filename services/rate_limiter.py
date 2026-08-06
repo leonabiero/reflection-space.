@@ -1,6 +1,5 @@
-import psycopg2
 from datetime import datetime, timedelta
-from config import DATABASE_URL
+from services.db_pool import get_conn as _acquire_pooled_conn
 
 # Reflection Rate Limiter
 # ==========================
@@ -32,6 +31,16 @@ from config import DATABASE_URL
 # (their display name) -- no case data, no document content, nothing
 # sensitive. Rows older than 24 hours are cleaned up automatically
 # whenever the limit is checked, so this table never grows large.
+#
+# Scalability pass (September pilot hardening -- "Change 9: Connection
+# pooling"): this module used to open its own raw
+# psycopg2.connect(DATABASE_URL) AND run CREATE TABLE IF NOT EXISTS,
+# on every single call -- this is one of the highest-frequency paths in
+# the app (runs once per reflection generation, across every user).
+# Both are fixed the same way every other services/*.py storage module
+# already was: connections now come from the shared pool
+# (services/db_pool.py), and table creation is centralized in
+# services/db_schema.py:ensure_schema(), run once at startup.
 
 DEFAULT_MAX_PER_HOUR = 20
 WINDOW_MINUTES = 60
@@ -39,17 +48,7 @@ CLEANUP_HOURS = 24
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS reflection_rate_log (
-            id SERIAL PRIMARY KEY,
-            user_name TEXT,
-            occurred_at TEXT
-        )
-        """)
-    conn.commit()
-    return conn
+    return _acquire_pooled_conn()
 
 
 def check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR):
@@ -83,36 +82,53 @@ def check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR):
         # don't track it either.
         return True, 0
 
+    conn = None
     try:
         conn = _get_conn()
-        with conn.cursor() as c:
-            now = datetime.now()
-            window_start = (now - timedelta(minutes=WINDOW_MINUTES)).isoformat()
-            cleanup_cutoff = (now - timedelta(hours=CLEANUP_HOURS)).isoformat()
+        try:
+            with conn.cursor() as c:
+                now = datetime.now()
+                window_start = (now - timedelta(minutes=WINDOW_MINUTES)).isoformat()
+                cleanup_cutoff = (now - timedelta(hours=CLEANUP_HOURS)).isoformat()
 
-            # Best-effort housekeeping: remove old rows so this table
-            # never grows without bound. Safe to run on every check --
-            # cheap at this volume (a handful of rows per hour, org-wide).
-            c.execute("DELETE FROM reflection_rate_log WHERE occurred_at < %s", (cleanup_cutoff,))
+                # Best-effort housekeeping: remove old rows so this table
+                # never grows without bound. Safe to run on every check --
+                # cheap at this volume (a handful of rows per hour, org-wide).
+                c.execute("DELETE FROM reflection_rate_log WHERE occurred_at < %s", (cleanup_cutoff,))
 
-            c.execute(
-                "SELECT COUNT(*) FROM reflection_rate_log WHERE user_name = %s AND occurred_at >= %s",
-                (user_name, window_start),
-            )
-            (count,) = c.fetchone()
+                c.execute(
+                    "SELECT COUNT(*) FROM reflection_rate_log WHERE user_name = %s AND occurred_at >= %s",
+                    (user_name, window_start),
+                )
+                (count,) = c.fetchone()
 
-            if count >= max_per_hour:
-                conn.commit()
-                conn.close()
-                return False, count
+                if count >= max_per_hour:
+                    conn.commit()
+                    return False, count
 
-            c.execute(
-                "INSERT INTO reflection_rate_log (user_name, occurred_at) VALUES (%s, %s)",
-                (user_name, now.isoformat()),
-            )
-        conn.commit()
-        conn.close()
-        return True, count + 1
+                c.execute(
+                    "INSERT INTO reflection_rate_log (user_name, occurred_at) VALUES (%s, %s)",
+                    (user_name, now.isoformat()),
+                )
+            conn.commit()
+            return True, count + 1
+        except Exception:
+            # Now that connections come from a bounded shared pool
+            # (services/db_pool.py) instead of being opened fresh every
+            # call, a raised exception without a rollback would leave
+            # the connection in an aborted-transaction state and return
+            # it to the pool that way -- the NEXT caller to check it out
+            # would fail on their very first statement. Roll back before
+            # re-raising to the outer except (which fails open).
+            conn.rollback()
+            raise
+        finally:
+            # .close() on a pooled connection returns it to the pool
+            # rather than physically closing the socket -- see
+            # services/db_pool.py. Guaranteed to run even if an
+            # exception was raised above, so a mid-transaction failure
+            # can never leak a connection out of the pool.
+            conn.close()
     except Exception:
         # Fail open -- see docstring above.
         return True, 0
