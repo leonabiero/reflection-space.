@@ -1,5 +1,7 @@
 import streamlit as st
 
+from services.workspace_style import render_workspace_badge
+
 
 def render_workspace_menu(T):
     """Renders the page links for whichever work mode is currently
@@ -32,12 +34,12 @@ def render_workspace_menu(T):
     role = st.session_state.get("user_role", "")
 
     if workspace == "Practitioner":
-        st.sidebar.subheader(T.get("workmode_practitioner", "Practitioner"))
+        render_workspace_badge(T.get("workmode_practitioner", "Practitioner"), "Practitioner")
         st.sidebar.page_link("pages/documentation.py", label=T.get("nav_doc", "Documentation"))
         st.sidebar.page_link("pages/reflection_space.py", label=T.get("nav_reflection", "Reflection Space"))
         st.sidebar.page_link("pages/growth_dashboard.py", label=T.get("nav_growth", "My Reflection"))
     elif workspace == "Manager":
-        st.sidebar.subheader(T.get("workmode_manager", "Manager"))
+        render_workspace_badge(T.get("workmode_manager", "Manager"), "Manager")
         st.sidebar.page_link("pages/learning.py", label=T.get("nav_learning", "Learning"))
         st.sidebar.page_link("pages/case_history.py", label=T.get("nav_case_history", "Case History"))
         # Research Metrics is restricted to System Administrator inside
@@ -47,5 +49,5 @@ def render_workspace_menu(T):
         if role == "System Administrator":
             st.sidebar.page_link("pages/research_metrics_PAGE.py", label=T.get("nav_research_metrics", "Research Metrics"))
     elif workspace == "System Administration":
-        st.sidebar.subheader(T.get("workmode_admin", "System Administration"))
+        render_workspace_badge(T.get("workmode_admin", "System Administration"), "System Administration")
         st.sidebar.page_link("pages/system_administration.py", label=T.get("nav_system_admin", "System Administration"))
