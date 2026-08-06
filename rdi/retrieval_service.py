@@ -69,7 +69,8 @@ recency), or the `limit` truncation behavior.
 Confidentiality
 -------------------
 Every strategy that touches Postgres already scopes by case_ref via
-services.draft_storage.get_completed_drafts() (filtered here) or
+services.draft_storage.get_completed_drafts(case_ref=case_ref) (filtered
+in SQL, not in Python -- see that function's docstring) or
 services.qdrant_service.search_similar() (filtered inside Qdrant, see
 that module's docstring). This module adds no bypass for the practitioner
 -facing path -- retrieve_historical_context() (used by
@@ -128,7 +129,7 @@ then stable-sort by priority/score) so ties keep their most-recent-
 first order.
 """
 
-from services.draft_storage import get_completed_drafts
+from services.draft_storage import get_completed_drafts, get_drafts_by_ids
 from services.qdrant_service import search_similar, search_global, is_available as qdrant_available
 from services.rag_logging import rag_log
 
@@ -369,9 +370,13 @@ def retrieve_historical_context(case_ref, exclude_ids=None, limit=4, query_text=
 
     _log(f"retrieve_historical_context start: case_ref={case_ref!r} exclude_ids={sorted(exclude_ids)} limit={limit} query_text_len={len(query_text or '')}")
 
-    all_completed = get_completed_drafts()
-    completed_docs = [row for row in all_completed if row[1] == case_ref]
-    completed_docs.sort(key=lambda row: row[8] or "", reverse=True)
+    # Scalability pass: fetch only this case's completed documents from
+    # PostgreSQL (case_ref filter pushed into the WHERE clause) instead
+    # of fetching every completed document org-wide and discarding
+    # everything that doesn't match in Python. get_completed_drafts()
+    # already returns rows ordered by completed_at DESC, so no
+    # additional Python sort is needed.
+    completed_docs = get_completed_drafts(case_ref=case_ref)
 
     retriever = HybridRetriever()
     return retriever.retrieve(case_ref, query_text, exclude_ids, completed_docs, limit=limit)
@@ -426,8 +431,14 @@ def retrieve_global_context(query_text, exclude_ids=None, limit=4):
         _log("retrieve_global_context: no matches")
         return []
 
-    all_completed = get_completed_drafts()
-    by_id = {row[0]: row for row in all_completed}
+    # Scalability pass: look up only the ids Qdrant actually matched
+    # (bounded by `limit`, a handful of documents), instead of fetching
+    # every completed document org-wide just to build an id -> row
+    # dict for a handful of lookups. This search remains intentionally
+    # cross-case (see docstring above) -- only the "fetch everything"
+    # part is fixed.
+    matched_ids = [match["id"] for match in matches]
+    by_id = {row[0]: row for row in get_drafts_by_ids(matched_ids)}
 
     results = []
     for match in matches:
