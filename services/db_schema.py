@@ -30,6 +30,15 @@ exploration_log.py's respective `_get_conn()` functions. Table names,
 column names, types, and index definitions are copied verbatim from
 those modules -- see each module's own docstring/comments for the
 original reasoning behind each table/index.
+
+September-pilot follow-up: services/rate_limiter.py and
+services/login_rate_limiter.py were NOT part of the original pass
+above -- they still ran their own CREATE TABLE IF NOT EXISTS on every
+call, using a raw (non-pooled) psycopg2.connect(), on two of the
+highest-frequency paths in the app (every reflection generation, every
+login attempt). Their tables (reflection_rate_log, login_failure_log)
+are now created here too, and both modules were switched to
+services.db_pool.get_conn() -- see those modules' own comments.
 """
 
 import threading
@@ -110,6 +119,17 @@ def ensure_schema():
                 c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_case_ref ON drafts (case_ref)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_completed_at ON drafts (completed_at DESC)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_deleted_status ON drafts (status) WHERE status = 'deleted'")
+                # Scalability pass (September pilot hardening): composite,
+                # sort-covering indexes for services/draft_storage.py's
+                # get_completed_drafts(case_ref=..., date_filter=...) and
+                # get_completed_draft_dates() -- both now filter (and, for
+                # the case_ref path, order) in SQL instead of in Python,
+                # per that module's docstring. idx_drafts_status_case_ref
+                # above supports the equality filter but not the
+                # `ORDER BY completed_at DESC`; these add completed_at so
+                # that ordering can also use the index.
+                c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_case_ref_status_completed_at ON drafts (case_ref, status, completed_at DESC)")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_completed_at ON drafts (status, completed_at DESC)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
 
@@ -458,6 +478,43 @@ def ensure_schema():
                 c.execute("""
                     CREATE INDEX IF NOT EXISTS idx_case_investigations_issue_id
                     ON case_investigations (issue_id, investigated_at DESC)
+                """)
+
+                # --- services/rate_limiter.py: reflection_rate_log ---
+                # Scalability pass (September pilot hardening, "Change 9:
+                # Connection pooling"): this table's CREATE TABLE IF NOT
+                # EXISTS used to run inside rate_limiter.py's own
+                # _get_conn(), on a RAW (non-pooled) psycopg2.connect()
+                # call, on every single reflection generation -- one of
+                # the highest-frequency paths in the app. Relocated here,
+                # verbatim, alongside every other table's schema.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS reflection_rate_log (
+                    id SERIAL PRIMARY KEY,
+                    user_name TEXT,
+                    occurred_at TEXT
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_rate_log_user_occurred
+                    ON reflection_rate_log (user_name, occurred_at)
+                """)
+
+                # --- services/login_rate_limiter.py: login_failure_log ---
+                # Same fix, same reasoning, applied to the login lockout
+                # table -- this used to run its own raw CREATE TABLE IF
+                # NOT EXISTS on every login attempt (success or failure)
+                # across the whole pilot's user base.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS login_failure_log (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT,
+                    occurred_at TEXT
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_login_failure_log_username_occurred
+                    ON login_failure_log (username, occurred_at)
                 """)
             conn.commit()
 
