@@ -1,7 +1,7 @@
 import streamlit as st
 from collections import defaultdict
 from services.draft_storage import (
-    get_completed_drafts, get_draft_history,
+    get_completed_drafts, get_completed_draft_dates, get_draft_history,
     soft_delete_draft, restore_draft, get_pending_deletions,
     purge_expired_deletions,
 )
@@ -74,25 +74,31 @@ with error_boundary(
 
         st.divider()
 
-    completed = get_completed_drafts()
+    # Scalability pass: the date filter's options are now computed with
+    # a SQL aggregation (get_completed_draft_dates(), `SELECT DISTINCT
+    # completed_at::date`) instead of first fetching every completed
+    # document's full content org-wide just to compute this list in
+    # Python. If there are no completed-document dates at all, there
+    # are no completed documents -- same empty state as before.
+    all_dates = get_completed_draft_dates()
 
-    if not completed:
+    if not all_dates:
         st.info(T["case_history_no_items"])
         st.stop()
 
-
-    def _date_only(iso_str):
-        return (iso_str or "")[:10]
-
-
-    all_dates = sorted({_date_only(row[8]) for row in completed if row[8]}, reverse=True)
     date_options = [T["case_history_all_dates"]] + all_dates
     selected_date = st.selectbox(T["case_history_date_filter_label"], date_options)
 
+    # "All dates" still needs the full org-wide set (this page's
+    # grouped-by-worker view is intentionally org-wide, unlike the
+    # per-case retrieval paths in rdi/retrieval_service.py). Selecting
+    # one date now filters in SQL (`date_filter=`) instead of loading
+    # every completed document and discarding everything that doesn't
+    # match the selected date in Python.
     if selected_date == T["case_history_all_dates"]:
-        filtered = completed
+        filtered = get_completed_drafts()
     else:
-        filtered = [row for row in completed if _date_only(row[8]) == selected_date]
+        filtered = get_completed_drafts(date_filter=selected_date)
 
     if not filtered:
         st.info(T["case_history_no_items_for_filter"])
