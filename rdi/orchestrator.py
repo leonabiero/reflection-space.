@@ -115,13 +115,51 @@ fail because of, say, a Claude API rate limit collapse into the SAME
 issue regardless of which companions happened to be the ones rate-limited,
 while a run that fails for a genuinely different reason (an auth problem,
 say) becomes a different issue, exactly as intended.
+Concurrency control (September pilot hardening -- "Change 11: Claude
+concurrency control")
+------------------------------------------------------------------------
+Everything above governs ONE reflection's 8 companion calls. Nothing
+above bounds how many reflections (each still fanning out to its own 8
+parallel calls) can be running at the same moment, org-wide -- at this
+pilot's target scale (up to ~1000 social workers, even if only a
+fraction are ever concurrently active) that has no ceiling by default,
+which risks account-level Claude API overload exactly the way an
+unbounded per-user cost guard doesn't (services/rate_limiter.py already
+caps cost per person, but says nothing about how many DIFFERENT
+people's reflections can be in flight at once).
+
+run_reflection() now acquires one slot from a process-wide
+threading.Semaphore (`_reflection_semaphore`, sized by
+config.CLAUDE_MAX_CONCURRENT_REFLECTIONS) before doing anything else,
+and releases it once the whole operation (all retries, all 8
+companions) has finished, success or failure. This deliberately gates
+at the RELECTION level, not the companion level -- the 8-way
+ThreadPoolExecutor fan-out inside one reflection is completely
+unchanged (same parallelism, same latency, same retry behavior, same
+quality), so a person generating a reflection while the app is under
+load sees the same output as always, just possibly after a short wait
+for a free slot.
+
+The acquire is a bounded wait (config.CLAUDE_REFLECTION_QUEUE_TIMEOUT_
+SECONDS), which is the "queue" behavior: a request made while every
+slot is busy simply waits (Streamlit's existing spinner already covers
+this -- see pages/reflection_space.py) for the next slot to free up,
+rather than being rejected outright. Only if no slot frees up within
+that window does the request give up -- treated as its own Complete-
+Failure-shaped outcome (one log_error() call, same numbered "Something
+went wrong" screen as any other unexpected failure), with a
+friendly_message explaining this was a capacity/timing issue, not a
+bug, so the person isn't misled into thinking something is broken.
 """
 
+import random
+import threading
 import time
 import traceback
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from config import CLAUDE_MAX_CONCURRENT_REFLECTIONS, CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS
 from services.anonymizer import anonymize
 from services.reflection_service import generate_companion_reflection
 from services.error_log import log_error
@@ -140,6 +178,23 @@ MAX_ATTEMPTS = 3
 # practitioner wait noticeably longer for the (rare) companion that
 # needed a retry.
 RETRY_BACKOFF_SECONDS = 0.75
+
+# Small random jitter added on top of the backoff above (September
+# pilot hardening, "review retry storms"). Without jitter, every
+# companion (and, at higher traffic, every practitioner's companions)
+# that fails for the SAME shared root cause -- e.g. a genuine Claude
+# API rate-limit window -- retries at the exact same fixed delay,
+# recreating the same burst of simultaneous requests a moment later
+# instead of spreading it out. This does not change MAX_ATTEMPTS, does
+# not change which failures are retried, and does not meaningfully
+# lengthen a normal (non-retried) reflection's latency.
+RETRY_JITTER_SECONDS = 0.4
+
+# Process-wide cap on how many reflections (NOT individual companion
+# calls) may be actively generating at once -- see the module docstring
+# ("Concurrency control") above. Sized from config so it can be tuned
+# via CLAUDE_MAX_CONCURRENT_REFLECTIONS without a code change.
+_reflection_semaphore = threading.Semaphore(CLAUDE_MAX_CONCURRENT_REFLECTIONS)
 
 
 def _generate_companion_with_retry(companion, safe_text, lang):
@@ -181,7 +236,13 @@ def _generate_companion_with_retry(companion, safe_text, lang):
 
         last_result = result
         if attempt < MAX_ATTEMPTS:
-            time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+            # September pilot hardening: add a small random jitter on
+            # top of the fixed backoff -- see RETRY_JITTER_SECONDS
+            # above -- so that companions failing for the same shared
+            # root cause (e.g. an account-level rate limit) don't all
+            # retry at the exact same moment and recreate the same
+            # burst a beat later.
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt + random.uniform(0, RETRY_JITTER_SECONDS))
 
     return last_result
 
@@ -235,11 +296,17 @@ def run_reflection(text, lang="Español", context_description=""):
 
     Returns one of:
       - {"error": "...", "raw": "...", "issue_id": int|None,
-         "error_id": int|None} -- Complete Failure: ALL 8 companions
-        failed after every retry. issue_id/error_id let the caller
-        (pages/reflection_space.py) show the same numbered "Something
-        went wrong" screen as any other unexpected error -- see
-        services/error_log.py:render_application_error_screen.
+         "error_id": int|None, "friendly_message": str|None} --
+        Complete Failure: ALL 8 companions failed after every retry,
+        OR (September pilot hardening) no concurrency slot freed up
+        within CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS (see the module
+        docstring's "Concurrency control" section). issue_id/error_id
+        let the caller (pages/reflection_space.py) show the same
+        numbered "Something went wrong" screen as any other unexpected
+        error -- see services/error_log.py:render_application_error_screen.
+        friendly_message is only set for the capacity-timeout case, and
+        lets that screen explain (truthfully) that this was a timing/
+        capacity issue rather than a bug.
       - {
           "opportunities": [ReflectiveOpportunity, ...],
           "raw": dict,                 -- for log_reflection(), unchanged shape
@@ -262,41 +329,100 @@ def run_reflection(text, lang="Español", context_description=""):
     failed_labels = []
     failure_details = []  # [{key, label, error_message, raw, traceback, root_cause}, ...]
 
-    with ThreadPoolExecutor(max_workers=len(COMPANIONS)) as executor:
-        future_to_companion = {
-            executor.submit(_generate_companion_with_retry, companion, safe_text, lang): companion
-            for companion in COMPANIONS
+    # September pilot hardening: acquire one process-wide concurrency
+    # slot before making any Claude calls -- see the module docstring's
+    # "Concurrency control" section and config.py:
+    # CLAUDE_MAX_CONCURRENT_REFLECTIONS. This bounds how many
+    # reflections (not companions) can be generating at once, org-wide;
+    # the 8-way parallelism below is unchanged either way. A bounded
+    # wait here is the "queue" behavior -- only if no slot frees up in
+    # time do we give up and report a Complete-Failure-shaped, but
+    # distinctly-labeled, outcome.
+    slot_acquired = _reflection_semaphore.acquire(timeout=CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS)
+    if not slot_acquired:
+        error_id, issue_id = log_error(
+            page="reflection_space (generate reflection)",
+            error_type="ReflectionCapacityTimeout",
+            message=(
+                f"No reflection-generation slot became free within "
+                f"{CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS}s "
+                f"(CLAUDE_MAX_CONCURRENT_REFLECTIONS="
+                f"{CLAUDE_MAX_CONCURRENT_REFLECTIONS}). The app is at its "
+                f"configured concurrent-reflection capacity; no Claude API "
+                f"calls were made for this request."
+            ),
+            traceback_text=None,
+            traceback_unavailable_reason=(
+                "No exception was raised -- this is an expected capacity "
+                "limit, not a failure. See config.py:"
+                "CLAUDE_MAX_CONCURRENT_REFLECTIONS / "
+                "CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS to tune it."
+            ),
+            context={
+                "lang": lang,
+                "max_concurrent_reflections": CLAUDE_MAX_CONCURRENT_REFLECTIONS,
+                "queue_timeout_seconds": CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS,
+            },
+            severity="warning",
+            title_override="Reflection Generation Delayed \u2013 App At Capacity",
+            root_cause_hint="Capacity",
+        )
+        return {
+            "error": "Failed to generate reflection",
+            "raw": "No reflection-generation slot became available in time.",
+            "issue_id": issue_id,
+            "error_id": error_id,
+            "friendly_message": (
+                "Reflection Space is handling an unusually high number of "
+                "requests right now. Please wait a moment and try again -- "
+                "this isn't an error with your document."
+            ),
         }
-        for future in as_completed(future_to_companion):
-            companion = future_to_companion[future]
-            try:
-                result = future.result()
-            except Exception:
-                result = None
 
-            if result is None or "error" in result:
-                results[companion["key"]] = None
-                failed_labels.append(companion["label"])
-                # Companion names are EVIDENCE attached to one
-                # occurrence, never issues of their own -- see the
-                # module docstring. Root cause is classified per
-                # companion here purely so _dominant_root_cause() can
-                # pick the single most common cause across all of
-                # them; no per-companion record is ever written to the
-                # database individually.
-                error_message = (result or {}).get("error", "no result returned")
-                raw = (result or {}).get("raw", "")
-                tb = (result or {}).get("traceback")
-                failure_details.append({
-                    "key": companion["key"],
-                    "label": companion["label"],
-                    "error_message": error_message,
-                    "raw": raw,
-                    "traceback": tb,
-                    "root_cause": classify_reflection_failure_root_cause(error_message, raw, tb),
-                })
-            else:
-                results[companion["key"]] = result
+    try:
+        with ThreadPoolExecutor(max_workers=len(COMPANIONS)) as executor:
+            future_to_companion = {
+                executor.submit(_generate_companion_with_retry, companion, safe_text, lang): companion
+                for companion in COMPANIONS
+            }
+            for future in as_completed(future_to_companion):
+                companion = future_to_companion[future]
+                try:
+                    result = future.result()
+                except Exception:
+                    result = None
+
+                if result is None or "error" in result:
+                    results[companion["key"]] = None
+                    failed_labels.append(companion["label"])
+                    # Companion names are EVIDENCE attached to one
+                    # occurrence, never issues of their own -- see the
+                    # module docstring. Root cause is classified per
+                    # companion here purely so _dominant_root_cause() can
+                    # pick the single most common cause across all of
+                    # them; no per-companion record is ever written to the
+                    # database individually.
+                    error_message = (result or {}).get("error", "no result returned")
+                    raw = (result or {}).get("raw", "")
+                    tb = (result or {}).get("traceback")
+                    failure_details.append({
+                        "key": companion["key"],
+                        "label": companion["label"],
+                        "error_message": error_message,
+                        "raw": raw,
+                        "traceback": tb,
+                        "root_cause": classify_reflection_failure_root_cause(error_message, raw, tb),
+                    })
+                else:
+                    results[companion["key"]] = result
+    finally:
+        # Always release, success or failure -- see the module
+        # docstring's "Concurrency control" section. Post-processing
+        # below (logging, merging results) deliberately happens AFTER
+        # release, so a slot is freed for the next queued request as
+        # soon as the actual Claude calls are done, not after this
+        # function fully returns.
+        _reflection_semaphore.release()
 
     total = len(COMPANIONS)
     failed = len(failed_labels)
@@ -337,6 +463,7 @@ def run_reflection(text, lang="Español", context_description=""):
             "raw": "All reflection companions failed to return a valid response.",
             "issue_id": issue_id,
             "error_id": error_id,
+            "friendly_message": None,
         }
 
     if failed > 0:
