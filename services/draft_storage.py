@@ -653,9 +653,13 @@ def purge_expired_deletions():
             """, (cutoff,))
             expired = c.fetchall()
 
-            for draft_id, case_ref, doc_type in expired:
-                c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
-                c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
+            # Batch delete instead of N+1 query pattern:
+            # - Delete all draft history in one query
+            # - Delete all drafts in one query
+            if expired:
+                expired_ids = tuple(row[0] for row in expired)
+                c.execute(f"DELETE FROM draft_history WHERE draft_id = ANY(%s)", (expired_ids,))
+                c.execute(f"DELETE FROM drafts WHERE id = ANY(%s)", (expired_ids,))
         conn.commit()
     except Exception:
         conn.rollback()
