@@ -66,6 +66,21 @@ logger = get_logger(__name__)
 #   -- pagination only activates if a caller explicitly opts in by
 #   passing `limit`.
 #
+#   Change 9 (Scalability -- filter in SQL, not Python): September
+#   pilot hardening. get_completed_drafts() gains optional `case_ref`
+#   and `date_filter` parameters so callers that only need one case's
+#   documents (rdi/retrieval_service.py) or one date's documents
+#   (pages/case_history.py) push that filter into the WHERE clause
+#   instead of fetching every completed document org-wide and
+#   discarding rows in Python. A new get_completed_draft_dates() does
+#   the same for date-picker options (`SELECT DISTINCT
+#   completed_at::date`) instead of loading full document content just
+#   to compute a list of dates. Both default to no filter, so existing
+#   unfiltered call sites (the admin re-indexing utility, the manager
+#   case-history org-wide view) are unaffected. See
+#   services/db_schema.py for the composite indexes added to support
+#   these queries at pilot scale.
+#
 #   Change 5 / 6 (Centralized helpers): the local _now_utc/_iso/
 #   _iso_row and _schema_migrated/_ensure_timestamp_columns
 #   implementations are replaced by the shared
@@ -375,28 +390,48 @@ def finalize_draft(draft_id, edited_content, owner_name):
     return True
 
 
-def get_completed_drafts(limit=None, offset=0):
+def get_completed_drafts(limit=None, offset=0, case_ref=None, date_filter=None):
     """
     Returns completed (status='completed') documents, most recently
     completed first.
 
-    Pagination (Change 4): `limit`/`offset` are optional and default to
-    `limit=None` (no LIMIT clause at all -- every matching row is
-    returned, exactly as before this change) so every EXISTING call
-    site (pages/case_history.py, rdi/retrieval_service.py -- both of
-    which need the full completed-document set to group/filter
-    correctly) is completely unaffected. Pass an explicit `limit` (and
-    optionally `offset`) to page through results in any NEW call site
-    that wants that.
+    Scalability pass (production hardening, pre-September pilot):
+    `case_ref` and `date_filter` are new, optional keyword-only-in-
+    practice filters that push filtering into PostgreSQL instead of
+    pulling every completed document (org-wide) into Python and
+    filtering there. Both default to `None`, which preserves the EXACT
+    previous behavior (every matching row, org-wide) for any call site
+    that doesn't pass them.
+
+    - `case_ref`: restrict to one case (`WHERE case_ref = %s`). Use
+      this any time the caller only needs one case's documents --
+      e.g. rdi/retrieval_service.py's retrieve_historical_context(),
+      which used to fetch every completed document org-wide and then
+      discard everything not matching the case in Python.
+    - `date_filter`: restrict to documents completed on one calendar
+      date (`WHERE completed_at::date = %s`, `date_filter` as an
+      'YYYY-MM-DD' string). Use this instead of loading every
+      completed document and filtering by date client-side --
+      pages/case_history.py's per-date view now does this.
+
+    Pagination (`limit`/`offset`) is unchanged and composes with the
+    new filters (e.g. one case's documents, paginated).
     """
     conn = _get_conn()
     try:
         query = """
             SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
             FROM drafts WHERE status='completed'
-            ORDER BY completed_at DESC
         """
         params = []
+        if case_ref:
+            query += " AND case_ref = %s"
+            params.append(case_ref)
+        if date_filter:
+            query += " AND completed_at::date = %s"
+            params.append(date_filter)
+
+        query += " ORDER BY completed_at DESC"
         if limit is not None:
             query += " LIMIT %s OFFSET %s"
             params.extend([limit, offset])
@@ -407,6 +442,68 @@ def get_completed_drafts(limit=None, offset=0):
     finally:
         conn.close()
     return [iso_row(row, [4, 8]) for row in rows]
+
+
+def get_drafts_by_ids(draft_ids):
+    """
+    Returns completed (status='completed') documents matching the
+    given list of draft ids, in no particular guaranteed order (callers
+    that care about order should re-key by id, as
+    rdi/retrieval_service.py's retrieve_global_context() does).
+
+    Added for retrieve_global_context(), which looks up the handful
+    (bounded by its own `limit`, a handful of documents) of documents
+    Qdrant's cross-case semantic search matched, by id -- there is no
+    case_ref to filter by there (matches can span any case, by
+    design), so `case_ref` filtering doesn't apply. Fetching only the
+    matched ids, instead of every completed document org-wide, is the
+    same "filter in SQL, not Python" fix as get_completed_drafts()'s
+    new `case_ref`/`date_filter` parameters, applied to an id lookup
+    rather than an equality/date filter. Returns [] for an empty/None
+    id list without touching the database.
+    """
+    if not draft_ids:
+        return []
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
+                FROM drafts
+                WHERE status='completed' AND id = ANY(%s)
+            """, (list(draft_ids),))
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [4, 8]) for row in rows]
+
+
+def get_completed_draft_dates():
+    """
+    Returns the distinct calendar dates (as 'YYYY-MM-DD' strings, most
+    recent first) on which at least one document was completed,
+    org-wide.
+
+    Added for pages/case_history.py's date filter dropdown, which
+    previously called get_completed_drafts() (fetching every completed
+    document's full content, org-wide) purely to compute this list of
+    dates in Python. This does the same aggregation in PostgreSQL --
+    `SELECT DISTINCT completed_at::date` -- without ever pulling
+    document content into the app.
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT DISTINCT completed_at::date AS d
+                FROM drafts
+                WHERE status='completed' AND completed_at IS NOT NULL
+                ORDER BY d DESC
+            """)
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [row[0].isoformat() for row in rows]
 
 
 def get_completed_draft_count(since_iso=None):
