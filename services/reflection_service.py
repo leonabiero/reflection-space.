@@ -1,12 +1,17 @@
 import anthropic
 import json
 import traceback
-from config import ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR
+from config import ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS
 from services.anonymizer import anonymize
 from services.error_log import log_error
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+# Scalability pass (September pilot hardening): explicit per-call
+# timeout instead of the SDK default (several minutes) -- see
+# config.py:CLAUDE_REQUEST_TIMEOUT_SECONDS for why. Applies to every
+# call made through this client (generate_reflection(),
+# generate_companion_reflection(), continue_companion_conversation()).
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, timeout=CLAUDE_REQUEST_TIMEOUT_SECONDS)
 
 LANG_INSTRUCTIONS = {
     "Español": "Responde completamente en español.",
