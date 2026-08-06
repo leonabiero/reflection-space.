@@ -21,6 +21,7 @@ from services.error_log import (
     compute_ai_readiness,
     group_errors_by_signature,
 )
+from services.pagination import Paginator
 from services import case_knowledge
 from services.translation_manager import render_translation_health_panel
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
@@ -1222,14 +1223,24 @@ with error_boundary(
             with tab_open:
                 if not open_issues:
                     st.info(T.get("admin_diag_open_empty", "No open issues match the current filters."))
-                for issue in open_issues:
-                    _render_issue_card(issue)
+                else:
+                    # Paginate open issues (20 per page)
+                    paginator = Paginator("admin_open_issues", open_issues, items_per_page=20)
+                    paginator.render_info()
+                    for issue in paginator.current_page():
+                        _render_issue_card(issue)
+                    paginator.render_controls()
 
             with tab_fixed:
                 if not fixed_issues:
                     st.info(T.get("admin_diag_fixed_empty", "No fixed issues match the current filters."))
-                for issue in fixed_issues:
-                    _render_issue_card(issue)
+                else:
+                    # Paginate fixed issues (20 per page)
+                    paginator = Paginator("admin_fixed_issues", fixed_issues, items_per_page=20)
+                    paginator.render_info()
+                    for issue in paginator.current_page():
+                        _render_issue_card(issue)
+                    paginator.render_controls()
 
             with tab_warnings:
                 st.caption(T.get(
@@ -1239,8 +1250,13 @@ with error_boundary(
                 ))
                 if not warning_issues:
                     st.info(T.get("admin_diag_warnings_empty", "No warnings match the current filters."))
-                for issue in warning_issues:
-                    _render_issue_card(issue)
+                else:
+                    # Paginate warnings (20 per page)
+                    paginator = Paginator("admin_warnings", warning_issues, items_per_page=20)
+                    paginator.render_info()
+                    for issue in paginator.current_page():
+                        _render_issue_card(issue)
+                    paginator.render_controls()
 
             with tab_trends:
                 _render_trend_analysis(T, issues, errors)
