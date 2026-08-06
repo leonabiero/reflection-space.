@@ -50,14 +50,12 @@ graceful-degradation philosophy applied elsewhere in this app.
 
 from datetime import datetime, timedelta
 
-import psycopg2
-
 from config import (
-    DATABASE_URL,
     LOGIN_MAX_ATTEMPTS,
     LOGIN_LOCKOUT_WINDOW_MINUTES,
     LOGIN_LOCKOUT_DURATION_MINUTES,
 )
+from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import get_logger
 
 logger = get_logger(__name__)
@@ -66,17 +64,18 @@ CLEANUP_HOURS = 24
 
 
 def _get_conn():
-    conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS login_failure_log (
-            id SERIAL PRIMARY KEY,
-            username TEXT,
-            occurred_at TEXT
-        )
-        """)
-    conn.commit()
-    return conn
+    """
+    Scalability pass (September pilot hardening -- "Change 9:
+    Connection pooling"): this used to open its own raw
+    psycopg2.connect(DATABASE_URL) AND run CREATE TABLE IF NOT EXISTS
+    on every call -- one of the highest-frequency paths in the app
+    (every login attempt, across the whole pilot's user base). Both
+    are fixed the same way every other services/*.py storage module
+    already was: connections now come from the shared pool
+    (services/db_pool.py), and table creation is centralized in
+    services/db_schema.py:ensure_schema(), run once at startup.
+    """
+    return _acquire_pooled_conn()
 
 
 def is_locked_out(username: str):
@@ -126,6 +125,14 @@ def is_locked_out(username: str):
             if remaining <= 0:
                 return False, 0
             return True, int(remaining)
+        except Exception:
+            # Read-only path, but roll back defensively before
+            # returning the connection to the shared pool (see
+            # services/db_pool.py) -- an aborted transaction left on a
+            # pooled connection would fail the next caller's first
+            # statement.
+            conn.rollback()
+            raise
         finally:
             conn.close()
     except Exception:
@@ -161,6 +168,11 @@ def record_failed_attempt(username: str):
                     (username, now.isoformat()),
                 )
             conn.commit()
+        except Exception:
+            # Roll back before returning to the shared pool -- see
+            # services/db_pool.py / is_locked_out()'s comment above.
+            conn.rollback()
+            raise
         finally:
             conn.close()
     except Exception:
@@ -187,6 +199,11 @@ def clear_failed_attempts(username: str):
                     (username,),
                 )
             conn.commit()
+        except Exception:
+            # Roll back before returning to the shared pool -- see
+            # services/db_pool.py / is_locked_out()'s comment above.
+            conn.rollback()
+            raise
         finally:
             conn.close()
     except Exception:
