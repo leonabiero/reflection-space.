@@ -209,3 +209,54 @@ SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").strip().lower
 # and is 100% reproducible on demand. Set it back to "false" (or
 # delete the secret) and reboot to return to normal behavior.
 SIMULATE_RATE_LIMIT_ERROR = os.getenv("SIMULATE_RATE_LIMIT_ERROR", "false").strip().lower() == "true"
+
+# ---------------------------------------------------------------------
+# Claude API concurrency control (September pilot hardening --
+# "Change 11: Claude concurrency control")
+# ---------------------------------------------------------------------
+# Each reflection generation fans out to 8 parallel Claude calls (one
+# per companion, see rdi/orchestrator.py) -- this keeps ONE reflection
+# fast, but has no ceiling on how many reflections can be generating,
+# org-wide, at the same moment. Before this change, N practitioners
+# clicking "Generate" at the same moment meant N x 8 simultaneous
+# Anthropic API requests with no upper bound -- e.g. 50 practitioners
+# at once is 400 simultaneous calls, all competing for the same
+# account-level rate limit.
+#
+# CLAUDE_MAX_CONCURRENT_REFLECTIONS caps how many *reflections*
+# (each still fanning out to its own 8 parallel companion calls) may
+# be actively generating at once, across the whole process -- not how
+# many individual companion calls. This deliberately leaves the
+# per-reflection 8-way parallelism (and therefore latency, and
+# therefore reflection quality) completely unchanged; it only bounds
+# how many of those 8-way fan-outs can be in flight simultaneously.
+# See rdi/orchestrator.py:run_reflection() for the semaphore this
+# gates.
+#
+# CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS: how long a reflection
+# request will wait for a free "slot" before giving up -- this is the
+# "queue" behavior (a practitioner who clicks Generate while the app
+# is at capacity simply waits a little longer, spinner still showing,
+# for the next slot) rather than an immediate hard rejection. Only if
+# the queue doesn't clear within this window does the request give up
+# and show the practitioner the same calm, numbered "Something went
+# wrong" screen every other unexpected failure uses (see
+# rdi/orchestrator.py) -- this should be rare at the 1000-worker pilot's
+# real usage volume (~70-100 reflections/month ORG-WIDE, per
+# services/rate_limiter.py's docstring); it exists as a backstop for a
+# genuine traffic spike, not something expected to fire in normal use.
+CLAUDE_MAX_CONCURRENT_REFLECTIONS = int(os.getenv("CLAUDE_MAX_CONCURRENT_REFLECTIONS", "20"))
+CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS", "90"))
+
+# CLAUDE_REQUEST_TIMEOUT_SECONDS: explicit per-call timeout passed to
+# the Anthropic client (services/reflection_service.py), instead of
+# relying on the SDK's own default (several minutes). Under load, a
+# handful of calls hanging near the default timeout would each hold a
+# concurrency "slot" (see CLAUDE_MAX_CONCURRENT_REFLECTIONS above) far
+# longer than a normal call ever takes, making a slow patch worse
+# instead of letting rdi/orchestrator.py's existing retry logic recover
+# quickly. This does not change retry COUNT or backoff -- only how
+# long one attempt is allowed to hang before being treated as failed
+# (and retried, or counted as a companion failure) the same way a
+# network error already is.
+CLAUDE_REQUEST_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REQUEST_TIMEOUT_SECONDS", "60"))
