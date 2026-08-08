@@ -51,3 +51,8 @@ def render_workspace_menu(T):
     elif workspace == "System Administration":
         render_workspace_badge(T.get("workmode_admin", "System Administration"), "System Administration")
         st.sidebar.page_link("pages/system_administration.py", label=T.get("nav_system_admin", "System Administration"))
+
+    # Help is a read-only, role-aware quick guide -- not tied to any one
+    # workspace, so it's shown regardless of which work mode is active
+    # (unlike the workspace-specific links above). See pages/help.py.
+    st.sidebar.page_link("pages/help.py", label=T.get("help", {}).get("nav_label", "❓ Help"))
