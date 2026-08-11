@@ -288,6 +288,7 @@ def classify_root_cause(error_type, message, traceback_text):
 #   "Reflection Generation Failed -- Anthropic Authentication"
 #   "Reflection Generation Failed -- Rate Limit"
 #   "Reflection Generation Failed -- Network Timeout"
+#   "Reflection Generation Failed -- Response Truncated (max_tokens)"
 #   "Reflection Generation Failed -- Invalid Model Response"
 #   "Reflection Generation Failed -- Unknown"
 # into different issues, while genuinely-the-same cause (regardless of
@@ -303,6 +304,19 @@ _REFLECTION_ROOT_CAUSE_RULES = (
     (lambda haystack, has_traceback: any(
         s in haystack for s in ("timeout", "timed out", "connection", "network")
     ), "Network Timeout"),
+    # PI-003 (production incident): the API call completed and returned a
+    # response, but it was cut off before the JSON object was finished
+    # (Anthropic stop_reason "max_tokens") -- see
+    # services/reflection_service.py:generate_companion_reflection(),
+    # which now stamps this exact wording into the error message whenever
+    # that happens. This was the confirmed root cause of most companion
+    # failures in production before max_tokens was raised from 600 to
+    # 1024, so it's split out from the generic "Invalid Model Response"
+    # bucket -- a genuinely-malformed (but complete) response is a
+    # different kind of problem than a response that was never allowed to
+    # finish, and conflating them would hide a token-budget regression
+    # behind the same catch-all label as an unrelated parsing bug.
+    (lambda haystack, has_traceback: "max_tokens reached" in haystack, "Response Truncated (max_tokens)"),
     # No exception was ever raised (has_traceback is False) -- the API
     # call itself completed, but its response couldn't be parsed into
     # a valid reflection. This is the single most common failure mode
