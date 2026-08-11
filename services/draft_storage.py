@@ -214,6 +214,12 @@ def save_draft(case_ref, doc_type, language, content, created_by="", created_by_
     finally:
         conn.close()
     log_action("created", new_id, case_ref, doc_type, created_by, created_by_role)
+    # Returned so callers (pages/documentation.py) can trigger a
+    # background historical-context prefetch for this specific draft --
+    # see services/context_prefetch.py. Purely additive: every existing
+    # call site that ignored this function's (previously None) return
+    # value is unaffected.
+    return new_id
 
 
 # ---------------------------------------------------------------------
