@@ -108,8 +108,39 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
 
     message = client.messages.create(
         model="claude-sonnet-5",
-        # A single dimension needs far less headroom than all 8 combined.
-        max_tokens=600,
+        # PI-003 root-cause fix (production incident, see rdi/orchestrator.py
+        # and services/issue_fingerprint.py's "Invalid Model Response" rule):
+        # this was 600. A single dimension's JSON (observation + 1-3
+        # reflective questions, phrased as full, warm sentences per
+        # rdi/companions/prompt_builder.py's SHARED_FRAME/SELF_CHECK, and
+        # in Spanish by default -- which typically runs ~15-20% more
+        # tokens than the equivalent English for the same content) could
+        # legitimately need more than 600 tokens to complete. When it did,
+        # the Anthropic API truncated the response mid-JSON (stop_reason
+        # "max_tokens"), json.loads() below failed on the incomplete
+        # object, and that companion silently disappeared as a "couldn't
+        # be parsed" failure -- exactly the "Invalid Model Response"
+        # pattern services/issue_fingerprint.py already documents as "the
+        # single most common failure mode in practice". This was the
+        # dominant, reproducible cause of the ~6-7/8 companion counts seen
+        # in production baseline testing (PI-003), not a network/API
+        # reliability problem -- retrying the same 600-token call three
+        # times (rdi/orchestrator.py's MAX_ATTEMPTS) mostly just repeated
+        # the same truncation.
+        #
+        # 1024 gives roughly 70% more headroom -- comfortably above what
+        # this companion's JSON shape needs even for a longer Spanish
+        # observation plus 3 full questions -- while staying well short
+        # of the old single-call budget (3000 tokens for all 8 sections
+        # combined; see generate_reflection() above). Anthropic only
+        # bills for tokens actually generated, so this raises the CEILING,
+        # not automatic per-call cost: a companion whose reply already
+        # fit in 600 tokens costs exactly the same as before. Only the
+        # companions that were previously being truncated now generate
+        # their remaining ~unused tokens (up to ~424 additional output
+        # tokens each) -- see the accompanying implementation report for
+        # the estimated cost impact at this pilot's volume.
+        max_tokens=1024,
         system=full_system_prompt,
         messages=[
             {
@@ -124,6 +155,7 @@ Return structured reflection JSON only.
     )
 
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
+    stop_reason = getattr(message, "stop_reason", None)
 
     cleaned_raw = raw.strip()
     if cleaned_raw.startswith("```"):
@@ -137,9 +169,21 @@ Return structured reflection JSON only.
     try:
         return json.loads(cleaned_raw)
     except Exception:
+        # PI-003 observability: record WHY parsing failed whenever we can
+        # tell, so a still-truncated response (should now be rare at 1024
+        # tokens, but not impossible for an unusually long observation) is
+        # immediately distinguishable in logs/admin tooling from a
+        # genuinely malformed response, instead of both looking identical
+        # as a bare "Failed to parse JSON". See
+        # services/issue_fingerprint.py's new "Response Truncated
+        # (max_tokens)" rule, which reads this exact message text.
+        error_label = "Failed to parse JSON"
+        if stop_reason == "max_tokens":
+            error_label = "Failed to parse JSON (response truncated: max_tokens reached)"
         return {
-            "error": "Failed to parse JSON",
-            "raw": raw
+            "error": error_label,
+            "raw": raw,
+            "stop_reason": stop_reason,
         }
 
 
