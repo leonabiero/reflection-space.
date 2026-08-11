@@ -42,6 +42,7 @@ services.db_pool.get_conn() -- see those modules' own comments.
 """
 
 import threading
+import time
 
 from services.db_pool import get_conn
 from services.db_migration import ensure_timestamptz_columns
@@ -60,13 +61,35 @@ def ensure_schema():
     migrations. Call this once at startup (see app.py). Safe to call
     more than once (each statement is idempotent, and a process-local
     flag makes repeat calls in the same process an instant no-op).
+
+    PI-001 verification instrumentation (temporary, safe to remove once
+    confirmed): logs exactly one line every time this function is
+    called, tagged WARM (the process-local guard short-circuited --
+    no database round trip at all) or COLD (the full DDL/migration
+    pass actually ran), with elapsed milliseconds either way. This
+    changes no behavior -- it only lets a real login-vs-login
+    comparison be read straight out of the app's logs, to confirm
+    whether the "8 sequential schema checks" cost from the original
+    audit is still happening on repeat logins or only ever paid once
+    per (possibly cold-started) process.
     """
     global _schema_ready
+
+    _t0 = time.monotonic()
     if _schema_ready:
+        logger.info(
+            "ensure_schema: WARM (already initialized this process) - %.1fms",
+            (time.monotonic() - _t0) * 1000,
+        )
         return
 
     with _schema_lock:
         if _schema_ready:
+            logger.info(
+                "ensure_schema: WARM (already initialized this process, "
+                "won a race with another thread) - %.1fms",
+                (time.monotonic() - _t0) * 1000,
+            )
             return
 
         conn = get_conn()
@@ -537,4 +560,8 @@ def ensure_schema():
             conn.close()
 
         _schema_ready = True
-        logger.info("Database schema initialized/verified.")
+        logger.info(
+            "ensure_schema: COLD (full DDL/migration pass ran) - "
+            "Database schema initialized/verified - %.1fms",
+            (time.monotonic() - _t0) * 1000,
+        )
