@@ -260,3 +260,39 @@ CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REFLECTION_QUEUE
 # (and retried, or counted as a companion failure) the same way a
 # network error already is.
 CLAUDE_REQUEST_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REQUEST_TIMEOUT_SECONDS", "60"))
+
+# ---------------------------------------------------------------------
+# Historical Context Prefetch (services/context_prefetch.py)
+# ---------------------------------------------------------------------
+# Previously, retrieving a case's relevant historical documents (must-
+# include key documents + Qdrant semantic search + recency fallback --
+# see rdi/retrieval_service.py) only ever happened the moment a
+# practitioner clicked "Begin Reflection" on pages/reflection_space.py
+# -- a live round trip the practitioner had to wait on, on the critical
+# path, every single time.
+#
+# This moves that work earlier: the instant a draft is saved (see
+# pages/documentation.py), a background thread runs the exact same
+# retrieval query for that single draft and caches the result. If the
+# practitioner later selects that ONE draft (and no others) to begin a
+# reflection, the cached result is served instantly instead of making
+# them wait on a fresh retrieval. A cache miss (background job still
+# running, failed, disabled, or the draft predates this feature) always
+# falls back to the original live retrieval -- this can only make
+# things faster, never slower or less correct.
+#
+# CONTEXT_PREFETCH_ENABLED: master on/off switch. Set to "false" to
+# fully disable background prefetching and cache lookups -- the app
+# behaves exactly as it did before this feature existed.
+CONTEXT_PREFETCH_ENABLED = os.getenv("CONTEXT_PREFETCH_ENABLED", "true").strip().lower() == "true"
+
+# CONTEXT_PREFETCH_CACHE_TTL_HOURS: safety-net cleanup window. A
+# prefetched result is normally deleted the moment it's consumed (used
+# by "Begin Reflection") -- this TTL only matters for a draft that was
+# prefetched but never actually turned into a reflection (e.g. the
+# practitioner abandoned it), so those cache rows don't sit in Postgres
+# forever. Purged opportunistically at the top of
+# pages/reflection_space.py, the same "no background scheduler on this
+# hosting setup" pattern already used by
+# services/draft_storage.py:purge_expired_deletions().
+CONTEXT_PREFETCH_CACHE_TTL_HOURS = int(os.getenv("CONTEXT_PREFETCH_CACHE_TTL_HOURS", "72"))
