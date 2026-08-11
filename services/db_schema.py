@@ -156,6 +156,41 @@ def ensure_schema():
                 c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
 
+                # --- services/context_prefetch.py: context_prefetch_cache ---
+                # Performance pass ("Historical Context Prefetch"): caches
+                # one draft's precomputed historical-context retrieval
+                # result (rdi/retrieval_service.py), keyed by draft_id, so
+                # pages/reflection_space.py's "Begin Reflection" can serve
+                # it instantly for a single-draft selection instead of
+                # doing a live Qdrant + Postgres round trip on the
+                # critical path. See services/context_prefetch.py's module
+                # docstring for the full design (lifecycle, freshness
+                # trade-off, TTL cleanup).
+                #
+                # draft_id is UNIQUE (not just indexed) because
+                # _store_cache() upserts with `ON CONFLICT (draft_id) DO
+                # UPDATE` -- Postgres requires a unique constraint (or
+                # index) on the conflict target for that to work.
+                # ON DELETE CASCADE means deleting a draft (pending-draft
+                # deletion, or the GDPR erasure purge of a completed case)
+                # automatically removes any leftover cache row for it, with
+                # no extra cleanup call needed at either existing call site.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS context_prefetch_cache (
+                    draft_id INTEGER PRIMARY KEY REFERENCES drafts(id) ON DELETE CASCADE,
+                    case_ref TEXT,
+                    historical_json TEXT,
+                    computed_at TIMESTAMPTZ
+                )
+                """)
+                # Supports purge_stale_prefetch_cache()'s
+                # `WHERE computed_at < %s` sweep for cache entries that
+                # were computed but never consumed.
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_context_prefetch_cache_computed_at
+                    ON context_prefetch_cache (computed_at)
+                """)
+
                 # --- services/feedback_store.py: feedback ---
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS feedback (
