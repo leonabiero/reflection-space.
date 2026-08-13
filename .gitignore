@@ -7,3 +7,6 @@ __pycache__/
 # via its own Secrets dashboard -- this is only a guard against
 # accidentally committing a local secrets.toml used for testing).
 .streamlit/secrets.toml
+
+__pycache__/
+*.pyc
