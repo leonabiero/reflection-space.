@@ -7,7 +7,7 @@ import streamlit as st
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
-from services.qdrant_service import get_diagnostics, is_available as qdrant_available, upsert_document
+from services.qdrant_service import get_diagnostics, is_available as qdrant_available, upsert_document, admin_reset_collection
 from services.embedding_service import is_available as embeddings_available
 from services.draft_storage import (
     get_completed_drafts,
@@ -427,6 +427,48 @@ with error_boundary(
         sample = st.text_area(T["admin_sample_label"], key="admin_anon_sample")
         if st.button(T["admin_run_button"]):
             st.code(anonymize(sample))
+
+        st.divider()
+
+        # --- Reset Search Index (Qdrant) ------------------------------------
+        # See services/qdrant_service.py -- admin_reset_collection() is the
+        # ONE deliberate exception to that module's rule of never deleting
+        # or recreating the Qdrant collection on its own. It exists exactly
+        # for this situation: a collection built for a previous embedding
+        # provider/model (e.g. Voyage AI's 512-dimensional vectors) that is
+        # incompatible with the currently configured one (e.g. Gemini's
+        # 768-dimensional vectors). This is the only place in the app that
+        # is allowed to call it, and only after an explicit two-step
+        # confirmation, matching the same confirm/cancel pattern already
+        # used for case/document deletion elsewhere (pages/case_history.py,
+        # pages/reflection_space.py).
+        st.subheader(T["admin_tools_reset_index_header"])
+        st.caption(T["admin_tools_reset_index_caption"])
+
+        if not qdrant_available():
+            st.info(T["admin_tools_reset_index_unavailable"])
+        else:
+            reset_confirm_key = "confirm_reset_qdrant_index"
+            if st.session_state.get(reset_confirm_key, False):
+                st.warning(T["admin_tools_reset_index_warning"])
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button(T["admin_tools_reset_index_yes"], key="yes_reset_qdrant_index"):
+                        success, reason = admin_reset_collection(confirm=True)
+                        st.session_state.pop(reset_confirm_key, None)
+                        if success:
+                            st.success(T["admin_tools_reset_index_success"])
+                        else:
+                            st.error(f"{T['admin_tools_reset_index_failed']} {reason}")
+                        st.rerun()
+                with c2:
+                    if st.button(T["admin_tools_reset_index_cancel"], key="cancel_reset_qdrant_index"):
+                        st.session_state.pop(reset_confirm_key, None)
+                        st.rerun()
+            else:
+                if st.button(T["admin_tools_reset_index_button"], key="reset_qdrant_index"):
+                    st.session_state[reset_confirm_key] = True
+                    st.rerun()
 
         st.divider()
         st.caption(T["admin_tools_future"])
