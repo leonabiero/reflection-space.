@@ -278,16 +278,33 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
     text reaches Claude (see services/anonymizer.py, reflection_service.py).
     The raw/original content is never sent to Qdrant or Voyage AI.
 
-    No-ops silently in terms of BEHAVIOR (logs nothing sensitive, raises
-    nothing) if Qdrant or embeddings aren't configured, or if embedding
-    fails -- indexing is best-effort and must never block a
-    practitioner's submission. It DOES, however, log every attempt and
-    its outcome (see module docstring) so this is fully observable
-    during development/testing.
+    No-ops silently in terms of BEHAVIOR (raises nothing -- indexing is
+    best-effort and must never block a practitioner's submission) if
+    Qdrant or embeddings aren't configured, or if embedding fails. It
+    DOES, however, log every attempt and its outcome (see module
+    docstring) so this is fully observable during development/testing,
+    and it now also reports the outcome back to the caller (see
+    Returns below) so callers -- services/draft_storage.py's
+    finalize_draft() in particular -- can track and surface failures
+    instead of assuming success. See that function's docstring for the
+    full story on why this changed.
 
     `draft_id` is used directly as the Qdrant point id, so re-submitting
     (e.g. re-running a backfill) simply overwrites the same point rather
     than creating duplicates.
+
+    Returns a (success, reason) tuple:
+      - (True, "ok") on a successful upsert.
+      - (False, "not_configured") if Qdrant or Voyage AI aren't set up
+        -- an expected, deliberate skip, not a failure a caller should
+        treat as actionable or show to an administrator.
+      - (False, "missing_case_ref") if `case_ref` is blank -- indicates
+        a data problem with the draft itself, distinct from a
+        transient indexing failure.
+      - (False, "embedding_failed") if Voyage AI didn't return a vector
+        (rate limit, timeout, outage, network error, etc).
+      - (False, "qdrant_error: <exception repr>") if the Qdrant upsert
+        call itself raised.
     """
     _log(
         f"upsert_document start: draft_id={draft_id} case_ref={case_ref!r} "
@@ -298,16 +315,16 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
     client = _get_client()
     if client is None:
         _log(f"upsert_document SKIPPED: draft_id={draft_id} reason='Qdrant not configured (QDRANT_URL missing)'")
-        return False
+        return False, "not_configured"
     if not case_ref or not (case_ref or "").strip():
         _log(f"upsert_document SKIPPED: draft_id={draft_id} reason='missing case_ref'")
-        return False
+        return False, "missing_case_ref"
 
     safe_text = anonymize(content or "")
     vector = embed_document(safe_text)
     if vector is None:
         _log(f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} reason='embedding returned None (Voyage not configured or call failed)'")
-        return False
+        return False, "embedding_failed"
 
     try:
         _ensure_collection(client)
@@ -331,13 +348,13 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
             ],
         )
         _log(f"upsert_document SUCCESS: draft_id={draft_id} case_ref={case_ref!r} doc_type={doc_type!r} collection={QDRANT_COLLECTION_NAME}")
-        return True
+        return True, "ok"
     except Exception as e:
         _log(
             f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} "
             f"exception={e!r}\n{traceback.format_exc()}"
         )
-        return False
+        return False, f"qdrant_error: {e!r}"
 
 
 def delete_document(draft_id):
