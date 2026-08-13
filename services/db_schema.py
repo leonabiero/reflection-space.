@@ -120,6 +120,24 @@ def ensure_schema():
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
+                # Data-integrity fix: a completed document was previously
+                # marked "completed" in Postgres even when its Qdrant
+                # embedding step failed (rate limit, timeout, Voyage AI
+                # outage, network error) -- with no trace anywhere the app
+                # surfaces, so it silently never became searchable. This
+                # column tracks, per document, what actually happened on the
+                # indexing side, independent of `status` (which stays
+                # about the PostgreSQL record and is never affected by
+                # this). See services/draft_storage.py:finalize_draft() and
+                # pages/system_administration.py's "Document Indexing"
+                # panel, which reads this to show/retry failures.
+                #   'indexed'         -- embedded and stored in Qdrant successfully
+                #   'failed'          -- attempted and failed (actionable; shown to admin)
+                #   'not_applicable'  -- Qdrant/Voyage AI weren't configured at the time,
+                #                        so indexing was deliberately skipped (not an error)
+                #   NULL              -- not yet attempted (documents completed before this
+                #                        column existed; also every non-completed draft)
+                c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS embedding_status TEXT")
 
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS draft_history (
@@ -153,6 +171,10 @@ def ensure_schema():
                 # that ordering can also use the index.
                 c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_case_ref_status_completed_at ON drafts (case_ref, status, completed_at DESC)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_completed_at ON drafts (status, completed_at DESC)")
+                # Supports pages/system_administration.py's "failed to
+                # index" lookup (WHERE status='completed' AND
+                # embedding_status='failed') without a full table scan.
+                c.execute("CREATE INDEX IF NOT EXISTS idx_drafts_status_embedding_status ON drafts (status, embedding_status)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_draft_history_draft_id ON draft_history (draft_id)")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_last_seen ON user_activity (last_seen DESC)")
 
