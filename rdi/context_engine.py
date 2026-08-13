@@ -57,7 +57,7 @@ STRONG_CONTEXT_THRESHOLD = 3
 LIMITED_CONTEXT_THRESHOLD = 1
 
 # A semantic average similarity at/above this is considered a genuinely
-# strong signal (Voyage cosine scores for same-case caseworker
+# strong signal (embedding cosine scores for same-case caseworker
 # documents in the same style typically land 0.7+ when topically
 # related) -- used only to let a *smaller* number of documents still
 # count as "strong" context when they're clearly, closely relevant,

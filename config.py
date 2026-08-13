@@ -5,29 +5,22 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # --- Hybrid RAG: semantic retrieval layer -------------------------------
 #
-# Embeddings are generated with Voyage AI (Anthropic's recommended
-# embedding partner -- Anthropic does not offer its own embedding
-# endpoint). This is a SEPARATE account/API key from ANTHROPIC_API_KEY.
+# Embeddings are generated with the Google Gemini API. This is a separate
+# API key from ANTHROPIC_API_KEY and is used only for semantic retrieval.
 #
-# Sign up at https://dash.voyageai.com, create an API key, and set it as
-# a secret named VOYAGE_API_KEY (same place ANTHROPIC_API_KEY lives).
-#
-# If VOYAGE_API_KEY is not set, semantic retrieval is automatically
+# If GEMINI_API_KEY is not set, semantic retrieval is automatically
 # disabled and the app falls back to the same recency-based historical
-# context it used before this change -- nothing breaks, you just don't
-# get semantic matches until the key is added.
-VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
+# context it used before semantic retrieval was enabled.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# voyage-4-lite: $0.02 / 1M tokens, 200M tokens free per account,
-# 32K context window, Matryoshka-truncatable embeddings. Cheapest
-# current-generation Voyage model and more than sufficient quality for
-# same-case document matching (see chat writeup for pricing detail).
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "voyage-4-lite")
+# Gemini embedding model used for RAG. gemini-embedding-001 supports
+# retrieval-specific task types (document/query) and configurable output
+# dimensionality, which maps cleanly to this app's existing architecture.
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
 
-# Truncated (Matryoshka) embedding dimension. 512 keeps Qdrant's free
-# tier (1GB RAM) comfortable for years at this pilot's volume, with
-# negligible quality loss vs the full 1024 for this use case.
-EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "512"))
+# Gemini recommends 768, 1536, or 3072 dimensions for reduced/full output.
+# 768 is a good testing balance between retrieval quality and Qdrant memory.
+EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
 
 # Qdrant (semantic retrieval layer -- system of record stays Postgres)
 QDRANT_URL = os.getenv("QDRANT_URL", None)
@@ -58,7 +51,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 # RECENT_WINDOW_MINUTES). Moving them here means every deployment-
 # tunable "how long/how many" knob for the storage layer lives in one
 # place, consistent with how every other environment-configurable
-# value in this app (ANTHROPIC_API_KEY, VOYAGE_API_KEY, QDRANT_URL,
+# value in this app (ANTHROPIC_API_KEY, GEMINI_API_KEY, QDRANT_URL,
 # etc.) is already defined here.
 #
 # Values are unchanged from their previous hard-coded defaults, so this

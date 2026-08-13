@@ -98,7 +98,7 @@ design) actually executable.
 
 Graceful degradation
 ------------------------
-If QDRANT_URL isn't configured, or Voyage embeddings aren't available
+If QDRANT_URL isn't configured, or Gemini embeddings aren't available
 (see services/embedding_service.py), every function here is a no-op /
 returns an empty result rather than raising -- so a practitioner who
 hasn't set up the semantic layer yet still gets the exact same
@@ -273,10 +273,10 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
     also from the admin backfill for documents completed before this
     feature existed.
 
-    The content sent to Voyage AI is anonymized first -- the same
+    The content sent to Gemini embeddings is anonymized first -- the same
     anonymize() function and the same boundary already used before any
     text reaches Claude (see services/anonymizer.py, reflection_service.py).
-    The raw/original content is never sent to Qdrant or Voyage AI.
+    The raw/original content is never sent to Qdrant or Gemini embeddings.
 
     No-ops silently in terms of BEHAVIOR (raises nothing -- indexing is
     best-effort and must never block a practitioner's submission) if
@@ -295,13 +295,13 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
 
     Returns a (success, reason) tuple:
       - (True, "ok") on a successful upsert.
-      - (False, "not_configured") if Qdrant or Voyage AI aren't set up
+      - (False, "not_configured") if Qdrant or Gemini embeddings aren't set up
         -- an expected, deliberate skip, not a failure a caller should
         treat as actionable or show to an administrator.
       - (False, "missing_case_ref") if `case_ref` is blank -- indicates
         a data problem with the draft itself, distinct from a
         transient indexing failure.
-      - (False, "embedding_failed") if Voyage AI didn't return a vector
+      - (False, "embedding_failed") if Gemini embeddings didn't return a vector
         (rate limit, timeout, outage, network error, etc).
       - (False, "qdrant_error: <exception repr>") if the Qdrant upsert
         call itself raised.
@@ -323,7 +323,7 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
     safe_text = anonymize(content or "")
     vector = embed_document(safe_text)
     if vector is None:
-        _log(f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} reason='embedding returned None (Voyage not configured or call failed)'")
+        _log(f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} reason='embedding returned None (Gemini not configured or call failed)'")
         return False, "embedding_failed"
 
     try:

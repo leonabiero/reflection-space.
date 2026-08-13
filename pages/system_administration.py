@@ -41,11 +41,11 @@ from rdi.context_engine import DEFAULT_HISTORY_LIMIT
 # services that already existed (services.qdrant_service,
 # services.embedding_service, services.draft_storage,
 # rdi.retrieval_service, config) -- nothing here makes a NEW call to
-# Voyage AI or the Anthropic (Claude) API. The Retrieval Test panel
+# Gemini API or the Anthropic (Claude) API. The Retrieval Test panel
 # calls rdi.retrieval_service.retrieve_historical_context() (case-
 # specific mode) or rdi.retrieval_service.retrieve_global_context()
 # (global mode, added alongside the optional Case Reference field) --
-# both only ever call Voyage AI (embeddings) for the query text and
+# both only ever call Gemini API (embeddings) for the query text and
 # Qdrant for the search; neither calls the Claude/Anthropic API at all.
 # So this page has ZERO impact on Anthropic API cost.
 #

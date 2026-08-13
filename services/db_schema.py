@@ -122,7 +122,7 @@ def ensure_schema():
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
                 # Data-integrity fix: a completed document was previously
                 # marked "completed" in Postgres even when its Qdrant
-                # embedding step failed (rate limit, timeout, Voyage AI
+                # embedding step failed (rate limit, timeout, Gemini API
                 # outage, network error) -- with no trace anywhere the app
                 # surfaces, so it silently never became searchable. This
                 # column tracks, per document, what actually happened on the
@@ -133,7 +133,7 @@ def ensure_schema():
                 # panel, which reads this to show/retry failures.
                 #   'indexed'         -- embedded and stored in Qdrant successfully
                 #   'failed'          -- attempted and failed (actionable; shown to admin)
-                #   'not_applicable'  -- Qdrant/Voyage AI weren't configured at the time,
+                #   'not_applicable'  -- Qdrant/Gemini API weren't configured at the time,
                 #                        so indexing was deliberately skipped (not an error)
                 #   NULL              -- not yet attempted (documents completed before this
                 #                        column existed; also every non-completed draft)
