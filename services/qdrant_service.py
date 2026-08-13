@@ -364,6 +364,163 @@ def _ensure_collection(client):
     _collection_ready = True
 
 
+# --- Administrative reset (deliberate, destructive, System Administrator only) ---
+#
+# Everything else in this module is careful to NEVER delete or recreate
+# the Qdrant collection on its own (see _ensure_collection() and the
+# module docstring) -- a dimension mismatch is detected and reported,
+# never "fixed" automatically, because doing so silently would destroy
+# the semantic index without anyone deciding that should happen.
+#
+# admin_reset_collection() is the one deliberate exception: a function
+# that WILL delete the entire existing collection (losing every vector
+# in it -- Postgres remains the system of record, so no document
+# content or metadata is lost, but every semantic-search embedding is
+# gone until documents are re-embedded/backfilled) and rebuild it from
+# scratch using the current EMBEDDING_DIMENSIONS/COSINE configuration.
+#
+# It is NEVER called automatically -- not from app startup, not from
+# _ensure_collection(), not from upsert_document()/search_similar()/
+# search_global()/get_diagnostics(). It only runs when something
+# explicitly calls it AND passes confirm=True. This function must only
+# ever be wired up behind a System Administrator-only control (e.g. a
+# clearly-labelled, confirmation-gated button on the System
+# Administration page) -- it must never be reachable from any
+# practitioner-facing page or work mode.
+def admin_reset_collection(confirm=False):
+    """
+    ADMINISTRATIVE, DESTRUCTIVE, MANUAL-ONLY operation. Deletes the
+    existing Qdrant collection (whatever its current state -- wrong
+    dimension, right dimension, missing indexes, anything) and
+    recreates it from scratch as an empty collection using
+    EMBEDDING_DIMENSIONS (config.py) and COSINE distance, with both
+    required payload indexes (case_ref -> KEYWORD, document_id ->
+    INTEGER) freshly created.
+
+    This is the explicit, deliberate fix for exactly the situation this
+    module is designed to detect but never resolve on its own: an
+    existing collection built for a previous embedding provider/model
+    (e.g. Voyage AI's 512-dimensional vectors) that is incompatible
+    with the currently configured one (e.g. Gemini's 768-dimensional
+    vectors). It intentionally does NOT attempt to migrate, convert, or
+    otherwise reuse any old vectors -- old vectors from an incompatible
+    dimension cannot be reused, so this always starts the semantic
+    index fresh/empty. Every completed document remains fully intact in
+    PostgreSQL and can be re-embedded via the existing admin backfill.
+
+    Requires `confirm=True` to do anything at all -- calling this with
+    no arguments, or confirm=False, is a guaranteed no-op that changes
+    nothing and only logs that a reset was requested but not confirmed.
+    This is deliberate friction: there is no other way to trigger a
+    deletion through this function, so a caller (a System
+    Administration page action, for instance) must itself require an
+    explicit, separate confirmation step from the person before ever
+    passing confirm=True here.
+
+    Returns a (success, reason) tuple:
+      - (True, "ok") once the collection has been deleted, recreated
+        with the correct dimensions/distance, both payload indexes
+        confirmed, and this module's internal state reset so the fresh
+        collection is used immediately by the next upsert/search --
+        no restart required.
+      - (False, "confirmation_required") if confirm was not explicitly
+        True -- nothing was touched.
+      - (False, "not_configured") if Qdrant isn't configured
+        (QDRANT_URL missing).
+      - (False, "verification_failed: <details>") if the collection was
+        recreated but a read-back afterwards shows it does NOT actually
+        have EMBEDDING_DIMENSIONS/COSINE configured -- this module's
+        internal state is deliberately NOT marked ready in this case,
+        so the mismatch is still caught before any upsert/search.
+      - (False, "qdrant_error: <exception repr>") if any Qdrant call
+        (delete, create, or index creation) itself raised.
+    """
+    global _collection_ready, _dimension_error
+
+    if confirm is not True:
+        _log(
+            "admin_reset_collection REFUSED: confirm=True was not explicitly passed -- "
+            "no collection was touched. This is a destructive operation and requires "
+            "explicit confirmation on every call."
+        )
+        return False, "confirmation_required"
+
+    client = _get_client()
+    if client is None:
+        _log("admin_reset_collection SKIPPED: reason='Qdrant not configured (QDRANT_URL missing)'")
+        return False, "not_configured"
+
+    try:
+        existing = [c.name for c in client.get_collections().collections]
+        collection_existed = QDRANT_COLLECTION_NAME in existing
+        existing_size = _get_existing_vector_size(client) if collection_existed else None
+
+        if collection_existed:
+            _log(
+                f"admin_reset_collection: found existing collection {QDRANT_COLLECTION_NAME!r} "
+                f"current_vector_size={existing_size!r} -- deleting it now (confirm=True)"
+            )
+            client.delete_collection(collection_name=QDRANT_COLLECTION_NAME)
+            _log(f"admin_reset_collection: deleted collection {QDRANT_COLLECTION_NAME!r}")
+        else:
+            _log(
+                f"admin_reset_collection: no existing collection named {QDRANT_COLLECTION_NAME!r} "
+                f"found -- nothing to delete, proceeding straight to creation"
+            )
+
+        client.create_collection(
+            collection_name=QDRANT_COLLECTION_NAME,
+            vectors_config=qmodels.VectorParams(
+                size=EMBEDDING_DIMENSIONS,
+                distance=qmodels.Distance.COSINE,
+            ),
+        )
+        _log(
+            f"admin_reset_collection: recreated collection {QDRANT_COLLECTION_NAME!r} "
+            f"vector_size={EMBEDDING_DIMENSIONS} distance=COSINE embedding_model={EMBEDDING_MODEL}"
+        )
+
+        _ensure_payload_indexes(client)
+        _log("admin_reset_collection: payload indexes created/confirmed (case_ref=KEYWORD, document_id=INTEGER)")
+
+        # Verify the new collection actually has what we just asked for,
+        # rather than trusting create_collection() didn't silently do
+        # something else -- this is the same read-back pattern
+        # _get_existing_vector_size() already uses elsewhere in this
+        # module, applied here as a post-creation sanity check.
+        collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
+        vectors_config = collection_info.config.params.vectors
+        verified_size = getattr(vectors_config, "size", None)
+        verified_distance = getattr(vectors_config, "distance", None)
+
+        if verified_size != EMBEDDING_DIMENSIONS or verified_distance != qmodels.Distance.COSINE:
+            verification_error = (
+                f"collection {QDRANT_COLLECTION_NAME!r} was recreated but read-back shows "
+                f"vector_size={verified_size!r} distance={verified_distance!r}, expected "
+                f"vector_size={EMBEDDING_DIMENSIONS} distance=COSINE"
+            )
+            _log(f"admin_reset_collection VERIFICATION FAILED: {verification_error}")
+            return False, f"verification_failed: {verification_error}"
+
+        # Fresh, correctly-dimensioned collection confirmed -- clear any
+        # previously recorded mismatch and mark the collection ready so
+        # the very next upsert_document()/search_similar()/
+        # search_global() call uses it immediately, with no app restart
+        # needed.
+        _dimension_error = None
+        _collection_ready = True
+
+        _log(
+            f"admin_reset_collection SUCCESS: collection {QDRANT_COLLECTION_NAME!r} is now "
+            f"fresh and empty, vector_size={verified_size} distance={verified_distance}, "
+            f"payload indexes confirmed, ready for use"
+        )
+        return True, "ok"
+    except Exception as e:
+        _log(f"admin_reset_collection FAILED: exception={e!r}\n{traceback.format_exc()}")
+        return False, f"qdrant_error: {e!r}"
+
+
 def upsert_document(draft_id, case_ref, doc_type, content, language="",
                      created_at="", completed_at="", created_by_role="", was_edited=False):
     """
