@@ -317,6 +317,24 @@ def finalize_draft(draft_id, edited_content, owner_name):
     change, and a phantom history row pointing at content that was
     never actually applied. Both statements now share one transaction
     that is rolled back as a unit on any failure.
+
+    Data-integrity fix (Qdrant indexing failures were silent): this
+    function's `return True` used to happen unconditionally after
+    calling upsert_document(), without even looking at what it
+    returned -- so a document could be marked 'completed' and shown
+    normally everywhere in the app while permanently failing to become
+    searchable, with zero trace of that anywhere the app itself
+    surfaces. That PostgreSQL commit above stays exactly as it was
+    (this function still always returns True once the record is safely
+    saved -- a practitioner's submission must never be blocked or look
+    like it failed just because search indexing had a hiccup). What
+    changed is what happens after: the outcome of upsert_document() is
+    now recorded on the row itself (`embedding_status`), and a real
+    failure (not the expected/deliberate "Qdrant isn't configured"
+    skip) is logged loudly via services/error_log.py, the same place
+    every other error in this app shows up for a System Administrator
+    -- see the "Document Indexing" panel on pages/system_administration.py,
+    which reads `embedding_status` to show and retry failures.
     """
     if not owner_name:
         return False
@@ -384,7 +402,7 @@ def finalize_draft(draft_id, edited_content, owner_name):
         conn2.close()
     created_at = iso(created_row[0]) if created_row else ""
 
-    upsert_document(
+    indexed_ok, reason = upsert_document(
         draft_id, case_ref, doc_type,
         content=edited_content,
         language=language,
@@ -393,7 +411,67 @@ def finalize_draft(draft_id, edited_content, owner_name):
         created_by_role=created_by_role,
         was_edited=edited_flag,
     )
+    record_embedding_outcome(draft_id, case_ref, indexed_ok, reason)
     return True
+
+
+def record_embedding_outcome(draft_id, case_ref, indexed_ok, reason):
+    """
+    Persist the result of an upsert_document() call onto the draft row,
+    and -- for a genuine failure (as opposed to the expected "Qdrant
+    isn't configured" skip) -- log it loudly via services/error_log.py
+    so it's impossible to miss on the System Administration page.
+
+    Shared by finalize_draft() (one document, right after completion)
+    and pages/system_administration.py's "Retry failed only" and full
+    backfill actions (many documents, run on demand by an admin) --
+    kept in one place so all three paths always agree on what
+    `embedding_status` means and how failures get reported.
+
+    Never raises: this runs after the document is already safely saved
+    and must not turn a successful save into a visible error for the
+    person who just submitted it.
+    """
+    status = "indexed" if indexed_ok else ("not_applicable" if reason == "not_configured" else "failed")
+    try:
+        conn = _get_conn()
+        try:
+            with conn.cursor() as c:
+                c.execute("UPDATE drafts SET embedding_status=%s WHERE id=%s", (status, draft_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    except Exception:
+        logger.exception(
+            "Failed to record embedding_status=%r for draft_id=%r (indexing outcome itself was %r)",
+            status, draft_id, reason,
+        )
+
+    if status == "failed":
+        try:
+            from services.error_log import log_error
+            log_error(
+                page="reflection_space (document indexing)",
+                error_type="EmbeddingIndexError",
+                message=(
+                    f"Document {draft_id} (case {case_ref!r}) was saved as 'completed' "
+                    f"but failed to index in Qdrant, so it will not appear in Knowledge "
+                    f"Assistant or Reflection Context's historical-document lookup until "
+                    f"it is retried. Reason: {reason}"
+                ),
+                traceback_text="",
+                traceback_unavailable_reason=(
+                    "upsert_document() reports failures as a (success, reason) result "
+                    "rather than raising, so there is no exception/traceback here."
+                ),
+                context={"draft_id": draft_id, "case_ref": case_ref, "reason": reason},
+                severity="warning",
+            )
+        except Exception:
+            logger.exception("Failed to log_error() for embedding failure on draft_id=%r", draft_id)
 
 
 def get_completed_drafts(limit=None, offset=0, case_ref=None, date_filter=None):
@@ -482,6 +560,48 @@ def get_drafts_by_ids(draft_ids):
     finally:
         conn.close()
     return [iso_row(row, [4, 8]) for row in rows]
+
+
+def get_failed_embedding_drafts():
+    """
+    Returns every completed document whose embedding_status is
+    'failed' -- i.e. it saved fine but a real attempt to index it in
+    Qdrant did not succeed (as opposed to 'not_applicable', which
+    means Qdrant wasn't configured at the time and nothing actually
+    went wrong). Used by pages/system_administration.py's "Document
+    Indexing" panel to show what needs attention and drive the
+    "Retry failed only" action. Same row shape as get_completed_drafts()
+    so it can reuse the same upsert_document() call pattern.
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("""
+                SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
+                FROM drafts
+                WHERE status='completed' AND embedding_status='failed'
+                ORDER BY completed_at DESC
+            """)
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [iso_row(row, [4, 8]) for row in rows]
+
+
+def count_failed_embedding_drafts():
+    """
+    Cheap count-only version of get_failed_embedding_drafts(), for
+    showing a badge/count on the admin page without fetching full
+    document content when the panel is collapsed.
+    """
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed' AND embedding_status='failed'")
+            (count,) = c.fetchone()
+    finally:
+        conn.close()
+    return count
 
 
 def get_completed_draft_dates():
@@ -760,9 +880,9 @@ def purge_expired_deletions():
             # - Delete all draft history in one query
             # - Delete all drafts in one query
             if expired:
-                expired_ids = tuple(row[0] for row in expired)
-                c.execute(f"DELETE FROM draft_history WHERE draft_id = ANY(%s)", (expired_ids,))
-                c.execute(f"DELETE FROM drafts WHERE id = ANY(%s)", (expired_ids,))
+                expired_ids = [row[0] for row in expired]
+                c.execute("DELETE FROM draft_history WHERE draft_id = ANY(%s)", (expired_ids,))
+                c.execute("DELETE FROM drafts WHERE id = ANY(%s)", (expired_ids,))
         conn.commit()
     except Exception:
         conn.rollback()
