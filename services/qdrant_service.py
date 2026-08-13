@@ -135,6 +135,17 @@ from services.rag_logging import rag_log
 _client = None
 _collection_ready = False
 
+# Set by _ensure_collection() if an EXISTING Qdrant collection's actual
+# vector size does not match EMBEDDING_DIMENSIONS (config.py) -- e.g.
+# after switching embedding providers/models (Voyage -> Gemini) without
+# yet deleting/recreating the collection. While this is set, every
+# upsert/search below refuses to run and returns a clear error instead
+# of sending an incompatible vector to Qdrant. Cleared only by
+# restarting the app (i.e. after the collection has actually been
+# recreated with the correct dimensions) since _ensure_collection()
+# itself deliberately never deletes or recreates a collection.
+_dimension_error = None
+
 # The payload field every practitioner-facing search filters on for
 # confidentiality (see module docstring, "Confidentiality boundary").
 # Kept as a constant so search_similar() and anything referencing it by
@@ -240,8 +251,62 @@ def _ensure_payload_indexes(client):
             )
 
 
+def _get_existing_vector_size(client):
+    """
+    Reads back the actual vector size Qdrant has configured for
+    QDRANT_COLLECTION_NAME, so it can be compared against
+    EMBEDDING_DIMENSIONS (config.py) before any upsert/search is
+    attempted -- this is what lets _ensure_collection() below detect a
+    collection left over from a previous embedding provider/model
+    (e.g. Voyage AI's 512-dim vectors) that is now incompatible with
+    the currently configured one (e.g. Gemini's 768-dim vectors).
+
+    Returns the size as an int, or None if it could not be determined
+    (never raises -- an unreadable size is treated as "unknown" by the
+    caller, not as a mismatch).
+    """
+    try:
+        collection_info = client.get_collection(collection_name=QDRANT_COLLECTION_NAME)
+        vectors_config = collection_info.config.params.vectors
+        # This collection has always used a single, unnamed vector
+        # (never Qdrant's multi-named-vector feature), so this is a
+        # plain VectorParams object with a `.size` attribute.
+        return getattr(vectors_config, "size", None)
+    except Exception as e:
+        _log(f"_get_existing_vector_size FAILED: exception={e!r}\n{traceback.format_exc()}")
+        return None
+
+
+def _validate_embedding_dimensions(vector, label):
+    """
+    Confirms an embedding vector's length matches EMBEDDING_DIMENSIONS
+    (config.py) before it is ever sent to Qdrant, so a misconfigured or
+    unexpectedly-changed embedding provider response fails clearly here
+    rather than being sent on to Qdrant (where it would either be
+    rejected outright by a correctly-sized collection, or -- worse --
+    accepted by a collection that happens to share that wrong size).
+
+    `vector` may be None (embedding failed entirely) -- that case is
+    already handled separately by each caller, so this returns True for
+    None rather than double-reporting it as a dimension problem.
+
+    Returns True if the length matches (or vector is None), False if
+    the provider returned a vector of the wrong length.
+    """
+    if vector is None:
+        return True
+    if len(vector) != EMBEDDING_DIMENSIONS:
+        _log(
+            f"{label} EMBEDDING DIMENSION MISMATCH: embedding_model={EMBEDDING_MODEL} "
+            f"returned a {len(vector)}-dimensional vector, but EMBEDDING_DIMENSIONS="
+            f"{EMBEDDING_DIMENSIONS} (config.py). Refusing to send this vector to Qdrant."
+        )
+        return False
+    return True
+
+
 def _ensure_collection(client):
-    global _collection_ready
+    global _collection_ready, _dimension_error
     if _collection_ready:
         return
     existing = [c.name for c in client.get_collections().collections]
@@ -253,6 +318,40 @@ def _ensure_collection(client):
                 distance=qmodels.Distance.COSINE,
             ),
         )
+        _log(
+            f"_ensure_collection: created new collection {QDRANT_COLLECTION_NAME!r} "
+            f"vector_size={EMBEDDING_DIMENSIONS} distance=COSINE embedding_model={EMBEDDING_MODEL}"
+        )
+    else:
+        # Collection already exists (e.g. left over from a previous
+        # embedding provider/model) -- verify its actual vector size
+        # matches the currently configured EMBEDDING_DIMENSIONS before
+        # anything is ever upserted or searched. This module never
+        # deletes or recreates a collection itself (see module
+        # docstring / delete_document()) -- a dimension mismatch here
+        # must be resolved by deliberately recreating the collection
+        # outside this code path, so we only detect and report it.
+        existing_size = _get_existing_vector_size(client)
+        if existing_size is None:
+            _log(
+                f"_ensure_collection: could not verify vector size of existing collection "
+                f"{QDRANT_COLLECTION_NAME!r} -- proceeding, but a mismatch may still surface "
+                f"as a Qdrant error on the next upsert/search"
+            )
+        elif existing_size != EMBEDDING_DIMENSIONS:
+            _dimension_error = (
+                f"Qdrant collection '{QDRANT_COLLECTION_NAME}' has vector size "
+                f"{existing_size}, but the current embedding configuration "
+                f"({EMBEDDING_MODEL}) produces {EMBEDDING_DIMENSIONS}-dimensional vectors. "
+                f"This collection must be deleted and recreated with the correct "
+                f"dimensions before any indexing or search can proceed."
+            )
+            _log(f"_ensure_collection DIMENSION MISMATCH: {_dimension_error}")
+        else:
+            _log(
+                f"_ensure_collection: existing collection {QDRANT_COLLECTION_NAME!r} "
+                f"vector_size={existing_size} matches EMBEDDING_DIMENSIONS={EMBEDDING_DIMENSIONS}"
+            )
     # Runs every time the collection is (re)confirmed -- including on
     # collections that already existed before this fix shipped, which
     # is exactly the case that was missing an index and triggering the
@@ -326,8 +425,14 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
         _log(f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} reason='embedding returned None (Gemini not configured or call failed)'")
         return False, "embedding_failed"
 
+    if not _validate_embedding_dimensions(vector, "upsert_document"):
+        return False, "embedding_dimension_mismatch"
+
     try:
         _ensure_collection(client)
+        if _dimension_error:
+            _log(f"upsert_document BLOCKED: draft_id={draft_id} case_ref={case_ref!r} reason={_dimension_error!r}")
+            return False, f"qdrant_dimension_mismatch: {_dimension_error}"
         client.upsert(
             collection_name=QDRANT_COLLECTION_NAME,
             points=[
@@ -424,6 +529,9 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
         _log(f"search_similar FAILED: case_ref={case_ref!r} reason='query embedding returned None'")
         return []
 
+    if not _validate_embedding_dimensions(vector, "search_similar"):
+        return []
+
     exclude_ids = exclude_ids or set()
     must_conditions = [
         qmodels.FieldCondition(key=CASE_REF_FIELD, match=qmodels.MatchValue(value=case_ref))
@@ -445,6 +553,9 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
 
     try:
         _ensure_collection(client)
+        if _dimension_error:
+            _log(f"search_similar BLOCKED: case_ref={case_ref!r} reason={_dimension_error!r}")
+            return []
         _log("Starting semantic search...")
         results = client.search(
             collection_name=QDRANT_COLLECTION_NAME,
@@ -505,6 +616,9 @@ def search_global(query_text, exclude_ids=None, limit=5):
         _log("search_global FAILED: reason='query embedding returned None'")
         return []
 
+    if not _validate_embedding_dimensions(vector, "search_global"):
+        return []
+
     exclude_ids = exclude_ids or set()
     must_not_conditions = []
     if exclude_ids:
@@ -523,6 +637,9 @@ def search_global(query_text, exclude_ids=None, limit=5):
 
     try:
         _ensure_collection(client)
+        if _dimension_error:
+            _log(f"search_global BLOCKED: reason={_dimension_error!r}")
+            return []
         _log("Starting global semantic search (no case_ref filter)...")
         results = client.search(
             collection_name=QDRANT_COLLECTION_NAME,
@@ -564,6 +681,10 @@ def get_diagnostics():
             "latest_case_ref": str | None,
             "latest_doc_type": str | None,
             "latest_completed_at": str | None,
+            "dimension_mismatch": str | None,   # set if the existing collection's
+                                                 # vector size doesn't match
+                                                 # EMBEDDING_DIMENSIONS -- see
+                                                 # _ensure_collection()
             "error": str | None,
         }
     """
@@ -580,6 +701,7 @@ def get_diagnostics():
         "latest_case_ref": None,
         "latest_doc_type": None,
         "latest_completed_at": None,
+        "dimension_mismatch": None,
         "error": None,
     }
 
@@ -594,6 +716,7 @@ def get_diagnostics():
 
     try:
         _ensure_collection(client)
+        diagnostics["dimension_mismatch"] = _dimension_error
 
         count_result = client.count(collection_name=QDRANT_COLLECTION_NAME, exact=True)
         diagnostics["points_count"] = count_result.count
