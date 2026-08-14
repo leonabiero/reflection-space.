@@ -1,0 +1,9 @@
+# Never upload your real secret keys to GitHub
+.env
+
+# Python's own generated files
+__pycache__/
+*.pyc
+
+# Anything you save from a test run
+results/
