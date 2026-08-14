@@ -48,7 +48,14 @@ if _REPO_ROOT not in sys.path:
 try:
     from dotenv import load_dotenv
     _ENV_PATH = os.path.join(_THIS_DIR, ".env")
-    load_dotenv(_ENV_PATH)
+    # override=True is important: without it, if DATABASE_URL (or any
+    # other value in .env) already exists as a permanent Windows
+    # environment variable from something set up earlier, that OLD
+    # value would silently win over whatever is written in .env --
+    # with no error, no warning, nothing printed. That was found to
+    # be happening for real during testing (editing .env had no
+    # effect at all), so this is now forced to always prefer .env.
+    load_dotenv(_ENV_PATH, override=True)
 except ImportError:
     print(
         "NOTE: the 'python-dotenv' helper isn't installed yet. "
@@ -59,7 +66,8 @@ except ImportError:
 # A friendly, early check: if the database address is missing, every
 # script in this folder will fail in a confusing way later. Catch it
 # here instead, with a clear plain-English message.
-if not os.getenv("DATABASE_URL"):
+_db_url = os.getenv("DATABASE_URL", "")
+if not _db_url:
     print(
         "\nSTOP: load_test/.env is missing DATABASE_URL (or the .env file "
         "doesn't exist yet).\n"
@@ -68,3 +76,15 @@ if not os.getenv("DATABASE_URL"):
         "any test script.\n"
     )
     sys.exit(1)
+
+# Print which database HOST this run is actually using -- never the
+# password or full address -- so it's always visible, at a glance,
+# whether the pooled or direct Neon address is active. This exists so
+# a mismatch between what's in .env and what's actually being used
+# can never again go unnoticed.
+try:
+    _host_part = _db_url.split("@", 1)[1].split("/", 1)[0]
+except IndexError:
+    _host_part = "(could not parse host from DATABASE_URL)"
+_pooled_note = "POOLED connection" if "pooler" in _host_part else "DIRECT connection (not pooled)"
+print(f"[load_test] Using database host: {_host_part}  <-- {_pooled_note}")
