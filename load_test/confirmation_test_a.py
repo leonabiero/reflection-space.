@@ -196,6 +196,36 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
     print(f"  [user {user_index}] session finished.")
 
 
+def run_one_wave(wave_number, args, run_id):
+    """
+    Runs one batch of `args.users` simulated users at once, using
+    whatever database connection pool already exists in this program
+    (freshly built on wave 1, already warm on every wave after that).
+    Returns the Metrics object for just this wave.
+    """
+    print(f"\n----- Wave {wave_number} of {args.waves} -----")
+    metrics = common.Metrics()
+    start = time.monotonic()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.users) as pool:
+        futures = [
+            pool.submit(
+                simulate_one_user, f"w{wave_number}_{i}", run_id,
+                (args.pause_min, args.pause_max), args.timeout, metrics,
+            )
+            for i in range(args.users)
+        ]
+        for f in concurrent.futures.as_completed(futures):
+            exc = f.exception()
+            if exc is not None:
+                print(f"  WARNING: a simulated user session crashed unexpectedly: {exc}")
+
+    total_elapsed = time.monotonic() - start
+    print(f"\nWave {wave_number}: all {args.users} simulated user sessions finished in {total_elapsed:.1f}s (wall clock).")
+    metrics.print_summary(thresholds=THRESHOLDS)
+    return metrics
+
+
 def main():
     parser = argparse.ArgumentParser(description="Confirmation Test A -- realistic mixed load")
     parser.add_argument("--users", type=int, default=10)
@@ -203,36 +233,42 @@ def main():
     parser.add_argument("--pause-max", type=float, default=2.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--no-cleanup", action="store_true")
+    parser.add_argument(
+        "--waves", type=int, default=1,
+        help=(
+            "Run this many back-to-back batches of --users, all within this same "
+            "program run (same already-open connection pool), instead of just one. "
+            "Wave 1 reflects a freshly-started app (pool built from scratch); later "
+            "waves reflect a real app's normal, already-warmed-up behavior -- which "
+            "is the more realistic number for judging September readiness."
+        ),
+    )
     args = parser.parse_args()
 
     run_id = common.new_run_id()
     print(f"\nStarting Confirmation Test A")
-    print(f"  Simulated concurrent users: {args.users}")
+    print(f"  Simulated concurrent users per wave: {args.users}")
+    print(f"  Waves: {args.waves}")
     print(f"  Run tag (for this batch of fake data): LOADTEST_{run_id}")
-    print(f"  Per-action timeout: {args.timeout}s\n")
+    print(f"  Per-action timeout: {args.timeout}s")
 
-    metrics = common.Metrics()
-    start = time.monotonic()
+    all_wave_metrics = []
+    for wave_number in range(1, args.waves + 1):
+        all_wave_metrics.append(run_one_wave(wave_number, args, run_id))
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.users) as pool:
-        futures = [
-            pool.submit(
-                simulate_one_user, i, run_id,
-                (args.pause_min, args.pause_max), args.timeout, metrics,
-            )
-            for i in range(args.users)
-        ]
-        for f in concurrent.futures.as_completed(futures):
-            # Surface any unexpected crash in a single user's session
-            # rather than letting it disappear silently.
-            exc = f.exception()
-            if exc is not None:
-                print(f"  WARNING: a simulated user session crashed unexpectedly: {exc}")
-
-    total_elapsed = time.monotonic() - start
-    print(f"\nAll {args.users} simulated user sessions finished in {total_elapsed:.1f}s (wall clock).")
-
-    metrics.print_summary(thresholds=THRESHOLDS)
+    if args.waves > 1:
+        print("\n" + "=" * 78)
+        print(f"WAVE 1 (cold pool) vs WAVE {args.waves} (warm pool) -- login_presence comparison")
+        print("=" * 78)
+        first_login = all_wave_metrics[0].summary_by_action().get("login_presence", {})
+        last_login = all_wave_metrics[-1].summary_by_action().get("login_presence", {})
+        print(f"  Wave 1 average:          {first_login.get('avg', 0):.2f}s")
+        print(f"  Wave {args.waves} average:          {last_login.get('avg', 0):.2f}s")
+        print(
+            "  If wave 1 is much slower than the later wave, that gap is the "
+            "one-time 'cold pool' cost -- not something a real, already-running "
+            "app would repeatedly pay.\n"
+        )
 
     if args.no_cleanup:
         print(
