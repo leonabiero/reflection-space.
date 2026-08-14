@@ -107,11 +107,22 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
     def pause():
         time.sleep(random.uniform(*pause_range))
 
+    def report(action, r):
+        # Prints one short line the moment an action finishes, so the
+        # terminal never goes silent for a long stretch -- earlier
+        # testing showed this silence is confusing and worrying to
+        # watch, especially when a step is slow or times out.
+        metrics.record(action, r["elapsed"], r["success"], r["timed_out"], r["error"])
+        status = "ok" if r["success"] else ("TIMEOUT" if r["timed_out"] else "FAILED")
+        print(f"  [user {user_index}] {action}: {status} ({r['elapsed']:.1f}s)")
+
+    print(f"  [user {user_index}] session starting...")
+
     # 1. Login / presence
     r = common.timed_with_timeout(
         update_user_activity, user_name, user_role, timeout=timeout,
     )
-    metrics.record("login_presence", r["elapsed"], r["success"], r["timed_out"], r["error"])
+    report("login_presence", r)
     pause()
 
     # 2. Dashboard (a lightweight real read -- how many completed
@@ -120,7 +131,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
     r = common.timed_with_timeout(
         get_completed_drafts, limit=10, timeout=timeout,
     )
-    metrics.record("dashboard", r["elapsed"], r["success"], r["timed_out"], r["error"])
+    report("dashboard", r)
     pause()
 
     # 3. Save a new draft (real DB write)
@@ -128,7 +139,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         save_draft, case_ref, "LOADTEST_DOC_TYPE", "Español", content, user_name, user_role,
         timeout=timeout,
     )
-    metrics.record("save_draft", r["elapsed"], r["success"], r["timed_out"], r["error"])
+    report("save_draft", r)
     draft_id = r["result"] if r["success"] else None
     if draft_id is None:
         # Can't continue this user's session without a draft id.
@@ -146,7 +157,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         r = common.timed_with_timeout(
             get_completed_drafts, limit=20, timeout=timeout,
         )
-        metrics.record("case_history", r["elapsed"], r["success"], r["timed_out"], r["error"])
+        report("case_history", r)
         pause()
 
     # 6. Knowledge Assistant -- a smaller fraction of users, mocked/$0 cost
@@ -154,7 +165,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         r = common.timed_with_timeout(
             common.mock_knowledge_assistant_ask, "Pregunta de prueba de carga", timeout=timeout,
         )
-        metrics.record("knowledge_assistant_ask", r["elapsed"], r["success"], r["timed_out"], r["error"])
+        report("knowledge_assistant_ask", r)
         pause()
 
     # 7. Finalize (submit) the draft -- most users finish their note.
@@ -166,7 +177,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         r = common.timed_with_timeout(
             finalize_draft, draft_id, content, user_name, timeout=timeout,
         )
-        metrics.record("finalize_draft", r["elapsed"], r["success"], r["timed_out"], r["error"])
+        report("finalize_draft", r)
         pause()
 
         # 8. Begin Reflection -- checks the real prefetch cache (was it
@@ -176,11 +187,13 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         )
         prefetch_hit = bool(r["result"]) if r["success"] else False
         common.mock_generate_reflection(content)
-        metrics.record("begin_reflection", r["elapsed"], r["success"], r["timed_out"], r["error"])
+        report("begin_reflection", r)
         metrics.record(
             "prefetch_cache_hit" if prefetch_hit else "prefetch_cache_miss",
             0.0, True, False, "",
         )
+
+    print(f"  [user {user_index}] session finished.")
 
 
 def main():
