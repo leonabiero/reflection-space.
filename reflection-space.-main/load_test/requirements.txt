@@ -1,0 +1,13 @@
+# Extra packages needed to run the scripts in this load_test/ folder.
+# These are IN ADDITION TO the main app's own requirements.txt --
+# install both.
+#
+# protobuf is pinned deliberately. Installing without this exact pin
+# was found (during earlier testing) to silently upgrade protobuf to
+# a newer version that breaks the main Streamlit app running locally.
+# Do not remove this pin without testing the main app afterwards.
+protobuf==6.33.6
+
+# Loads load_test/.env so these scripts can find your database and
+# API keys the same way the real deployed app does.
+python-dotenv==1.0.1

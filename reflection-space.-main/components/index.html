@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<!--
+  Screenshot Reporter -- a minimal, hand-written Streamlit component.
+
+  WHY THIS EXISTS
+  ------------------
+  Leon (the app's non-developer owner) wants a "Report a problem" button
+  that captures a screenshot of the app automatically. Streamlit has no
+  built-in screenshot API, so this component does it in the browser
+  (via the well-known html2canvas library) and sends the image back to
+  the Python side.
+
+  HOW IT WORKS / HOW FRAGILE THIS IS -- please read before touching
+  --------------------------------------------------------------------
+  A normal Streamlit custom component is a small React app built with
+  streamlit-component-lib and a build step (npm/webpack). To avoid
+  requiring Leon to run any build tooling, this file instead talks to
+  Streamlit's frontend directly using the same underlying browser
+  messages (window.postMessage) that streamlit-component-lib sends
+  under the hood. This is the SAME technique used by a few known
+  no-build-step community components (e.g. "streamlit-javascript").
+
+  This is NOT a documented, version-guaranteed public API -- it is the
+  actual wire protocol Streamlit's frontend currently listens for. If a
+  future Streamlit release changes it, this component could silently
+  stop returning a screenshot. That is why:
+    - Every failure path below falls back to sending `value: null`
+      rather than hanging forever.
+    - services/report_widget.py NEVER blocks sending a report on this
+      succeeding -- a report with no screenshot still gets logged and
+      emailed. The screenshot is a nice-to-have, not a dependency.
+
+  If reports stop including screenshots after a Streamlit upgrade, that
+  is the first thing to suspect -- ask Claude to re-check the current
+  Streamlit component message protocol and update this file only.
+
+  HISTORY (condensed) -- why the old "one giant html2canvas render"
+  approach was abandoned
+  --------------------------------------------------------------------
+  Earlier versions of this file tried to capture the ENTIRE scrollable
+  page in a single html2canvas call, by temporarily forcing Streamlit's
+  scroll container (`[data-testid="stAppViewContainer"]`) to
+  `overflow: visible; height: auto; max-height: none` so the browser
+  would lay out and paint content that is normally clipped off-screen,
+  then asking html2canvas to render that whole unclipped subtree at
+  once. Along the way this surfaced (and eventually fixed) some real
+  bugs worth remembering:
+    - A page containing a large plain HTML table (st.table -- NOT
+      st.dataframe, which is a lightweight canvas widget regardless of
+      row count) could make html2canvas walk thousands of DOM nodes on
+      the browser's single main thread, long enough to trigger
+      Chrome's "Page Unresponsive" dialog.
+    - This component itself lives inside an <iframe> (every Streamlit
+      custom component does). Pointing html2canvas at the whole page
+      made it try to capture itself mid-capture, which can hang.
+    - Forcing `overflow: visible` did make full content PAINT, but the
+      whole "unclip everything and render it all in one pass" strategy
+      is fundamentally fragile: it depends on every descendant
+      re-laying-out correctly outside its normal clipped/scrolled
+      context, which virtualized widgets and some canvas-backed
+      widgets don't do reliably. That is a structural ceiling, not
+      something fixable with more CSS overrides -- so as of this
+      rewrite we've stopped doing it.
+
+  CURRENT APPROACH (this rewrite) -- scroll, capture, stitch
+  --------------------------------------------------------------------
+  Instead of forcing the whole page to render unclipped in one pass, we
+  now do what a real screenshot browser extension does: scroll the
+  actual Streamlit scroll container to each position a person would
+  really scroll to, let it render normally (nothing is unclipped or
+  forced), capture ONLY the currently-visible viewport with
+  html2canvas, then move on to the next viewport. Once we've covered
+  the full scrollHeight, all the viewport captures are drawn onto one
+  tall off-screen <canvas> at their real scroll offsets and exported
+  exactly as before: `canvas.toDataURL("image/jpeg", 0.6)`. The
+  reporting API (what services/report_widget.py receives) is
+  unchanged -- it is still just that same base64 JPEG data URL, or
+  null on failure.
+
+  Why this is more reliable: every individual capture is a small,
+  cheap, "what's on screen right now" render -- exactly the kind of
+  capture that already worked reliably here before any full-page
+  attempts. Nothing has to be unclipped, re-laid-out, or rendered
+  outside its normal scrolled context, because at each step the
+  content genuinely IS on screen, the same way it would be for a human
+  scrolling through the page.
+
+  Known remaining limitation: a widget that virtualizes its OWN
+  internal scrolling (renders only its currently-visible rows inside
+  its own internal scroll region, independent of the page scroll) will
+  only show whatever rows happen to be visible inside it when the page
+  scroll passes that widget -- scrolling the page does not scroll
+  inside such a widget. This is a structural limit of any DOM-based
+  capture technique, including real browser extensions, not something
+  particular to this implementation.
+
+  Safety measures carried over unchanged from before:
+    - ALL <iframe> elements are skipped (ignoreElements) -- this is
+      what stops the component from trying to capture itself.
+    - Plain <table> elements / role="table" / elements with more than
+      40 children are skipped -- these are the expensive st.table-style
+      structures that could freeze the tab.
+    - A cheap total-element-count check happens once up front as a
+      backstop; pages above MAX_SAFE_ELEMENT_COUNT are skipped entirely
+      rather than risking a freeze.
+    - A global TIMEOUT_MS safety net still guarantees we eventually
+      call sendValue(null) and restore everything if anything above
+      takes too long or throws.
+
+  New in this rewrite, to satisfy "capture exactly what the user sees,
+  without letting the page change mid-capture":
+    - The user's real scroll position is saved before we start and
+      restored (on every exit path: success, failure, or timeout)
+      immediately before we hand control back.
+    - A full-screen overlay is shown on the actual visible page (not
+      just inside this hidden iframe) telling the person a screenshot
+      is being captured and not to interact. Because it sits on top of
+      everything with pointer-events enabled on itself, it also
+      physically blocks clicks from reaching the app underneath while
+      capture is in progress.
+    - Consecutive viewport captures deliberately OVERLAP by a small
+      percentage of the viewport height (rather than being placed
+      edge-to-edge). This is what the prompt calls for explicitly:
+      sticky headers, browser zoom, and fractional-pixel scroll
+      rounding can otherwise leave a thin missing (or misaligned)
+      strip between two captures. Because each capture is stitched
+      onto the output canvas at the exact scroll offset it was taken
+      at (not at an assumed fixed increment), the overlapping region
+      is simply painted over by the next capture down -- no gap, no
+      double-counted height.
+
+  Separately (see services/report_widget.py for the actual fix): a
+  capture that legitimately finishes with no screenshot (page skipped
+  as too large, or timed out) was being mistaken for "still in
+  progress" forever, which could let a report get sent without a
+  screenshot the person thought they'd already captured. That's a
+  Python-side state-tracking fix, not something in this file, and it
+  remains unaffected by this rewrite.
+-->
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body style="margin:0;">
+<div id="status" style="font-family: sans-serif; font-size: 13px; color: #666; padding: 4px;">
+  Capturing screenshot...
+</div>
+<script>
+(function () {
+  var SENT = false;
+
+  // If the page has more elements than this, we skip the screenshot
+  // rather than risk freezing the tab. This is a rare-case backstop --
+  // the ignoreElements rule below already removes the actual expensive
+  // content (plain HTML tables, iframes) before we get here, so this
+  // threshold is set high on purpose. It exists to catch genuinely
+  // unusual pages, not to limit normal use.
+  var MAX_SAFE_ELEMENT_COUNT = 6000;
+
+  // Give up on the ENTIRE multi-step capture after this long. Raised
+  // again (from 20000) because each step now waits ADAPTIVELY for the
+  // page to actually finish settling (up to ~1.2s worst case per step,
+  // versus a fixed 120ms before) rather than a constant short delay --
+  // this is still just a backstop for genuinely pathological pages,
+  // normal pages finish well within this.
+  var TIMEOUT_MS = 35000;
+
+  // Hard cap on how many viewport "steps" we'll take down the page,
+  // regardless of measured height. This protects against a page whose
+  // scrollHeight keeps growing while we capture it (e.g. infinite
+  // scroll) turning into an unbounded loop.
+  var MAX_STEPS = 25;
+
+  // Marks the overlay element so ignoreElements can exclude it from
+  // any capture in the rare fallback case where the capture target IS
+  // the overlay's parent (see below).
+  var OVERLAY_ID = "__reflection_space_capture_overlay__";
+
+  // Collected as we make temporary changes (scroll position, overlay,
+  // interaction blocking) so we can always put things back exactly as
+  // they were -- on every exit path (success, failure, or timeout).
+  var restoreFns = [];
+  function restoreAll() {
+    while (restoreFns.length) {
+      try { restoreFns.pop()(); } catch (e) { /* best effort */ }
+    }
+  }
+
+  function postToStreamlit(type, extra) {
+    var msg = Object.assign({ isStreamlitMessage: true, type: type }, extra || {});
+    window.parent.postMessage(msg, "*");
+  }
+
+  // Marks, on the REAL page's window object (survives even if THIS
+  // iframe instance gets torn down and reloaded), that a capture
+  // already ran to completion and what it returned. This file never
+  // listens for Streamlit's "streamlit:render" message (it only sends
+  // messages), so it has no way to tell "this load is a genuinely new
+  // capture request" apart from "this iframe got (re)loaded for some
+  // other reason" (for example a Streamlit rerun rebuilding the
+  // sidebar after "Send report" is clicked, which can reload a
+  // component iframe even though Python has already stopped asking
+  // for one). This flag is what lets a second, later load of this
+  // script notice "a result already exists -- replay it, don't redo
+  // the whole overlay+capture routine" -- see the check at the top of
+  // run(). It is consumed (deleted) the moment it is read, so it never
+  // blocks a real, later, intentional capture (a fresh "Capture
+  // screenshot" click).
+  var CAPTURE_COMPLETED_FLAG = "__reflection_space_capture_completed__";
+
+  function sendValue(value) {
+    if (SENT) return; // never send twice
+    SENT = true;
+    restoreAll();
+    try { parentWinRef[CAPTURE_COMPLETED_FLAG] = { value: value }; } catch (e) { /* best effort */ }
+    postToStreamlit("streamlit:setComponentValue", { value: value, dataType: "json" });
+  }
+  // Set as soon as we know parentWin (top of run()) so sendValue() can
+  // use it even from the very first paths inside run().
+  var parentWinRef = window.parent || window;
+
+  function setStatus(text) {
+    var el = document.getElementById("status");
+    if (el) el.innerText = text;
+  }
+
+  // Tell Streamlit this component iframe is alive, and give it a
+  // small fixed height (this component has no meaningful visible UI
+  // -- the real UI is the Python-side status/preview in the sidebar,
+  // plus the full-screen capture overlay this file injects into the
+  // parent page while a capture is running).
+  postToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+  postToStreamlit("streamlit:setFrameHeight", { height: 24 });
+
+  // Safety net: if the whole capture hasn't finished within
+  // TIMEOUT_MS for any reason (slow page, blocked script, unexpected
+  // error), give up and report "no screenshot" rather than leaving the
+  // report form stuck. sendValue() -> restoreAll() guarantees the
+  // overlay/scroll/interaction state gets put back even here.
+  window.setTimeout(function () {
+    if (!SENT) {
+      setStatus("Screenshot capture timed out -- continuing without it.");
+      sendValue(null);
+    }
+  }, TIMEOUT_MS);
+
+  // rAF x2: gives the browser two animation frames to finish any
+  // reflow/paint work (e.g. from the scroll we just performed) before
+  // we consider the page "settled" enough to capture.
+  function twoAnimationFrames() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
+  }
+
+  function delay(ms) {
+    return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
+  }
+
+  // ------------------------------------------------------------------
+  // DIAGNOSTIC ONLY -- lets a person confirm whether each individual
+  // viewport capture is already corrupted BEFORE stitching, without
+  // needing developer tools skills. Off by default (zero effect on
+  // normal use). To turn on for one test: open the browser's console
+  // (F12), paste `window.__RS_DEBUG__ = true`, press Enter, then click
+  // "Capture screenshot" as normal. A row of small thumbnails -- one
+  // per raw capture, in order -- appears in the top-left corner of the
+  // real page for a few seconds after the capture finishes, and the
+  // full-size data URLs are also left on `window.__RS_DEBUG_CAPTURES__`
+  // for closer inspection. Safe to leave in permanently.
+  // ------------------------------------------------------------------
+  function debugShowRawCaptures(parentDoc, parentWin, captures) {
+    if (!parentWin.__RS_DEBUG__) return;
+    try {
+      parentWin.__RS_DEBUG_CAPTURES__ = captures.map(function (c) {
+        return { y: c.y, dataUrl: c.canvas.toDataURL("image/png") };
+      });
+      var panel = parentDoc.createElement("div");
+      panel.setAttribute("style", [
+        "position:fixed", "top:8px", "left:8px", "z-index:2147483647",
+        "background:#111", "padding:6px", "border-radius:6px",
+        "display:flex", "gap:4px", "overflow-x:auto", "max-width:96vw",
+      ].join(";"));
+      captures.forEach(function (c, i) {
+        var img = parentDoc.createElement("img");
+        img.src = c.canvas.toDataURL("image/png");
+        img.title = "capture " + i + " @ scrollTop=" + c.y;
+        img.setAttribute("style", "height:140px;border:1px solid #555;");
+        panel.appendChild(img);
+      });
+      parentDoc.body.appendChild(panel);
+      window.setTimeout(function () {
+        if (panel.parentNode) panel.parentNode.removeChild(panel);
+      }, 15000);
+    } catch (e) { dlog("debugShowRawCaptures failed:", e); }
+  }
+
+  // Forces any lazy-loaded images anywhere in `root` to load right now
+  // (instead of waiting for them to individually scroll into view,
+  // which we want to short-circuit since we're about to scroll through
+  // everything ourselves anyway), then resolves once all of them have
+  // finished or a bounded backstop timer elapses. Called once up front
+  // for the whole page (long timeout), and again before EVERY
+  // individual viewport capture with a much shorter timeout, to catch
+  // images that weren't even in the DOM yet the first time around.
+  function forceEagerImages(root, maxWaitMs) {
+    return new Promise(function (resolve) {
+      var imgs = root.querySelectorAll('img[loading="lazy"]');
+      var pending = 0;
+      var settled = false;
+
+      function proceed() {
+        if (settled) return;
+        settled = true;
+        resolve();
+      }
+
+      imgs.forEach(function (img) {
+        img.loading = "eager";
+        if (!img.complete) {
+          pending++;
+          var done = function () {
+            pending -= 1;
+            if (pending <= 0) proceed();
+          };
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+        }
+      });
+
+      window.setTimeout(proceed, maxWaitMs || 1500);
+
+      if (pending === 0) proceed();
+    });
+  }
+
+  // Waits for `root`'s subtree to stop mutating (no DOM
+  // additions/removals/attribute changes for `quietMs`) before
+  // resolving, bounded by `maxWaitMs` so a page with genuinely
+  // continuous updates (a live-updating chart, a ticking clock) can
+  // never stall the capture indefinitely. This is what actually tells
+  // us Streamlit/React has finished committing whatever the recent
+  // scroll triggered (chart auto-sizing, custom-component iframes
+  // reporting their real height back after mount, expanders finishing
+  // their open/close re-render, etc.) instead of guessing with a fixed
+  // sleep.
+  function waitForStableFrame(root, quietMs, maxWaitMs) {
+    return new Promise(function (resolve) {
+      var start = performance.now();
+      var lastMutation = start;
+      var observer = null;
+      try {
+        observer = new MutationObserver(function () { lastMutation = performance.now(); });
+        observer.observe(root, { attributes: true, childList: true, subtree: true, characterData: true });
+      } catch (e) { /* MutationObserver unavailable -- fall through to the time cap below */ }
+
+      function tick() {
+        var now = performance.now();
+        var quiet = now - lastMutation >= quietMs;
+        var timedOut = now - start >= maxWaitMs;
+        if (quiet || timedOut || !observer) {
+          if (observer) observer.disconnect();
+          if (timedOut && !quiet) {
+            dlog("waitForStableFrame: hit the", maxWaitMs + "ms cap while the page was still mutating -- capturing anyway rather than stalling.");
+          }
+          resolve();
+          return;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  // Shared ignoreElements rule for every html2canvas call below.
+  function shouldIgnoreElement(el) {
+    try {
+      // Skip ALL iframes -- this is what stops the component from
+      // trying to capture itself (it lives inside one).
+      if (el.tagName === "IFRAME") return true;
+      if (el.tagName === "TABLE") return true;
+      if (el.getAttribute && el.getAttribute("role") === "table") return true;
+      if (el.id === OVERLAY_ID) return true;
+      if (el.children && el.children.length > 40) return true;
+    } catch (e) {
+      return false;
+    }
+    return false;
+  }
+
+  // Builds the "please don't interact" overlay directly on the real,
+  // visible page (window.parent's document) -- not inside this hidden
+  // iframe, since that's not where the person is looking. Being
+  // position:fixed, full-screen, and on top of everything with
+  // pointer-events enabled on itself, it both communicates what's
+  // happening and physically absorbs clicks so the page can't change
+  // mid-capture. Returns a remove() function.
+  function showCaptureOverlay(parentDoc) {
+    var overlay = parentDoc.createElement("div");
+    overlay.id = OVERLAY_ID;
+    overlay.setAttribute("style", [
+      "position:fixed", "inset:0", "z-index:2147483647",
+      "background:rgba(255,255,255,0.55)",
+      "display:flex", "align-items:center", "justify-content:center",
+      "text-align:center", "cursor:wait",
+      "font-family:sans-serif", "font-size:15px", "color:#222",
+      "pointer-events:auto",
+    ].join(";"));
+    overlay.innerHTML =
+      '<div style="background:#fff;border:1px solid #ddd;border-radius:8px;' +
+      'padding:20px 28px;box-shadow:0 4px 20px rgba(0,0,0,0.15);max-width:320px;">' +
+      "Capturing screenshot...<br>Please don't interact for a moment." +
+      "</div>";
+    // Block keyboard-driven interaction too (e.g. Tab/Enter reaching
+    // an already-focused element underneath).
+    var blockEvent = function (e) { e.stopPropagation(); e.preventDefault(); };
+    ["click", "mousedown", "mouseup", "keydown", "keyup", "wheel", "touchstart", "touchmove"]
+      .forEach(function (evt) {
+        overlay.addEventListener(evt, blockEvent, { capture: true });
+      });
+    parentDoc.body.appendChild(overlay);
+    return function remove() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+  }
+
+  function getParentDocument(w) {
+    try { return w && w.document ? w.document : null; } catch (e) { return null; }
+  }
+
+  // DEBUG LOGGING -- prefixed so it's easy to filter in devtools.
+  // Safe to leave in permanently: it's cheap and only fires during an
+  // active capture, but strip it out later if the noise isn't wanted.
+  function dlog() {
+    try {
+      var args = Array.prototype.slice.call(arguments);
+      console.log.apply(console, ["[screenshot-capture]"].concat(args));
+    } catch (e) { /* console unavailable, ignore */ }
+  }
+
+  // Nudges a scroll position by 1px and checks whether it actually
+  // moved, then restores it immediately. This is the ONLY reliable way
+  // to know an element "owns" scrolling -- Streamlit's DOM structure
+  // has changed which element that is across versions (at times
+  // stAppViewContainer, at times stMain, at times an inner wrapper),
+  // so we test empirically at runtime instead of trusting one
+  // hardcoded selector.
+  function nudgeAndCheckScrolls(getScrollFn, setScrollFn) {
+    var before = getScrollFn();
+    setScrollFn(before + 1);
+    var after = getScrollFn();
+    setScrollFn(before); // put it back immediately either way
+    return after !== before;
+  }
+
+  // Determines which element actually owns vertical scrolling right
+  // now, by testing real candidates in priority order rather than
+  // assuming one. Logs every candidate it tries so a future DOM change
+  // is immediately diagnosable from the console instead of silently
+  // capturing the wrong thing again.
+  function detectScrollOwner(parentDoc, parentWin) {
+    var selectors = [
+      '[data-testid="stMain"]',
+      '[data-testid="stAppViewContainer"]',
+      '[data-testid="stMainBlockContainer"]',
+      '[data-testid="block-container"]',
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var sel = selectors[i];
+      var el;
+      try { el = parentDoc.querySelector(sel); } catch (e) { el = null; }
+      if (!el) {
+        dlog("candidate", sel, "-> not found in DOM");
+        continue;
+      }
+      var hasOverflow = el.scrollHeight > el.clientHeight + 1;
+      var actuallyScrolls = hasOverflow && nudgeAndCheckScrolls(
+        function () { return el.scrollTop; },
+        function (v) { el.scrollTop = v; }
+      );
+      dlog("candidate", sel, "scrollHeight=", el.scrollHeight,
+        "clientHeight=", el.clientHeight, "scrollTop actually moves:", actuallyScrolls);
+      if (actuallyScrolls) {
+        return { target: el, usingWindowScroll: false, label: sel };
+      }
+    }
+
+    // No element candidate owns scrolling -- test the window/document
+    // itself before giving up.
+    var docEl = parentDoc.documentElement;
+    var windowScrolls = nudgeAndCheckScrolls(
+      function () { return parentWin.scrollY || docEl.scrollTop || 0; },
+      function (v) { parentWin.scrollTo(0, v); }
+    );
+    dlog("candidate window/document scrollHeight=", docEl.scrollHeight,
+      "innerHeight=", parentWin.innerHeight, "scrollTop actually moves:", windowScrolls);
+    if (windowScrolls) {
+      return { target: parentDoc.body || docEl, usingWindowScroll: true, label: "window" };
+    }
+
+    // Genuinely nothing scrolls (short page, or an unrecognized DOM
+    // structure) -- fall back to the first known container so a
+    // single-viewport capture can still happen rather than failing
+    // outright.
+    var fallback = parentDoc.querySelector('[data-testid="stAppViewContainer"]') || parentDoc.body || docEl;
+    dlog("no scroll owner detected -- falling back to", fallback, "(single viewport capture expected)");
+    return { target: fallback, usingWindowScroll: fallback === (parentDoc.body || docEl), label: "fallback/no-scroller" };
+  }
+
+  // Marks, on the REAL page's window object (not this iframe's own
+  // window, which is a fresh one every time), that a capture is
+  // currently in progress. This is a belt-and-braces guard: even if
+  // something outside our control (a slow network causing Streamlit
+  // to reconnect and re-render mid-capture, a stray double click that
+  // slips past the overlay, etc.) causes this script to start running
+  // a second time while a first capture hasn't finished, this flag
+  // makes the second run refuse to show a second overlay or start a
+  // second html2canvas pass -- it just quietly reports "no screenshot"
+  // instead. Cleared on every exit path via restoreFns/restoreAll(),
+  // same as the scroll position and overlay.
+  var CAPTURE_IN_PROGRESS_FLAG = "__reflection_space_capture_in_progress__";
+
+  async function run() {
+    var parentWin = window.parent || window;
+    var parentDoc = getParentDocument(parentWin) || document;
+    parentWinRef = parentWin;
+
+    // If a capture already completed earlier on the real page, this
+    // load is almost certainly a spurious remount of this same
+    // component (for example Streamlit rebuilding the sidebar after
+    // "Send report" triggers st.rerun()), not a genuine new capture
+    // request -- a real new request only ever happens after the person
+    // clicks "Capture screenshot" again, which this file can't
+    // directly observe, but which also can't happen before this stale
+    // leftover flag has been read at least once. Replay the previous
+    // result immediately (no overlay, no re-capture), then consume the
+    // flag so a real future capture is never blocked by it.
+    if (Object.prototype.hasOwnProperty.call(parentWin, CAPTURE_COMPLETED_FLAG)) {
+      var replay = parentWin[CAPTURE_COMPLETED_FLAG];
+      try { delete parentWin[CAPTURE_COMPLETED_FLAG]; } catch (e) { parentWin[CAPTURE_COMPLETED_FLAG] = undefined; }
+      dlog("a capture already completed earlier on the real page -- this load looks like a spurious remount, not a new request. Replaying the previous result without showing the overlay or capturing again.");
+      SENT = true;
+      postToStreamlit("streamlit:setComponentValue", { value: replay.value, dataType: "json" });
+      return;
+    }
+
+    if (parentWin[CAPTURE_IN_PROGRESS_FLAG]) {
+      dlog("a capture is already in progress on the real page -- refusing to start a second one.");
+      setStatus("A capture is already in progress -- continuing without a second one.");
+      sendValue(null);
+      return;
+    }
+    parentWin[CAPTURE_IN_PROGRESS_FLAG] = true;
+    restoreFns.push(function () {
+      try { delete parentWin[CAPTURE_IN_PROGRESS_FLAG]; } catch (e) { parentWin[CAPTURE_IN_PROGRESS_FLAG] = false; }
+    });
+
+    // Identify the actual scrolling container by testing candidates
+    // empirically (see detectScrollOwner above) rather than assuming
+    // a single hardcoded selector -- this is the fix for the root
+    // cause where the page never scrolled: the old hardcoded selector
+    // (stAppViewContainer) still existed in the DOM but had stopped
+    // being the element that actually scrolls.
+    var detected = detectScrollOwner(parentDoc, parentWin);
+    var target = detected.target;
+    var usingWindowScroll = detected.usingWindowScroll;
+    dlog("using scroll owner:", detected.label, target);
+
+    // Cheap, near-instant safety check -- does NOT redraw anything,
+    // just counts existing elements.
+    var elementCount = target.querySelectorAll("*").length;
+    if (elementCount > MAX_SAFE_ELEMENT_COUNT) {
+      setStatus("This page is too large to screenshot automatically -- continuing without it.");
+      sendValue(null);
+      return;
+    }
+
+    // 1. Save the user's current scroll position, and register its
+    // restoration on every exit path.
+    var originalScroll = usingWindowScroll
+      ? (parentWin.scrollY || parentDoc.documentElement.scrollTop || 0)
+      : target.scrollTop;
+    restoreFns.push(function () {
+      if (usingWindowScroll) parentWin.scrollTo(0, originalScroll);
+      else target.scrollTop = originalScroll;
+    });
+
+    // 2 & 3. Show the "capturing" overlay and block interaction; also
+    // guarantee its removal on every exit path.
+    var removeOverlay = showCaptureOverlay(parentDoc);
+    restoreFns.push(removeOverlay);
+
+    setStatus("Capturing screenshot...");
+
+    // One-time, whole-page pass so no viewport along the way shows a
+    // blank lazy-loaded image.
+    await forceEagerImages(target, 1500);
+
+    function getScroll() {
+      return usingWindowScroll
+        ? (parentWin.scrollY || parentDoc.documentElement.scrollTop || 0)
+        : target.scrollTop;
+    }
+    function setScroll(y) {
+      if (usingWindowScroll) parentWin.scrollTo(0, y);
+      else target.scrollTop = y;
+    }
+
+    var viewportWidth = usingWindowScroll ? parentWin.innerWidth : target.clientWidth;
+    var viewportHeight = usingWindowScroll ? parentWin.innerHeight : target.clientHeight;
+    var contentHeight = Math.max(
+      usingWindowScroll ? parentDoc.documentElement.scrollHeight : target.scrollHeight,
+      viewportHeight
+    );
+
+    if (!viewportWidth || !viewportHeight) {
+      setStatus("Screenshot capture unavailable -- continuing without it.");
+      sendValue(null);
+      return;
+    }
+
+    // IMPORTANT: this is intentionally the REAL browser window size,
+    // not viewportWidth/viewportHeight above. html2canvas's
+    // windowWidth/windowHeight options do not control the crop -- they
+    // control how big a "browser window" it lays the WHOLE cloned page
+    // out in (header, sidebar, everything) before painting anything.
+    // When target is an internal scroll container (not the window
+    // itself), target.clientWidth/clientHeight are SMALLER than the
+    // real window (e.g. they exclude a header above target), so
+    // passing those as windowWidth/windowHeight forced Streamlit's
+    // viewport-relative layout (flex containers, 100vh regions,
+    // responsive breakpoints) to recompute at the wrong size on every
+    // single scroll step -- reflowing headers, sidebars, and widgets
+    // into different positions each time. That mismatch between
+    // "what the real page looks like" and "what got rendered at this
+    // fake smaller size" is what produced the overlapping text,
+    // duplicated widgets, doubled expanders, and shifted/blank regions
+    // in the final screenshot. Using the real window size here makes
+    // the clone lay out identically to what the person actually sees;
+    // width/height (the crop) still correctly stay at target's own
+    // (possibly smaller) box size below.
+    var realWindowWidth = parentWin.innerWidth || viewportWidth;
+    var realWindowHeight = parentWin.innerHeight || viewportHeight;
+
+    // Do NOT assume viewport height divides evenly into page height,
+    // and deliberately OVERLAP consecutive captures so that sticky
+    // headers, browser zoom, and fractional-pixel scroll rounding
+    // can't leave a thin missing strip between two captures. Each
+    // capture is later stitched onto the output at the exact scroll
+    // offset it was actually taken at, so the overlap is simply
+    // painted over -- no gap, no double-counted height.
+    var overlapPx = Math.max(24, Math.round(viewportHeight * 0.08));
+    var step = Math.max(1, viewportHeight - overlapPx);
+    var maxScroll = Math.max(0, contentHeight - viewportHeight);
+
+    // 4 & 5. Identify the scrolling container (done above) and scroll
+    // to the top before the first capture.
+    setScroll(0);
+    await twoAnimationFrames();
+    await delay(120);
+
+    var captures = [];
+    var y = 0;
+    var steps = 0;
+    var prevActualY = null;
+
+    while (true) {
+      var scrollBefore = getScroll();
+      setScroll(y);
+      var actualY = getScroll(); // account for any browser clamping/rounding
+
+      dlog("iteration " + steps + " | scroll owner:", detected.label,
+        "| requested scrollTop:", y,
+        "| scrollTop before set:", scrollBefore,
+        "| scrollTop after set:", actualY,
+        "| scrollHeight:", usingWindowScroll ? parentDoc.documentElement.scrollHeight : target.scrollHeight,
+        "| clientHeight:", usingWindowScroll ? parentWin.innerHeight : target.clientHeight,
+        "| viewportHeight:", viewportHeight,
+        "| maxScroll:", maxScroll);
+
+      // Verify scrollTop actually changed when we asked it to. If it
+      // didn't, the detected element isn't really scrollable (or we've
+      // hit some other wall) -- stop immediately instead of repeating
+      // the same capture up to MAX_STEPS times, which is what
+      // previously looked like a freeze.
+      if (steps > 0 && prevActualY !== null && actualY === prevActualY && y !== prevActualY) {
+        dlog("WARNING: scrollTop did not move after requesting", y,
+          "(still at", actualY, "). '" + detected.label + "' is not actually scrollable here.",
+          "Stopping the loop early -- captured", captures.length, "viewport(s) so far.");
+        break;
+      }
+
+      // 8. Wait for Streamlit to actually finish rendering newly
+      // visible content before capturing it, instead of guessing with
+      // a fixed sleep. A fixed delay was the root cause of corruption
+      // that got WORSE further down the page: content revealed by a
+      // scroll step for the first time (charts auto-sizing via
+      // ResizeObserver, custom-component iframes reporting their real
+      // height back after mount, expanders finishing their
+      // open/close re-render, images not yet decoded) needs a
+      // variable amount of time to settle, not a constant one. Near
+      // the top of the page there's usually little or nothing left to
+      // settle, so a short fixed delay happened to be enough and the
+      // first capture looked fine -- but each step further down can
+      // reveal progressively more never-before-rendered widgets all
+      // settling at once, and the same fixed delay increasingly
+      // failed to cover it. html2canvas synchronously reads the live
+      // DOM's current computed styles and positions the moment it
+      // starts, so capturing mid-settle bakes in whatever was still
+      // mid-transition or not yet painted -- that is what produced
+      // misplaced icons, duplicated-looking labels, and a growing
+      // white background further down. waitForStableFrame actually
+      // watches the DOM and only proceeds once it has genuinely
+      // stopped changing (or a hard cap is hit, so a widget with truly
+      // continuous updates can't stall the capture forever).
+      await twoAnimationFrames();
+      await waitForStableFrame(target, 150, 900);
+      // Catch any images that have entered the DOM (or come into
+      // view for the first time) since the up-front forceEagerImages
+      // call at the very start of the whole capture -- short timeout
+      // since this runs once per viewport, not once total.
+      await forceEagerImages(target, 300);
+
+      // 6/9. Capture ONLY the currently visible viewport.
+      dlog("iteration " + steps + ": starting html2canvas...");
+      var captureStartedAt = performance.now();
+      // IMPORTANT: windowWidth/windowHeight tell html2canvas how big a
+      // "browser window" to lay the WHOLE cloned page out in (header,
+      // sidebar, everything -- not just target) before drawing
+      // anything. These MUST be the real browser window's actual size
+      // (realWindowWidth/realWindowHeight, computed above from
+      // parentWin.innerWidth/innerHeight) so Streamlit's
+      // viewport-relative layout (flex containers, 100vh regions,
+      // responsive breakpoints) computes the exact same positions the
+      // person actually sees.
+      //
+      // Earlier versions of this call set windowHeight to the FULL
+      // page height on every iteration (so it could crop a slice out
+      // afterwards). That silently resurrected the "unclip everything
+      // and render it all in one giant pass" approach this file's own
+      // history notes above say was abandoned -- it just did it once
+      // per scroll step instead of once overall, and was fixed by
+      // switching to viewport-sized windowWidth/windowHeight.
+      //
+      // A related, subtler version of that same mistake crept back in
+      // later: using viewportWidth/viewportHeight (target's OWN box
+      // size -- smaller than the real window whenever target sits
+      // below a header/toolbar) for windowWidth/windowHeight too. That
+      // forced the ENTIRE page to re-layout inside a fake window
+      // shorter than reality on every single scroll step, reflowing
+      // headers/sidebars/widgets into different positions each pass --
+      // which is what produced the overlapping text, duplicated
+      // widgets, doubled expanders, and shifted/blank regions. The
+      // crop size (width/height below) correctly stays at target's own
+      // box size; only the LAYOUT window size needed to be the real
+      // one.
+      //
+      // We also do NOT pass scrollX/scrollY here. Leaving them unset
+      // lets html2canvas read the REAL current scroll position (the
+      // one we just set with setScroll(y) above) instead of forcing
+      // the clone to pretend it's scrolled to the top -- which is what
+      // let each "crop" actually land on the right content.
+      var canvas = await html2canvas(target, {
+        logging: false,
+        useCORS: true,
+        scale: 1,
+        x: 0,
+        y: 0,
+        width: viewportWidth,
+        height: viewportHeight,
+        windowWidth: realWindowWidth,
+        windowHeight: realWindowHeight,
+        ignoreElements: shouldIgnoreElement,
+      });
+      // This log line only ever appears AFTER html2canvas's promise
+      // resolves, which is itself the confirmation that each call
+      // completes before the next iteration begins (the loop body is
+      // `await`-ed sequentially, not fired in parallel).
+      dlog("iteration " + steps + ": html2canvas finished in",
+        Math.round(performance.now() - captureStartedAt) + "ms");
+
+      captures.push({ y: actualY, canvas: canvas });
+      steps++;
+      prevActualY = actualY;
+
+      if (actualY >= maxScroll || steps >= MAX_STEPS) break;
+      y = Math.min(actualY + step, maxScroll);
+    }
+
+    dlog("capture loop finished after", steps, "iteration(s),",
+      captures.length, "viewport(s) captured");
+
+    // DIAGNOSTIC ONLY (see debugShowRawCaptures above) -- shows the
+    // raw, pre-stitch captures exactly as html2canvas produced them,
+    // so corruption can be confirmed to exist (or not) before the
+    // stitching step below ever runs. No effect unless
+    // window.__RS_DEBUG__ was set to true before capture started.
+    debugShowRawCaptures(parentDoc, parentWin, captures);
+
+    // Re-measure content height after the scroll pass in case
+    // anything settled to a slightly different final size.
+    var finalContentHeight = Math.max(
+      contentHeight,
+      usingWindowScroll ? parentDoc.documentElement.scrollHeight : target.scrollHeight
+    );
+    // Canvas height ceiling as a defensive cap for pathologically long
+    // pages (browsers impose their own limits well beyond this).
+    var stitchedHeight = Math.min(Math.round(finalContentHeight), 20000);
+
+    // 11. Stitch all captured viewports into one tall off-screen
+    // canvas, each drawn at the real scroll offset it was captured at
+    // (this is what correctly absorbs the deliberate overlap between
+    // consecutive captures -- later, lower captures simply repaint the
+    // small overlapping strip from the capture above them).
+    var stitched = document.createElement("canvas");
+    stitched.width = viewportWidth;
+    stitched.height = stitchedHeight;
+    var ctx = stitched.getContext("2d");
+    captures.forEach(function (c) {
+      ctx.drawImage(c.canvas, 0, c.y);
+    });
+
+    // 12. Export using the exact same format the Python side already
+    // expects -- no change to the reporting API.
+    var dataUrl = stitched.toDataURL("image/jpeg", 0.6);
+    setStatus("Screenshot captured.");
+    sendValue(dataUrl);
+  }
+
+  run().catch(function () {
+    setStatus("Could not capture screenshot -- continuing without it.");
+    sendValue(null);
+  });
+})();
+</script>
+</body>
+</html>
