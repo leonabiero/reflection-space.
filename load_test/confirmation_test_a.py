@@ -11,18 +11,23 @@ practitioner does during a session:
     1. Log in / show up as active           (touches the database)
     2. Open the dashboard                   (touches the database)
     3. Save a new reflective note as a draft (touches the database)
-    4. -> this automatically starts the background "historical
-          context prefetch" feature, exactly like it does for a real
-          user (touches Gemini + Qdrant + the database)
-    5. Check Case History                   (touches the database) -- most users
-    6. Ask the Knowledge Assistant a question (FAKE/mocked -- $0 cost) -- some users
-    7. Finalize (submit) the draft           (touches the database + Gemini + Qdrant,
+    4. Check Case History                   (touches the database) -- most users
+    5. Ask the Knowledge Assistant a question (FAKE/mocked -- $0 cost) -- some users
+    6. Finalize (submit) the draft           (touches the database + Gemini + Qdrant,
                                                for real -- this is the step that had
                                                indexing failures before)
-    8. Begin Reflection                      (checks the real prefetched-context
-                                               cache, then a FAKE/mocked reflection
+    7. Begin Reflection                      (a real, live historical-context
+                                               lookup, then a FAKE/mocked reflection
                                                generation -- $0 cost) -- users who
                                                finalized
+
+Note: this app previously had a "historical context prefetch" feature
+that started a background job right after step 3 to precompute step 7's
+context lookup in advance. That feature has been removed (its unbounded
+background workers were found to contribute to database connection-pool
+exhaustion under concurrent use), so this test no longer includes it --
+step 7 now always performs a real, live lookup, exactly like the app
+itself does.
 
 Every fake user's case is tagged "LOADTEST_..." so it can never be
 confused with a real social worker's case, and so it can be safely
@@ -73,7 +78,7 @@ from services.draft_storage import (
     get_completed_drafts,
     finalize_draft,
 )
-from services.context_prefetch import trigger_prefetch, get_cached_context
+from rdi.context_engine import get_historical_context
 
 import common
 
@@ -90,7 +95,7 @@ THRESHOLDS = {
     "case_history":            {"pass": 3.0, "warn": 8.0},
     "knowledge_assistant_ask": {"pass": 1.0, "warn": 2.0},  # mocked -- should always be fast
     "finalize_draft":          {"pass": 5.0, "warn": 12.0},  # includes real Gemini + Qdrant write
-    "begin_reflection":        {"pass": 2.0, "warn": 5.0},
+    "begin_reflection":        {"pass": 2.0, "warn": 5.0},  # real live historical-context lookup (~1s baseline)
 }
 
 
@@ -145,14 +150,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         # Can't continue this user's session without a draft id.
         return
 
-    # 4. Kick off the real background historical-context prefetch,
-    # exactly as pages/documentation.py does after a real save. This
-    # doesn't block the user (or this script) -- it runs on its own
-    # background thread, same as in the real app.
-    trigger_prefetch(draft_id, case_ref, content)
-    pause()
-
-    # 5. Case History -- most users check this, not all
+    # 4. Case History -- most users check this, not all
     if random.random() < 0.7:
         r = common.timed_with_timeout(
             get_completed_drafts, limit=20, timeout=timeout,
@@ -160,7 +158,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         report("case_history", r)
         pause()
 
-    # 6. Knowledge Assistant -- a smaller fraction of users, mocked/$0 cost
+    # 5. Knowledge Assistant -- a smaller fraction of users, mocked/$0 cost
     if random.random() < 0.3:
         r = common.timed_with_timeout(
             common.mock_knowledge_assistant_ask, "Pregunta de prueba de carga", timeout=timeout,
@@ -168,7 +166,7 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         report("knowledge_assistant_ask", r)
         pause()
 
-    # 7. Finalize (submit) the draft -- most users finish their note.
+    # 6. Finalize (submit) the draft -- most users finish their note.
     # This is REAL: it writes to Postgres, then really calls Gemini to
     # embed the text and really writes the vector into Qdrant. This is
     # the exact step that produced the earlier open finding (859
@@ -180,18 +178,16 @@ def simulate_one_user(user_index, run_id, pause_range, timeout, metrics):
         report("finalize_draft", r)
         pause()
 
-        # 8. Begin Reflection -- checks the real prefetch cache (was it
-        # ready in time?), then a fake/mocked reflection generation.
+        # 7. Begin Reflection -- a real, live historical-context lookup
+        # (same call pages/reflection_space.py makes; the app's earlier
+        # background "prefetch" of this lookup has been removed -- see
+        # config.py), then a fake/mocked reflection generation.
         r = common.timed_with_timeout(
-            get_cached_context, draft_id, timeout=timeout,
+            get_historical_context, case_ref, exclude_ids={draft_id}, query_text=content,
+            timeout=timeout,
         )
-        prefetch_hit = bool(r["result"]) if r["success"] else False
         common.mock_generate_reflection(content)
         report("begin_reflection", r)
-        metrics.record(
-            "prefetch_cache_hit" if prefetch_hit else "prefetch_cache_miss",
-            0.0, True, False, "",
-        )
 
     print(f"  [user {user_index}] session finished.")
 
