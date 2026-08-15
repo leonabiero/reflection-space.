@@ -1,6 +1,5 @@
 import streamlit as st
 from services.draft_storage import save_draft
-from services.context_prefetch import trigger_prefetch
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
@@ -37,12 +36,7 @@ with error_boundary(
 
     if st.button(T["save"]):
         if text.strip():
-            new_draft_id = save_draft(case_ref, doc_type, language, text, user_name, user_role)
-            # Performance: kick off historical-context retrieval for this
-            # draft in the background now, instead of making the
-            # practitioner wait for it later at "Begin Reflection" -- see
-            # services/context_prefetch.py for the full design.
-            trigger_prefetch(new_draft_id, case_ref, text)
+            save_draft(case_ref, doc_type, language, text, user_name, user_role)
             st.session_state.doc_reset += 1
             st.session_state.doc_type_idx = 0
             st.session_state.save_status = "success"
