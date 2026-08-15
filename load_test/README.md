@@ -9,11 +9,10 @@ separately).
 ## What it actually does
 
 It starts several "fake social workers" at once, in your terminal.
-Each fake user logs in, checks the dashboard, saves a note, gets a
-background historical-context prefetch started for them (the real
-feature), sometimes checks Case History, sometimes asks the Knowledge
-Assistant a question, usually finalizes (submits) their note, and
-then begins a reflection.
+Each fake user logs in, checks the dashboard, saves a note, sometimes
+checks Case History, sometimes asks the Knowledge Assistant a
+question, usually finalizes (submits) their note, and then begins a
+reflection (a real, live historical-context lookup).
 
 **Important, so there are no surprises:** generating a full reflection
 and asking the Knowledge Assistant are **faked** in this test (no real
