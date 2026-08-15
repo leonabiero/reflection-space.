@@ -91,6 +91,21 @@ PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES",
 DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "1"))
 DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
 
+# DB_POOL_HEALTH_RECHECK_SECONDS: a pooled connection is only re-verified
+# with a liveness check (see services/db_pool.py) if it hasn't been
+# successfully verified in at least this many seconds. Load testing
+# (10 concurrent users) measured this liveness check costing a real,
+# consistent ~350ms of network round-trip time on every single checkout
+# -- worth paying occasionally to catch a connection Neon or the network
+# silently dropped while idle, but not worth paying on every checkout of
+# a connection that was just used and returned a moment ago. 30 seconds
+# is comfortably shorter than the minutes-long idle windows where a
+# connection actually risks going stale (e.g. Neon's autosuspend/
+# compute-scale-to-zero behavior), so real staleness is still caught
+# quickly -- this only skips redundant back-to-back re-checks during
+# active use.
+DB_POOL_HEALTH_RECHECK_SECONDS = int(os.getenv("DB_POOL_HEALTH_RECHECK_SECONDS", "30"))
+
 # Default page size used ONLY when a caller of one of the newly
 # paginated read functions (see Change 4 -- get_audit_log(),
 # get_completed_drafts(), get_all_feedback(), get_pending_deletions())
