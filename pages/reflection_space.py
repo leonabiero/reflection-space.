@@ -12,7 +12,6 @@ from services.rag_logging import rag_log
 from services.explanation_builder import build_explanations, similarity_category
 from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from rdi.context_engine import get_historical_context
-from services.context_prefetch import get_cached_context, purge_stale_prefetch_cache
 from rdi.orchestrator import run_reflection
 from services.error_log import error_boundary, render_application_error_screen
 from rdi.conversation_builder import build_conversation
@@ -31,14 +30,6 @@ with error_boundary(
 ):
 
     st.title(T["nav_reflection"])
-
-    # Safety-net cleanup for any historical-context prefetch results that
-    # were computed but never consumed (see services/context_prefetch.py).
-    # No background scheduler on this hosting setup, so -- same pattern
-    # as pages/case_history.py's purge_expired_deletions() -- this is
-    # purged opportunistically on the page every practitioner visits to
-    # begin a reflection.
-    purge_stale_prefetch_cache()
 
     # trigger -> companion dict, so the workspace can look up label/focus
     # when continuing a conversation, without re-deriving it from the
@@ -897,28 +888,17 @@ with error_boundary(
                 # not anyone's private in-progress draft.
                 selected_text = "\n\n".join(d[3] for d in selected)
 
-                # Performance fast path: if exactly one draft is
-                # selected, a background job likely already computed
-                # this exact retrieval right after that draft was saved
-                # (see services/context_prefetch.py, triggered from
-                # pages/documentation.py) -- same case_ref, same single
-                # -draft content, same exclude set. A cache hit serves
-                # instantly, skipping the live Qdrant + Postgres round
-                # trip below entirely.
-                #
-                # Multi-draft selections always take the live path: the
-                # combined query text of several drafts together is
-                # never something prefetch precomputes (see
-                # services/context_prefetch.py's module docstring for
-                # why), so there is nothing to look up for that case.
-                historical = None
-                if len(selected) == 1:
-                    historical = get_cached_context(selected[0][0])
-
-                if historical is None:
-                    historical = get_historical_context(
-                        case_ref, exclude_ids=selected_ids, query_text=selected_text,
-                    )
+                # Live retrieval: a Qdrant + Postgres round trip (measured
+                # at roughly 1 second), run every time "Begin Reflection"
+                # is clicked. A prior version of this app precomputed this
+                # in the background right after a draft was saved, but
+                # that background prefetching was removed after load
+                # testing showed its unbounded background workers
+                # contributed to database connection-pool exhaustion under
+                # concurrent use -- see config.py.
+                historical = get_historical_context(
+                    case_ref, exclude_ids=selected_ids, query_text=selected_text,
+                )
 
                 # Reset any leftover historical-document checkbox state from
                 # a previous reflection context before this new one is
