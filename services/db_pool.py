@@ -146,6 +146,26 @@ connection that would fail later and confusingly; now, the caller gets
 an honest, immediate failure it can catch the same way it already
 catches any other database error (see e.g. services/rate_limiter.py's
 "fails open" handling).
+
+Performance/reliability fix: pre-warming the pool
+-----------------------------------------------------
+Even with the two fixes above, load testing (10 concurrent users)
+still showed a real, repeatable slowdown at the START of every burst
+of traffic: the 2nd person's database call would wait ~1.3s, the 3rd
+~2.6s, the 4th ~4.1s, climbing in lockstep. This was not a liveness-
+check cost (already fixed above) or a broken-connection cost (also
+fixed above) -- it was the pool itself only having ONE connection
+open (the old DB_POOL_MIN_CONN default), forced to open every
+additional connection needed one at a time, competing with real users
+who were all waiting for that same growth to happen.
+
+The fix lives in config.py: DB_POOL_MIN_CONN now defaults to the same
+value as DB_POOL_MAX_CONN, so every connection this process will ever
+use gets opened up front, in one place, at pool-creation time --
+before real user traffic is competing for them, not during it. See
+config.py's comment on DB_POOL_MIN_CONN for the full trade-off this
+involves (a few extra seconds the first time the pool is created, in
+exchange for real users never again queueing behind pool growth).
 """
 
 import inspect
