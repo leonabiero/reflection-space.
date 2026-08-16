@@ -70,6 +70,7 @@ pass --no-cleanup.
 
 import argparse
 import threading
+import time
 import concurrent.futures
 
 import _bootstrap  # noqa: F401  (sets up imports + loads .env -- must run first)
@@ -87,8 +88,16 @@ LANGUAGE = "Español"
 # confirmation_test_a.py uses for its per-action timeout.
 FINALIZE_TIMEOUT_SECONDS = 30
 
+# How long to wait, after a burst of submissions, before checking
+# what actually happened to embedding -- see _check_embedding_statuses()
+# docstring for why this matters. Chosen generously: real testing
+# showed calls that were reported as TIMEOUT by this test (30s) still
+# going on to genuinely succeed a few seconds later once a database
+# connection finally became free.
+EMBEDDING_CHECK_GRACE_SECONDS = 25
 
-def _check_embedding_statuses(draft_ids):
+
+def _check_embedding_statuses(draft_ids, grace_seconds=0):
     """
     Looks up, directly in the database, what actually happened to
     each of the given draft_ids' embedding attempt. Returns a dict
@@ -99,7 +108,23 @@ def _check_embedding_statuses(draft_ids):
       missing        -- the draft_id isn't in the database at all
                         (its own save/finalize must have failed
                         before embedding was even attempted)
+
+    `grace_seconds`, if given, waits that long before checking. This
+    matters because a finalize_draft() call that timed out from this
+    test's point of view (see FINALIZE_TIMEOUT_SECONDS) has NOT
+    necessarily actually stopped -- common.py's timed_with_timeout()
+    gives up WAITING on it, but the real background work can still be
+    quietly finishing. Checking immediately after a burst of timeouts
+    was found, in real testing, to report a document as still
+    "nothing happened yet" when it had in fact already succeeded a
+    few seconds later -- a false negative, not a real reliability
+    problem. The grace period lets slow-but-genuinely-working calls
+    actually finish before this function judges the outcome.
     """
+    if grace_seconds:
+        print(f"  Waiting {grace_seconds}s to let any still-in-progress background work finish before checking...")
+        time.sleep(grace_seconds)
+
     if not draft_ids:
         return {"indexed": 0, "failed": 0, "not_applicable": 0, "missing": 0}
 
@@ -182,7 +207,8 @@ def run_one_level(level, run_id, metrics):
         r = common.timed_with_timeout(finalize_draft, draft_id, content, user_name, timeout=FINALIZE_TIMEOUT_SECONDS)
         metrics.record("finalize_draft", r["elapsed"], r["success"], r["timed_out"], r["error"])
         status = "ok" if r["success"] else ("TIMEOUT" if r["timed_out"] else "FAILED")
-        print(f"    [draft {draft_id}] finalize_draft: {status} ({r['elapsed']:.1f}s)")
+        detail = "" if r["success"] else f" -- {r['error']}"
+        print(f"    [draft {draft_id}] finalize_draft: {status} ({r['elapsed']:.1f}s){detail}")
         return draft_id
 
     finalized_draft_ids = []
@@ -192,7 +218,23 @@ def run_one_level(level, run_id, metrics):
             finalized_draft_ids.append(f.result())
 
     print(f"  Checking what actually happened to embedding for all {len(finalized_draft_ids)} document(s)...")
-    counts = _check_embedding_statuses(finalized_draft_ids)
+    # First check with a grace period -- some finalize_draft() calls
+    # above may have been reported as TIMEOUT (this test gave up
+    # WAITING on them) without the real background work having
+    # actually stopped. Checking immediately would unfairly count a
+    # slow-but-genuinely-working call as a failure.
+    counts = _check_embedding_statuses(finalized_draft_ids, grace_seconds=EMBEDDING_CHECK_GRACE_SECONDS)
+
+    still_unresolved = counts.get("unexpected(None)", 0)
+    if still_unresolved:
+        # A handful of documents still show no result at all even
+        # after the first grace period -- give them one more, longer
+        # window before concluding anything is genuinely stuck. This
+        # keeps the test honest in both directions: not blaming a
+        # slow-but-working call, and not waiting forever either.
+        print(f"  {still_unresolved} document(s) still show no result -- waiting once more before concluding anything is stuck...")
+        counts = _check_embedding_statuses(finalized_draft_ids, grace_seconds=EMBEDDING_CHECK_GRACE_SECONDS)
+
     print(f"  Embedding outcome at {level} simultaneous submissions:")
     print(f"    indexed (success):        {counts.get('indexed', 0)}")
     print(f"    failed:                   {counts.get('failed', 0)}")
@@ -200,7 +242,8 @@ def run_one_level(level, run_id, metrics):
     print(f"    missing (never even saved/finalized):                {counts.get('missing', 0)}")
     for key, value in counts.items():
         if key.startswith("unexpected(") and value:
-            print(f"    {key}: {value}")
+            label = "still unresolved after two grace periods -- genuinely stuck, not just slow" if key == "unexpected(None)" else key
+            print(f"    {label}: {value}")
 
     if counts.get("failed", 0) or any(k.startswith("unexpected(") for k in counts):
         print(f"    ^ Genuine embedding reliability problem at this concurrency level -- worth investigating before the pilot.")
