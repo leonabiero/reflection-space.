@@ -82,41 +82,52 @@ PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES",
 # DB_POOL_MIN_CONN: connections opened eagerly when the pool is first
 # created (kept warm even when idle).
 # DB_POOL_MAX_CONN: hard ceiling on concurrent connections this
-# process will ever hold open. Neon's free/pilot tiers commonly cap
-# total concurrent connections in the low tens, and a single
-# Streamlit process can have several user sessions running
-# concurrently (each on its own script-run thread), so this is set
-# conservatively by default -- raise it via the environment if a
-# larger Postgres plan allows it.
+# process will ever hold open. Neon's own documented limits are much
+# higher than anything this app is likely to need (their pooled
+# endpoint accepts up to 10,000 client connections, and even a small
+# compute size allows several hundred concurrent connections to
+# Postgres itself) -- so this number is chosen based on what this
+# app's own real, tested concurrency needs, not a Neon ceiling.
 #
 # Reliability/performance fix (pre-warming): DB_POOL_MIN_CONN now
 # defaults to the SAME value as DB_POOL_MAX_CONN, not a small number.
 # Here's why. psycopg2's connection pool opens exactly DB_POOL_MIN_CONN
 # connections up front, the moment the pool is first created (see
-# services/db_pool.py's _get_pool()) -- and it opens them ONE AT A
-# TIME, each involving a real network round trip to Neon (measured at
-# roughly 400-700ms each on real testing). With the old default of 1,
-# that meant only ONE connection existed when the app started; every
-# additional connection a concurrent user needed had to be opened
-# fresh, one at a time, competing with everyone else also waiting for
-# a connection at that same moment. Load testing (10 concurrent users)
-# showed this producing a visible "staircase": the 2nd person waiting
-# ~1.3s, the 3rd ~2.6s, the 4th ~4.1s, and so on -- because the pool
-# was being built out DURING real user traffic instead of before it.
+# services/db_pool.py's _get_pool()) -- and if left to psycopg2's own
+# built-in behavior, it opens them ONE AT A TIME, each involving a
+# real network round trip to Neon (measured at roughly 400-700ms each
+# on real testing). With the old default of 1, that meant only ONE
+# connection existed when the app started; every additional
+# connection a concurrent user needed had to be opened fresh, one at a
+# time, competing with everyone else also waiting for a connection at
+# that same moment. Load testing (10 concurrent users) showed this
+# producing a visible "staircase": the 2nd person waiting ~1.3s, the
+# 3rd ~2.6s, the 4th ~4.1s, and so on -- because the pool was being
+# built out DURING real user traffic instead of before it.
 #
 # With DB_POOL_MIN_CONN raised to match DB_POOL_MAX_CONN, all the
 # connections this process will ever use are opened up front, the
 # first time anything touches the database (in practice, very early
 # in the app's startup) -- not spread out across whichever unlucky
-# users happen to arrive while the pool is still growing. The
-# trade-off is genuine and worth knowing: that first moment now takes
-# a few extra seconds (roughly DB_POOL_MAX_CONN x half a second, paid
-# once, by whichever request happens to trigger it), because it's
-# opening every connection instead of just one. That is a much better
-# trade than paying a shrinking version of that same cost, unevenly,
-# to real users throughout the day.
-DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "10"))
-DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
+# users happen to arrive while the pool is still growing. And thanks
+# to a further fix (see services/db_pool.py's
+# _prewarm_pool_in_parallel()), those connections are opened AT THE
+# SAME TIME rather than one after another -- real testing brought the
+# one-time cost of warming 10 connections down from roughly 16 seconds
+# (sequential) to roughly 2 seconds (parallel).
+#
+# Raised from 10 to 20 (Aug 2026): real load testing at exactly 10
+# concurrent users, doing a realistic mix of actions (not just
+# logging in), showed genuine queueing for a database connection even
+# with all 10 pre-warmed and healthy -- 10 people doing real work at
+# once simply need more than 10 connections some of the time. 20
+# gives real headroom above the tested 10-user case without opening
+# so many that pre-warming or idle-connection overhead become a
+# concern. If real testing at higher user counts (25+) shows the same
+# pattern again, this may need to go higher still -- always re-test
+# after changing it, don't just raise it and assume it's fixed.
+DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "20"))
+DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "20"))
 
 # DB_POOL_HEALTH_RECHECK_SECONDS: a pooled connection is only re-verified
 # with a liveness check (see services/db_pool.py) if it hasn't been
