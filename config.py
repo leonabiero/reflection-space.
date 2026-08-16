@@ -88,7 +88,34 @@ PRESENCE_RECENT_WINDOW_MINUTES = int(os.getenv("PRESENCE_RECENT_WINDOW_MINUTES",
 # concurrently (each on its own script-run thread), so this is set
 # conservatively by default -- raise it via the environment if a
 # larger Postgres plan allows it.
-DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "1"))
+#
+# Reliability/performance fix (pre-warming): DB_POOL_MIN_CONN now
+# defaults to the SAME value as DB_POOL_MAX_CONN, not a small number.
+# Here's why. psycopg2's connection pool opens exactly DB_POOL_MIN_CONN
+# connections up front, the moment the pool is first created (see
+# services/db_pool.py's _get_pool()) -- and it opens them ONE AT A
+# TIME, each involving a real network round trip to Neon (measured at
+# roughly 400-700ms each on real testing). With the old default of 1,
+# that meant only ONE connection existed when the app started; every
+# additional connection a concurrent user needed had to be opened
+# fresh, one at a time, competing with everyone else also waiting for
+# a connection at that same moment. Load testing (10 concurrent users)
+# showed this producing a visible "staircase": the 2nd person waiting
+# ~1.3s, the 3rd ~2.6s, the 4th ~4.1s, and so on -- because the pool
+# was being built out DURING real user traffic instead of before it.
+#
+# With DB_POOL_MIN_CONN raised to match DB_POOL_MAX_CONN, all the
+# connections this process will ever use are opened up front, the
+# first time anything touches the database (in practice, very early
+# in the app's startup) -- not spread out across whichever unlucky
+# users happen to arrive while the pool is still growing. The
+# trade-off is genuine and worth knowing: that first moment now takes
+# a few extra seconds (roughly DB_POOL_MAX_CONN x half a second, paid
+# once, by whichever request happens to trigger it), because it's
+# opening every connection instead of just one. That is a much better
+# trade than paying a shrinking version of that same cost, unevenly,
+# to real users throughout the day.
+DB_POOL_MIN_CONN = int(os.getenv("DB_POOL_MIN_CONN", "10"))
 DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
 
 # DB_POOL_HEALTH_RECHECK_SECONDS: a pooled connection is only re-verified
