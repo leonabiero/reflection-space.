@@ -166,12 +166,35 @@ before real user traffic is competing for them, not during it. See
 config.py's comment on DB_POOL_MIN_CONN for the full trade-off this
 involves (a few extra seconds the first time the pool is created, in
 exchange for real users never again queueing behind pool growth).
+
+Pre-warming the pool, in parallel
+-----------------------------------------------------
+Real testing of the fix above found its "a few extra seconds" estimate
+was too optimistic: on a real (if slow) home connection, opening 10
+connections ONE AT A TIME -- psycopg2's own built-in behavior when a
+pool is first created -- cost close to 16 seconds, all paid at once by
+whichever request happened to be first. That's because opening a
+brand-new connection (full network handshake, encryption setup,
+database login) is meaningfully more expensive than the lightweight
+liveness check used elsewhere in this file, and there was nothing
+overlapping those 10 handshakes with each other.
+
+`_get_pool()` now creates the pool with minconn=0 (instant, since
+nothing is opened yet) and immediately calls
+`_prewarm_pool_in_parallel()` (see its own docstring) to open all
+DB_POOL_MIN_CONN connections AT THE SAME TIME instead of one after
+another -- cutting that one-time cost from roughly (10 x one
+handshake) down to roughly (one handshake). This changes nothing
+about how the pool behaves afterward -- callers still see exactly
+DB_POOL_MIN_CONN warm connections ready to go -- it only changes how
+quickly that readiness is reached.
 """
 
 import inspect
 import threading
 import time
 
+import concurrent.futures
 import psycopg2
 from psycopg2 import pool as pg_pool
 
@@ -231,6 +254,84 @@ def _caller_operation():
         return "unknown"
 
 
+def _prewarm_pool_in_parallel(pool, count):
+    """
+    Opens `count` real connections to Postgres all at once, in
+    parallel, and hands them to `pool` as its ready-to-use free
+    connections -- instead of psycopg2's own built-in behavior of
+    opening them one at a time (see module docstring, "Pre-warming the
+    pool, in parallel").
+
+    Real testing found the SEQUENTIAL version of this (letting
+    ThreadedConnectionPool's own constructor open all
+    DB_POOL_MIN_CONN connections itself, one after another) cost
+    roughly 16 seconds for 10 connections on a real, if slow, home
+    connection -- because opening a brand-new connection (full
+    network handshake, encryption setup, database login) is
+    meaningfully more expensive than the lightweight "are you still
+    there?" check used elsewhere in this file, and psycopg2 does not
+    parallelize this on its own.
+
+    This function uses a temporary set of Python threads (NOT the
+    pool's own locked getconn()/putconn(), which -- by design, for
+    safety -- only lets one thread open a connection at a time) so
+    that all `count` handshakes genuinely happen at the same time,
+    cutting the total one-time wait from roughly (count x one
+    handshake) down to roughly (one handshake), the same way opening
+    several browser tabs at once doesn't take several times as long as
+    opening just one.
+
+    This reaches into `pool`'s internal free-connection list, which
+    isn't officially part of psycopg2's public interface (though it
+    has been stable for a very long time). If a future psycopg2
+    version changes that internal detail, this function detects that
+    safely and simply does nothing -- the pool still works exactly as
+    before, just falling back to opening connections one at a time as
+    they're actually needed, which is slower but never broken.
+    """
+    if count <= 0:
+        return 0
+
+    t0 = time.monotonic()
+    opened = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=count) as executor:
+        futures = [executor.submit(psycopg2.connect, DATABASE_URL) for _ in range(count)]
+        for f in futures:
+            try:
+                opened.append(f.result())
+            except Exception:
+                logger.exception("Pre-warm: one parallel connection attempt failed -- continuing with the rest")
+
+    if not opened:
+        return 0
+
+    try:
+        with pool._lock:
+            pool._pool.extend(opened)
+    except AttributeError:
+        # psycopg2's internal pool.pool list (or its lock) is no
+        # longer where this version expects -- safe fallback: close
+        # what we just opened rather than leaking connections, and
+        # let the pool grow the normal, slower, built-in way instead.
+        logger.warning(
+            "Pre-warm: psycopg2 pool internals not found as expected -- "
+            "falling back to the pool's normal (slower) connection growth."
+        )
+        for conn in opened:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return 0
+
+    elapsed = time.monotonic() - t0
+    logger.info(
+        "Pre-warm: opened %d connection(s) in parallel in %.1fs (vs. roughly %d x that time if done one at a time)",
+        len(opened), elapsed, count,
+    )
+    return len(opened)
+
+
 def _get_pool():
     """Lazily create the process-wide pool on first use (double-checked
     locking so concurrent Streamlit session threads never race to
@@ -239,12 +340,20 @@ def _get_pool():
     if _pool is None:
         with _pool_lock:
             if _pool is None:
+                # minconn=0 here on purpose: this makes construction
+                # itself instant (no built-in sequential connection
+                # opening), and _prewarm_pool_in_parallel() below does
+                # the equivalent job -- opening DB_POOL_MIN_CONN
+                # connections -- but genuinely in parallel rather than
+                # one at a time. See that function's docstring, and
+                # module docstring "Pre-warming the pool, in parallel".
                 _pool = pg_pool.ThreadedConnectionPool(
-                    DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, DATABASE_URL
+                    0, DB_POOL_MAX_CONN, DATABASE_URL
                 )
+                warmed = _prewarm_pool_in_parallel(_pool, DB_POOL_MIN_CONN)
                 logger.info(
-                    "PostgreSQL connection pool created (min=%d, max=%d)",
-                    DB_POOL_MIN_CONN, DB_POOL_MAX_CONN,
+                    "PostgreSQL connection pool created (min=%d, max=%d, pre-warmed=%d)",
+                    DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, warmed,
                 )
     return _pool
 
