@@ -118,6 +118,34 @@ one extra `SELECT 1` that didn't strictly need to happen, never a
 skipped check on a connection that actually needed one, since an
 entry is only ever trusted for a connection object still known to be
 open and was itself the direct result of a previous successful check.
+
+Reliability fix: verify replacement connections too
+--------------------------------------------------------
+Previously, when a connection failed its liveness check, `get_conn()`
+discarded it, fetched ONE replacement from the pool, and handed that
+replacement straight to the caller without checking it -- on the
+(usually true, but not guaranteed) assumption that a freshly-fetched
+connection would be fine. If several connections in the pool had gone
+stale around the same time (e.g. after a period of inactivity, or a
+brief network blip affecting more than one open connection at once),
+the replacement could ALSO be dead, and the caller would be handed a
+connection guaranteed to fail on its very first real query -- surfacing
+as a confusing error deep inside whatever business function asked for
+it (e.g. "server closed the connection unexpectedly" during a save),
+rather than being caught and handled here, where the problem actually
+is.
+
+`get_conn()` now checks every replacement the same way it checks the
+first connection it tries, and will discard-and-fetch-again up to
+`DB_POOL_MAX_REPLACE_ATTEMPTS` (see config.py; default 3) times. Only
+if every attempt comes back dead does it give up -- at which point it
+raises a clear, immediate error instead of quietly handing back a
+broken connection. This is a genuine behavior change for that one rare
+case (many stale connections in a row): before, the caller got a
+connection that would fail later and confusingly; now, the caller gets
+an honest, immediate failure it can catch the same way it already
+catches any other database error (see e.g. services/rate_limiter.py's
+"fails open" handling).
 """
 
 import inspect
@@ -129,7 +157,7 @@ from psycopg2 import pool as pg_pool
 
 from config import (
     DATABASE_URL, DB_POOL_MIN_CONN, DB_POOL_MAX_CONN,
-    DB_POOL_HEALTH_RECHECK_SECONDS,
+    DB_POOL_HEALTH_RECHECK_SECONDS, DB_POOL_MAX_REPLACE_ATTEMPTS,
 )
 from services.db_time import get_logger
 
@@ -270,6 +298,43 @@ def _is_alive(conn):
         return False
 
 
+def _check_health(raw_conn):
+    """
+    Runs the "is this connection actually usable" check for one
+    connection, honoring the recently-verified skip-cache (see module
+    docstring, "Performance fix"). Assumes raw_conn.closed has already
+    been checked as False by the caller.
+
+    Returns (healthy, health_ms, skipped):
+      healthy   -- True if this connection is safe to hand out.
+      health_ms -- how long the real SELECT 1 check took, in
+                   milliseconds (0.0 if skipped via the cache).
+      skipped   -- True if this result came from the recently-verified
+                   cache rather than a fresh check.
+
+    Used for both the connection get_conn() first tries AND for every
+    replacement it fetches afterward (see module docstring,
+    "Reliability fix: verify replacement connections too") -- a
+    replacement gets exactly the same scrutiny as any other
+    connection, nothing more, nothing less.
+    """
+    cid = id(raw_conn)
+    now = time.monotonic()
+    with _last_verified_lock:
+        last_ok = _last_verified_at.get(cid)
+
+    if last_ok is not None and (now - last_ok) < DB_POOL_HEALTH_RECHECK_SECONDS:
+        return True, 0.0, True
+
+    health_start = time.monotonic()
+    healthy = _is_alive(raw_conn)
+    health_ms = (time.monotonic() - health_start) * 1000.0
+    if healthy:
+        with _last_verified_lock:
+            _last_verified_at[cid] = time.monotonic()
+    return healthy, health_ms, False
+
+
 def get_conn():
     """
     Acquire a connection from the shared pool. Used exactly like
@@ -280,10 +345,18 @@ def get_conn():
     it, so the try/finally pattern already used throughout services/
     is unchanged.
 
-    (See module docstring -- "Diagnostic instrumentation" and
-    "Performance fix" -- this also logs one "DB checkout: ..." line
-    per call, and skips the liveness check when the connection was
-    already verified recently.)
+    (See module docstring -- "Diagnostic instrumentation", "Performance
+    fix", and "Reliability fix: verify replacement connections too" --
+    this also logs one "DB checkout: ..." line per call, skips the
+    liveness check when a connection was already verified recently,
+    and checks every replacement it fetches the same way, up to
+    DB_POOL_MAX_REPLACE_ATTEMPTS times, before giving up.)
+
+    Raises psycopg2.OperationalError if no healthy connection could be
+    obtained after DB_POOL_MAX_REPLACE_ATTEMPTS attempts -- callers
+    already wrap get_conn() in their own try/except (see e.g.
+    services/rate_limiter.py's "fails open" handling), so this is a
+    normal, catchable failure, not a crash.
     """
     operation = _caller_operation()
     thread_name = threading.current_thread().name
@@ -294,34 +367,27 @@ def get_conn():
     raw_conn = pool.getconn()
     checkout_wait_ms = (time.monotonic() - checkout_start) * 1000.0
 
-    health_ms = 0.0
-    replaced = False
+    total_health_ms = 0.0
     skipped_check = False
+    attempt = 0
 
-    if raw_conn.closed:
-        healthy = False
-    else:
-        cid = id(raw_conn)
-        now = time.monotonic()
-        with _last_verified_lock:
-            last_ok = _last_verified_at.get(cid)
+    while True:
+        attempt += 1
 
-        if last_ok is not None and (now - last_ok) < DB_POOL_HEALTH_RECHECK_SECONDS:
-            # Verified alive recently enough -- trust that result
-            # instead of paying for another round trip. See module
-            # docstring, "Performance fix".
-            healthy = True
-            skipped_check = True
+        if raw_conn.closed:
+            healthy, health_ms, skipped = False, 0.0, False
         else:
-            health_start = time.monotonic()
-            healthy = _is_alive(raw_conn)
-            health_ms = (time.monotonic() - health_start) * 1000.0
-            if healthy:
-                with _last_verified_lock:
-                    _last_verified_at[cid] = time.monotonic()
+            healthy, health_ms, skipped = _check_health(raw_conn)
 
-    if not healthy:
-        replaced = True
+        total_health_ms += health_ms
+        if skipped:
+            skipped_check = True
+
+        if healthy:
+            break
+
+        # This connection (whether it was the original or an earlier
+        # replacement) is dead -- discard it.
         with _last_verified_lock:
             _last_verified_at.pop(id(raw_conn), None)
         try:
@@ -331,24 +397,36 @@ def get_conn():
                 raw_conn.close()
             except Exception:
                 pass
+
+        if attempt >= DB_POOL_MAX_REPLACE_ATTEMPTS:
+            try:
+                logger.error(
+                    "DB checkout FAILED: no healthy connection after %d attempt(s) "
+                    "operation=%s thread=%s wait=%.1fms health=%.1fms",
+                    attempt, operation, thread_name, checkout_wait_ms, total_health_ms,
+                )
+            except Exception:
+                pass
+            raise psycopg2.OperationalError(
+                f"Could not obtain a healthy database connection after "
+                f"{attempt} attempt(s) (operation={operation})"
+            )
+
         replace_start = time.monotonic()
         raw_conn = pool.getconn()
         checkout_wait_ms += (time.monotonic() - replace_start) * 1000.0
-        # Matches original behavior: the replacement is handed out as-is,
-        # the same trust level get_conn() always gave a freshly-replaced
-        # connection. It's deliberately NOT marked as "recently verified"
-        # here (no _last_verified_at entry added) -- since it was never
-        # actually checked in this call, its first real use afterward
-        # will earn that trust the normal way, via a real check.
-        healthy = True
+        # Loop back around and actually check THIS connection too --
+        # this is the fix: a replacement is no longer trusted blindly.
+
+    replaced = attempt > 1
 
     try:
         logger.info(
             "DB checkout: operation=%s thread=%s conn_id=%s wait=%.1fms health=%.1fms "
-            "healthy=%s replaced=%s skipped_check=%s",
-            operation, thread_name, id(raw_conn), checkout_wait_ms, health_ms,
+            "healthy=%s replaced=%s attempts=%d skipped_check=%s",
+            operation, thread_name, id(raw_conn), checkout_wait_ms, total_health_ms,
             "yes" if healthy else "no", "yes" if replaced else "no",
-            "yes" if skipped_check else "no",
+            attempt, "yes" if skipped_check else "no",
         )
     except Exception:
         pass  # diagnostic logging must never block handing back a connection
