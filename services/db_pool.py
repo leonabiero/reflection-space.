@@ -335,7 +335,22 @@ def _prewarm_pool_in_parallel(pool, count):
 def _get_pool():
     """Lazily create the process-wide pool on first use (double-checked
     locking so concurrent Streamlit session threads never race to
-    create two pools)."""
+    create two pools).
+
+    IMPORTANT ordering detail: the new pool is built and fully
+    pre-warmed in a LOCAL variable first, and only assigned to the
+    global `_pool` as the very last step. Real testing caught a bug
+    from an earlier version of this function that assigned `_pool`
+    (globally visible) BEFORE pre-warming had finished -- other
+    threads' outer `if _pool is None:` check (deliberately outside
+    the lock, for speed) would then see a real-but-still-empty pool
+    and immediately start opening their OWN connections the normal,
+    slow, one-at-a-time way, racing against the parallel pre-warm
+    itself and slowing both down. Building fully offline in a local
+    variable and publishing it only once complete closes that gap:
+    every other thread's outer check keeps seeing None, exactly as
+    intended, until the real, ready pool is handed over all at once.
+    """
     global _pool
     if _pool is None:
         with _pool_lock:
@@ -347,14 +362,17 @@ def _get_pool():
                 # connections -- but genuinely in parallel rather than
                 # one at a time. See that function's docstring, and
                 # module docstring "Pre-warming the pool, in parallel".
-                _pool = pg_pool.ThreadedConnectionPool(
+                new_pool = pg_pool.ThreadedConnectionPool(
                     0, DB_POOL_MAX_CONN, DATABASE_URL
                 )
-                warmed = _prewarm_pool_in_parallel(_pool, DB_POOL_MIN_CONN)
+                warmed = _prewarm_pool_in_parallel(new_pool, DB_POOL_MIN_CONN)
                 logger.info(
                     "PostgreSQL connection pool created (min=%d, max=%d, pre-warmed=%d)",
                     DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, warmed,
                 )
+                # Published only now, fully built and warmed -- see
+                # docstring above for why this ordering matters.
+                _pool = new_pool
     return _pool
 
 
