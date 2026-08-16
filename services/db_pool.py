@@ -188,6 +188,26 @@ handshake) down to roughly (one handshake). This changes nothing
 about how the pool behaves afterward -- callers still see exactly
 DB_POOL_MIN_CONN warm connections ready to go -- it only changes how
 quickly that readiness is reached.
+
+Bug found in real testing: minconn also controls what happens on
+RETURN, not just construction
+-----------------------------------------------------
+Real testing (raising DB_POOL_MAX_CONN to 20) caught a serious
+follow-on bug from the fix above: psycopg2 doesn't only use `minconn`
+when the pool is first built -- it ALSO checks it every time a
+connection is returned via putconn(), to decide whether to keep that
+connection idle for reuse or actually close it. Leaving the pool
+object's own `minconn` at 0 (its construction-time value, kept low on
+purpose so construction itself would be instant) meant that check
+always concluded "don't keep it" -- so every single connection was
+being destroyed the moment it was returned, and the pool was quietly
+rebuilding itself from scratch, one connection at a time, for the
+rest of every test run after the initial pre-warmed batch was used
+once. `_get_pool()` now sets `new_pool.minconn = DB_POOL_MIN_CONN`
+immediately after construction (before pre-warming), so returned
+connections are correctly kept warm without reintroducing the slow
+sequential open that using minconn>0 in the constructor itself would
+have caused.
 """
 
 import inspect
@@ -365,6 +385,23 @@ def _get_pool():
                 new_pool = pg_pool.ThreadedConnectionPool(
                     0, DB_POOL_MAX_CONN, DATABASE_URL
                 )
+                # IMPORTANT: psycopg2 doesn't only use minconn at
+                # construction time -- it also checks it every time a
+                # connection is RETURNED (putconn()), to decide "is my
+                # idle pile smaller than minconn? if so, keep this
+                # connection; if not, actually close it." Real testing
+                # caught this: leaving minconn at 0 (its construction
+                # value, on purpose, above) meant that check always
+                # said "no, don't keep it" -- so every connection was
+                # being destroyed the instant it was returned, and the
+                # pool was quietly rebuilding itself from scratch, one
+                # connection at a time, for the entire rest of every
+                # test run after the initial pre-warmed batch got used
+                # once. Setting the real minconn here, right after
+                # construction, fixes returned connections' fate
+                # without reintroducing the slow sequential open that
+                # minconn>0 in the constructor itself would cause.
+                new_pool.minconn = DB_POOL_MIN_CONN
                 warmed = _prewarm_pool_in_parallel(new_pool, DB_POOL_MIN_CONN)
                 logger.info(
                     "PostgreSQL connection pool created (min=%d, max=%d, pre-warmed=%d)",
