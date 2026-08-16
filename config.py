@@ -106,6 +106,22 @@ DB_POOL_MAX_CONN = int(os.getenv("DB_POOL_MAX_CONN", "10"))
 # active use.
 DB_POOL_HEALTH_RECHECK_SECONDS = int(os.getenv("DB_POOL_HEALTH_RECHECK_SECONDS", "30"))
 
+# DB_POOL_MAX_REPLACE_ATTEMPTS: when a pooled connection turns out to be
+# dead (see services/db_pool.py's liveness check above), the pool
+# discards it and fetches a replacement. Previously that replacement
+# was handed to the caller without ever being checked itself -- if it
+# also happened to be dead (plausible if several connections went
+# stale around the same time, e.g. after a period of inactivity or a
+# brief network blip), the caller would get handed a connection
+# guaranteed to fail on first real use, surfacing as a confusing
+# downstream database error instead of being caught here. This caps
+# how many times get_conn() will discard-and-fetch-again before giving
+# up and raising a clear, immediate error instead of a silently broken
+# connection. 3 is generous for a pool this size (DB_POOL_MAX_CONN
+# above) without risking a long stall if the database itself is
+# genuinely unreachable.
+DB_POOL_MAX_REPLACE_ATTEMPTS = int(os.getenv("DB_POOL_MAX_REPLACE_ATTEMPTS", "3"))
+
 # Default page size used ONLY when a caller of one of the newly
 # paginated read functions (see Change 4 -- get_audit_log(),
 # get_completed_drafts(), get_all_feedback(), get_pending_deletions())
