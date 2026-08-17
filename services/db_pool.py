@@ -202,35 +202,47 @@ def _discard_connection(pool, raw_conn):
             pass
 
 
-def _checkout_with_wait(pool, timeout_seconds, operation="unknown"):
-    """Get a connection while enforcing one total timeout budget.
+def _checkout_with_wait(
+    pool,
+    timeout_seconds,
+    operation="unknown",
+    deadline=None,
+):
+    """Get a connection using one absolute total wait deadline.
 
-    The deadline is created once and is never reset after a wake-up,
-    spurious wake-up, or retry caused by contention.
+    ``deadline`` is created by the outer checkout operation and is reused for
+    every replacement attempt. This is important: replacing an unhealthy
+    connection must never restart the configured wait budget.
 
-    This function logs every wait cycle so load-test output can prove whether
-    the configured timeout is being respected.
+    The deadline applies to time spent waiting for pool capacity. Health-check
+    and query execution time are outside this pool-capacity wait budget.
     """
     started = time.monotonic()
-    deadline = started + timeout_seconds
+
+    if deadline is None:
+        deadline = started + timeout_seconds
+
     wait_cycles = 0
 
     logger.debug(
-        "DB checkout START: operation=%s timeout=%.3fs",
+        "DB checkout START: operation=%s timeout=%.3fs "
+        "deadline_in=%.1fms",
         operation,
         timeout_seconds,
+        max(0.0, deadline - started) * 1000.0,
     )
 
     while True:
         now = time.monotonic()
+        remaining = deadline - now
 
-        if now >= deadline:
+        if remaining <= 0:
             elapsed_ms = (now - started) * 1000.0
 
             logger.warning(
                 "DB checkout DEADLINE EXCEEDED: "
                 "operation=%s elapsed=%.1fms timeout=%.3fs "
-                "wait_cycles=%d",
+                "wait_cycles=%d deadline_remaining=0.0ms",
                 operation,
                 elapsed_ms,
                 timeout_seconds,
@@ -270,7 +282,7 @@ def _checkout_with_wait(pool, timeout_seconds, operation="unknown"):
                 logger.warning(
                     "DB checkout TIMEOUT BEFORE WAIT: "
                     "operation=%s elapsed=%.1fms timeout=%.3fs "
-                    "wait_cycles=%d",
+                    "wait_cycles=%d deadline_remaining=0.0ms",
                     operation,
                     elapsed_ms,
                     timeout_seconds,
@@ -323,14 +335,23 @@ def _checkout_with_wait(pool, timeout_seconds, operation="unknown"):
                 except pg_pool.PoolError:
                     wait_started = time.monotonic()
 
-                    _pool_available.wait(timeout=remaining)
+                    _pool_available.wait(
+                        timeout=max(0.0, deadline - wait_started)
+                    )
+
+                    wake_now = time.monotonic()
 
                     wait_elapsed_ms = (
-                        time.monotonic() - wait_started
+                        wake_now - wait_started
                     ) * 1000.0
 
                     total_elapsed_ms = (
-                        time.monotonic() - started
+                        wake_now - started
+                    ) * 1000.0
+
+                    remaining_after_wait_ms = max(
+                        0.0,
+                        deadline - wake_now,
                     ) * 1000.0
 
                     logger.debug(
@@ -342,11 +363,7 @@ def _checkout_with_wait(pool, timeout_seconds, operation="unknown"):
                         wait_cycles,
                         wait_elapsed_ms,
                         total_elapsed_ms,
-                        max(
-                            0.0,
-                            deadline - time.monotonic(),
-                        )
-                        * 1000.0,
+                        remaining_after_wait_ms,
                     )
 
 
@@ -440,10 +457,13 @@ class _PooledConnection:
 def get_conn():
     """Acquire a healthy pooled connection.
 
-    The initial checkout and every replacement checkout each receive the
-    configured timeout budget. Detailed tracing records whether a request
-    obtains a connection directly, waits, replaces an unhealthy connection,
-    or reaches the timeout.
+    One absolute deadline is created for the complete pool-capacity checkout.
+    If the first connection is unhealthy and must be replaced, the
+    replacement uses the remaining time from that same deadline rather than
+    receiving a fresh timeout budget.
+
+    Detailed tracing records direct acquisition, waiting, replacement,
+    remaining deadline, and final timeout behaviour.
     """
     operation = _caller_operation()
     thread_name = threading.current_thread().name
@@ -453,12 +473,24 @@ def get_conn():
 
     checkout_started = time.monotonic()
 
+    # IMPORTANT:
+    # This deadline belongs to the whole get_conn() checkout operation.
+    # It must not be recreated for replacement connections.
+    checkout_deadline = (
+        checkout_started + DB_POOL_WAIT_TIMEOUT_SECONDS
+    )
+
+    total_queue_wait_ms = 0.0
+
     try:
         raw_conn, queue_wait_ms = _checkout_with_wait(
             pool,
             DB_POOL_WAIT_TIMEOUT_SECONDS,
             operation=operation,
+            deadline=checkout_deadline,
         )
+
+        total_queue_wait_ms += queue_wait_ms
 
     except TimeoutError as exc:
         elapsed_ms = (
@@ -471,7 +503,7 @@ def get_conn():
             "timeout=%.1fs total_elapsed=%.1fms",
             operation,
             thread_name,
-            DB_POOL_WAIT_TIMEOUT_SECONDS * 1000.0,
+            elapsed_ms,
             DB_POOL_WAIT_TIMEOUT_SECONDS,
             elapsed_ms,
         )
@@ -510,7 +542,7 @@ def get_conn():
                 id(raw_conn),
                 "yes" if healthy else "no",
                 health_ms,
-                queue_wait_ms,
+                total_queue_wait_ms,
             )
 
             if healthy:
@@ -523,7 +555,7 @@ def get_conn():
                 operation,
                 attempts,
                 id(raw_conn),
-                queue_wait_ms,
+                total_queue_wait_ms,
             )
 
             _discard_connection(pool, raw_conn)
@@ -536,7 +568,7 @@ def get_conn():
                     "health=%.1fms",
                     attempts,
                     operation,
-                    queue_wait_ms,
+                    total_queue_wait_ms,
                     total_health_ms,
                 )
 
@@ -544,6 +576,33 @@ def get_conn():
                     "Could not obtain a healthy database connection "
                     "after "
                     f"{attempts} attempt(s) "
+                    f"(operation={operation})"
+                )
+
+            remaining_before_replacement = (
+                checkout_deadline - time.monotonic()
+            )
+
+            if remaining_before_replacement <= 0:
+                elapsed_ms = (
+                    time.monotonic() - checkout_started
+                ) * 1000.0
+
+                logger.warning(
+                    "DB checkout DEADLINE EXCEEDED BEFORE REPLACEMENT: "
+                    "operation=%s attempt=%d elapsed=%.1fms "
+                    "timeout=%.3fs queue_wait=%.1fms",
+                    operation,
+                    attempts,
+                    elapsed_ms,
+                    DB_POOL_WAIT_TIMEOUT_SECONDS,
+                    total_queue_wait_ms,
+                )
+
+                raise psycopg2.OperationalError(
+                    "Timed out waiting for a replacement database "
+                    "connection after "
+                    f"{elapsed_ms / 1000.0:.1f}s "
                     f"(operation={operation})"
                 )
 
@@ -555,26 +614,33 @@ def get_conn():
                 operation=(
                     f"{operation}:replacement_attempt_{attempts + 1}"
                 ),
+                deadline=checkout_deadline,
             )
 
             replacement_elapsed_ms = (
                 time.monotonic() - replacement_started
             ) * 1000.0
 
-            queue_wait_ms += replacement_wait_ms
+            total_queue_wait_ms += replacement_wait_ms
 
             logger.debug(
                 "DB checkout REPLACEMENT ACQUIRED: "
                 "operation=%s attempt=%d conn_id=%s "
                 "replacement_wait=%.1fms "
                 "replacement_elapsed=%.1fms "
-                "total_queue_wait=%.1fms",
+                "total_queue_wait=%.1fms "
+                "deadline_remaining=%.1fms",
                 operation,
                 attempts + 1,
                 id(raw_conn),
                 replacement_wait_ms,
                 replacement_elapsed_ms,
-                queue_wait_ms,
+                total_queue_wait_ms,
+                max(
+                    0.0,
+                    checkout_deadline - time.monotonic(),
+                )
+                * 1000.0,
             )
 
         total_checkout_ms = (
@@ -585,17 +651,23 @@ def get_conn():
             "DB checkout: operation=%s thread=%s conn_id=%s "
             "queue_wait=%.1fms health=%.1fms healthy=yes "
             "replaced=%s attempts=%d skipped_check=%s "
-            "total_checkout=%.1fms configured_wait_timeout=%.1fs",
+            "total_checkout=%.1fms configured_wait_timeout=%.1fs "
+            "deadline_remaining=%.1fms",
             operation,
             thread_name,
             id(raw_conn),
-            queue_wait_ms,
+            total_queue_wait_ms,
             total_health_ms,
             "yes" if attempts > 1 else "no",
             attempts,
             "yes" if skipped_check else "no",
             total_checkout_ms,
             DB_POOL_WAIT_TIMEOUT_SECONDS,
+            max(
+                0.0,
+                checkout_deadline - time.monotonic(),
+            )
+            * 1000.0,
         )
 
         return _PooledConnection(
