@@ -4,12 +4,9 @@ The application uses one process-wide psycopg2 ThreadedConnectionPool.
 Connections are reused, health-checked periodically, and returned by the
 existing ``conn.close()`` call sites.
 
-Important concurrency behavior:
-    psycopg2's ThreadedConnectionPool raises PoolError immediately when all
-    connections are checked out. This module adds a small, bounded wait queue
-    around checkout so short bursts above the pool size wait for a connection
-    instead of failing immediately. The queue timeout is configurable with
-    DB_POOL_WAIT_TIMEOUT_SECONDS and defaults to 5 seconds.
+psycopg2 raises PoolError immediately when every connection is checked out.
+This module adds bounded condition-variable waiting so short bursts above the
+pool size wait for a returned connection instead of failing immediately.
 """
 
 import concurrent.futures
@@ -32,9 +29,6 @@ from services.db_time import get_logger
 
 logger = get_logger(__name__)
 
-# A short, bounded queue is safer than retrying in a tight loop and is enough
-# for the observed ~0.4-0.5s connection hold times. Override with an
-# environment variable if deployment testing shows a different requirement.
 DB_POOL_WAIT_TIMEOUT_SECONDS = float(
     os.getenv("DB_POOL_WAIT_TIMEOUT_SECONDS", "5")
 )
@@ -43,7 +37,6 @@ _pool = None
 _pool_lock = threading.Lock()
 _pool_available = threading.Condition(threading.Lock())
 
-# Physical connection id -> monotonic time of its last successful health check.
 _last_verified_at = {}
 _last_verified_lock = threading.Lock()
 
@@ -120,8 +113,6 @@ def _get_pool():
                 new_pool = pg_pool.ThreadedConnectionPool(
                     0, DB_POOL_MAX_CONN, DATABASE_URL
                 )
-                # psycopg2 also uses minconn when deciding whether returned
-                # connections should remain in the idle pool.
                 new_pool.minconn = DB_POOL_MIN_CONN
                 warmed = _prewarm_pool_in_parallel(
                     new_pool, DB_POOL_MIN_CONN
@@ -182,37 +173,28 @@ def _discard_connection(pool, raw_conn):
 
 
 def _checkout_with_wait(pool, timeout_seconds):
-    """Get a connection, waiting for a returned connection when the pool is full.
-
-    psycopg2 raises PoolError immediately when every connection is checked out.
-    We convert that into bounded condition-variable waiting. A connection
-    return calls notify_all(), so waiting callers wake as soon as capacity is
-    available instead of polling or sleeping in a retry loop.
-    """
+    """Get a connection, waiting for a returned connection when the pool is full."""
     started = time.monotonic()
     deadline = started + timeout_seconds
-    queue_wait_ms = 0.0
 
     while True:
         try:
             raw_conn = pool.getconn()
-            queue_wait_ms = (time.monotonic() - started) * 1000.0
-            return raw_conn, queue_wait_ms
+            return raw_conn, (time.monotonic() - started) * 1000.0
         except pg_pool.PoolError:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                queue_wait_ms = (time.monotonic() - started) * 1000.0
                 raise TimeoutError(
                     "Timed out waiting %.1fs for a database connection"
                     % timeout_seconds
                 )
 
             with _pool_available:
-                # Re-check immediately after acquiring the condition lock.
+                # Re-check while holding the condition lock so a return
+                # cannot be missed between the failed checkout and wait().
                 try:
                     raw_conn = pool.getconn()
-                    queue_wait_ms = (time.monotonic() - started) * 1000.0
-                    return raw_conn, queue_wait_ms
+                    return raw_conn, (time.monotonic() - started) * 1000.0
                 except pg_pool.PoolError:
                     _pool_available.wait(timeout=remaining)
 
@@ -288,8 +270,8 @@ def get_conn():
     operation = _caller_operation()
     thread_name = threading.current_thread().name
     pool = _get_pool()
+    raw_conn = None
 
-    checkout_started = time.monotonic()
     try:
         raw_conn, queue_wait_ms = _checkout_with_wait(
             pool, DB_POOL_WAIT_TIMEOUT_SECONDS
@@ -299,7 +281,7 @@ def get_conn():
             "DB checkout TIMEOUT: operation=%s thread=%s queue_wait=%.1fms timeout=%.1fs",
             operation,
             thread_name,
-            (time.monotonic() - checkout_started) * 1000.0,
+            DB_POOL_WAIT_TIMEOUT_SECONDS * 1000.0,
             DB_POOL_WAIT_TIMEOUT_SECONDS,
         )
         raise psycopg2.OperationalError(str(exc)) from exc
@@ -324,6 +306,7 @@ def get_conn():
                 break
 
             _discard_connection(pool, raw_conn)
+            raw_conn = None
 
             if attempts >= DB_POOL_MAX_REPLACE_ATTEMPTS:
                 logger.error(
@@ -339,15 +322,10 @@ def get_conn():
                     f"{attempts} attempt(s) (operation={operation})"
                 )
 
-            replacement_started = time.monotonic()
-            try:
-                replacement, replacement_wait_ms = _checkout_with_wait(
-                    pool, DB_POOL_WAIT_TIMEOUT_SECONDS
-                )
-                queue_wait_ms += replacement_wait_ms
-                raw_conn = replacement
-            except TimeoutError as exc:
-                raise psycopg2.OperationalError(str(exc)) from exc
+            raw_conn, replacement_wait_ms = _checkout_with_wait(
+                pool, DB_POOL_WAIT_TIMEOUT_SECONDS
+            )
+            queue_wait_ms += replacement_wait_ms
 
         logger.info(
             "DB checkout: operation=%s thread=%s conn_id=%s queue_wait=%.1fms "
@@ -368,13 +346,12 @@ def get_conn():
             conn_id=id(raw_conn),
         )
     except Exception:
-        # If health validation itself fails after we acquired a live-looking
-        # connection, make sure the physical connection is not leaked.
-        try:
-            if raw_conn is not None and not getattr(raw_conn, "closed", True):
-                _return_to_pool(pool, raw_conn)
-        except Exception:
-            pass
+        if raw_conn is not None:
+            try:
+                if not getattr(raw_conn, "closed", True):
+                    _return_to_pool(pool, raw_conn)
+            except Exception:
+                pass
         raise
 
 
