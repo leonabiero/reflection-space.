@@ -110,6 +110,10 @@ Customize the concurrency levels swept (comma-separated, no spaces):
     python load_test/phase3_concurrent_users.py --scenario a --levels-a 5,10,25
     python load_test/phase3_concurrent_users.py --scenario b --levels-b 10,20,40,80
 
+Isolate the database pool from Gemini/Qdrant, re-testing just concurrency 50:
+
+    python load_test/phase3_concurrent_users.py --scenario a --levels-a 50 --db-only
+
 Keep the test data around afterwards, to inspect it yourself:
 
     python load_test/phase3_concurrent_users.py --no-cleanup
@@ -133,6 +137,12 @@ Full list of options:
                             your app's CLAUDE_REFLECTION_QUEUE_TIMEOUT_
                             SECONDS setting, plus 30 seconds of slack)
     --no-cleanup            skip automatic cleanup at the end
+    --db-only               Scenario A only: skip the two Gemini-calling
+                            steps and only run the pure database read.
+                            Isolates the database connection pool from
+                            Gemini rate limits / Qdrant latency -- useful
+                            for re-testing high concurrency cleanly.
+                            Has no effect on Scenario B.
 
 --------------------------------------------------------------------
 WHAT HAPPENS AT THE END
@@ -320,12 +330,21 @@ def seed_scenario_a_cases(num_cases, run_id, timeout):
     return seeded
 
 
-def run_scenario_a_burst(level, seeded_cases, timeout, tracker):
+def run_scenario_a_burst(level, seeded_cases, timeout, tracker, db_only=False):
     """
     Launches `level` simulated user sessions that all start at the
-    EXACT same instant (via threading.Barrier), each making the same
-    3 real, read-only calls a practitioner's normal usage already
-    makes.
+    EXACT same instant (via threading.Barrier).
+
+    Normally each session makes 3 real, read-only calls a
+    practitioner's normal usage already makes. When `db_only` is True,
+    steps 2 and 3 (the ones that call out to Gemini for a query
+    embedding) are skipped entirely, so this burst becomes a PURE
+    database-connection-pool test -- no Gemini call, no Gemini rate
+    limit, no Qdrant call, nothing but services/db_pool.py and Neon.
+    This isolates the database pool's behaviour from any noise caused
+    by Gemini quota limits or Qdrant latency, which is useful at high
+    concurrency where those two things can otherwise make it hard to
+    tell what's actually causing a slow or failed request.
     """
     barrier = threading.Barrier(level)
     global_query_text = "¿Qué se ha observado sobre vivienda y bienestar familiar?"
@@ -338,9 +357,16 @@ def run_scenario_a_burst(level, seeded_cases, timeout, tracker):
         # what makes it a genuine simultaneous burst.
         barrier.wait()
 
-        # 1. Case History page load
+        # 1. Case History page load -- pure database read, no Gemini/Qdrant.
         r = common.timed_with_timeout(get_completed_drafts, limit=20, timeout=timeout)
         tracker.record(level, "get_completed_drafts (Case History)", _classify_db_outcome(r), r["elapsed"])
+
+        if db_only:
+            # Skip the two RAG calls below entirely -- they're the only
+            # ones that touch Gemini. Everything else about the burst
+            # (barrier, timing, outcome classification) stays identical
+            # so results are directly comparable to a normal run.
+            return
 
         # 2. Opening a case -- real Gemini query embedding + real Qdrant search
         r = common.timed_with_timeout(
@@ -369,15 +395,26 @@ def run_scenario_a_burst(level, seeded_cases, timeout, tracker):
     print(f"  concurrency={level}: all {level} simulated sessions finished in {elapsed:.1f}s (wall clock)")
 
 
-def run_scenario_a(levels, seed_cases, timeout, run_id):
+def run_scenario_a(levels, seed_cases, timeout, run_id, db_only=False):
     print("\n" + "=" * 78)
     print("SCENARIO A -- Database connection pool under concurrent reads")
+    if db_only:
+        print("           (DB-ONLY MODE -- Gemini/Qdrant calls are skipped)")
     print("=" * 78)
     print(f"  Sweeping concurrency levels: {levels}")
     print(f"  Your app's DB_POOL_MAX_CONN setting: {config.DB_POOL_MAX_CONN} "
           f"(the ceiling this test is checking against)")
 
-    if not qdrant_available():
+    if db_only:
+        print(
+            "  DB-ONLY MODE: only the pure database read (get_completed_drafts) "
+            "runs in this burst. The two calls that go out to Gemini "
+            "(retrieve_historical_context, retrieve_global_context) are "
+            "skipped entirely, so nothing here can be slowed down or failed "
+            "by a Gemini rate limit or a Qdrant search -- whatever this run "
+            "shows is 100% about services/db_pool.py and Neon."
+        )
+    elif not qdrant_available():
         print(
             "  NOTE: Qdrant isn't configured in this environment -- the "
             "'Knowledge Assistant' (retrieve_global_context) call will be "
@@ -392,7 +429,7 @@ def run_scenario_a(levels, seed_cases, timeout, run_id):
     tracker = OutcomeTracker(SCENARIO_A_OUTCOMES)
     for level in levels:
         print(f"\n--- Scenario A: concurrency = {level} ---")
-        run_scenario_a_burst(level, seeded_cases, timeout, tracker)
+        run_scenario_a_burst(level, seeded_cases, timeout, tracker, db_only=db_only)
         tracker.print_level_summary(level)
 
     tracker.print_overall_summary("SCENARIO A")
@@ -540,6 +577,17 @@ def main():
         help="default: your app's CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS + 30s of slack",
     )
     parser.add_argument("--no-cleanup", action="store_true")
+    parser.add_argument(
+        "--db-only", action="store_true",
+        help=(
+            "Scenario A only: skip the two Gemini-calling steps "
+            "(retrieve_historical_context, retrieve_global_context) and "
+            "only run the pure database read. Isolates the database "
+            "connection pool's behaviour from Gemini rate limits / Qdrant "
+            "latency -- useful for re-testing high concurrency (e.g. 50) "
+            "without that noise. Has no effect on Scenario B."
+        ),
+    )
     args = parser.parse_args()
 
     timeout_b = args.timeout_b
@@ -553,7 +601,10 @@ def main():
 
     ran_a = False
     if args.scenario in ("a", "both"):
-        run_scenario_a(_parse_levels(args.levels_a), args.seed_cases, args.timeout_a, run_id)
+        run_scenario_a(
+            _parse_levels(args.levels_a), args.seed_cases, args.timeout_a, run_id,
+            db_only=args.db_only,
+        )
         ran_a = True
 
     if args.scenario in ("b", "both"):
