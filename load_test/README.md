@@ -158,6 +158,47 @@ the results table) stays identical, so this is directly comparable to
 a normal run -- it just removes Gemini/Qdrant as a possible source of
 noise.
 
+## Staggered arrivals — is the burst-test ceiling realistic? (`phase3_staggered_arrivals.py`)
+
+The burst test above (`phase3_concurrent_users.py`, Scenario A) found
+a real ceiling at concurrency 30-40: every run capped out at exactly
+20 successes (your `DB_POOL_MAX_CONN` setting), with the rest failing
+around the 5-second budget. That test is deliberately the harshest
+possible case — every simulated user starts at the *exact same
+instant*, which isn't quite how real practitioners open the app, even
+during a busy moment.
+
+`phase3_staggered_arrivals.py` re-runs the same reads, at the same
+concurrency levels, but spreads each level's simulated users' start
+times out over a window (5 seconds by default) instead of firing them
+all at once. Everything else — the seed data, the database calls, the
+results table — is identical and directly comparable to the burst
+test's numbers.
+
+Run it at the same levels that showed failures in the burst test:
+
+```
+python load_test/phase3_staggered_arrivals.py --levels 30,35,40
+```
+
+Try a more relaxed, 10-second arrival window:
+
+```
+python load_test/phase3_staggered_arrivals.py --levels 30,35,40 --window 10
+```
+
+This defaults to the same db-only mode as the comparable burst-test
+run (so Gemini's rate limit can't muddy the comparison). Full option
+list is in the comment block at the top of the file itself.
+
+**How to read it:** compare each concurrency level's success/error
+counts here against the same level from the burst test. If failures
+drop or disappear once arrivals are spread out, that confirms the
+ceiling was really about the artificial "everyone in the same
+nanosecond" burst shape, not a real capacity problem. If the same
+failure rate still shows up, that points to a genuine capacity limit
+worth addressing before opening this up to more pilot users.
+
 ## A note on Gemini's free-tier rate limit
 
 If your Gemini API key is on the free tier, it's limited to 100
@@ -207,6 +248,11 @@ afterward.
 - `phase3_concurrent_users.py` — the burst-of-simultaneous-users test
   (Scenario A supports `--db-only` to isolate the database pool from
   Gemini/Qdrant — see above).
+- `phase3_staggered_arrivals.py` — the same reads as Scenario A above,
+  but with simulated users' start times spread out over a window
+  instead of all firing at once — checks whether the burst test's
+  ceiling is a realistic concern or an artifact of the "everyone at
+  the same instant" test shape (see above).
 - `confirmation_test_b.py` — tests whether documents submitted at the
   exact same instant all actually finish being indexed for search.
 - `test_replacement_deadline.py` — deliberately breaks pooled
