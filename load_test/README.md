@@ -137,6 +137,66 @@ Same safety net as Confirmation Test A applies here too: every fake
 case is tagged `LOADTEST_...` and automatically cleaned up at the end
 unless you pass `--no-cleanup`.
 
+### Isolating the database pool from Gemini/Qdrant (`--db-only`)
+
+Scenario A normally makes 3 real calls per simulated user, and 2 of
+those 3 go out to Gemini. At high concurrency (e.g. 50 users at once),
+that can mean up to 100 Gemini calls landing in the same few seconds
+-- enough to trip Gemini's free-tier rate limit on its own, which then
+makes it hard to tell whether a slow or failed result was caused by
+your database pool or by Gemini being temporarily unavailable.
+
+Add `--db-only` to strip Scenario A down to just the one pure database
+read (no Gemini, no Qdrant, no rate-limit risk at all):
+
+```
+python load_test/phase3_concurrent_users.py --scenario a --levels-a 50 --db-only
+```
+
+Everything else about the test (the synchronized burst, the timing,
+the results table) stays identical, so this is directly comparable to
+a normal run -- it just removes Gemini/Qdrant as a possible source of
+noise.
+
+## A note on Gemini's free-tier rate limit
+
+If your Gemini API key is on the free tier, it's limited to 100
+embedding calls per minute. A high-concurrency Scenario A run (without
+`--db-only`) or a large Confirmation Test B run can get close to or
+exceed that limit on its own, causing embedding calls to fail with a
+`429 RESOURCE_EXHAUSTED` error -- nothing to do with your database
+pool, but it can look like a failure in the same results table. If you
+see that error in your terminal output, it's worth waiting a minute or
+two before re-running, or using `--db-only` (Scenario A) to sidestep
+Gemini entirely.
+
+## Testing what happens when a pooled connection actually breaks
+
+`test_replacement_deadline.py` is a separate, narrower test. Every
+other test in this folder has always run start-to-finish without a
+single pooled connection ever actually going bad -- which is good news
+for those tests, but it also means the part of `services/db_pool.py`
+that notices a broken connection, throws it away, and gets a working
+replacement (while making sure that replacement doesn't get a brand
+new time budget of its own) has never actually been exercised by a
+real test run.
+
+This script deliberately breaks a handful of pooled connections on
+purpose, then fires off several real requests at once so some of them
+are forced to discover the break and go through the replacement code
+path for real -- and reports whether the whole thing still finished
+within the configured time budget.
+
+```
+python load_test/test_replacement_deadline.py
+python load_test/test_replacement_deadline.py --poison 5 --concurrency 10
+```
+
+Full explanation of what it does and how to read the result is in the
+comment block at the top of the file itself. This test doesn't write
+any `LOADTEST_` data anywhere, so there's nothing to clean up
+afterward.
+
 ## Files in this folder
 
 - `_bootstrap.py` — quietly connects these scripts to the real app's
@@ -144,7 +204,14 @@ unless you pass `--no-cleanup`.
 - `common.py` — shared helpers (timing, fake Claude responses, the
   results tracker). You never need to open this.
 - `confirmation_test_a.py` — the realistic-mix test.
-- `phase3_concurrent_users.py` — the burst-of-simultaneous-users test.
+- `phase3_concurrent_users.py` — the burst-of-simultaneous-users test
+  (Scenario A supports `--db-only` to isolate the database pool from
+  Gemini/Qdrant — see above).
+- `confirmation_test_b.py` — tests whether documents submitted at the
+  exact same instant all actually finish being indexed for search.
+- `test_replacement_deadline.py` — deliberately breaks pooled
+  connections to test the "replace a broken connection" path in
+  `services/db_pool.py` (see above).
 - `cleanup_synthetic_data.py` — deletes all `LOADTEST_` test data.
 - `requirements.txt` — the extra packages this folder needs.
 - `.env.example` — template for your secret keys (copy to `.env`).
