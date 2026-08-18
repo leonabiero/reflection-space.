@@ -143,33 +143,6 @@ with error_boundary(
         if not qdrant_available():
             st.warning(T["admin_doc_indexing_unavailable"])
         else:
-            # Temporary migration verification: index exactly one completed document
-            # with the current embedding provider, without triggering the full backfill.
-            if st.button("🧪 Test Gemini indexing (1 document)"):
-                test_rows = get_completed_drafts()
-                if not test_rows:
-                    st.warning("No completed documents are available for the one-document Gemini test.")
-                else:
-                    row = test_rows[0]
-                    (draft_id, case_ref, doc_type, content, created_at, created_by,
-                     created_by_role, was_edited, completed_at) = row
-                    ok, reason = upsert_document(
-                        draft_id, case_ref, doc_type, content=content, language="",
-                        created_at=created_at, completed_at=completed_at,
-                        created_by_role=created_by_role, was_edited=was_edited
-                    )
-                    record_embedding_outcome(draft_id, case_ref, ok, reason)
-                    if ok:
-                        st.success(
-                            f"✅ One-document Gemini indexing test succeeded. "
-                            f"Document ID: {draft_id} | Case: {case_ref} | Type: {doc_type}"
-                        )
-                    else:
-                        st.error(
-                            f"❌ One-document Gemini indexing test failed. "
-                            f"Document ID: {draft_id} | Reason: {reason}"
-                        )
-
             if st.button(T["admin_doc_indexing_button"], type="primary"):
                 rows = get_completed_drafts()
                 indexed = 0
