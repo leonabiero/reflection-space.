@@ -34,9 +34,39 @@ couldn't be generated (see rdi/orchestrator.py's existing
 it just wasn't being kept on the session object before now). No new
 data is computed here, and nothing about how the orchestrator runs,
 what it returns, or how reflections are generated has changed.
+
+Practitioner coverage behavior
+------------------------------
+The workspace now keeps all 8 companion dimensions present in the
+session, even when a dimension has no usable reflection. This prevents a
+missing tab from looking like the system forgot a dimension. A genuinely
+empty dimension gets a short, neutral explanation based on the current
+language. A companion that failed technically after all retries gets a
+neutral availability explanation instead; the technical failure itself
+remains in the orchestrator's diagnostics/logging and is never shown to
+the practitioner.
 """
 
 import streamlit as st
+
+from rdi.companions import COMPANIONS
+from rdi.reflection_objects import ReflectiveOpportunity
+
+
+_COVERAGE_REASON_TEXT = {
+    "English": {
+        "not_applicable": "The documentation did not contain enough relevant information to meaningfully explore this reflection point.",
+        "unavailable": "No usable reflection was available for this area in this run.",
+    },
+    "Español": {
+        "not_applicable": "La documentación no contenía suficiente información relevante para explorar de forma significativa este punto de reflexión.",
+        "unavailable": "No había una reflexión utilizable disponible para esta área en esta ocasión.",
+    },
+    "Euskera": {
+        "not_applicable": "Dokumentazioak ez zuen nahikoa informazio garrantzitsurik hausnarketa-puntu hau zentzuz lantzeko.",
+        "unavailable": "Oraingoan ezin izan da arlo honetarako erabil daitekeen hausnarketarik eskaini.",
+    },
+}
 
 
 class ReflectionSession:
@@ -68,13 +98,59 @@ class ReflectionSession:
         self.friendly_message = result.get("friendly_message") if self.error else None
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
-        self.failed_count = result.get("failed_count", 0)
-        # Phase 3 (UX): kept purely for the Reflection Coverage display --
-        # see module docstring. Falls back to [] so nothing breaks for any
-        # older, already-in-memory session created before this field
-        # existed.
+        # Keep the true technical failure count for diagnostics/inspection,
+        # but do not expose it through the practitioner's old partial-failure
+        # banner. The workspace itself always shows all eight dimensions.
+        self.generation_failed_count = result.get("failed_count", 0)
+        # Compatibility with pages/reflection_space.py: the old banner reads
+        # `failed_count`. Keep that UI-facing value at zero because the
+        # practitioner now sees every dimension and its neutral status/reason
+        # inside the eight tabs instead of a technical generation warning.
+        self.failed_count = 0
+        # Phase 3 (UX): kept for diagnostic/coverage bookkeeping. The
+        # practitioner UI should not be told that companions "couldn't be
+        # generated"; technical details remain in orchestrator logging.
         self.failed_labels = result.get("failed_labels", [])
         self.safe_text = result.get("safe_text", "")
+
+        # Keep all eight companion positions in the workspace. The
+        # orchestrator intentionally omits empty opportunities, so rebuild
+        # the display list here in the deliberate companion order. Existing
+        # generated opportunities are preserved unchanged; missing ones get
+        # a short neutral explanation instead of silently disappearing.
+        generated_by_trigger = {o.trigger: o for o in self.opportunities}
+        failed_label_set = set(self.failed_labels)
+        ordered_opportunities = []
+        lang = st.session_state.get("lang", "Español")
+        reason_text = _COVERAGE_REASON_TEXT.get(lang, _COVERAGE_REASON_TEXT["Español"])
+
+        for companion in COMPANIONS:
+            key = companion["key"]
+            opportunity = generated_by_trigger.get(key)
+            if opportunity is not None:
+                ordered_opportunities.append(opportunity)
+                continue
+
+            if companion["label"] in failed_label_set:
+                # Technical/API failure after all retries. Do not expose the
+                # root cause, retry count, API name, or other implementation
+                # detail to the practitioner.
+                reason = reason_text["unavailable"]
+            else:
+                # Successful call, but the model found nothing meaningful to
+                # raise for this dimension. Keep the explanation neutral and
+                # do not invent a case-specific claim.
+                reason = reason_text["not_applicable"]
+
+            placeholder = ReflectiveOpportunity(
+                trigger=key,
+                context=companion.get("focus", ""),
+                focus=reason,
+                invitation=[],
+            )
+            ordered_opportunities.append(placeholder)
+
+        self.opportunities = ordered_opportunities
 
         self.reflected_drafts = reflected_drafts
         self.case_ref = case_ref
