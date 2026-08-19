@@ -59,14 +59,13 @@ class _RetryInvitation:
     tab layout or creating a second global retry area.
     """
 
-    def __init__(self, session, trigger, label):
+    def __init__(self, session, trigger):
         self.session = session
         self.trigger = trigger
-        self.label = label
 
     def __iter__(self):
         if not self.session.can_retry_companion(self.trigger):
-            return
+            return iter(())
 
         lang = st.session_state.get("lang", "Español")
         text = _COVERAGE_REASON_TEXT.get(lang, _COVERAGE_REASON_TEXT["Español"])
@@ -96,7 +95,7 @@ class _RetryInvitation:
             self.session.save()
             st.rerun()
 
-        return
+        return iter(())
 
 
 class ReflectionSession:
@@ -143,8 +142,8 @@ class ReflectionSession:
 
             if companion["label"] in failed_label_set:
                 reason = reason_text["unavailable"]
+                invitation = _RetryInvitation(self, key)
                 self.retryable_triggers.add(key)
-                invitation = _RetryInvitation(self, key, companion["label"])
             else:
                 reason = reason_text["not_applicable"]
                 invitation = []
