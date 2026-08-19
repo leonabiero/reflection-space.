@@ -82,12 +82,22 @@ class _RetryInvitation:
             if result.get("success"):
                 generated = result["result"]
                 companion = next(c for c in COMPANIONS if c["key"] == self.trigger)
-                replacement = ReflectiveOpportunity(
-                    trigger=self.trigger,
-                    context=self.session.context_summary,
-                    focus=generated.get("observation", ""),
-                    invitation=generated.get("questions", []),
-                )
+                observation = generated.get("observation", "")
+                questions = generated.get("questions", [])
+                if observation or questions:
+                    replacement = ReflectiveOpportunity(
+                        trigger=self.trigger,
+                        context=self.session.context_summary,
+                        focus=observation,
+                        invitation=questions,
+                    )
+                else:
+                    replacement = ReflectiveOpportunity(
+                        trigger=self.trigger,
+                        context=self.session.context_summary,
+                        focus=text["not_applicable"],
+                        invitation=[],
+                    )
                 self.session.replace_opportunity(self.trigger, replacement)
             else:
                 self.session.mark_manual_retry_failed(self.trigger)
