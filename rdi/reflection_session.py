@@ -86,6 +86,11 @@ class ReflectionSession:
         # but do not expose it through the practitioner's old partial-failure
         # banner. The workspace itself always shows all eight dimensions.
         self.generation_failed_count = result.get("failed_count", 0)
+        # Compatibility with pages/reflection_space.py: the old banner reads
+        # `failed_count`. Keep that UI-facing value at zero because the
+        # practitioner now sees every dimension and its neutral status/reason
+        # inside the eight tabs instead of a technical generation warning.
+        self.failed_count = 0
         # Phase 3 (UX): kept for diagnostic/coverage bookkeeping. The
         # practitioner UI should not be told that companions "couldn't be
         # generated"; technical details remain in orchestrator logging.
