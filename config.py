@@ -155,10 +155,29 @@ DB_POOL_HEALTH_RECHECK_SECONDS = int(os.getenv("DB_POOL_HEALTH_RECHECK_SECONDS",
 # downstream database error instead of being caught here. This caps
 # how many times get_conn() will discard-and-fetch-again before giving
 # up and raising a clear, immediate error instead of a silently broken
-# connection. 3 is generous for a pool this size (DB_POOL_MAX_CONN
-# above) without risking a long stall if the database itself is
-# genuinely unreachable.
-DB_POOL_MAX_REPLACE_ATTEMPTS = int(os.getenv("DB_POOL_MAX_REPLACE_ATTEMPTS", "3"))
+# connection.
+#
+# Raised from 3 to match DB_POOL_MAX_CONN (Aug 2026): real-world testing
+# surfaced the exact "several connections went stale around the same
+# time" scenario the old comment warned about -- Neon puts the database
+# to sleep after a period of nobody using the app, which quietly kills
+# EVERY one of the pool's saved connections at once. The next person to
+# open the app then hits stale connection after stale connection as the
+# pool works through its already-open (but now-dead) list before it will
+# ever open a genuinely fresh one. With only 3 attempts allowed, that
+# first request after any quiet period was reliably failing with "no
+# healthy connection" -- 3 tries almost never got past a pool's worth of
+# simultaneously-stale connections. Matching this to the pool size gives
+# get_conn() enough attempts to work all the way through a fully-stale
+# pool and reach a fresh connection. This is still safe: each attempt is
+# checked against the same 5-second total checkout deadline as before
+# (see DB_POOL_WAIT_TIMEOUT_SECONDS in services/db_pool.py), so a
+# genuinely unreachable database still fails fast with a clear error
+# instead of hanging -- this change only helps the "stale, but the
+# database itself is fine" case succeed instead of giving up too early.
+DB_POOL_MAX_REPLACE_ATTEMPTS = int(
+    os.getenv("DB_POOL_MAX_REPLACE_ATTEMPTS", str(DB_POOL_MAX_CONN))
+)
 
 # Default page size used ONLY when a caller of one of the newly
 # paginated read functions (see Change 4 -- get_audit_log(),

@@ -795,6 +795,7 @@ def get_conn():
                 id(raw_conn),
                 total_queue_wait_ms,
                 total_health_ms,
+                total_elapsed_ms,
                 (
                     _remaining_seconds(deadline)
                     * 1000.0
