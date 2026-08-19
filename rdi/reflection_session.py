@@ -6,67 +6,106 @@ Wraps everything about an in-progress reflection session -- the result
 from the orchestrator, which draft(s) it covers, submission progress, and
 whether feedback is pending -- in one object.
 
-This replaces what used to be 5 separate, hand-managed
-st.session_state[...] keys ("reflection", "reflected_drafts",
-"reflection_case_ref", "submitted_ids", "awaiting_feedback") with a
-single object stored under one key. Pure refactor: the page's behavior
-and everything the practitioner sees is unchanged.
+The workspace keeps all 8 companion dimensions present, including a
+short explanation when a dimension has no usable reflection. Technical
+failures are retained for diagnostics, not exposed as technical details
+to the practitioner.
 
-Sprint 6 addition
-------------------
-The session now also carries `safe_text` (the anonymized document text
-used to generate this session's opportunities) and `context_summary`
-(the transparency sentence about how much historical context was
-included). Both are needed by the Reflection Workspace so that exploring
-an opportunity's conversation doesn't require re-anonymizing the
-document or losing the context description. Existing constructor
-arguments and behavior are unchanged; both are optional.
-
-Phase 3 (Practitioner UX) addition
------------------------------------
-`failed_labels` is now also carried over from the orchestrator result
-(previously only `failed_count` was kept). This is purely additive and
-purely for DISPLAY -- it lets the Reflection Coverage panel on the
-Reflection Workspace page show, dimension by dimension, which of the 8
-reflective areas were actually analysed this run versus which one(s)
-couldn't be generated (see rdi/orchestrator.py's existing
-"failed_labels" key, which was already being computed and returned --
-it just wasn't being kept on the session object before now). No new
-data is computed here, and nothing about how the orchestrator runs,
-what it returns, or how reflections are generated has changed.
-
-Practitioner coverage behavior
-------------------------------
-The workspace now keeps all 8 companion dimensions present in the
-session, even when a dimension has no usable reflection. This prevents a
-missing tab from looking like the system forgot a dimension. A genuinely
-empty dimension gets a short, neutral explanation based on the current
-language. A companion that failed technically after all retries gets a
-neutral availability explanation instead; the technical failure itself
-remains in the orchestrator's diagnostics/logging and is never shown to
-the practitioner.
+Manual companion recovery
+-------------------------
+A companion that exhausted the orchestrator's existing automatic retry
+mechanism is marked retryable. The workspace exposes one practitioner
+retry for that companion only. That retry makes exactly one additional
+API call. If it fails, the companion becomes permanently unavailable for
+that session and the failure is logged as an operational issue. No
+additional retry button is rendered.
 """
 
 import streamlit as st
 
 from rdi.companions import COMPANIONS
 from rdi.reflection_objects import ReflectiveOpportunity
+from rdi.companion_retry import retry_companion_once
 
 
 _COVERAGE_REASON_TEXT = {
     "English": {
         "not_applicable": "The documentation did not contain enough relevant information to meaningfully explore this reflection point.",
-        "unavailable": "No usable reflection was available for this area in this run.",
+        "unavailable": "This reflection is temporarily unavailable.",
+        "manual_failed": "This reflection is currently unavailable. The issue has been recorded for review.",
+        "retry": "Retry",
     },
     "Español": {
         "not_applicable": "La documentación no contenía suficiente información relevante para explorar de forma significativa este punto de reflexión.",
-        "unavailable": "No había una reflexión utilizable disponible para esta área en esta ocasión.",
+        "unavailable": "Esta reflexión no está disponible temporalmente.",
+        "manual_failed": "Esta reflexión no está disponible actualmente. El problema ha quedado registrado para su revisión.",
+        "retry": "Reintentar",
     },
     "Euskera": {
         "not_applicable": "Dokumentazioak ez zuen nahikoa informazio garrantzitsurik hausnarketa-puntu hau zentzuz lantzeko.",
-        "unavailable": "Oraingoan ezin izan da arlo honetarako erabil daitekeen hausnarketarik eskaini.",
+        "unavailable": "Hausnarketa hau aldi baterako ez dago erabilgarri.",
+        "manual_failed": "Hausnarketa hau ez dago erabilgarri une honetan. Arazoa berrikusteko erregistratu da.",
+        "retry": "Berriro saiatu",
     },
 }
+
+
+class _RetryInvitation:
+    """Iterable used by the existing tab renderer to place the retry button
+    exactly where invitation questions normally appear.
+
+    The page already iterates `opportunity.invitation` inside each horizontal
+    companion tab. Keeping the control on the placeholder avoids changing the
+    tab layout or creating a second global retry area.
+    """
+
+    def __init__(self, session, trigger):
+        self.session = session
+        self.trigger = trigger
+
+    def __iter__(self):
+        if not self.session.can_retry_companion(self.trigger):
+            return iter(())
+
+        lang = st.session_state.get("lang", "Español")
+        text = _COVERAGE_REASON_TEXT.get(lang, _COVERAGE_REASON_TEXT["Español"])
+        button_key = f"retry_companion_{self.trigger}"
+
+        if st.button(text["retry"], key=button_key):
+            with st.spinner(text["retry"] + "..."):
+                result = retry_companion_once(
+                    self.trigger,
+                    self.session.safe_text,
+                    lang,
+                )
+
+            if result.get("success"):
+                generated = result["result"]
+                companion = next(c for c in COMPANIONS if c["key"] == self.trigger)
+                observation = generated.get("observation", "")
+                questions = generated.get("questions", [])
+                if observation or questions:
+                    replacement = ReflectiveOpportunity(
+                        trigger=self.trigger,
+                        context=self.session.context_summary,
+                        focus=observation,
+                        invitation=questions,
+                    )
+                else:
+                    replacement = ReflectiveOpportunity(
+                        trigger=self.trigger,
+                        context=self.session.context_summary,
+                        focus=text["not_applicable"],
+                        invitation=[],
+                    )
+                self.session.replace_opportunity(self.trigger, replacement)
+            else:
+                self.session.mark_manual_retry_failed(self.trigger)
+
+            self.session.save()
+            st.rerun()
+
+        return iter(())
 
 
 class ReflectionSession:
@@ -77,47 +116,27 @@ class ReflectionSession:
     _SESSION_KEY = "reflection_session"
 
     def __init__(self, result, reflected_drafts, case_ref, context_summary=""):
-        # result is whatever rdi.orchestrator.run_reflection() returned:
-        # either {"error": ..., "raw": ...} or
-        # {"opportunities": [...], "raw": ..., "failed_count": ...,
-        #  "failed_labels": [...], "safe_text": ...}
         self.error = result.get("error")
         self.error_raw = result.get("raw") if self.error else None
-        # Phase 3 (Reflection Generation): only ever set when self.error
-        # is set (Complete Failure) -- see rdi/orchestrator.py:run_reflection.
-        # Lets the page show the SAME numbered "Something went wrong"
-        # screen as any other unexpected error -- see
-        # services/error_log.py:render_application_error_screen.
         self.issue_id = result.get("issue_id") if self.error else None
         self.error_id = result.get("error_id") if self.error else None
-        # September pilot hardening: only set for
-        # rdi/orchestrator.py's capacity-timeout outcome -- lets the
-        # "Something went wrong" screen explain (truthfully) that this
-        # was a timing/capacity issue, not a bug. None for every other
-        # error, which keeps that screen's normal, generic wording.
         self.friendly_message = result.get("friendly_message") if self.error else None
         self.opportunities = result.get("opportunities", [])
         self.raw = result.get("raw")
-        # Keep the true technical failure count for diagnostics/inspection,
-        # but do not expose it through the practitioner's old partial-failure
-        # banner. The workspace itself always shows all eight dimensions.
+
+        # Keep true technical failure information for diagnostics, while the
+        # practitioner-facing UI remains neutral and dimension-specific.
         self.generation_failed_count = result.get("failed_count", 0)
-        # Compatibility with pages/reflection_space.py: the old banner reads
-        # `failed_count`. Keep that UI-facing value at zero because the
-        # practitioner now sees every dimension and its neutral status/reason
-        # inside the eight tabs instead of a technical generation warning.
         self.failed_count = 0
-        # Phase 3 (UX): kept for diagnostic/coverage bookkeeping. The
-        # practitioner UI should not be told that companions "couldn't be
-        # generated"; technical details remain in orchestrator logging.
         self.failed_labels = result.get("failed_labels", [])
         self.safe_text = result.get("safe_text", "")
 
-        # Keep all eight companion positions in the workspace. The
-        # orchestrator intentionally omits empty opportunities, so rebuild
-        # the display list here in the deliberate companion order. Existing
-        # generated opportunities are preserved unchanged; missing ones get
-        # a short neutral explanation instead of silently disappearing.
+        # These sets define the manual-retry state machine for this session:
+        # retryable -> one manual attempt -> either success or permanent
+        # unavailable. A failed manual attempt is never retryable again.
+        self.retryable_triggers = set()
+        self.manual_retry_failed = set()
+
         generated_by_trigger = {o.trigger: o for o in self.opportunities}
         failed_label_set = set(self.failed_labels)
         ordered_opportunities = []
@@ -132,26 +151,22 @@ class ReflectionSession:
                 continue
 
             if companion["label"] in failed_label_set:
-                # Technical/API failure after all retries. Do not expose the
-                # root cause, retry count, API name, or other implementation
-                # detail to the practitioner.
                 reason = reason_text["unavailable"]
+                invitation = _RetryInvitation(self, key)
+                self.retryable_triggers.add(key)
             else:
-                # Successful call, but the model found nothing meaningful to
-                # raise for this dimension. Keep the explanation neutral and
-                # do not invent a case-specific claim.
                 reason = reason_text["not_applicable"]
+                invitation = []
 
             placeholder = ReflectiveOpportunity(
                 trigger=key,
                 context=companion.get("focus", ""),
                 focus=reason,
-                invitation=[],
+                invitation=invitation,
             )
             ordered_opportunities.append(placeholder)
 
         self.opportunities = ordered_opportunities
-
         self.reflected_drafts = reflected_drafts
         self.case_ref = case_ref
         self.context_summary = context_summary
@@ -161,6 +176,27 @@ class ReflectionSession:
     def has_error(self):
         return self.error is not None
 
+    def can_retry_companion(self, trigger):
+        return trigger in self.retryable_triggers and trigger not in self.manual_retry_failed
+
+    def replace_opportunity(self, trigger, replacement):
+        self.opportunities = [
+            replacement if opportunity.trigger == trigger else opportunity
+            for opportunity in self.opportunities
+        ]
+        self.retryable_triggers.discard(trigger)
+        self.manual_retry_failed.discard(trigger)
+
+    def mark_manual_retry_failed(self, trigger):
+        self.retryable_triggers.discard(trigger)
+        self.manual_retry_failed.add(trigger)
+        lang = st.session_state.get("lang", "Español")
+        text = _COVERAGE_REASON_TEXT.get(lang, _COVERAGE_REASON_TEXT["Español"])
+        opportunity = self.get_opportunity(trigger)
+        if opportunity is not None:
+            opportunity.focus = text["manual_failed"]
+            opportunity.invitation = []
+
     def mark_submitted(self, draft_id):
         self.submitted_ids.add(draft_id)
 
@@ -168,8 +204,6 @@ class ReflectionSession:
         return draft_id in self.submitted_ids
 
     def all_batch_submitted(self):
-        """True once every draft in this session's batch has been
-        submitted."""
         batch_ids = {d[0] for d in self.reflected_drafts}
         return self.submitted_ids >= batch_ids
 
@@ -177,21 +211,13 @@ class ReflectionSession:
         return [d[0] for d in self.reflected_drafts]
 
     def get_opportunity(self, trigger):
-        """Look up one opportunity by its trigger key (e.g.
-        "client_voice"), for continuing its conversation. Returns None
-        if not found (shouldn't normally happen, but kept defensive)."""
         for opportunity in self.opportunities:
             if opportunity.trigger == trigger:
                 return opportunity
         return None
 
     def explored_count(self):
-        """How many opportunities the practitioner has opened at all --
-        used for the session progress indicator. Not a completion or
-        competence measure, just a count."""
         return sum(1 for o in self.opportunities if o.explored)
-
-    # --- session storage -------------------------------------------------
 
     def save(self):
         st.session_state[self._SESSION_KEY] = self
