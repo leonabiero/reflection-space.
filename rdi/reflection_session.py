@@ -40,17 +40,33 @@ Practitioner coverage behavior
 The workspace now keeps all 8 companion dimensions present in the
 session, even when a dimension has no usable reflection. This prevents a
 missing tab from looking like the system forgot a dimension. A genuinely
-empty dimension gets a short, neutral explanation based on that
-companion's focus. A companion that failed technically after all retries
-gets a neutral availability explanation instead; the technical failure
-itself remains in the orchestrator's diagnostics/logging and is never
-shown to the practitioner.
+empty dimension gets a short, neutral explanation based on the current
+language. A companion that failed technically after all retries gets a
+neutral availability explanation instead; the technical failure itself
+remains in the orchestrator's diagnostics/logging and is never shown to
+the practitioner.
 """
 
 import streamlit as st
 
 from rdi.companions import COMPANIONS
 from rdi.reflection_objects import ReflectiveOpportunity
+
+
+_COVERAGE_REASON_TEXT = {
+    "English": {
+        "not_applicable": "The documentation did not contain enough relevant information to meaningfully explore this reflection point.",
+        "unavailable": "No usable reflection was available for this area in this run.",
+    },
+    "Español": {
+        "not_applicable": "La documentación no contenía suficiente información relevante para explorar de forma significativa este punto de reflexión.",
+        "unavailable": "No había una reflexión utilizable disponible para esta área en esta ocasión.",
+    },
+    "Euskera": {
+        "not_applicable": "Dokumentazioak ez zuen nahikoa informazio garrantzitsurik hausnarketa-puntu hau zentzuz lantzeko.",
+        "unavailable": "Oraingoan ezin izan da arlo honetarako erabil daitekeen hausnarketarik eskaini.",
+    },
+}
 
 
 class ReflectionSession:
@@ -105,6 +121,8 @@ class ReflectionSession:
         generated_by_trigger = {o.trigger: o for o in self.opportunities}
         failed_label_set = set(self.failed_labels)
         ordered_opportunities = []
+        lang = st.session_state.get("lang", "Español")
+        reason_text = _COVERAGE_REASON_TEXT.get(lang, _COVERAGE_REASON_TEXT["Español"])
 
         for companion in COMPANIONS:
             key = companion["key"]
@@ -117,18 +135,12 @@ class ReflectionSession:
                 # Technical/API failure after all retries. Do not expose the
                 # root cause, retry count, API name, or other implementation
                 # detail to the practitioner.
-                reason = "No usable reflection was available for this area in this run."
+                reason = reason_text["unavailable"]
             else:
                 # Successful call, but the model found nothing meaningful to
-                # raise for this dimension. The reason is deliberately tied
-                # to the companion's focus so the practitioner can see why
-                # this specific tab has no reflection without inventing a
-                # case-specific claim.
-                focus = (companion.get("focus") or "this area").rstrip(".")
-                reason = (
-                    "The available documentation did not provide enough material "
-                    f"to meaningfully explore {focus}."
-                )
+                # raise for this dimension. Keep the explanation neutral and
+                # do not invent a case-specific claim.
+                reason = reason_text["not_applicable"]
 
             placeholder = ReflectiveOpportunity(
                 trigger=key,
