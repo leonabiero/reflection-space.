@@ -8,6 +8,9 @@ from services.reflection_log import get_recent_theme_counts, THEME_KEYS
 from services.exploration_log import get_aggregated_theme_counts
 from services.presence import get_active_social_workers
 from services.knowledge_assistant import ask as ask_knowledge_assistant
+from services.ka_rate_limiter import check_and_record as ka_check_and_record
+from services import request_dedup
+import config
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -82,23 +85,105 @@ with error_boundary(
             height=80,
         )
 
-        if st.button(T["ka_ask_button"], type="primary"):
+        # ---------------------------------------------------------------
+        # Reliability-hardening pass (September pilot): the Knowledge
+        # Assistant calls the Claude API, and previously had none of the
+        # protections rdi/orchestrator.py's reflection generation already
+        # has. Same two-layer approach used there:
+        #
+        # 1. "_ka_generating" is a plain session flag (not a widget) set
+        #    the instant the button is clicked and cleared once the
+        #    question finishes (success OR failure). While set, the
+        #    button renders disabled, so a second click during the same
+        #    brief window can't start a second, overlapping question.
+        # 2. services.ka_rate_limiter.check_and_record() enforces a
+        #    generous per-person hourly cap (config.KA_MAX_PER_HOUR) as a
+        #    backstop, the same "fails open, never the reason someone
+        #    can't work" design as the reflection rate limiter.
+        #
+        # A third layer -- services.request_dedup -- catches the case
+        # neither of the above can: the exact same question, from the
+        # exact same person, arriving again within a short window (e.g.
+        # a slow connection causing a resend, or two browser tabs). It
+        # is intentionally short-lived (config.REQUEST_DEDUP_TTL_MINUTES)
+        # so it can never block someone legitimately re-asking the same
+        # question later.
+        is_generating = st.session_state.get("_ka_generating", False)
+
+        if st.button(T["ka_ask_button"], type="primary", disabled=is_generating):
             if not question or not question.strip():
                 st.warning(T["ka_empty_question"])
             else:
-                with st.spinner(T["ka_thinking"]):
-                    result = ask_knowledge_assistant(question.strip(), lang=st.session_state.lang)
-
-                if "error" in result:
-                    render_application_error_screen(
-                        T,
-                        result.get("issue_id"),
-                        result.get("error_id"),
-                        friendly_message=T["ka_error"],
+                with error_boundary(
+                    "learning (knowledge assistant)",
+                    T=T,
+                    user_name=user_name,
+                    user_role=user_role,
+                    reset_flags=["_ka_generating"],
+                ):
+                    question_text = question.strip()
+                    request_id = request_dedup.fingerprint(
+                        "knowledge_assistant", user_name, question_text,
                     )
-                else:
-                    st.session_state["ka_last_result"] = result
-                    st.session_state["ka_last_question"] = question.strip()
+                    claim_status = request_dedup.claim(
+                        request_id, "knowledge_assistant",
+                        ttl_minutes=config.REQUEST_DEDUP_TTL_MINUTES,
+                    )
+
+                    if claim_status != "claimed":
+                        # Exact same question from this same person is
+                        # already running (or just finished) -- do not
+                        # make a second AI call.
+                        st.session_state["_ka_duplicate_hit"] = True
+                        st.rerun()
+
+                    allowed, _count = ka_check_and_record(user_name)
+                    if not allowed:
+                        request_dedup.release(request_id)
+                        st.session_state["_ka_rate_limit_hit"] = True
+                        st.rerun()
+
+                    st.session_state["_ka_generating"] = True
+
+                    succeeded = False
+                    try:
+                        with st.spinner(T["ka_thinking"]):
+                            result = ask_knowledge_assistant(question_text, lang=st.session_state.lang)
+                        succeeded = True
+                    finally:
+                        # Always resolve the claim, whether the call
+                        # above succeeded or raised -- a failed/aborted
+                        # attempt must not permanently block a genuine
+                        # retry of the same question.
+                        if succeeded:
+                            request_dedup.complete(request_id)
+                        else:
+                            request_dedup.release(request_id)
+
+                    st.session_state["_ka_generating"] = False
+
+                    if "error" in result:
+                        render_application_error_screen(
+                            T,
+                            result.get("issue_id"),
+                            result.get("error_id"),
+                            friendly_message=T["ka_error"],
+                        )
+                    else:
+                        st.session_state["ka_last_result"] = result
+                        st.session_state["ka_last_question"] = question_text
+
+        if st.session_state.pop("_ka_duplicate_hit", False):
+            st.info(T.get("ka_duplicate_message", "This question is already being processed."))
+
+        if st.session_state.pop("_ka_rate_limit_hit", False):
+            st.error(
+                T.get(
+                    "ka_rate_limit_exceeded_message",
+                    "You've reached the limit of {max} Knowledge Assistant questions in the last "
+                    "hour on this account.",
+                ).format(max=config.KA_MAX_PER_HOUR)
+            )
 
         last_result = st.session_state.get("ka_last_result")
         if last_result:

@@ -1,9 +1,13 @@
 import anthropic
 import json
 import traceback
-from config import ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS
+from config import (
+    ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS,
+    REQUEST_DEDUP_TTL_MINUTES,
+)
 from services.anonymizer import anonymize
 from services.error_log import log_error
+from services import request_dedup
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
 
 # Scalability pass (September pilot hardening): explicit per-call
@@ -189,10 +193,21 @@ Return structured reflection JSON only.
 
 def continue_companion_conversation(companion: dict, safe_text: str, initial_observation: str,
                                      initial_questions, conversation_history, professional_message: str,
-                                     lang: str = "Español"):
+                                     lang: str = "Español", requested_by: str = ""):
     """
     Sprint 6/7: continue a free-text reflective conversation for ONE
     companion's opportunity, inside the Reflection Workspace.
+
+    Reliability-hardening pass (September pilot) -- `requested_by`
+    (the practitioner's name, optional/backward-compatible) enables
+    duplicate-request protection via services.request_dedup: the exact
+    same person sending the exact same message, in the exact same
+    conversation, at the exact same point (same companion + same
+    number of turns so far) within a short window is recognized as a
+    duplicate (a double click, a slow-connection resend) and answered
+    with {"duplicate": True} instead of making a second Claude call.
+    Callers that don't pass requested_by simply get no duplicate
+    protection (the original behavior) -- this is purely additive.
 
     Unlike generate_companion_reflection(), this does NOT ask for JSON.
     It returns plain text -- one short conversational reply -- or an
@@ -297,6 +312,25 @@ Your original reflective question(s) were:
 
     messages.append({"role": "user", "content": professional_message})
 
+    # Duplicate-request protection (see this function's docstring and
+    # services/request_dedup.py). Only active when a caller identifies
+    # who's asking (requested_by) -- without it, this is a no-op and
+    # behavior is exactly as before this pass.
+    request_id = None
+    if requested_by:
+        request_id = request_dedup.fingerprint(
+            "companion_conversation", requested_by, companion.get("key"),
+            len(conversation_history), professional_message,
+        )
+        claim_status = request_dedup.claim(
+            request_id, "companion_conversation", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
+        )
+        if claim_status != "claimed":
+            # This exact message, from this exact person, in this exact
+            # conversation, is already being answered (or was just
+            # answered) -- do not make a second Claude call.
+            return {"duplicate": True}
+
     try:
         message = client.messages.create(
             model="claude-sonnet-5",
@@ -305,6 +339,8 @@ Your original reflective question(s) were:
             messages=messages,
         )
     except Exception as e:
+        if request_id:
+            request_dedup.release(request_id)
         error_id, issue_id = log_error(
             page="reflection_space (workspace conversation)",
             error_type=type(e).__name__,
@@ -318,6 +354,8 @@ Your original reflective question(s) were:
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
 
     if not raw.strip():
+        if request_id:
+            request_dedup.release(request_id)
         return {"error": "Empty response", "raw": ""}
 
     # Surface cache stats for visibility (Sprint 10 research metrics can
@@ -329,5 +367,8 @@ Your original reflective question(s) were:
     if cache_read or cache_created:
         print(f"[prompt cache] companion={companion.get('key')} "
               f"cache_read_input_tokens={cache_read} cache_creation_input_tokens={cache_created}")
+
+    if request_id:
+        request_dedup.complete(request_id)
 
     return {"reply": raw.strip()}

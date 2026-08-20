@@ -1,5 +1,7 @@
 from services.db_time import now_utc, iso_row, get_logger
 from services.db_pool import get_conn as _acquire_pooled_conn
+from services import request_dedup
+from config import REQUEST_DEDUP_TTL_MINUTES
 
 logger = get_logger(__name__)
 
@@ -90,7 +92,25 @@ def log_exploration(case_ref, trigger, turn_count, explored_by="", explored_by_r
     depth signal, not a quality or competence measure. Call sites should
     skip calling this for opportunities with turn_count == 0 (never
     explored), so this table only ever contains genuine explorations.
+
+    Reliability-hardening pass (September pilot): guarded against the
+    same reflection/opportunity being logged twice due to a rerun or
+    repeated cleanup call (see pages/reflection_space.py's _clear_all()
+    -- the function that calls this). Same database-level approach as
+    services/feedback_store.py:save_feedback() -- see
+    services/request_dedup.py for the full design.
     """
+    request_id = request_dedup.fingerprint(
+        "exploration", case_ref, trigger, turn_count, explored_by,
+    )
+    claim_status = request_dedup.claim(request_id, "exploration", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES)
+    if claim_status != "claimed":
+        logger.info(
+            "log_exploration: duplicate event ignored (case_ref=%r trigger=%r explored_by=%r)",
+            case_ref, trigger, explored_by,
+        )
+        return
+
     conn = _get_conn()
     try:
         with conn.cursor() as c:
@@ -104,8 +124,10 @@ def log_exploration(case_ref, trigger, turn_count, explored_by="", explored_by_r
                 now_utc(),
             ))
         conn.commit()
+        request_dedup.complete(request_id)
     except Exception:
         conn.rollback()
+        request_dedup.release(request_id)
         logger.exception(
             "log_exploration FAILED: case_ref=%r trigger=%r explored_by=%r",
             case_ref, trigger, explored_by,

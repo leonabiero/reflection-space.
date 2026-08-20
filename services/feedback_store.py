@@ -1,5 +1,7 @@
 from services.db_time import now_utc, iso_row, get_logger
 from services.db_pool import get_conn as _acquire_pooled_conn
+from services import request_dedup
+from config import REQUEST_DEDUP_TTL_MINUTES
 
 logger = get_logger(__name__)
 
@@ -51,6 +53,28 @@ def _get_conn():
 
 
 def save_feedback(draft_ids, rating, comment, submitted_by="", submitted_by_role=""):
+    """
+    Reliability-hardening pass (September pilot): guarded against a
+    double click or a Streamlit rerun submitting the exact same
+    feedback twice. "Exact same" here means the same person, for the
+    same batch of drafts, with the same rating and comment -- a
+    genuinely different rating/comment (the person changed their mind
+    and resubmitted) is treated as a NEW, real submission, not a
+    duplicate. See services/request_dedup.py for the full design;
+    this is deliberately DATABASE-level protection (not a UI lock),
+    per the September pilot reliability audit's guidance for this
+    operation. Silently does nothing on a detected duplicate -- there
+    is no AI cost here to protect, only avoiding a skewed feedback
+    count on future dashboards.
+    """
+    request_id = request_dedup.fingerprint(
+        "feedback", submitted_by, ",".join(str(d) for d in draft_ids), rating, comment,
+    )
+    claim_status = request_dedup.claim(request_id, "feedback", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES)
+    if claim_status != "claimed":
+        logger.info("save_feedback: duplicate submission ignored (submitted_by=%r)", submitted_by)
+        return
+
     conn = _get_conn()
     try:
         with conn.cursor() as c:
@@ -66,8 +90,12 @@ def save_feedback(draft_ids, rating, comment, submitted_by="", submitted_by_role
                 now_utc(),
             ))
         conn.commit()
+        request_dedup.complete(request_id)
     except Exception:
         conn.rollback()
+        # A genuine retry of the SAME feedback (not a duplicate -- the
+        # first attempt never actually succeeded) must not be blocked.
+        request_dedup.release(request_id)
         # Operational identifiers only -- never logs `comment`, which
         # is free-text a practitioner wrote and could contain
         # case-adjacent content (Change 7's "no sensitive case content

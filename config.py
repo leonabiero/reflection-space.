@@ -179,6 +179,37 @@ DB_POOL_MAX_REPLACE_ATTEMPTS = int(
     os.getenv("DB_POOL_MAX_REPLACE_ATTEMPTS", str(DB_POOL_MAX_CONN))
 )
 
+# ---------------------------------------------------------------------
+# Knowledge Assistant rate limiting (services/ka_rate_limiter.py)
+# ---------------------------------------------------------------------
+# Cost-safety guard added during the September pilot reliability pass,
+# alongside services/request_dedup.py. Before this, the Knowledge
+# Assistant (pages/learning.py) was the one AI-calling feature in this
+# app with no volume cap of any kind.
+#
+# KA_MAX_PER_HOUR: same "generous, meant to catch bugs/runaway use --
+# not to restrict normal work" philosophy as
+# services/rate_limiter.py's DEFAULT_MAX_PER_HOUR. Set slightly higher
+# than the reflection limit (20) because Knowledge Assistant questions
+# are lighter-weight (one API call, not eight) and more naturally
+# asked in a back-and-forth burst while a manager is exploring a
+# theme. Always re-check this against real pilot usage and raise it if
+# genuine legitimate use is ever seen bumping against it.
+KA_MAX_PER_HOUR = int(os.getenv("KA_MAX_PER_HOUR", "30"))
+
+# ---------------------------------------------------------------------
+# Duplicate-request protection (services/request_dedup.py)
+# ---------------------------------------------------------------------
+# How long an exact-duplicate request (same person, same content) is
+# remembered and refused a second run for -- see
+# services/request_dedup.py's module docstring for the full design.
+# Deliberately short: this exists to catch a double click, a slow-
+# connection retry, or two open browser tabs racing each other, NOT to
+# stop someone legitimately repeating the same action later. 10
+# minutes comfortably covers any realistic accidental-duplicate
+# window without ever standing in the way of real work.
+REQUEST_DEDUP_TTL_MINUTES = int(os.getenv("REQUEST_DEDUP_TTL_MINUTES", "10"))
+
 # Default page size used ONLY when a caller of one of the newly
 # paginated read functions (see Change 4 -- get_audit_log(),
 # get_completed_drafts(), get_all_feedback(), get_pending_deletions())

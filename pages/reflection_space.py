@@ -11,6 +11,8 @@ from services.identity import init_identity, render_identity_footer, require_wor
 from services.rag_logging import rag_log
 from services.explanation_builder import build_explanations, similarity_category
 from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
+from services import request_dedup
+from config import REQUEST_DEDUP_TTL_MINUTES
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from services.error_log import error_boundary, render_application_error_screen
@@ -430,28 +432,56 @@ with error_boundary(
                 height=80,
             )
 
+            # Reliability-hardening pass (September pilot): same
+            # in-flight-lock idea already used for reflection generation
+            # (see the "Generate" button further down this page), scoped
+            # per opportunity so replying to one dimension's conversation
+            # doesn't lock the others. Backend duplicate protection
+            # (services.request_dedup, via continue_companion_conversation's
+            # requested_by parameter) is the backstop for whatever this
+            # lock can't see on its own (e.g. two browser tabs).
+            convo_generating_key = f"_convo_generating_{opportunity.trigger}"
+            convo_is_generating = st.session_state.get(convo_generating_key, False)
+
             col1, col2 = st.columns([1, 1])
             with col1:
-                if st.button(T["workspace_send_button"], key=f"send_btn_{opportunity.trigger}"):
+                if st.button(
+                    T["workspace_send_button"],
+                    key=f"send_btn_{opportunity.trigger}",
+                    disabled=convo_is_generating,
+                ):
                     if message_text and message_text.strip():
                         companion = COMPANIONS_BY_KEY.get(opportunity.trigger)
                         history_before = list(opportunity.conversation)
-                        opportunity.add_professional_message(message_text.strip())
+                        sent_message = message_text.strip()
 
-                        with st.spinner(T["workspace_ai_thinking"]):
-                            result = continue_companion_conversation(
-                                companion=companion,
-                                safe_text=session.safe_text,
-                                initial_observation=opportunity.focus,
-                                initial_questions=opportunity.invitation,
-                                conversation_history=history_before,
-                                professional_message=message_text.strip(),
-                                lang=st.session_state.lang,
-                            )
+                        st.session_state[convo_generating_key] = True
+                        try:
+                            with st.spinner(T["workspace_ai_thinking"]):
+                                result = continue_companion_conversation(
+                                    companion=companion,
+                                    safe_text=session.safe_text,
+                                    initial_observation=opportunity.focus,
+                                    initial_questions=opportunity.invitation,
+                                    conversation_history=history_before,
+                                    professional_message=sent_message,
+                                    lang=st.session_state.lang,
+                                    requested_by=user_name,
+                                )
+                        finally:
+                            st.session_state[convo_generating_key] = False
 
-                        if "reply" in result:
+                        if result.get("duplicate"):
+                            # This exact message is already being (or was
+                            # just) answered elsewhere -- don't add it to
+                            # the visible conversation a second time, and
+                            # don't make a second Claude call.
+                            pass
+                        elif "reply" in result:
+                            opportunity.add_professional_message(sent_message)
                             opportunity.add_ai_message(result["reply"])
                         else:
+                            opportunity.add_professional_message(sent_message)
                             st.session_state[f"convo_error_{opportunity.trigger}"] = True
                             st.session_state[f"convo_error_ref_{opportunity.trigger}"] = (
                                 result.get("issue_id"), result.get("error_id"),
@@ -469,7 +499,11 @@ with error_boundary(
                         session.save()
                         st.rerun()
             with col2:
-                if st.button(T["workspace_close_button"], key=f"close_btn_{opportunity.trigger}"):
+                if st.button(
+                    T["workspace_close_button"],
+                    key=f"close_btn_{opportunity.trigger}",
+                    disabled=convo_is_generating,
+                ):
                     st.session_state[open_key] = False
                     st.rerun()
 
@@ -592,6 +626,28 @@ with error_boundary(
 
                     combined_text = ctx.combined_text()
 
+                    # Backend-level duplicate protection (see
+                    # services/request_dedup.py). The button-disable above
+                    # is the primary defence against a double click; this
+                    # is the backstop for what that can't see on its own
+                    # (e.g. two browser tabs open on the same case). The
+                    # fingerprint is exactly what makes two attempts "the
+                    # same reflection request": this person, this case,
+                    # this exact document content.
+                    reflection_request_id = request_dedup.fingerprint(
+                        "reflection", user_name, getattr(ctx, "case_ref", ""), combined_text,
+                    )
+                    claim_status = request_dedup.claim(
+                        reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
+                    )
+                    if claim_status != "claimed":
+                        # This exact reflection is already being generated
+                        # (or was just generated) elsewhere -- do not
+                        # trigger a second set of 8 Claude calls.
+                        st.session_state["_generating_reflection"] = False
+                        st.session_state["_reflection_duplicate_hit"] = True
+                        st.rerun()
+
                     # Development logging: capture exactly what is about to be
                     # sent into the Reflection Orchestrator -- current
                     # document(s), every included historical document with its
@@ -602,12 +658,23 @@ with error_boundary(
 
                     # UX Priority 1: Step 3 of the Reflection Journey, shown for
                     # the duration of the (unchanged) orchestrator call.
-                    with st.spinner(f"{T['journey_step3']}..."):
-                        # Same underlying companion calls as before (see
-                        # rdi/orchestrator.py) -- this just also reshapes the
-                        # result into a ReflectionSession for display and
-                        # tracking.
-                        result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
+                    reflection_succeeded = False
+                    try:
+                        with st.spinner(f"{T['journey_step3']}..."):
+                            # Same underlying companion calls as before (see
+                            # rdi/orchestrator.py) -- this just also reshapes the
+                            # result into a ReflectionSession for display and
+                            # tracking.
+                            result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
+                        reflection_succeeded = True
+                    finally:
+                        # Always resolve the claim -- a failed/aborted
+                        # attempt must not permanently block a genuine
+                        # retry of the same reflection.
+                        if reflection_succeeded:
+                            request_dedup.complete(reflection_request_id)
+                        else:
+                            request_dedup.release(reflection_request_id)
 
                     st.session_state["_generating_reflection"] = False
 
@@ -648,6 +715,15 @@ with error_boundary(
                     "again, or contact your System Administrator if you believe this is a "
                     "mistake.",
                 ).format(max=DEFAULT_MAX_PER_HOUR)
+            )
+
+        if st.session_state.pop("_reflection_duplicate_hit", False):
+            st.info(
+                T.get(
+                    "reflection_duplicate_message",
+                    "This reflection is already being generated. Please wait a moment for it "
+                    "to finish before trying again.",
+                )
             )
 
         st.stop()

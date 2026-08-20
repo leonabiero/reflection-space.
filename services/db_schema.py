@@ -571,6 +571,46 @@ def ensure_schema():
                     CREATE INDEX IF NOT EXISTS idx_login_failure_log_username_occurred
                     ON login_failure_log (username, occurred_at)
                 """)
+
+                # --- services/ka_rate_limiter.py: ka_rate_log ---
+                # Reliability-hardening pass (September pilot): the
+                # Knowledge Assistant (pages/learning.py) previously had
+                # no volume cap at all -- see that module's docstring.
+                # New table, so it uses a native TIMESTAMPTZ column from
+                # creation (like auth_sessions above), not TEXT.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS ka_rate_log (
+                    id SERIAL PRIMARY KEY,
+                    user_name TEXT,
+                    occurred_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_ka_rate_log_user_occurred
+                    ON ka_rate_log (user_name, occurred_at)
+                """)
+
+                # --- services/request_dedup.py: idempotent_requests ---
+                # Reliability-hardening pass (September pilot): shared
+                # "has this exact request already been started or
+                # finished very recently" table, used by reflection
+                # generation, the Knowledge Assistant, and companion
+                # conversation turns -- see services/request_dedup.py's
+                # module docstring for the full design. New table, so
+                # it uses native TIMESTAMPTZ columns from creation.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS idempotent_requests (
+                    request_id TEXT PRIMARY KEY,
+                    kind TEXT,
+                    status TEXT,
+                    created_at TIMESTAMPTZ,
+                    completed_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_idempotent_requests_created_at
+                    ON idempotent_requests (created_at)
+                """)
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see
