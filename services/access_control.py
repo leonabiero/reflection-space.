@@ -17,6 +17,20 @@ MANAGEMENT_ROLES = {
 }
 
 
+def _resolve_authenticated_actor(actor_name: str, actor_role: str):
+    """Use explicit identity when supplied; otherwise use the authenticated
+    Streamlit session. A non-Streamlit/background call has no identity and
+    therefore fails closed."""
+    if actor_name and actor_role:
+        return actor_name, actor_role
+    try:
+        from services.identity import get_current_user_context
+        ctx = get_current_user_context()
+        return ctx.get("user_name", ""), ctx.get("user_role", "")
+    except Exception:
+        return "", ""
+
+
 def can_access_case_history(actor_name: str, actor_role: str, case_ref: str) -> bool:
     """Return whether an authenticated actor may retrieve completed history.
 
@@ -26,10 +40,14 @@ def can_access_case_history(actor_name: str, actor_role: str, case_ref: str) -> 
     documentation. This prevents a guessed/manipulated case reference from
     becoming a cross-worker retrieval oracle.
 
-    The check is performed against PostgreSQL, not Streamlit UI state.
-    Fail-closed on database errors.
+    The check is performed against PostgreSQL, not Streamlit UI visibility.
+    Fail-closed on database errors or missing identity.
     """
-    if not actor_name or not actor_role or not case_ref or not case_ref.strip():
+    if not case_ref or not case_ref.strip():
+        return False
+
+    actor_name, actor_role = _resolve_authenticated_actor(actor_name, actor_role)
+    if not actor_name or not actor_role:
         return False
 
     if actor_role in MANAGEMENT_ROLES:
@@ -64,4 +82,10 @@ def can_access_case_history(actor_name: str, actor_role: str, case_ref: str) -> 
 
 def require_management_role(actor_role: str) -> bool:
     """Small pure helper used by organisation-wide retrieval/deletion paths."""
-    return actor_role in MANAGEMENT_ROLES
+    if actor_role:
+        return actor_role in MANAGEMENT_ROLES
+    try:
+        from services.identity import get_current_user_context
+        return get_current_user_context().get("user_role", "") in MANAGEMENT_ROLES
+    except Exception:
+        return False
