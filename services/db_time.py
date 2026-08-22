@@ -34,9 +34,6 @@ class _PrivacyFormatter(logging.Formatter):
         try:
             return anonymize(raw)
         except Exception:
-            # Logging must remain available even if the privacy helper itself
-            # has a defect. The safer fallback is to emit a fixed marker rather
-            # than the potentially sensitive original record.
             return "[LOG_MESSAGE_REDACTION_FAILED]"
 
 
@@ -47,7 +44,6 @@ class _RingBufferHandler(logging.Handler):
         try:
             self.acquire()
             try:
-                self.format(record)
                 _log_buffer.append(self.format(record))
             finally:
                 self.release()
