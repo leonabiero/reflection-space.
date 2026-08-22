@@ -33,7 +33,7 @@ class CompanionRecoveryBoundaryTests(unittest.TestCase):
 class ReflectionSessionCoverageTests(unittest.TestCase):
     def test_failed_companion_is_explicitly_unavailable_and_retryable(self):
         import streamlit as st
-        from rdi.reflection_session import ReflectionSession
+        from rdi.reflection_session import ReflectionSession, _COVERAGE_REASON_TEXT
         from rdi.reflection_objects import ReflectiveOpportunity
 
         companions = [
@@ -52,16 +52,24 @@ class ReflectionSessionCoverageTests(unittest.TestCase):
         with patch("rdi.reflection_session.COMPANIONS", companions):
             session = ReflectionSession(result, [], "case-1")
 
+        # The session renders this message in whatever language is active
+        # for the practitioner (Spanish by default). Pull the expected text
+        # from the same translation source the app itself uses, rather than
+        # hardcoding one language, so this test stays correct regardless of
+        # the active/default language.
+        active_lang = st.session_state.get("lang", "Español")
+        expected_text = _COVERAGE_REASON_TEXT[active_lang]["unavailable"]
+
         failed = session.get_opportunity("two")
         self.assertIsNotNone(failed)
-        self.assertIn("temporarily unavailable", failed.focus)
+        self.assertEqual(failed.focus, expected_text)
         self.assertTrue(session.can_retry_companion("two"))
         self.assertEqual(len(session.opportunities), 2)
         st.session_state.clear()
 
     def test_manual_retry_failure_becomes_permanently_unavailable(self):
         import streamlit as st
-        from rdi.reflection_session import ReflectionSession
+        from rdi.reflection_session import ReflectionSession, _COVERAGE_REASON_TEXT
         from rdi.reflection_objects import ReflectiveOpportunity
 
         companions = [{"key": "one", "label": "One", "focus": ""}]
@@ -78,8 +86,14 @@ class ReflectionSessionCoverageTests(unittest.TestCase):
             self.assertTrue(session.can_retry_companion("one"))
             session.mark_manual_retry_failed("one")
 
+        # Same principle as above: check against the app's own translation
+        # source for the active language instead of an assumed-English
+        # substring, so the test reflects what the practitioner actually sees.
+        active_lang = st.session_state.get("lang", "Español")
+        expected_text = _COVERAGE_REASON_TEXT[active_lang]["manual_failed"]
+
         self.assertFalse(session.can_retry_companion("one"))
-        self.assertIn("issue has been recorded", session.get_opportunity("one").focus)
+        self.assertEqual(session.get_opportunity("one").focus, expected_text)
         st.session_state.clear()
 
 
