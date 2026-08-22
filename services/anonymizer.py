@@ -10,9 +10,9 @@ The final layer is deliberately conservative in the privacy direction: a
 proper-looking multi-token name may be redacted even when it turns out to be a
 place or organisation. That is preferable to preserving a likely client's
 name. Indirect identification (for example, a unique combination of age,
-location, school and rare event) cannot be reliably solved with pattern
-matching; callers must therefore treat anonymization as risk reduction, not a
-formal guarantee of anonymity.
+location, school and rare event) cannot be reliably solved by pattern matching;
+callers must therefore treat anonymization as risk reduction, not a formal
+guarantee of anonymity.
 """
 
 import re
@@ -33,15 +33,23 @@ _PROTECTED_PROPER_PHRASES = {
 }
 
 _CONTEXTUAL_IDENTIFIER_PATTERNS = [
+    # Person labels / introductions.
     (re.compile(r"\b(?:client|patient|child|mother|father|guardian|caregiver|named|name(?:d)?\s+as)\s*[:\-]?\s+(%s(?:\s+%s){0,3})\b" % (_NAME_TOKEN, _NAME_TOKEN)), "[PERSON]"),
+    # Institution names where the type comes first ("Hospital City Eye").
     (re.compile(r"\b(?:school|hospital|clinic|organisation|organization|company|employer|university)\s*[:\-]?\s+(%s(?:\s+%s){0,4})\b" % (_NAME_TOKEN, _NAME_TOKEN)), "[ORGANISATION]"),
+    # Institution names where the type is a suffix ("City Eye Hospital").
+    (re.compile(r"\b(%s(?:\s+%s){0,4})\s+(?:school|hospital|clinic|organisation|organization|company|university|foundation)\b" % (_NAME_TOKEN, _NAME_TOKEN), re.IGNORECASE), "[ORGANISATION]"),
+    # Places after common location cues.
     (re.compile(r"\b(?:from|near|in|at|lives?\s+in|resides?\s+in|based\s+in)\s+(%s(?:\s+%s){0,3})(?=\s*[,.;:!?)]|\s+(?:and|but|who|where|which|was|is|has|had)\b|$)" % (_NAME_TOKEN, _NAME_TOKEN)), "[LOCATION]"),
-    (re.compile(r"\b(?:home\s+address|postal\s+address|physical\s+address|address)\s*[:\-]?\s+[^\n,.;!?]+"), "[ADDRESS]"),
-    (re.compile(r"\b(?:lives?|resides?)\s+at\s+[^\n,.;!?]+"), "[ADDRESS]"),
+    # Explicit address labels and natural-language residence/address phrases.
+    (re.compile(r"\b(?:home\s+address|postal\s+address|physical\s+address|address)\s*[:\-]?\s+[^\n,.;!?]+", re.IGNORECASE), "[ADDRESS]"),
+    (re.compile(r"\b(?:lives?|resides?)\s+at\s+[^\n,.;!?]+", re.IGNORECASE), "[ADDRESS]"),
 ]
 
+# The complete identifier label must end at a word boundary. In particular,
+# plain `ref` must NOT match the beginning of words such as "referral".
 _IDENTIFIER_RE = re.compile(
-    r"\b(?:case\s*(?:reference|ref|number|no|id)|client\s*(?:id|number|no)|national\s*(?:id|number|no)|identifier|reference|ref)\s*[:#\-]?\s*[A-Za-z0-9][A-Za-z0-9/_\-.]{2,}\b",
+    r"\b(?:case\s*(?:reference|ref|number|no|id)|client\s*(?:id|number|no)|national\s*(?:id|number|no)|identifier|reference|ref)\b\s*[:#\-]?\s*[A-Za-z0-9][A-Za-z0-9/_\-.]{2,}\b",
     re.IGNORECASE,
 )
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b", re.UNICODE)
@@ -56,6 +64,7 @@ _LONG_NUMERIC_ID_RE = re.compile(r"(?<!\w)\d{5,}(?!\w)")
 
 
 def _replace_proper_names(text: str) -> str:
+    """Redact conservative multi-token names plus complex single names."""
     def repl(match):
         phrase = match.group(0)
         if phrase in _PROTECTED_PROPER_PHRASES:
@@ -64,13 +73,8 @@ def _replace_proper_names(text: str) -> str:
             return phrase
         return "[PERSON]"
 
-    # First catch multi-token names.
     text = _NAME_SEQUENCE_RE.sub(repl, text)
 
-    # Then catch single-token names only when they contain an apostrophe or
-    # hyphen. Ordinary single capitalized words are too ambiguous (they may be
-    # sentence starts or ordinary places/terms), while these forms are strong
-    # name signals and are common in real-world names.
     def complex_repl(match):
         token = match.group(0)
         if "-" in token or "'" in token or "’" in token:
