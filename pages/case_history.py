@@ -1,15 +1,16 @@
 import streamlit as st
 from collections import defaultdict
 from services.draft_storage import (
-    get_completed_drafts, get_completed_draft_dates, get_draft_history,
-    soft_delete_draft, restore_draft, get_pending_deletions,
+    get_completed_drafts, get_completed_draft_dates, get_completed_draft_count,
+    get_draft_history, soft_delete_draft, restore_draft, get_pending_deletions,
     purge_expired_deletions,
 )
-from services.feedback_store import get_all_feedback
+from services.feedback_store import get_all_feedback, get_feedback_summary
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 from services.error_log import error_boundary
+from config import CASE_HISTORY_MAX_RESULTS, CASE_HISTORY_FEEDBACK_MAX_RESULTS
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -31,18 +32,35 @@ with error_boundary(
 
     is_admin = user_role == "System Administrator"
 
+    # Phase 3 (scalability): the average rating is now computed by
+    # services.feedback_store.get_feedback_summary() directly in
+    # PostgreSQL (one small aggregate query) instead of pulling every
+    # feedback row -- including every comment's full text -- into
+    # Python just to add ratings up. It always reflects the TRUE
+    # organisation-wide average, regardless of how many individual
+    # entries are shown in the list below. The list itself is capped
+    # to the most recent CASE_HISTORY_FEEDBACK_MAX_RESULTS entries so
+    # this page stays fast no matter how much feedback accumulates
+    # over the life of the pilot -- nothing is deleted, older entries
+    # simply aren't loaded onto the screen.
     st.subheader(T["feedback_section_header"])
-    all_feedback = get_all_feedback()
+    feedback_summary = get_feedback_summary()
+    recent_feedback = get_all_feedback(limit=CASE_HISTORY_FEEDBACK_MAX_RESULTS)
 
-    if not all_feedback:
+    if feedback_summary["count"] == 0:
         st.info(T["feedback_no_items"])
     else:
-        ratings = [row[2] for row in all_feedback if row[2] is not None]
-        if ratings:
-            average = sum(ratings) / len(ratings)
-            st.write(f"**{T['feedback_average_label']}:** {average:.1f} / 5  ({len(ratings)})")
+        rated_count = sum(feedback_summary["distribution"].values())
+        if rated_count:
+            average = feedback_summary["average"]
+            st.write(f"**{T['feedback_average_label']}:** {average:.1f} / 5  ({rated_count})")
 
-        for row in all_feedback:
+        if feedback_summary["count"] > CASE_HISTORY_FEEDBACK_MAX_RESULTS:
+            st.caption(T["feedback_showing_recent"].format(
+                shown=len(recent_feedback), total=feedback_summary["count"],
+            ))
+
+        for row in recent_feedback:
             fb_id, draft_ids, rating, comment, submitted_by, submitted_by_role, submitted_at = row
             role_label = T.get("role_labels", {}).get(submitted_by_role, submitted_by_role)
             stars = "⭐" * (rating or 0)
@@ -89,14 +107,29 @@ with error_boundary(
     date_options = [T["case_history_all_dates"]] + all_dates
     selected_date = st.selectbox(T["case_history_date_filter_label"], date_options)
 
-    # "All dates" still needs the full org-wide set (this page's
+    # "All dates" still needs the org-wide set (this page's
     # grouped-by-worker view is intentionally org-wide, unlike the
     # per-case retrieval paths in rdi/retrieval_service.py). Selecting
     # one date now filters in SQL (`date_filter=`) instead of loading
     # every completed document and discarding everything that doesn't
     # match the selected date in Python.
+    #
+    # Phase 3 (scalability): this is the one screen in the app whose
+    # data grows continuously for the entire life of the pilot -- every
+    # completed document, from every social worker, forever. Loading
+    # every one of those (full text included) on every visit would only
+    # get slower and heavier over time, with no natural ceiling. It now
+    # loads the most recently completed CASE_HISTORY_MAX_RESULTS
+    # documents instead, with a note when there are more -- nothing is
+    # deleted or hidden from the database; older documents remain fully
+    # reachable by picking a specific date above.
     if selected_date == T["case_history_all_dates"]:
-        filtered = get_completed_drafts()
+        filtered = get_completed_drafts(limit=CASE_HISTORY_MAX_RESULTS)
+        total_completed = get_completed_draft_count()
+        if total_completed > CASE_HISTORY_MAX_RESULTS:
+            st.caption(T["case_history_showing_recent"].format(
+                shown=len(filtered), total=total_completed,
+            ))
     else:
         filtered = get_completed_drafts(date_filter=selected_date)
 

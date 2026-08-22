@@ -151,35 +151,51 @@ def get_feedback_summary():
             "comment_count": int,                  # how many left a comment
         }
 
-    This intentionally reads the WHOLE table (no pagination) -- it
-    needs every row to compute an accurate average/distribution, so a
-    `limit` parameter would silently make this function's numbers
-    wrong. Not paginated on purpose.
+    Phase 3 (scalability): this used to read every row of the WHOLE
+    table -- rating AND the full comment text -- into Python just to
+    add numbers up. That got slower and heavier with every feedback
+    submission ever made, forever, with no ceiling. It now asks
+    PostgreSQL to do the counting/averaging directly (an aggregate
+    query), so this function's cost stays flat no matter how much
+    feedback has accumulated, and the (potentially long) comment text
+    is never pulled across the wire at all -- only whether each comment
+    is non-empty. The four returned numbers are computed exactly the
+    same way as before (same rounding, same treatment of NULL ratings
+    and blank/whitespace-only comments), so every existing caller sees
+    identical results, just computed far more cheaply.
     """
     conn = _get_conn()
     try:
         with conn.cursor() as c:
-            c.execute("SELECT rating, comment FROM feedback")
-            rows = c.fetchall()
+            c.execute("""
+                SELECT
+                    COUNT(*) AS total_count,
+                    AVG(rating) FILTER (WHERE rating IS NOT NULL) AS avg_rating,
+                    COUNT(*) FILTER (
+                        WHERE comment IS NOT NULL AND TRIM(comment) <> ''
+                    ) AS comment_count
+                FROM feedback
+            """)
+            total_count, avg_rating, comment_count = c.fetchone()
+
+            c.execute("""
+                SELECT rating, COUNT(*)
+                FROM feedback
+                WHERE rating BETWEEN 1 AND 5
+                GROUP BY rating
+            """)
+            distribution_rows = c.fetchall()
     finally:
         conn.close()
 
     distribution = {i: 0 for i in range(1, 6)}
-    comment_count = 0
-    ratings = []
+    for rating, count in distribution_rows:
+        distribution[rating] = count
 
-    for rating, comment in rows:
-        if rating in distribution:
-            distribution[rating] += 1
-        if rating is not None:
-            ratings.append(rating)
-        if comment and comment.strip():
-            comment_count += 1
-
-    average = (sum(ratings) / len(ratings)) if ratings else None
+    average = float(avg_rating) if avg_rating is not None else None
 
     return {
-        "count": len(rows),
+        "count": total_count,
         "average": average,
         "distribution": distribution,
         "comment_count": comment_count,

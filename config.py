@@ -223,6 +223,36 @@ REQUEST_DEDUP_TTL_MINUTES = int(os.getenv("REQUEST_DEDUP_TTL_MINUTES", "10"))
 DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
 
 # ---------------------------------------------------------------------
+# Phase 3 (scalability): Case History page bounds
+# ---------------------------------------------------------------------
+# pages/case_history.py's "All dates" view is intentionally org-wide
+# (see that page's own comments) -- it is the one screen in the app
+# whose data volume grows continuously and without limit for as long
+# as the pilot runs, since every completed document across every
+# social worker accumulates there forever. Left completely unbounded,
+# that view would eventually load thousands of full-text documents (and,
+# separately, every feedback comment ever submitted) into memory on a
+# single page load.
+#
+# Nothing is ever deleted or hidden from the database by these caps --
+# they only limit what is loaded onto the screen at once. Older
+# documents remain fully retrievable via the page's own date filter,
+# which already queries one specific day directly in PostgreSQL rather
+# than filtering the full unbounded set in Python.
+#
+# CASE_HISTORY_MAX_RESULTS: how many of the most recently completed
+# documents are shown at once in the "All dates" view.
+CASE_HISTORY_MAX_RESULTS = int(os.getenv("CASE_HISTORY_MAX_RESULTS", "500"))
+
+# CASE_HISTORY_FEEDBACK_MAX_RESULTS: how many of the most recent
+# individual feedback entries (rating + comment) are listed at once.
+# The average rating shown above the list is unaffected by this cap --
+# see services/feedback_store.get_feedback_summary(), which computes
+# the true organisation-wide average directly in PostgreSQL rather than
+# from whichever feedback rows happen to be loaded on screen.
+CASE_HISTORY_FEEDBACK_MAX_RESULTS = int(os.getenv("CASE_HISTORY_FEEDBACK_MAX_RESULTS", "200"))
+
+# ---------------------------------------------------------------------
 # Production error email alerts (services/email_alert.py)
 # ---------------------------------------------------------------------
 # Lets Leon get notified by email the moment a real error is logged
