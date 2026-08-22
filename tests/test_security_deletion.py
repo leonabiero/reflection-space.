@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -24,7 +25,11 @@ class DeletionLifecycleSecurityTests(unittest.TestCase):
 
     def test_qdrant_soft_delete_policy_is_documented(self):
         source = (ROOT / "services" / "qdrant_service.py").read_text(encoding="utf-8")
-        self.assertIn("during the 48-hour restore window", source)
+        # The explanatory sentence is wrapped across source lines; normalize
+        # whitespace so the assertion tests the documented security policy,
+        # not its source formatting.
+        normalized = re.sub(r"\s+", " ", source)
+        self.assertIn("during the 48-hour restore window", normalized)
         self.assertIn("status='deleted'", (ROOT / "services" / "draft_storage.py").read_text(encoding="utf-8"))
 
 
