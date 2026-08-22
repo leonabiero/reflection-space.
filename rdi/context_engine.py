@@ -35,6 +35,15 @@ get_historical_context() changed; classify_context_strength() gained one
 new optional argument (avg_score) but is fully backward compatible for
 any call site that doesn't pass it.
 
+Security boundary
+-------------------
+The UI is not an authorization boundary. A caller must provide the
+authenticated actor name and role. Before the retrieval service is called,
+services.access_control.can_access_case_history() verifies that a Social
+Worker owns completed documentation for the requested case, while the
+existing management roles retain organisation-wide completed-history access.
+Missing or invalid identity fails closed.
+
 Development logging
 ----------------------
 Logging goes through the shared services.rag_logging.rag_log() helper
@@ -44,24 +53,12 @@ Streamlit Cloud instead of possibly being lost to output buffering.
 """
 
 from rdi.retrieval_service import retrieve_historical_context
+from services.access_control import can_access_case_history
 from services.rag_logging import rag_log
 
-# How many historical documents to surface by default. Kept small
-# deliberately -- this is meant to orient the practitioner, not overwhelm
-# them with a full case file.
 DEFAULT_HISTORY_LIMIT = 4
-
-# Thresholds used to classify how much historical context was found, for
-# the transparency summary shown to the practitioner.
 STRONG_CONTEXT_THRESHOLD = 3
 LIMITED_CONTEXT_THRESHOLD = 1
-
-# A semantic average similarity at/above this is considered a genuinely
-# strong signal (embedding cosine scores for same-case caseworker
-# documents in the same style typically land 0.7+ when topically
-# related) -- used only to let a *smaller* number of documents still
-# count as "strong" context when they're clearly, closely relevant,
-# never to downgrade a count that already clears STRONG_CONTEXT_THRESHOLD.
 STRONG_SIMILARITY_THRESHOLD = 0.75
 
 
@@ -71,39 +68,30 @@ def _log(msg):
     rag_log(f"[RAG] {msg}")
 
 
-def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIMIT, query_text=""):
-    """
-    Return up to `limit` documents relevant to `case_ref`, excluding any
-    ids in `exclude_ids` (typically the draft(s) the practitioner just
-    selected for this session, so they aren't shown twice).
+def get_historical_context(
+    case_ref,
+    exclude_ids=None,
+    limit=DEFAULT_HISTORY_LIMIT,
+    query_text="",
+    actor_name="",
+    actor_role="",
+):
+    """Return up to `limit` documents relevant to `case_ref`.
 
-    `query_text` (new, optional) is the text of the document(s) the
-    practitioner just selected -- used as the semantic search query so
-    Qdrant can find genuinely related history, not just recent history.
-    Omitting it (the old call signature) still works: the semantic
-    strategy simply contributes nothing that turn, and results fall
-    back to must-include + recency, exactly like before this upgrade.
+    Authorization is enforced against PostgreSQL before retrieval. Management
+    roles may access completed history organisation-wide; a Social Worker may
+    retrieve only history for a case for which they have completed
+    documentation. Missing identity fails closed.
 
-    Returns a list of dicts:
-        {
-            "id": int,
-            "doc_type": str,
-            "content": str,
-            "created_at": str (ISO timestamp),
-            "completed_at": str (ISO timestamp),
-            "was_edited": bool,
-            "score": float | None,        # similarity score, semantic matches only
-            "match_reason": str,          # primary reason (highest priority)
-            "match_reasons": [str, ...],  # every reason this document was proposed for
-        }
-
-    A missing/blank case_ref returns an empty list: undated, uncategorised
-    documents shouldn't be silently pulled into someone else's context.
-    Confidentiality is enforced structurally inside retrieve_historical_context()
-    / services.qdrant_service.search_similar() -- every retrieval path is
-    scoped to this case_ref and nothing else.
+    The actor arguments are optional at the Python signature level for
+    compatibility with non-user-facing tooling, but a call without them is
+    denied rather than falling back to the old unscoped behaviour.
     """
     if not case_ref or not case_ref.strip():
+        return []
+
+    if not can_access_case_history(actor_name, actor_role, case_ref):
+        _log("get_historical_context DENIED: case access check failed")
         return []
 
     exclude_ids = exclude_ids or set()
@@ -112,7 +100,7 @@ def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIM
     )
 
     _log(
-        f"get_historical_context: case_ref={case_ref!r} returned {len(results)} document(s): "
+        f"get_historical_context: returned {len(results)} document(s): "
         + (
             ", ".join(
                 f"[id={d['id']} doc_type={d['doc_type']!r} reasons={d.get('match_reasons')} score={d.get('score')}"
@@ -126,21 +114,7 @@ def get_historical_context(case_ref, exclude_ids=None, limit=DEFAULT_HISTORY_LIM
 
 
 def classify_context_strength(count, avg_score=None):
-    """
-    Classify how much historical context is available, for the
-    transparency summary ("Context Confidence"). Returns one of
-    "strong", "limited", "none".
-
-    `avg_score` (new, optional) is the average similarity score across
-    included documents that came from semantic matching (None if there
-    weren't any, e.g. semantic retrieval isn't configured, or every
-    included document came from must-include/recency instead). When
-    given, a small number of documents that are strongly, semantically
-    relevant can still be classified "strong" even below
-    STRONG_CONTEXT_THRESHOLD -- reflecting genuine relevance rather than
-    just raw count. It can never turn a real "strong" (by count) into
-    something weaker, and it never affects the "none" case.
-    """
+    """Classify how much historical context is available."""
     if count >= STRONG_CONTEXT_THRESHOLD:
         strength = "strong"
     elif count >= LIMITED_CONTEXT_THRESHOLD:
