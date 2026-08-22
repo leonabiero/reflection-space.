@@ -12,7 +12,10 @@ class AuthenticationSecurityTests(unittest.TestCase):
         self.assertIn("SameSite=Lax", source)
         self.assertIn("Secure", source)
         self.assertIn("HttpOnly", source)  # documented limitation/analysis
-        self.assertIn("cannot be marked `HttpOnly`", source)
+        # Documentation wraps the sentence across lines; normalize whitespace
+        # rather than making the security assertion dependent on formatting.
+        normalized = re.sub(r"\s+", " ", source)
+        self.assertIn("CANNOT be marked `HttpOnly`", normalized)
 
     def test_session_token_is_cryptographically_random(self):
         source = (ROOT / "services" / "session_store.py").read_text(encoding="utf-8")
