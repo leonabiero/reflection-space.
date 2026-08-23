@@ -3,14 +3,14 @@ from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.error_log import error_boundary
-from services.research_metrics_SERVICE import build_research_summary, summary_to_dataframe, build_research_export_csv
+from services.research_metrics_service import build_research_summary, summary_to_dataframe, build_research_export_csv
 
 # Research Metrics
 # ==================
 #
 # Sprint 10. Prepares the app for future research/evaluation by
 # surfacing organisation-wide reflection ACTIVITY -- never professional
-# competence (see services/research_metrics_SERVICE.py for the structural
+# competence (see services/research_metrics_service.py for the structural
 # reasoning; nothing in that module can return per-person data, so
 # nothing here can render it either).
 #

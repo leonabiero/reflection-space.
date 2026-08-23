@@ -27,7 +27,7 @@ orchestration layer over pieces that already exist:
       untouched by this and remains hard-scoped to one case for every
       practitioner-facing use.
 
-    - services.research_metrics_SERVICE.build_research_summary() -- the
+    - services.research_metrics_service.build_research_summary() -- the
       SAME organisation-wide, anonymous aggregate counts (theme flags,
       theme explorations, completed documents, feedback) already used
       by the Research Metrics page. Reused here (not recomputed) so
@@ -80,7 +80,7 @@ import anthropic
 from config import ANTHROPIC_API_KEY
 from services.anonymizer import anonymize
 from rdi.retrieval_service import retrieve_global_context
-from services.research_metrics_SERVICE import build_research_summary
+from services.research_metrics_service import build_research_summary
 from services.error_log import log_error
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)

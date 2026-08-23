@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 # Design choice worth knowing about: converting to TIMESTAMPTZ means
 # psycopg2 returns a native datetime object on read, not a string.
 # Every page in this app (case_history.py, learning.py,
-# growth_dashboard.py, research_metrics_SERVICE.py, etc.) does string
+# growth_dashboard.py, research_metrics_service.py, etc.) does string
 # operations on these values (e.g. completed_at[:10]). Rather than
 # touch every one of those files in this pass, every function below
 # converts datetime values back to the exact same ISO-8601 string
@@ -156,7 +156,7 @@ def get_case_count(since_iso=None, service=None, doc_type=None):
     Structured query for aggregation/counting.
 
     Note on since_iso: callers elsewhere in the app (e.g.
-    services/research_metrics_SERVICE.py) build this as a naive,
+    services/research_metrics_service.py) build this as a naive,
     server-local ISO string via datetime.now() (not UTC-aware). Now
     that completed_at is TIMESTAMPTZ, Postgres will cast that string
     using the session's timezone setting when comparing. This is

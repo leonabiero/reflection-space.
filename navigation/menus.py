@@ -15,7 +15,7 @@ def render_workspace_menu(T):
     roles that can access that work mode at all (e.g. every Manager-mode
     role -- Supervisor, Programme Manager, System Administrator -- can
     open "Manager" mode, but Research Metrics itself is restricted to
-    System Administrator only -- see pages/research_metrics_PAGE.py).
+    System Administrator only -- see pages/research_metrics_page.py).
 
     Previously the sidebar link was shown to everyone in Manager mode
     regardless of this, so a Supervisor or Programme Manager would click
@@ -27,7 +27,7 @@ def render_workspace_menu(T):
 
     This changes visibility only. It does not change who is ALLOWED to
     view the page (that guard already lives inside
-    pages/research_metrics_PAGE.py and is unchanged), and it does not
+    pages/research_metrics_page.py and is unchanged), and it does not
     change any other page's link or any work mode's availability.
     """
     workspace = st.session_state.get("active_work_mode", "Practitioner")
@@ -47,7 +47,7 @@ def render_workspace_menu(T):
         # Supervisors/Programme Managers never see a link that
         # immediately denies them.
         if role == "System Administrator":
-            st.sidebar.page_link("pages/research_metrics_PAGE.py", label=T.get("nav_research_metrics", "Research Metrics"))
+            st.sidebar.page_link("pages/research_metrics_page.py", label=T.get("nav_research_metrics", "Research Metrics"))
     elif workspace == "System Administration":
         render_workspace_badge(T.get("workmode_admin", "System Administration"), "System Administration")
         st.sidebar.page_link("pages/system_administration.py", label=T.get("nav_system_admin", "System Administration"))
