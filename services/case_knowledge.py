@@ -664,7 +664,11 @@ def _gather_case_data(issue_id):
                 issue["diagnostic_summary"] = pkg.get("summary")
                 issue["timeline"] = pkg.get("navigation_timeline") or []
             except Exception:
-                pass
+                logger.exception(
+                    "Could not read stored diagnostic package for issue_id=%s "
+                    "-- summary/timeline will be unavailable for this record",
+                    issue.get("issue_id"),
+                )
 
     return {
         "issue": issue,
