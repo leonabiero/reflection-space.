@@ -44,8 +44,11 @@ directive advice.
 
 - `pages/` — one file per screen the user sees
 - `services/` — the actual logic: database access, authentication,
-  translations, rate limiting, error logging, etc. Pages call into
-  services; services don't know about Streamlit.
+  translations, rate limiting, error logging, etc. Pages call into services
+  for this. A handful of services (session tracking, pagination controls,
+  language selection) are screen-glue by nature and do use Streamlit
+  directly — that's a deliberate, reviewed choice, not business logic
+  leaking into the wrong layer.
 - `rdi/` — the reflection companion's "thinking": builds context, calls
   Claude, assembles the conversation
 - `navigation/` — decides which menu items and pages a given role can see

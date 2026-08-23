@@ -468,16 +468,17 @@ with error_boundary(
     # SEARCHED, as a true Issue Management dashboard:
     #
     #   - Open Issues / Fixed Issues / Warnings are now three separate
-    #     tabs instead of one long flat list with a status dropdown.
+    #     sections (switchable via the "View" selector above the issue
+    #     list) instead of one long flat list with a status dropdown.
     #     Warnings (severity == "warning", e.g. the "Partial Reflection
     #     Generation" issue raised by rdi/orchestrator.py) are never
-    #     mixed into the application-error tabs -- they always get
-    #     their own tab, using the same severity value that already
+    #     mixed into the application-error sections -- they always get
+    #     their own section, using the same severity value that already
     #     existed before this phase.
     #   - One shared filter bar (Status, Severity, Root Cause, Page,
-    #     Date, User) applies across all three tabs, so switching tabs
+    #     Date, User) applies across all sections, so switching sections
     #     never loses a filter you've already set.
-    #   - A new Trend Analysis tab charts occurrence volume over time
+    #   - A new Trend Analysis section charts occurrence volume over time
     #     and highlights the most frequent issues -- built entirely
     #     from data already fetched below; no new queries.
     #   - Every issue's own detail view (the expander you open) is
@@ -574,7 +575,7 @@ with error_boundary(
 
             # --- Shared filter bar (Phase 6) ------------------------------------
             # Status, Severity, Root Cause, Page, Date, User -- applies across
-            # Open Issues, Fixed Issues, and Warnings alike, so switching tabs
+            # Open Issues, Fixed Issues, and Warnings alike, so switching sections
             # never loses a filter you've already set.
             st.markdown(f"##### {T.get('admin_diag_filters_header', '🔍 Filters')}")
             search_term = st.text_input(
