@@ -10,6 +10,7 @@ from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 from services.error_log import error_boundary
+from services.confirm_state import is_confirming, start_confirming, clear_confirming
 from config import CASE_HISTORY_MAX_RESULTS, CASE_HISTORY_FEEDBACK_MAX_RESULTS
 
 T = init_language()
@@ -177,22 +178,22 @@ with error_boundary(
 
                     if is_admin:
                         confirm_key = f"confirm_delete_{draft_id}"
-                        if st.session_state.get(confirm_key, False):
+                        if is_confirming(confirm_key):
                             st.warning(T["case_history_delete_confirm"])
                             c1, c2 = st.columns(2)
                             with c1:
                                 if st.button(T["case_history_delete_yes"], key=f"yes_delete_{draft_id}"):
                                     soft_delete_draft(draft_id, user_name, user_role)
-                                    st.session_state.pop(confirm_key, None)
+                                    clear_confirming(confirm_key)
                                     st.success(T["case_history_deleted_success"])
                                     st.rerun()
                             with c2:
                                 if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_{draft_id}"):
-                                    st.session_state.pop(confirm_key, None)
+                                    clear_confirming(confirm_key)
                                     st.rerun()
                         else:
                             if st.button(T["case_history_delete_button"], key=f"delete_{draft_id}"):
-                                st.session_state[confirm_key] = True
+                                start_confirming(confirm_key)
                                 st.rerun()
 
                     st.divider()

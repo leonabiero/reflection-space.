@@ -16,6 +16,7 @@ from config import REQUEST_DEDUP_TTL_MINUTES
 from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from services.error_log import error_boundary, render_application_error_screen
+from services.confirm_state import is_confirming, start_confirming, clear_confirming
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
@@ -911,23 +912,23 @@ with error_boundary(
                     can_delete = bool(user_name) and user_name == creator
 
                     confirm_key = f"confirm_delete_pending_{draft_id}"
-                    if can_delete and st.session_state.get(confirm_key, False):
+                    if can_delete and is_confirming(confirm_key):
                         st.checkbox(_format_draft_option(d), key=chk_key, disabled=True)
                         st.warning(T["reflection_delete_confirm"])
                         cc1, cc2 = st.columns(2)
                         with cc1:
                             if st.button(T["case_history_delete_yes"], key=f"yes_delete_pending_{draft_id}"):
                                 if delete_pending_draft(draft_id, user_name, user_role):
-                                    st.session_state.pop(confirm_key, None)
+                                    clear_confirming(confirm_key)
                                     st.session_state.pop(chk_key, None)
                                     st.success(T["reflection_deleted_success"])
                                 else:
-                                    st.session_state.pop(confirm_key, None)
+                                    clear_confirming(confirm_key)
                                     st.error(T["delete_draft_failed"])
                                 st.rerun()
                         with cc2:
                             if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
-                                st.session_state.pop(confirm_key, None)
+                                clear_confirming(confirm_key)
                                 st.rerun()
                     elif can_delete:
                         chk_col, btn_col = st.columns([6, 1])
@@ -935,7 +936,7 @@ with error_boundary(
                             st.checkbox(_format_draft_option(d), key=chk_key)
                         with btn_col:
                             if st.button("🗑️", key=f"delete_pending_{draft_id}", help=T["reflection_delete_button"]):
-                                st.session_state[confirm_key] = True
+                                start_confirming(confirm_key)
                                 st.rerun()
                     else:
                         st.checkbox(_format_draft_option(d), key=chk_key)

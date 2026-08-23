@@ -29,6 +29,7 @@ from services.error_log import (
 from services.pagination import Paginator
 from services import case_knowledge
 from services.translation_manager import render_translation_health_panel
+from services.confirm_state import is_confirming, start_confirming, clear_confirming
 from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, DATABASE_URL, ANTHROPIC_API_KEY, QDRANT_COLLECTION_NAME
 from rdi.retrieval_service import retrieve_historical_context, retrieve_global_context
 from rdi.context_engine import DEFAULT_HISTORY_LIMIT
@@ -100,6 +101,12 @@ with error_boundary(
 
     def _bool_badge(ok):
         return T["admin_status_present"] if ok else T["admin_status_missing"]
+
+
+    def _format_when(timestamp):
+        """Trims a raw timestamp down to a readable 'YYYY-MM-DD HH:MM'.
+        Returns '-' if there's nothing to show."""
+        return (timestamp or "")[:16].replace("T", " ") or "—"
 
 
     def _check_database():
@@ -428,22 +435,22 @@ with error_boundary(
             st.info(T["admin_tools_reset_index_unavailable"])
         else:
             reset_confirm_key = "confirm_reset_qdrant_index"
-            if st.session_state.get(reset_confirm_key, False):
+            if is_confirming(reset_confirm_key):
                 st.warning(T["admin_tools_reset_index_warning"])
                 if st.button(T["admin_tools_reset_index_yes"], key="yes_reset_qdrant_index"):
                     success, reason = admin_reset_collection(confirm=True)
-                    st.session_state.pop(reset_confirm_key, None)
+                    clear_confirming(reset_confirm_key)
                     if success:
                         st.success(T["admin_tools_reset_index_success"])
                     else:
                         st.error(f"{T['admin_tools_reset_index_failed']} {reason}")
                     st.rerun()
                 if st.button(T["admin_tools_reset_index_cancel"], key="cancel_reset_qdrant_index"):
-                    st.session_state.pop(reset_confirm_key, None)
+                    clear_confirming(reset_confirm_key)
                     st.rerun()
             else:
                 if st.button(T["admin_tools_reset_index_button"], key="reset_qdrant_index"):
-                    st.session_state[reset_confirm_key] = True
+                    start_confirming(reset_confirm_key)
                     st.rerun()
 
         st.divider()
@@ -1010,7 +1017,7 @@ with error_boundary(
                         if existing_resolution.get("updated_at"):
                             st.caption(
                                 T.get("admin_case_resolution_last_updated", "Last updated {when} by {who}").format(
-                                    when=(existing_resolution.get("updated_at") or "")[:16].replace("T", " "),
+                                    when=_format_when(existing_resolution.get("updated_at")),
                                     who=existing_resolution.get("updated_by") or "—",
                                 )
                             )
@@ -1128,7 +1135,7 @@ with error_boundary(
                                     "current investigation.",
                                 ))
                                 for snap in resolution_history:
-                                    when = (snap.get("reopened_at") or "")[:16].replace("T", " ")
+                                    when = _format_when(snap.get("reopened_at"))
                                     st.markdown(
                                         f"**{T.get('admin_case_resolution_history_reopened_at', 'Reopened at')} "
                                         f"{when}** "
@@ -1155,7 +1162,7 @@ with error_boundary(
                         investigations = case_knowledge.get_investigations(stable_issue_id)
                         if investigations:
                             for inv in investigations:
-                                inv_when = (inv.get("investigated_at") or "")[:16].replace("T", " ")
+                                inv_when = _format_when(inv.get("investigated_at"))
                                 with st.expander(f"{inv.get('tool_used') or 'Investigation'} — {inv_when}"):
                                     if inv.get("prompt"):
                                         st.markdown(f"**{T.get('admin_case_investigation_prompt', 'Prompt')}:**")
@@ -1385,7 +1392,7 @@ with error_boundary(
             else:
                 st.caption(T.get("admin_case_search_result_count", "{n} case(s) found.").format(n=len(results)))
                 for r in results:
-                    when = (r.get("last_seen") or "")[:16].replace("T", " ")
+                    when = _format_when(r.get("last_seen"))
                     st.markdown(
                         f"**#{r['issue_id']}** — {r.get('page') or '—'} — {r.get('error_type') or '—'} — "
                         f"{T.get('status_labels', {}).get(r.get('status'), r.get('status')) or '—'} (×{r.get('occurrence_count') or 1}, last seen {when})"
