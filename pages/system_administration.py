@@ -130,7 +130,9 @@ with error_boundary(
                     T["admin_user_col_name"]: info.get("name", ""),
                     T["admin_user_col_role"]: T.get("role_labels", {}).get(info.get("role", ""), info.get("role", "")),
                 })
-            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+            users_table = pd.DataFrame(rows)
+            users_table.index = range(1, len(users_table) + 1)
+            st.table(users_table)
         else:
             st.warning(T["admin_user_mgmt_empty"])
 
@@ -288,7 +290,11 @@ with error_boundary(
                     if was_global:
                         row_dict[T["admin_retrieval_col_case"]] = d.get("case_ref") or "—"
                     doc_rows.append(row_dict)
-                st.dataframe(pd.DataFrame(doc_rows), hide_index=True, use_container_width=True)
+                docs_table = pd.DataFrame(doc_rows)
+                rank_col = T["admin_retrieval_col_rank"]
+                if rank_col in docs_table.columns:
+                    docs_table = docs_table.set_index(rank_col)
+                st.table(docs_table)
             else:
                 st.info(T["admin_retrieval_no_docs"])
 
@@ -424,20 +430,17 @@ with error_boundary(
             reset_confirm_key = "confirm_reset_qdrant_index"
             if st.session_state.get(reset_confirm_key, False):
                 st.warning(T["admin_tools_reset_index_warning"])
-                c1, c2 = st.columns(2)
-                with c1:
-                    if st.button(T["admin_tools_reset_index_yes"], key="yes_reset_qdrant_index"):
-                        success, reason = admin_reset_collection(confirm=True)
-                        st.session_state.pop(reset_confirm_key, None)
-                        if success:
-                            st.success(T["admin_tools_reset_index_success"])
-                        else:
-                            st.error(f"{T['admin_tools_reset_index_failed']} {reason}")
-                        st.rerun()
-                with c2:
-                    if st.button(T["admin_tools_reset_index_cancel"], key="cancel_reset_qdrant_index"):
-                        st.session_state.pop(reset_confirm_key, None)
-                        st.rerun()
+                if st.button(T["admin_tools_reset_index_yes"], key="yes_reset_qdrant_index"):
+                    success, reason = admin_reset_collection(confirm=True)
+                    st.session_state.pop(reset_confirm_key, None)
+                    if success:
+                        st.success(T["admin_tools_reset_index_success"])
+                    else:
+                        st.error(f"{T['admin_tools_reset_index_failed']} {reason}")
+                    st.rerun()
+                if st.button(T["admin_tools_reset_index_cancel"], key="cancel_reset_qdrant_index"):
+                    st.session_state.pop(reset_confirm_key, None)
+                    st.rerun()
             else:
                 if st.button(T["admin_tools_reset_index_button"], key="reset_qdrant_index"):
                     st.session_state[reset_confirm_key] = True
@@ -567,52 +570,45 @@ with error_boundary(
             # Open Issues, Fixed Issues, and Warnings alike, so switching tabs
             # never loses a filter you've already set.
             st.markdown(f"##### {T.get('admin_diag_filters_header', '🔍 Filters')}")
-            f_col1, f_col2, f_col3 = st.columns(3)
-            with f_col1:
-                search_term = st.text_input(
-                    T.get("admin_error_log_search_label", "Search (page, error type, or message)"),
-                    key="admin_error_log_search",
-                )
-                page_filter = st.text_input(
-                    T.get("admin_diag_filter_page", "Page contains"),
-                    key="admin_diag_filter_page",
-                )
-            with f_col2:
-                severity_filter = st.selectbox(
-                    T.get("admin_error_log_severity_filter_label", "Filter by severity"),
-                    options=["All", "error", "warning", "user_reported"],
-                    format_func=lambda s: T.get("severity_labels", {}).get(s, s),
-                    key="admin_error_log_severity_filter",
-                )
-                root_cause_filter = st.text_input(
-                    T.get("admin_diag_filter_root_cause", "Root cause contains"),
-                    key="admin_diag_filter_root_cause",
-                )
-            with f_col3:
-                status_filter = st.selectbox(
-                    T.get("admin_error_log_status_filter_label", "Filter by status"),
-                    options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
-                    format_func=lambda s: T.get("status_labels", {}).get(s, s),
-                    key="admin_error_log_status_filter",
-                )
-                user_filter = st.text_input(
-                    T.get("admin_diag_filter_user", "User contains"),
-                    key="admin_diag_filter_user",
-                )
+            search_term = st.text_input(
+                T.get("admin_error_log_search_label", "Search (page, error type, or message)"),
+                key="admin_error_log_search",
+            )
+            page_filter = st.text_input(
+                T.get("admin_diag_filter_page", "Page contains"),
+                key="admin_diag_filter_page",
+            )
+            severity_filter = st.selectbox(
+                T.get("admin_error_log_severity_filter_label", "Filter by severity"),
+                options=["All", "error", "warning", "user_reported"],
+                format_func=lambda s: T.get("severity_labels", {}).get(s, s),
+                key="admin_error_log_severity_filter",
+            )
+            root_cause_filter = st.text_input(
+                T.get("admin_diag_filter_root_cause", "Root cause contains"),
+                key="admin_diag_filter_root_cause",
+            )
+            status_filter = st.selectbox(
+                T.get("admin_error_log_status_filter_label", "Filter by status"),
+                options=["All", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+                format_func=lambda s: T.get("status_labels", {}).get(s, s),
+                key="admin_error_log_status_filter",
+            )
+            user_filter = st.text_input(
+                T.get("admin_diag_filter_user", "User contains"),
+                key="admin_diag_filter_user",
+            )
 
-            d_col1, d_col2 = st.columns(2)
-            with d_col1:
-                date_from = st.date_input(
-                    T.get("admin_diag_filter_date_from", "From date"),
-                    value=None,
-                    key="admin_diag_filter_date_from",
-                )
-            with d_col2:
-                date_to = st.date_input(
-                    T.get("admin_diag_filter_date_to", "To date"),
-                    value=None,
-                    key="admin_diag_filter_date_to",
-                )
+            date_from = st.date_input(
+                T.get("admin_diag_filter_date_from", "From date"),
+                value=None,
+                key="admin_diag_filter_date_from",
+            )
+            date_to = st.date_input(
+                T.get("admin_diag_filter_date_to", "To date"),
+                value=None,
+                key="admin_diag_filter_date_to",
+            )
 
             def _normalize_ref_text(text):
                 # Keeps only letters/digits, lowercased -- so "REF-000124",
@@ -704,11 +700,10 @@ with error_boundary(
                 )
             )
 
-            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-            m_col1.metric(T.get("admin_diag_metric_total", "Total issues"), len(issues))
-            m_col2.metric(T.get("admin_diag_metric_open", "🟥 Open"), len(open_issues))
-            m_col3.metric(T.get("admin_diag_metric_fixed", "✅ Fixed"), len(fixed_issues))
-            m_col4.metric(T.get("admin_diag_metric_warnings", "⚠️ Warnings"), len(warning_issues))
+            st.metric(T.get("admin_diag_metric_total", "Total issues"), len(issues))
+            st.metric(T.get("admin_diag_metric_open", "🟥 Open"), len(open_issues))
+            st.metric(T.get("admin_diag_metric_fixed", "✅ Fixed"), len(fixed_issues))
+            st.metric(T.get("admin_diag_metric_warnings", "⚠️ Warnings"), len(warning_issues))
 
             severity_icons = {"error": "🔴", "warning": "🟡", "user_reported": "🗣️"}
 
@@ -849,24 +844,22 @@ with error_boundary(
                 )
                 st.bar_chart(by_day)
 
-                trend_col_a, trend_col_b = st.columns(2)
-                with trend_col_a:
-                    st.markdown(f"**{T.get('admin_diag_trends_pages_header', '📍 Most affected pages')}**")
-                    by_page = trend_df["page"].fillna(
-                        T.get("admin_error_log_unknown_page", "unknown page")
-                    ).value_counts().head(10)
-                    st.bar_chart(by_page)
-                with trend_col_b:
-                    st.markdown(f"**{T.get('admin_diag_trends_category_header', '🗂️ Occurrences by category')}**")
-                    categories = []
-                    for e in errors:
-                        pkg = parse_diagnostic_package(e.get("diagnostic_package"))
-                        categories.append(
-                            e.get("issue_category") or (pkg or {}).get("category")
-                            or T.get("admin_diag_trends_uncategorized", "Uncategorized")
-                        )
-                    by_category = pd.Series(categories).value_counts().head(10)
-                    st.bar_chart(by_category)
+                st.markdown(f"**{T.get('admin_diag_trends_pages_header', '📍 Most affected pages')}**")
+                by_page = trend_df["page"].fillna(
+                    T.get("admin_error_log_unknown_page", "unknown page")
+                ).value_counts().head(10)
+                st.bar_chart(by_page)
+
+                st.markdown(f"**{T.get('admin_diag_trends_category_header', '🗂️ Occurrences by category')}**")
+                categories = []
+                for e in errors:
+                    pkg = parse_diagnostic_package(e.get("diagnostic_package"))
+                    categories.append(
+                        e.get("issue_category") or (pkg or {}).get("category")
+                        or T.get("admin_diag_trends_uncategorized", "Uncategorized")
+                    )
+                by_category = pd.Series(categories).value_counts().head(10)
+                st.bar_chart(by_category)
 
                 st.markdown(f"**{T.get('admin_diag_trends_top_issues_header', '🔁 Most frequent issues')}**")
                 sorted_issues = sorted(issues, key=lambda i: i["occurrences"], reverse=True)[:10]
@@ -1038,19 +1031,16 @@ with error_boundary(
                                 value=existing_resolution.get("fix_applied") or "",
                                 key=f"case_fix_applied_{stable_issue_id}",
                             )
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                r_version_fixed = st.text_input(
-                                    T.get("admin_case_field_version_fixed", "Version fixed"),
-                                    value=existing_resolution.get("version_fixed") or "",
-                                    key=f"case_version_fixed_{stable_issue_id}",
-                                )
-                            with col_b:
-                                r_deployment_date = st.text_input(
-                                    T.get("admin_case_field_deployment_date", "Deployment date (if applicable)"),
-                                    value=existing_resolution.get("deployment_date") or "",
-                                    key=f"case_deployment_date_{stable_issue_id}",
-                                )
+                            r_version_fixed = st.text_input(
+                                T.get("admin_case_field_version_fixed", "Version fixed"),
+                                value=existing_resolution.get("version_fixed") or "",
+                                key=f"case_version_fixed_{stable_issue_id}",
+                            )
+                            r_deployment_date = st.text_input(
+                                T.get("admin_case_field_deployment_date", "Deployment date (if applicable)"),
+                                value=existing_resolution.get("deployment_date") or "",
+                                key=f"case_deployment_date_{stable_issue_id}",
+                            )
                             r_lessons_learned = st.text_area(
                                 T.get("admin_case_field_lessons_learned", "Lessons learned"),
                                 value=existing_resolution.get("lessons_learned") or "",
@@ -1078,19 +1068,16 @@ with error_boundary(
                                 value=existing_resolution.get("known_workaround") or "",
                                 key=f"case_known_workaround_{stable_issue_id}",
                             )
-                            col_c, col_d = st.columns(2)
-                            with col_c:
-                                r_doc_link = st.text_input(
-                                    T.get("admin_case_field_documentation_link", "Documentation link"),
-                                    value=existing_resolution.get("documentation_link") or "",
-                                    key=f"case_doc_link_{stable_issue_id}",
-                                )
-                            with col_d:
-                                r_git_commit = st.text_input(
-                                    T.get("admin_case_field_git_commit", "Git commit"),
-                                    value=existing_resolution.get("git_commit") or "",
-                                    key=f"case_git_commit_{stable_issue_id}",
-                                )
+                            r_doc_link = st.text_input(
+                                T.get("admin_case_field_documentation_link", "Documentation link"),
+                                value=existing_resolution.get("documentation_link") or "",
+                                key=f"case_doc_link_{stable_issue_id}",
+                            )
+                            r_git_commit = st.text_input(
+                                T.get("admin_case_field_git_commit", "Git commit"),
+                                value=existing_resolution.get("git_commit") or "",
+                                key=f"case_git_commit_{stable_issue_id}",
+                            )
                             r_external_ref = st.text_input(
                                 T.get("admin_case_field_external_reference", "External reference"),
                                 value=existing_resolution.get("external_reference") or "",
@@ -1290,14 +1277,21 @@ with error_boundary(
                         if _section["applies"](err, package):
                             _section["render"](T, err, package, {"score": score, "presence": presence})
 
-            tab_open, tab_fixed, tab_warnings, tab_trends = st.tabs([
-                T.get("admin_diag_tab_open", "🟥 Open Issues ({n})").format(n=len(open_issues)),
-                T.get("admin_diag_tab_fixed", "✅ Fixed Issues ({n})").format(n=len(fixed_issues)),
-                T.get("admin_diag_tab_warnings", "⚠️ Warnings ({n})").format(n=len(warning_issues)),
-                T.get("admin_diag_tab_trends", "📈 Trend Analysis"),
-            ])
+            section_choice = st.radio(
+                T.get("admin_diag_section_selector", "View"),
+                options=["open", "fixed", "warnings", "trends"],
+                format_func=lambda key: {
+                    "open": T.get("admin_diag_tab_open", "🟥 Open Issues ({n})").format(n=len(open_issues)),
+                    "fixed": T.get("admin_diag_tab_fixed", "✅ Fixed Issues ({n})").format(n=len(fixed_issues)),
+                    "warnings": T.get("admin_diag_tab_warnings", "⚠️ Warnings ({n})").format(n=len(warning_issues)),
+                    "trends": T.get("admin_diag_tab_trends", "📈 Trend Analysis"),
+                }[key],
+                key="admin_diag_section_choice",
+                horizontal=True,
+            )
+            st.divider()
 
-            with tab_open:
+            if section_choice == "open":
                 if not open_issues:
                     st.info(T.get("admin_diag_open_empty", "No open issues match the current filters."))
                 else:
@@ -1308,7 +1302,7 @@ with error_boundary(
                         _render_issue_card(issue)
                     paginator.render_controls()
 
-            with tab_fixed:
+            elif section_choice == "fixed":
                 if not fixed_issues:
                     st.info(T.get("admin_diag_fixed_empty", "No fixed issues match the current filters."))
                 else:
@@ -1319,7 +1313,7 @@ with error_boundary(
                         _render_issue_card(issue)
                     paginator.render_controls()
 
-            with tab_warnings:
+            elif section_choice == "warnings":
                 st.caption(T.get(
                     "admin_diag_warnings_caption",
                     "Warnings are non-fatal conditions worth knowing about -- like a partial "
@@ -1335,7 +1329,7 @@ with error_boundary(
                         _render_issue_card(issue)
                     paginator.render_controls()
 
-            with tab_trends:
+            else:
                 _render_trend_analysis(T, issues, errors)
 
     # =============================================================================
@@ -1353,24 +1347,20 @@ with error_boundary(
             "ALL fields you provide.",
         ))
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            s_root_cause = st.text_input(T.get("admin_case_search_root_cause", "Root cause contains"), key="admin_case_search_root_cause")
-            s_resolution = st.text_input(T.get("admin_case_search_resolution", "Resolution contains"), key="admin_case_search_resolution")
-            s_lesson = st.text_input(T.get("admin_case_search_lesson", "Lesson learned contains"), key="admin_case_search_lesson")
-        with col2:
-            s_ai_tool = st.text_input(T.get("admin_case_search_ai_tool", "AI tool used"), key="admin_case_search_ai_tool")
-            s_status = st.selectbox(
-                T.get("admin_case_search_status", "Status"),
-                options=["Any", "New", "Investigating", "Recurred", "Fixed", "Closed"],
-                format_func=lambda s: T.get("status_labels", {}).get(s, s),
-                key="admin_case_search_status",
-            )
-            s_version_fixed = st.text_input(T.get("admin_case_search_version_fixed", "Version fixed"), key="admin_case_search_version_fixed")
-        with col3:
-            s_page = st.text_input(T.get("admin_case_search_page", "Page"), key="admin_case_search_page")
-            s_exception = st.text_input(T.get("admin_case_search_exception", "Exception type"), key="admin_case_search_exception")
-            s_user = st.text_input(T.get("admin_case_search_user", "User"), key="admin_case_search_user")
+        s_root_cause = st.text_input(T.get("admin_case_search_root_cause", "Root cause contains"), key="admin_case_search_root_cause")
+        s_resolution = st.text_input(T.get("admin_case_search_resolution", "Resolution contains"), key="admin_case_search_resolution")
+        s_lesson = st.text_input(T.get("admin_case_search_lesson", "Lesson learned contains"), key="admin_case_search_lesson")
+        s_ai_tool = st.text_input(T.get("admin_case_search_ai_tool", "AI tool used"), key="admin_case_search_ai_tool")
+        s_status = st.selectbox(
+            T.get("admin_case_search_status", "Status"),
+            options=["Any", "New", "Investigating", "Recurred", "Fixed", "Closed"],
+            format_func=lambda s: T.get("status_labels", {}).get(s, s),
+            key="admin_case_search_status",
+        )
+        s_version_fixed = st.text_input(T.get("admin_case_search_version_fixed", "Version fixed"), key="admin_case_search_version_fixed")
+        s_page = st.text_input(T.get("admin_case_search_page", "Page"), key="admin_case_search_page")
+        s_exception = st.text_input(T.get("admin_case_search_exception", "Exception type"), key="admin_case_search_exception")
+        s_user = st.text_input(T.get("admin_case_search_user", "User"), key="admin_case_search_user")
 
         s_min_occurrences = st.number_input(
             T.get("admin_case_search_min_occurrences", "Minimum occurrence count"),
