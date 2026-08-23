@@ -12,6 +12,45 @@ from services.ka_rate_limiter import check_and_record as ka_check_and_record
 from services import request_dedup
 import config
 
+# ---------------------------------------------------------------------------
+# Phase 3 scalability pass (September pilot hardening): safe caching.
+#
+# Every function wrapped below produces an ANONYMOUS, ORGANISATION-WIDE
+# result -- never anything scoped to the specific manager viewing this
+# page, their session, or any one professional/case. That is what makes
+# it safe to share the same cached answer across every manager's
+# session instead of re-running the underlying database query on every
+# single page load/rerun. (Streamlit reruns this whole script on nearly
+# every click, so without caching, the two DB queries below would fire
+# far more often than the data underneath them actually changes.)
+#
+# Each cache has its own short time-to-live (TTL) rather than caching
+# forever, so nobody ever sees badly stale numbers:
+#   - Team Presence is genuinely near-real-time information (who is
+#     online right now), so its cache is intentionally very short (15s)
+#     -- long enough to spare the database on a busy page, short enough
+#     that "active"/"recent" status stays trustworthy.
+#   - The two theme-count aggregates change slowly (they summarise
+#     historical reflection activity), so a longer cache (60s / 5min)
+#     is safe and meaningfully reduces load as the pilot's data grows,
+#     without a manager ever waiting on stale-feeling numbers.
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=15)
+def _cached_active_social_workers():
+    return get_active_social_workers()
+
+
+@st.cache_data(ttl=60)
+def _cached_recent_theme_counts(limit):
+    return get_recent_theme_counts(limit=limit)
+
+
+@st.cache_data(ttl=300)
+def _cached_aggregated_theme_counts(since_iso):
+    return get_aggregated_theme_counts(since_iso=since_iso)
+
+
 T = init_language()
 user_name, user_role = init_identity(T)
 
@@ -56,7 +95,7 @@ with error_boundary(
         st.subheader(T["presence_header"])
         st.caption(T["presence_intro"])
 
-        presence_rows = get_active_social_workers()
+        presence_rows = _cached_active_social_workers()
         visible_rows = [r for r in presence_rows if r["status"] in {"active", "recent"}]
 
         if not presence_rows:
@@ -220,7 +259,7 @@ with error_boundary(
     # --- Tab 3: Learning Insights (existing per-professional/practice data) --
     with tab_insights:
         st.subheader(T.get("learning_phase2", "Learning Insights"))
-        counts, total = get_recent_theme_counts(limit=10)
+        counts, total = _cached_recent_theme_counts(10)
         if total == 0:
             st.info(T.get("learning_no_data", "No learning data available."))
         else:
@@ -239,8 +278,14 @@ with error_boundary(
         st.caption(T.get("team_learning_intro", "Aggregated anonymous organisational themes."))
 
         window_days = 182
-        since_iso = (datetime.now() - timedelta(days=window_days)).isoformat()
-        team_counts = get_aggregated_theme_counts(since_iso=since_iso)
+        # Rounded to the current day (not the current second) so this
+        # value stays IDENTICAL across repeated calls within the same
+        # day -- required for _cached_aggregated_theme_counts() above
+        # to actually get cache hits. A few hours of difference at the
+        # edge of a 182-day window has no meaningful effect on the
+        # results.
+        since_iso = (datetime.now() - timedelta(days=window_days)).date().isoformat()
+        team_counts = _cached_aggregated_theme_counts(since_iso)
         total_team = sum(team_counts.get(k, 0) for k in THEME_KEYS)
 
         if total_team == 0:
