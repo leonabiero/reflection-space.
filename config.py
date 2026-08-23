@@ -198,6 +198,20 @@ DB_POOL_MAX_REPLACE_ATTEMPTS = int(
 KA_MAX_PER_HOUR = int(os.getenv("KA_MAX_PER_HOUR", "30"))
 
 # ---------------------------------------------------------------------
+# Reflection generation rate limiting (services/rate_limiter.py)
+# ---------------------------------------------------------------------
+# Same cost-safety guard as KA_MAX_PER_HOUR above, applied to reflection
+# generation instead of the Knowledge Assistant. Was previously a
+# hard-coded constant inside services/rate_limiter.py itself (not
+# adjustable without editing code) -- moved here purely for consistency
+# with every other environment-configurable limit in this file. The
+# default (20) is unchanged, so this is a pure relocation: nothing
+# about actual runtime behavior changes unless
+# REFLECTION_MAX_PER_HOUR is explicitly set as a secret/environment
+# variable.
+REFLECTION_MAX_PER_HOUR = int(os.getenv("REFLECTION_MAX_PER_HOUR", "20"))
+
+# ---------------------------------------------------------------------
 # Duplicate-request protection (services/request_dedup.py)
 # ---------------------------------------------------------------------
 # How long an exact-duplicate request (same person, same content) is

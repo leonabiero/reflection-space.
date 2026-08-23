@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from services.db_pool import get_conn as _acquire_pooled_conn
+from config import REFLECTION_MAX_PER_HOUR
 
 # Reflection Rate Limiter
 # ==========================
@@ -42,7 +43,7 @@ from services.db_pool import get_conn as _acquire_pooled_conn
 # (services/db_pool.py), and table creation is centralized in
 # services/db_schema.py:ensure_schema(), run once at startup.
 
-DEFAULT_MAX_PER_HOUR = 20
+DEFAULT_MAX_PER_HOUR = REFLECTION_MAX_PER_HOUR
 WINDOW_MINUTES = 60
 CLEANUP_HOURS = 24
 
