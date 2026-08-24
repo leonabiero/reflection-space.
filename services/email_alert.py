@@ -25,11 +25,13 @@ readable and copyable from any inbox.
 
 import smtplib
 import ssl
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, ALERT_EMAIL_TO, ALERT_EMAIL_FROM
 from services.db_time import get_logger
+from services import usage_ledger
 
 logger = get_logger(__name__)
 
@@ -48,6 +50,7 @@ def send_alert_email(subject, body_text):
         logger.info("Email alerting not configured -- skipping alert email: %s", subject)
         return False
 
+    _started = time.monotonic()
     try:
         msg = MIMEMultipart()
         msg["Subject"] = subject
@@ -69,7 +72,15 @@ def send_alert_email(subject, body_text):
                 server.send_message(msg)
 
         logger.info("Alert email sent: %s", subject)
+        usage_ledger.record_usage(
+            "smtp", "alert_email", success=True,
+            latency_ms=int((time.monotonic() - _started) * 1000),
+        )
         return True
     except Exception:
         logger.exception("Failed to send alert email: %s", subject)
+        usage_ledger.record_usage(
+            "smtp", "alert_email", success=False,
+            latency_ms=int((time.monotonic() - _started) * 1000),
+        )
         return False

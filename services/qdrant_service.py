@@ -131,6 +131,7 @@ from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION_NAME, EMBEDDING
 from services.anonymizer import anonymize
 from services.embedding_service import embed_document, embed_query, is_available as embeddings_available
 from services.rag_logging import rag_log
+from services import usage_ledger
 
 _client = None
 _collection_ready = False
@@ -610,12 +611,15 @@ def upsert_document(draft_id, case_ref, doc_type, content, language="",
             ],
         )
         _log(f"upsert_document SUCCESS: draft_id={draft_id} case_ref={case_ref!r} doc_type={doc_type!r} collection={QDRANT_COLLECTION_NAME}")
+        usage_ledger.record_usage("qdrant", "upsert", success=True, units_used=1)
         return True, "ok"
     except Exception as e:
         _log(
             f"upsert_document FAILED: draft_id={draft_id} case_ref={case_ref!r} "
             f"exception={e!r}\n{traceback.format_exc()}"
         )
+        usage_ledger.record_usage("qdrant", "upsert", success=False,
+                                   metadata={"error_type": type(e).__name__})
         return False, f"qdrant_error: {e!r}"
 
 
@@ -643,8 +647,11 @@ def delete_document(draft_id):
             points_selector=qmodels.PointIdsList(points=[draft_id]),
         )
         _log(f"delete_document SUCCESS: draft_id={draft_id} collection={QDRANT_COLLECTION_NAME}")
+        usage_ledger.record_usage("qdrant", "delete", success=True, units_used=1)
     except Exception as e:
         _log(f"delete_document FAILED: draft_id={draft_id} exception={e!r}\n{traceback.format_exc()}")
+        usage_ledger.record_usage("qdrant", "delete", success=False,
+                                   metadata={"error_type": type(e).__name__})
 
 
 def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
@@ -722,9 +729,12 @@ def search_similar(case_ref, query_text, exclude_ids=None, limit=5):
         )
         out = [{"id": point.id, "score": point.score} for point in results]
         _log(f"search_similar RESULT: case_ref={case_ref!r} retrieved={out}")
+        usage_ledger.record_usage("qdrant", "search_case_scoped", success=True, units_used=1)
         return out
     except Exception as e:
         _log(f"search_similar FAILED: case_ref={case_ref!r} exception={e!r}\n{traceback.format_exc()}")
+        usage_ledger.record_usage("qdrant", "search_case_scoped", success=False,
+                                   metadata={"error_type": type(e).__name__})
         return []
 
 
@@ -806,9 +816,12 @@ def search_global(query_text, exclude_ids=None, limit=5):
         )
         out = [{"id": point.id, "score": point.score} for point in results]
         _log(f"search_global RESULT: retrieved={out}")
+        usage_ledger.record_usage("qdrant", "search_global", success=True, units_used=1)
         return out
     except Exception as e:
         _log(f"search_global FAILED: exception={e!r}\n{traceback.format_exc()}")
+        usage_ledger.record_usage("qdrant", "search_global", success=False,
+                                   metadata={"error_type": type(e).__name__})
         return []
 
 

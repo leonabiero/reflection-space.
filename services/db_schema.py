@@ -611,6 +611,58 @@ def ensure_schema():
                     CREATE INDEX IF NOT EXISTS idx_idempotent_requests_created_at
                     ON idempotent_requests (created_at)
                 """)
+
+                # --- services/usage_ledger.py: service_usage ---
+                # Service Cost & Usage Monitor (September pilot hardening).
+                # One row per billable/measurable operation against an
+                # external service (Anthropic, Gemini, Qdrant, SMTP) --
+                # see services/usage_ledger.py's module docstring for the
+                # full design and services/cost_pricing.py for how
+                # estimated_cost_usd is computed. New table, native
+                # TIMESTAMPTZ from creation.
+                #
+                # PRIVACY: this table NEVER stores reflection text, AI
+                # responses, case content, names, emails, or secrets --
+                # only operational/billing counters and small labels
+                # (service name, operation name, model name). See
+                # services/usage_ledger.py:record_usage() for the
+                # enforcement point.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS service_usage (
+                    id SERIAL PRIMARY KEY,
+                    service TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    occurred_at TIMESTAMPTZ NOT NULL,
+                    request_count INTEGER NOT NULL DEFAULT 1,
+                    input_tokens INTEGER,
+                    output_tokens INTEGER,
+                    cache_read_tokens INTEGER,
+                    cache_creation_tokens INTEGER,
+                    units_used DOUBLE PRECISION,
+                    estimated_cost_usd DOUBLE PRECISION,
+                    cost_is_estimate BOOLEAN NOT NULL DEFAULT FALSE,
+                    success BOOLEAN NOT NULL DEFAULT TRUE,
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    latency_ms INTEGER,
+                    model TEXT,
+                    metadata TEXT
+                )
+                """)
+                # Supports "today" / "this month" aggregation (the most
+                # common query shape) and per-service breakdowns without a
+                # full table scan.
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_service_usage_service_occurred
+                    ON service_usage (service, occurred_at DESC)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_service_usage_service_operation_occurred
+                    ON service_usage (service, operation, occurred_at DESC)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_service_usage_occurred_at
+                    ON service_usage (occurred_at DESC)
+                """)
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see

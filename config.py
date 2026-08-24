@@ -418,6 +418,27 @@ CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REFLECTION_QUEUE
 CLAUDE_REQUEST_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REQUEST_TIMEOUT_SECONDS", "60"))
 
 # ---------------------------------------------------------------------
+# Service Cost & Usage Monitor (September pilot hardening)
+# ---------------------------------------------------------------------
+# Monthly budget ceilings used ONLY to compute "% of budget used" and
+# the GREEN/YELLOW/ORANGE/RED status shown on the System Administration
+# "Service Usage & Costs" panel (services/cost_dashboard_service.py).
+# These are Leon's own planning numbers, not a provider-enforced limit
+# -- changing them changes nothing about what any provider actually
+# bills, only what the dashboard warns about. Unset (0) means "no
+# budget configured for this service", which the dashboard shows as
+# "Limit unavailable" rather than a fabricated percentage.
+MONTHLY_BUDGET_ANTHROPIC_USD = float(os.getenv("MONTHLY_BUDGET_ANTHROPIC_USD", "50"))
+MONTHLY_BUDGET_GEMINI_USD = float(os.getenv("MONTHLY_BUDGET_GEMINI_USD", "10"))
+
+# Qdrant free-tier vector capacity, if known for the current cluster/plan
+# (e.g. a 1GB free-tier cluster). Leave at 0 ("not configured") rather
+# than guessing -- the dashboard shows "Limit unavailable" instead of a
+# fabricated percentage when this is 0. See services/qdrant_service.py:
+# get_diagnostics() for the actual (measured) vector count.
+QDRANT_CAPACITY_VECTORS = int(os.getenv("QDRANT_CAPACITY_VECTORS", "0"))
+
+# ---------------------------------------------------------------------
 # Historical Context Prefetch -- REMOVED
 # ---------------------------------------------------------------------
 # This feature (services/context_prefetch.py, now deleted) used to

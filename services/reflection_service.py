@@ -1,5 +1,6 @@
 import anthropic
 import json
+import time
 import traceback
 from config import (
     ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS,
@@ -8,7 +9,48 @@ from config import (
 from services.anonymizer import anonymize
 from services.error_log import log_error
 from services import request_dedup
+from services import usage_ledger
+from services.cost_pricing import estimate_anthropic_cost
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
+
+CLAUDE_MODEL = "claude-sonnet-5"
+
+
+def _record_claude_usage(operation, started_at, message=None, success=True,
+                          error_type=None, companion_key=None):
+    """
+    Service Cost & Usage Monitor instrumentation (see
+    services/usage_ledger.py). Records exactly what happened for ONE
+    Claude API call attempt, using ACTUAL token usage from the API
+    response -- never estimated from max_tokens. Fire-and-forget and
+    fully defensive: this can never affect the reflection itself (see
+    usage_ledger.record_usage()'s own docstring for the reliability
+    guarantees).
+    """
+    latency_ms = int((time.monotonic() - started_at) * 1000)
+    usage = getattr(message, "usage", None) if message is not None else None
+    input_tokens = getattr(usage, "input_tokens", None) if usage else None
+    output_tokens = getattr(usage, "output_tokens", None) if usage else None
+    cache_read = getattr(usage, "cache_read_input_tokens", None) if usage else None
+    cache_creation = getattr(usage, "cache_creation_input_tokens", None) if usage else None
+
+    cost, model_recognized = estimate_anthropic_cost(
+        CLAUDE_MODEL,
+        input_tokens=input_tokens or 0,
+        output_tokens=output_tokens or 0,
+        cache_read_tokens=cache_read or 0,
+        cache_creation_tokens=cache_creation or 0,
+    )
+
+    usage_ledger.record_usage(
+        "anthropic", operation,
+        input_tokens=input_tokens, output_tokens=output_tokens,
+        cache_read_tokens=cache_read, cache_creation_tokens=cache_creation,
+        estimated_cost_usd=cost if input_tokens or output_tokens else 0.0,
+        cost_is_estimate=not model_recognized,
+        success=success, latency_ms=latency_ms, model=CLAUDE_MODEL,
+        metadata={"companion": companion_key, "error_type": error_type},
+    )
 
 # Scalability pass (September pilot hardening): explicit per-call
 # timeout instead of the SDK default (several minutes) -- see
@@ -42,21 +84,28 @@ def generate_reflection(text: str, lang: str = "Español"):
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
     full_system_prompt = system_prompt + "\n\n" + lang_instruction
 
-    message = client.messages.create(
-        model="claude-sonnet-5",
-        max_tokens=3000,
-        system=full_system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": f"""
+    _started = time.monotonic()
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-5",
+            max_tokens=3000,
+            system=full_system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""
 DOCUMENT:
 {safe_text}
 Return structured reflection JSON only.
 """,
-            }
-        ],
-    )
+                }
+            ],
+        )
+    except Exception as e:
+        _record_claude_usage("legacy_single_call_reflection", _started, success=False,
+                              error_type=type(e).__name__)
+        raise
+    _record_claude_usage("legacy_single_call_reflection", _started, message=message)
 
     # Safely extracts the text block, ignoring ThinkingBlocks
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
@@ -110,7 +159,52 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
     full_system_prompt = system_prompt + "\n\n" + lang_instruction
 
-    message = client.messages.create(
+    _companion_key = companion.get("key") if isinstance(companion, dict) else None
+    _started = time.monotonic()
+    try:
+        message = _call_companion_model(full_system_prompt, safe_text)
+    except Exception as e:
+        _record_claude_usage("companion_reflection", _started, success=False,
+                              error_type=type(e).__name__, companion_key=_companion_key)
+        raise
+    _record_claude_usage("companion_reflection", _started, message=message,
+                          companion_key=_companion_key)
+
+    raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
+    stop_reason = getattr(message, "stop_reason", None)
+
+    cleaned_raw = raw.strip()
+    if cleaned_raw.startswith("```"):
+        lines = cleaned_raw.splitlines()
+        if lines[0].startswith("```"):
+            lines.pop(0)
+        if lines and lines[-1].startswith("```"):
+            lines.pop()
+        cleaned_raw = "\n".join(lines).strip()
+
+    try:
+        return json.loads(cleaned_raw)
+    except Exception:
+        # PI-003 observability: record WHY parsing failed whenever we can
+        # tell, so a still-truncated response (should now be rare at 1024
+        # tokens, but not impossible for an unusually long observation) is
+        # immediately distinguishable in logs/admin tooling from a
+        # genuinely malformed response, instead of both looking identical
+        # as a bare "Failed to parse JSON". See
+        # services/issue_fingerprint.py's new "Response Truncated
+        # (max_tokens)" rule, which reads this exact message text.
+        error_label = "Failed to parse JSON"
+        if stop_reason == "max_tokens":
+            error_label = "Failed to parse JSON (response truncated: max_tokens reached)"
+        return {
+            "error": error_label,
+            "raw": raw,
+            "stop_reason": stop_reason,
+        }
+
+
+def _call_companion_model(full_system_prompt, safe_text):
+    return client.messages.create(
         model="claude-sonnet-5",
         # PI-003 root-cause fix (production incident, see rdi/orchestrator.py
         # and services/issue_fingerprint.py's "Invalid Model Response" rule):
@@ -157,38 +251,6 @@ Return structured reflection JSON only.
             }
         ],
     )
-
-    raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
-    stop_reason = getattr(message, "stop_reason", None)
-
-    cleaned_raw = raw.strip()
-    if cleaned_raw.startswith("```"):
-        lines = cleaned_raw.splitlines()
-        if lines[0].startswith("```"):
-            lines.pop(0)
-        if lines and lines[-1].startswith("```"):
-            lines.pop()
-        cleaned_raw = "\n".join(lines).strip()
-
-    try:
-        return json.loads(cleaned_raw)
-    except Exception:
-        # PI-003 observability: record WHY parsing failed whenever we can
-        # tell, so a still-truncated response (should now be rare at 1024
-        # tokens, but not impossible for an unusually long observation) is
-        # immediately distinguishable in logs/admin tooling from a
-        # genuinely malformed response, instead of both looking identical
-        # as a bare "Failed to parse JSON". See
-        # services/issue_fingerprint.py's new "Response Truncated
-        # (max_tokens)" rule, which reads this exact message text.
-        error_label = "Failed to parse JSON"
-        if stop_reason == "max_tokens":
-            error_label = "Failed to parse JSON (response truncated: max_tokens reached)"
-        return {
-            "error": error_label,
-            "raw": raw,
-            "stop_reason": stop_reason,
-        }
 
 
 def continue_companion_conversation(companion: dict, safe_text: str, initial_observation: str,
@@ -332,6 +394,7 @@ Your original reflective question(s) were:
             return {"duplicate": True}
 
     try:
+        _started = time.monotonic()
         message = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=400,
@@ -339,6 +402,8 @@ Your original reflective question(s) were:
             messages=messages,
         )
     except Exception as e:
+        _record_claude_usage("companion_conversation", _started, success=False,
+                              error_type=type(e).__name__, companion_key=companion.get("key"))
         if request_id:
             request_dedup.release(request_id)
         error_id, issue_id = log_error(
@@ -351,6 +416,9 @@ Your original reflective question(s) were:
         )
         return {"error": "API call failed", "raw": str(e), "issue_id": issue_id, "error_id": error_id}
 
+    _record_claude_usage("companion_conversation", _started, message=message,
+                          companion_key=companion.get("key"))
+
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
 
     if not raw.strip():
@@ -360,7 +428,10 @@ Your original reflective question(s) were:
 
     # Surface cache stats for visibility (Sprint 10 research metrics can
     # persist these later; for now this is just an observability hook
-    # and never affects behavior or the returned reply).
+    # and never affects behavior or the returned reply). The Service
+    # Cost & Usage Monitor above already recorded these same numbers
+    # into the ledger via _record_claude_usage(), so this print is now
+    # a redundant but harmless secondary trace.
     usage = getattr(message, "usage", None)
     cache_read = getattr(usage, "cache_read_input_tokens", 0) if usage else 0
     cache_created = getattr(usage, "cache_creation_input_tokens", 0) if usage else 0

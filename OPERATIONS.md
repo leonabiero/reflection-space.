@@ -27,11 +27,16 @@ GitHub.
 | `QDRANT_URL` / `QDRANT_API_KEY` | Where those search vectors are stored | Same as above — semantic search quietly turns itself off |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `ALERT_EMAIL_TO` | Sends an email to an administrator when something breaks | No email alerts go out. Errors are still recorded inside the app's own Error Log screen. |
 | `ADMIN_PASSWORD` | Left over from an earlier design | Not used anywhere in the current code. Safe to leave unset — see note in Section 6. |
+| `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` / `QDRANT_CAPACITY_VECTORS` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
 
 Every tuning knob (rate limits, timeouts, pool size, session length,
 etc.) has a safe built-in default and only needs to be touched if a
 specific, observed problem calls for it — see the comments directly
 above each one in `config.py`.
+
+See `SERVICE_USAGE_MONITORING.md` for how the System Administration
+page's "Service Usage & Costs" panel works, including how to update
+provider pricing when Anthropic or Google change their rates.
 
 ## 2. Deploying / redeploying
 

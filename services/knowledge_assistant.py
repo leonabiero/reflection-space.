@@ -74,6 +74,7 @@ for how this scales with actual Knowledge Assistant usage.
 """
 
 import json
+import time
 import traceback
 import anthropic
 
@@ -82,8 +83,12 @@ from services.anonymizer import anonymize
 from rdi.retrieval_service import retrieve_global_context
 from services.research_metrics_service import build_research_summary
 from services.error_log import log_error
+from services import usage_ledger
+from services.cost_pricing import estimate_anthropic_cost
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+CLAUDE_MODEL = "claude-sonnet-5"
 
 DEFAULT_EVIDENCE_LIMIT = 8
 DEFAULT_WINDOW_DAYS = 365
@@ -273,6 +278,7 @@ AGGREGATE STATISTICS:
 """
 
     try:
+        _started = time.monotonic()
         message = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=900,
@@ -280,6 +286,11 @@ AGGREGATE STATISTICS:
             messages=[{"role": "user", "content": user_content}],
         )
     except Exception as e:
+        usage_ledger.record_usage(
+            "anthropic", "knowledge_assistant",
+            success=False, latency_ms=int((time.monotonic() - _started) * 1000),
+            model=CLAUDE_MODEL, metadata={"error_type": type(e).__name__},
+        )
         error_id, issue_id = log_error(
             page="learning (knowledge assistant)",
             error_type=type(e).__name__,
@@ -289,6 +300,20 @@ AGGREGATE STATISTICS:
             severity="error",
         )
         return {"error": "API call failed", "raw": str(e), "issue_id": issue_id, "error_id": error_id}
+
+    _usage = getattr(message, "usage", None)
+    _input_tokens = getattr(_usage, "input_tokens", None) if _usage else None
+    _output_tokens = getattr(_usage, "output_tokens", None) if _usage else None
+    _cost, _model_recognized = estimate_anthropic_cost(
+        CLAUDE_MODEL, input_tokens=_input_tokens or 0, output_tokens=_output_tokens or 0,
+    )
+    usage_ledger.record_usage(
+        "anthropic", "knowledge_assistant",
+        input_tokens=_input_tokens, output_tokens=_output_tokens,
+        estimated_cost_usd=_cost, cost_is_estimate=not _model_recognized,
+        success=True, latency_ms=int((time.monotonic() - _started) * 1000),
+        model=CLAUDE_MODEL,
+    )
 
     raw = next((block.text for block in message.content if getattr(block, "type", None) == "text"), "")
     if not raw.strip():

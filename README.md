@@ -56,6 +56,9 @@ directive advice.
   the database connection pool under load
 - `tests/` — automated tests, grouped by what they protect: security,
   reliability, scalability
+- Service Cost & Usage Monitor — tracks what Claude, Gemini, Qdrant, the
+  database, and SMTP are actually costing/being used, shown on System
+  Administration → "Service Usage & Costs". See `SERVICE_USAGE_MONITORING.md`.
 
 ## Translations
 

@@ -980,6 +980,57 @@ def get_conn():
         raise
 
 
+def get_pool_stats():
+    """
+    Best-effort, read-only snapshot of the connection pool for the
+    System Administration "Service Usage & Costs" panel (Phase 6 --
+    Neon/Postgres monitoring).
+
+    IMPORTANT: everything returned here is an APPLICATION-level metric
+    (how this one process is using its own pool) -- it is NOT Neon's
+    own billing/compute-usage data, which this app has no API access
+    to. Callers must label it accordingly rather than presenting it as
+    a provider bill.
+
+    Returns:
+        {
+            "configured": bool,       # DATABASE_URL set at all
+            "pool_created": bool,     # pool has been lazily created yet
+            "max_conn": int,
+            "min_conn": int,
+            "idle_conn": int | None,  # None if not measurable right now
+            "active_conn": int | None,
+            "utilization_pct": float | None,
+        }
+
+    Never raises -- reads pool internals defensively (psycopg2 doesn't
+    officially expose a stats API), and returns None-valued fields
+    rather than guessing if the internals aren't in the expected shape.
+    """
+    stats = {
+        "configured": bool(DATABASE_URL),
+        "pool_created": _pool is not None,
+        "max_conn": DB_POOL_MAX_CONN,
+        "min_conn": DB_POOL_MIN_CONN,
+        "idle_conn": None,
+        "active_conn": None,
+        "utilization_pct": None,
+    }
+    if _pool is None:
+        return stats
+    try:
+        with _pool_lock:
+            idle = len(getattr(_pool, "_pool", []))
+            active = len(getattr(_pool, "_used", {}))
+        stats["idle_conn"] = idle
+        stats["active_conn"] = active
+        if DB_POOL_MAX_CONN:
+            stats["utilization_pct"] = round(100.0 * active / DB_POOL_MAX_CONN, 1)
+    except Exception:
+        logger.warning("get_pool_stats: could not read pool internals", exc_info=True)
+    return stats
+
+
 def closeall():
     """Close every connection currently held by the pool."""
     global _pool
