@@ -97,13 +97,26 @@ dedicated readiness endpoint would be worth adding — not needed now.
 data to PostgreSQL and Qdrant, and correctly handling deletion. It does
 not run its own backup jobs — that is the hosting platform's job.
 
-**What you are responsible for confirming, outside this repository:**
+**What is confirmed about the hosting side (checked directly in the
+Neon dashboard on 24 Aug 2026):**
 
-- **PostgreSQL (Neon):** Neon takes automatic backups/point-in-time
-  recovery on its own paid plans. Confirm the plan in use actually
-  includes this, and know how to trigger a restore from Neon's own
-  dashboard before the pilot starts — this repository cannot do that
-  for you.
+- **PostgreSQL (Neon), current plan: Free.** Neon automatically keeps
+  a rolling **6-hour restore history** on this plan — from
+  **Project → Backup & Restore**, you can instantly roll the
+  `production` branch back to any point within the last 6 hours, no
+  manual backup job required.
+- **No manual snapshots exist yet**, and scheduled/automatic
+  snapshots (which would extend protection beyond 6 hours) require
+  upgrading off the Free plan.
+- **Accepted, documented limitation:** if a problem goes unnoticed
+  for longer than 6 hours (for example, discovered the next day or
+  after a weekend), there is currently no way to restore to before it
+  happened. This has been consciously accepted for the pilot rather
+  than treated as a blocker, on the basis that same-day operational
+  mistakes are the realistic day-to-day risk. Revisit this decision —
+  by upgrading the Neon plan and/or setting up manual snapshots before
+  major milestones — if the pilot's risk tolerance changes, or before
+  it moves from pilot to permanent production use.
 - **Qdrant:** holds only search vectors, never the system of record.
   If it is ever lost or corrupted, it can be rebuilt from PostgreSQL
   (the source of truth) by re-embedding existing reflections — there
