@@ -98,12 +98,12 @@ def render(T):
                 doc_rows = []
                 for rank, d in enumerate(result["docs"], start=1):
                     reasons = d.get("match_reasons") or ([d.get("match_reason")] if d.get("match_reason") else [])
-                    reason_label = " + ".join(reason_label(r, T) for r in reasons) if reasons else "—"
+                    reason_display = " + ".join(reason_label(r, T) for r in reasons) if reasons else "—"
                     score = d.get("score")
                     row_dict = {
                         T["admin_retrieval_col_rank"]: rank,
                         T["admin_retrieval_col_doctype"]: d.get("doc_type", ""),
-                        T["admin_retrieval_col_reason"]: reason_label,
+                        T["admin_retrieval_col_reason"]: reason_display,
                         T["admin_retrieval_col_similarity"]: f"{score:.2f}" if score is not None else "—",
                     }
                     # Global mode can span cases, so show which case each
