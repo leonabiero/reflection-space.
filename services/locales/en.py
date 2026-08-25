@@ -1,0 +1,852 @@
+"""English (English) UI translation strings for Reflection Space.
+
+Pure data -- no logic. Extracted verbatim from the original single-file
+services/language.py (each value copied exactly, no rewording, no key
+changes). See services/language.py for the language-selection and
+fallback logic that consumes this dictionary.
+"""
+
+LANG_EN = {'title': '🧠 Reflection Space',
+ 'doc': 'Documentation',
+ 'case_ref': 'Case reference',
+ 'doc_type': 'Document type',
+ 'doc_types': ['Case note',
+               'Follow-up diary',
+               'Interview record',
+               'Social work report',
+               'Referral proposal',
+               'Intervention plan',
+               'Email'],
+ 'language': 'Language',
+ 'text': 'Text',
+ 'save': 'Save draft',
+ 'success': '✔ Draft saved successfully',
+ 'empty': 'Please write some text',
+ 'new': 'New document',
+ 'reflection': 'Reflection space',
+ 'home_subtitle': 'A space for documentation and reflection in practice.',
+ 'nav_hint': 'Use the sidebar to navigate.',
+ 'nav_header': 'Navigate:',
+ 'nav_doc': '📝 Documentation',
+ 'nav_reflection': '🌿 Reflection Space',
+ 'nav_learning': '📚 Learning',
+ 'no_drafts': 'No drafts available.',
+ 'select_drafts': 'Select drafts to reflect on',
+ 'begin_reflection': 'Begin Reflection',
+ 'reflection_folders_intro': 'Documents awaiting reflection, grouped by case.',
+ 'reflection_same_day_notice': '⚠️ This case has more than one document from the same day.',
+ 'reflection_no_case_ref': '(No case reference)',
+ 'reflection_active_case_prefix': 'Reflecting on case:',
+ 'reflection_delete_button': 'Delete document',
+ 'reflection_delete_confirm': 'Are you sure you want to delete this document? This cannot be '
+                              'undone.',
+ 'reflection_deleted_success': '✔ Document deleted.',
+ 'reflection_context_title': 'Reflection Context',
+ 'reflection_context_current_label': 'Selected document(s):',
+ 'reflection_context_historical_label': 'Relevant historical documents for this case:',
+ 'reflection_context_summary_strong': "This reflection uses today's documentation together with "
+                                      '{count} relevant historical documents.',
+ 'reflection_context_summary_limited': "This reflection primarily uses today's documentation, "
+                                       'because limited relevant historical information was found.',
+ 'reflection_context_summary_none': 'This appears to be the first documented interaction for this '
+                                    'case.',
+ 'reflection_context_continue': 'Continue to reflection',
+ 'reflection_context_back': 'Back to selection',
+ 'reflection_partial_failure_notice': 'Some reflection perspectives ({count}) could not be '
+                                      'generated. The reflection has still been produced. This has '
+                                      "been recorded for review. You can continue with what's "
+                                      'available or try again.',
+ 'unknown_label': 'Unknown',
+ 'audit_unknown_case_label': '(unknown case)',
+ 'case_history_completed_label': 'completed',
+ 'learning_phase2': 'Reflective themes emerging across reflections generated in the app.',
+ 'learning_no_data': 'No reflections have been generated yet. Themes will appear here as '
+                     'reflections are created.',
+ 'themes': ["Client's Voice",
+            'Observation vs Interpretation',
+            'Labels & Language',
+            'Possible Bias',
+            'Evidence for Decisions',
+            'Missing Information',
+            'Strengths vs Deficits',
+            'Continuity'],
+ 'section_labels': {'client_voice': "Client's Voice",
+                    'observation_vs_interpretation': 'Observation vs Interpretation',
+                    'labels_and_language': 'Labels & Language',
+                    'possible_bias': 'Possible Bias',
+                    'evidence_for_decisions': 'Evidence for Decisions',
+                    'missing_information': 'Missing Information',
+                    'strengths_and_deficits': 'Strengths vs Deficits',
+                    'continuity': 'Continuity'},
+ 'update_document': 'Update document',
+ 'edit_document_label': "Edit the document here if you'd like",
+ 'submit_no_edit': 'Submit without editing',
+ 'submit_with_edit': 'Submit with edits',
+ 'submitted': '✔ Document submitted',
+ 'error_parsing': '⚠ Could not process the reflection response. Please try again.',
+ 'submit_draft_failed': '⚠ Could not submit the document. Please try again.',
+ 'delete_draft_failed': '⚠ Could not delete the document. Please try again.',
+ 'login_heading': '🔒 Reflection Space',
+ 'username': 'Username',
+ 'password_label': 'Password',
+ 'login_button': 'Log in',
+ 'login_error': 'Incorrect username or password.',
+ 'login_locked': 'Too many failed attempts. Please wait {minutes} minute(s) before trying again.',
+ 'no_users_configured': 'No user accounts are configured yet. Add them under Settings → Secrets in '
+                        'Streamlit Cloud.',
+ 'logout': 'Log out',
+ 'role_labels': {'Social Worker': 'Social Worker',
+                 'Supervisor': 'Supervisor',
+                 'Programme Manager': 'Programme Manager',
+                 'System Administrator': 'System Administrator'},
+ 'admin_title': '🔒 Admin',
+ 'admin_password_label': 'Password',
+ 'admin_enter_button': 'Enter',
+ 'admin_incorrect_password': 'Incorrect password.',
+ 'admin_visit_log': 'Visit Log',
+ 'admin_no_visits': 'No visits logged yet.',
+ 'admin_total_views_label': 'total page views',
+ 'admin_clear_log': 'Clear log',
+ 'admin_backfill_header': '🔄 Reindex documents in Qdrant',
+ 'admin_backfill_caption': 'Generates semantic embeddings for documents that were completed BEFORE '
+                           'semantic retrieval (Hybrid RAG) was enabled. Safe to run more than '
+                           'once: each document is overwritten by its id, never duplicated. '
+                           'PostgreSQL is not modified.',
+ 'admin_backfill_button': 'Reindex all completed documents',
+ 'admin_backfill_running': 'Indexing document {current} of {total}...',
+ 'admin_backfill_done': '✔ Reindexing complete: {indexed} of {total} documents indexed in Qdrant.',
+ 'admin_backfill_unavailable': "Semantic retrieval isn't configured yet (GEMINI_API_KEY or "
+                               'QDRANT_URL missing from secrets). The rest of the app keeps '
+                               'working with date-based historical context.',
+ 'admin_anon_header': 'Anonymization Demo',
+ 'admin_anon_caption': 'Paste sample text (fake details only) to see what leaves the system before '
+                       'it reaches Claude. Runs the same anonymize() function used in '
+                       'reflection_service.py.',
+ 'admin_sample_label': 'Sample text (fake details only)',
+ 'admin_run_button': 'Run anonymizer',
+ 'admin_output_label': 'Anonymized output (what is sent to Claude):',
+ 'nav_case_history': '🗂️ Case History',
+ 'case_history_title': 'Case History',
+ 'case_history_no_items': 'No completed reflections yet.',
+ 'case_history_original_label': 'Original version',
+ 'case_history_current_label': 'Current version',
+ 'case_history_edited_label': 'Edited',
+ 'case_history_not_edited_label': 'Not edited',
+ 'case_history_view_original_button': 'View original version',
+ 'case_history_all_dates': 'All dates',
+ 'submit_draft': 'Submit',
+ 'admin_table_page': 'Page',
+ 'admin_table_language': 'Language',
+ 'admin_table_visited': 'Visited at',
+ 'admin_sample_default': 'On 15/02/2026 the client, Sarah Kimani, of ID number 9988776655, '
+                         'attended a follow-up meeting. She can be reached at +254 722 334 455 or '
+                         'sarah.kimani@testmail.com. Mr. David Otieno was the assigned caseworker.',
+ 'learning_preview_caption': 'Based on the last {total} reflections',
+ 'learning_flagged_caption': 'Flagged in {count} of the last {total} reflections',
+ 'case_history_date_filter_label': 'View history for:',
+ 'case_history_toggle_label': 'Show:',
+ 'case_history_edited_option': 'Edited',
+ 'case_history_not_edited_option': 'Not edited',
+ 'case_history_no_items_for_filter': 'No documents for this selection.',
+ 'case_history_showing_recent': 'Showing the {shown} most recent documents out of {total}. Use the '
+                                'date filter above to see older documents.',
+ 'feedback_showing_recent': 'Showing the {shown} most recent comments out of {total}.',
+ 'feedback_prompt_title': 'How useful was this reflection?',
+ 'feedback_rating_label': 'Rating (1 = not useful, 5 = very useful)',
+ 'feedback_comment_label': 'Comment (optional)',
+ 'feedback_submit_button': 'Submit rating',
+ 'feedback_skip_button': 'Skip',
+ 'feedback_thanks': '✔ Thanks for your feedback',
+ 'feedback_section_header': 'Practitioner Feedback',
+ 'feedback_average_label': 'Average rating',
+ 'feedback_no_items': 'No feedback yet.',
+ 'case_history_delete_button': 'Delete case',
+ 'case_history_delete_confirm': 'Are you sure you want to delete this case? You can restore it for '
+                                '48 hours.',
+ 'case_history_delete_yes': 'Yes, delete',
+ 'case_history_delete_cancel': 'Cancel',
+ 'case_history_deleted_success': '✔ Case deleted. You can restore it for 48 hours.',
+ 'case_history_pending_deletion_header': 'Recently Deleted',
+ 'case_history_pending_deletion_no_items': 'No pending deletions.',
+ 'case_history_restore_button': 'Restore',
+ 'case_history_restored_success': '✔ Case restored.',
+ 'case_history_deleted_by_label': 'Deleted by',
+ 'nav_audit_log': '🧾 Audit Log',
+ 'audit_log_title': 'Audit Log',
+ 'audit_log_no_items': 'No audit records yet.',
+ 'audit_action_created': 'Created',
+ 'audit_action_submitted': 'Submitted',
+ 'audit_action_deleted': 'Deleted',
+ 'audit_action_restored': 'Restored',
+ 'audit_action_purged': 'Permanently purged',
+ 'workspace_opportunities_header': 'Reflection Opportunities',
+ 'workspace_document_header': 'Current document',
+ 'workspace_context_header': 'Reflection context',
+ 'workspace_progress_label': 'Explored: {explored} of {total}',
+ 'workspace_explore_button': 'Explore',
+ 'workspace_close_button': 'Close',
+ 'workspace_explored_badge': '🗨️ Explored',
+ 'workspace_conversation_input_label': 'Your reflection',
+ 'workspace_conversation_placeholder': 'Type your response or question here...',
+ 'workspace_send_button': 'Send',
+ 'workspace_ai_thinking': 'Thinking...',
+ 'workspace_conversation_error': '⚠ Could not continue the conversation. Please try again.',
+ 'workspace_reminder': 'This is offered as a reflective prompt only. Whether to explore it, and '
+                       'whether to change anything in the documentation, is entirely your '
+                       'professional decision.',
+ 'nav_growth': '🌱 My Reflection',
+ 'growth_title': '🌱 Your Reflective Journey',
+ 'growth_intro': "This is your personal space. It shows only what you've chosen to explore -- it "
+                 'is not an evaluation of your performance, it is never compared with other '
+                 'professionals, and it is not visible to supervisors.',
+ 'growth_no_data': 'You haven\'t explored a reflection yet. As you use the "Explore" button in the '
+                   'Reflection Space, your journey will appear here.',
+ 'growth_themes_header': "Areas you've explored most",
+ 'growth_themes_caption': 'Based on {total} recorded exploration moment(s)',
+ 'growth_history_header': 'Recent reflective moments',
+ 'growth_entry_line': '**{theme}** — case {case} — {count} exchange(s) — {date}',
+ 'growth_session_count_label': 'Total exploration moments recorded',
+ 'nav_team_learning': '🌍 Team Learning',
+ 'team_learning_title': '🌍 Team Reflective Themes',
+ 'team_learning_intro': 'This view shows aggregated, anonymous patterns across the whole '
+                        'organisation. It does not identify any professional, does not identify '
+                        "any specific case, and does not show anyone's individual reflection "
+                        'history. Its purpose is to help the organisation see which areas of '
+                        'practice deserve collective attention -- not to evaluate individuals.',
+ 'team_learning_period_caption': 'Last 6 months — {total} exploration moment(s) recorded in total, '
+                                 'across all teams',
+ 'team_learning_no_data': "There isn't enough exploration data recorded in the last 6 months yet.",
+ 'team_learning_header': 'Most common reflective areas',
+ 'team_learning_rank_line': '{rank}. {theme} — {count} explorations',
+ 'nav_research_metrics': '📊 Research Metrics',
+ 'research_title': '📊 Research Metrics',
+ 'research_intro': "These metrics describe the organisation's reflective activity -- they do not "
+                   'evaluate or compare any professional. They contain no names, no specific '
+                   'cases, and no document content.',
+ 'research_period_caption': 'Period: last {days} days (since {since})',
+ 'research_overview_header': 'Activity overview',
+ 'research_sessions_label': 'Reflection sessions generated',
+ 'research_documents_label': 'Documents completed',
+ 'research_theme_table_header': 'Themes: flagged by AI vs. explored by professionals',
+ 'research_theme_flagged_col': 'Flagged by AI',
+ 'research_theme_explored_col': 'Explored by a professional',
+ 'research_feedback_header': 'Usefulness ratings',
+ 'research_feedback_count_label': 'Ratings received',
+ 'research_feedback_average_label': 'Average rating',
+ 'research_feedback_comments_label': 'With a comment',
+ 'research_feedback_no_data': 'No ratings have been received yet.',
+ 'research_export_button': 'Download research CSV',
+ 'research_export_caption': 'The file contains aggregate counts only -- no names, no cases, no '
+                            'document text.',
+ 'research_no_data': "There isn't enough recorded activity for this period yet.",
+ 'why_included_label': 'Why was this included?',
+ 'why_reason_must_include_plan': 'This is the latest Intervention Plan and provides important '
+                                 "context for today's reflection.",
+ 'why_reason_must_include_assessment': 'This is the most recent assessment available for this '
+                                       'client.',
+ 'why_reason_must_include_generic': 'This is one of the core documents for this client.',
+ 'why_reason_semantic_specific': 'This document discusses {themes}, which are also mentioned in '
+                                 "today's documentation.",
+ 'why_reason_semantic_generic': 'This document discusses themes that are closely related to '
+                                "today's documentation.",
+ 'why_reason_recency': 'This document was created recently and may contain important developments '
+                       "relevant to today's reflection.",
+ 'why_technical_details_label': 'Technical details',
+ 'why_similarity_label': 'Similarity:',
+ 'why_similarity_very_high': 'Very High',
+ 'why_similarity_high': 'High',
+ 'why_similarity_moderate': 'Moderate',
+ 'why_similarity_low': 'Low',
+ 'journey_step1': "Today's Documentation",
+ 'journey_step2': 'Historical Context',
+ 'journey_step3': 'Professional Reflection',
+ 'journey_step4': 'Reflective Questions',
+ 'journey_step1_desc': "Today's document(s) are selected for reflection.",
+ 'journey_step2_desc': 'Relevant historical documents for this case are retrieved.',
+ 'journey_step3_desc': "The AI analyses today's documentation together with the historical "
+                       'context.',
+ 'journey_step4_desc': "You're invited to consider reflective questions.",
+ 'historical_timeline_header': 'Historical Timeline',
+ 'historical_timeline_intro': 'Relevant documents for this case, arranged chronologically.',
+ 'timeline_today_label': "📍 Today's Documentation",
+ 'historical_docs_used_label': 'Historical documents currently included',
+ 'dashboard_navigator_hint': 'Use the tabs to move between reflection areas without scrolling '
+                             'through the whole page.',
+ 'coverage_header': 'Reflection Coverage',
+ 'coverage_intro': 'This confirms that every dimension was considered in this reflection -- it is '
+                   'not a score or an evaluation.',
+ 'coverage_considered': 'Analysed',
+ 'coverage_unavailable': "Couldn't be generated this time",
+ 'history_link_hint': 'Want to revisit your past reflections? Your personal reflective journey is '
+                      'available on',
+ 'workmode_switch_label': 'Work mode',
+ 'workmode_practitioner': 'Practitioner',
+ 'workmode_manager': 'Manager / Supervisor',
+ 'workmode_admin': 'System Administration',
+ 'workmode_access_denied': 'You do not have access to this workspace.',
+ 'nav_system_admin': '🛠️ System Administration',
+ 'presence_header': 'Team Presence',
+ 'presence_intro': 'Social workers currently active in the app. No case information or document '
+                   'content is shown.',
+ 'presence_active_count': '{count} Social Worker(s) active or recently active',
+ 'presence_status_active': '🟢 Active now',
+ 'presence_status_recent': '🟡 Active {minutes} minute(s) ago',
+ 'presence_status_offline': '⚪ No recent activity',
+ 'presence_no_data': 'No activity data recorded yet.',
+ 'learning_tab_presence': '👥 Team Presence',
+ 'learning_tab_knowledge': '💬 Organisational Learning',
+ 'learning_tab_insights': '📚 Learning Insights',
+ 'learning_tab_team': '🌍 Team Learning',
+ 'ka_header': 'Ask about organisational knowledge',
+ 'ka_intro': "Ask a natural-language question about the organisation's reflective patterns, "
+             'themes, and activity. Answers are grounded only in indexed documentation and '
+             'reflections -- never in outside general knowledge.',
+ 'ka_question_label': 'Your question',
+ 'ka_question_placeholder': 'For example: What patterns have come up in Kulunka this quarter?',
+ 'ka_ask_button': 'Ask',
+ 'ka_thinking': 'Analysing the organisational knowledge base...',
+ 'ka_error': '⚠ Could not generate an answer. Please try again.',
+ 'ka_empty_question': 'Please write a question.',
+ 'ka_duplicate_message': 'This question is already being processed. Please wait a moment for it to '
+                         'finish before asking again.',
+ 'ka_rate_limit_exceeded_message': "You've reached the limit of {max} Knowledge Assistant "
+                                   'questions in the last hour on this account. This is a safety '
+                                   'limit to prevent accidental repeated requests, not a '
+                                   'restriction on your normal work -- please wait a little and '
+                                   'try again, or contact your System Administrator if you believe '
+                                   'this is a mistake.',
+ 'ka_confidence_label': 'Evidence level:',
+ 'ka_confidence_strong': '🟢 Strong evidence',
+ 'ka_confidence_limited': '🟡 Limited evidence',
+ 'ka_confidence_insufficient': '🔴 Insufficient evidence',
+ 'ka_limitations_label': 'Limitations:',
+ 'ka_evidence_header': 'Evidence used',
+ 'ka_evidence_count': '{count} relevant document(s) retrieved',
+ 'ka_evidence_doc_type_col': 'Document type',
+ 'ka_evidence_date_col': 'Date',
+ 'ka_evidence_case_col': 'Case/service reference',
+ 'ka_evidence_relevance_col': 'Relevance',
+ 'ka_evidence_none': 'No relevant documents were retrieved for this question.',
+ 'admin_user_mgmt_header': '👥 User Management',
+ 'admin_user_mgmt_info': 'Users are managed through Streamlit Secrets. Dynamic CRUD is '
+                         'intentionally unavailable because credentials and roles are configured '
+                         'in deployment secrets, not application tables.',
+ 'admin_user_mgmt_empty': 'No users are configured yet. Add them under Settings → Secrets in '
+                          'Streamlit Cloud.',
+ 'admin_user_col_username': 'Username',
+ 'admin_user_col_name': 'Name',
+ 'admin_user_col_role': 'Role',
+ 'admin_doc_indexing_header': '📇 Document Indexing',
+ 'admin_doc_indexing_caption': 'Hybrid RAG backfill utility -- generates Qdrant embeddings for '
+                               'documents completed before semantic retrieval was enabled.',
+ 'admin_doc_indexing_cost': '💰 Cost note: this calls Gemini API (embeddings) once per completed '
+                            'document, never Claude.',
+ 'admin_doc_indexing_unavailable': 'Qdrant is not configured, so semantic indexing is unavailable.',
+ 'admin_doc_indexing_button': 'Run document backfill',
+ 'admin_doc_indexing_success': '✅ Indexed {indexed} of {total} documents.',
+ 'admin_doc_indexing_none_failed': '✅ No documents are pending indexing. Everything is up to date.',
+ 'admin_doc_indexing_failed_label': '⚠️ {failed} document(s) saved correctly but failed to index '
+                                    'for search.',
+ 'admin_doc_indexing_failed_caption': 'These documents are complete and appear normally throughout '
+                                      'the app -- only the step that makes them findable in '
+                                      "Knowledge Assistant and Reflection Context's historical "
+                                      'case lookup failed. No data was lost; retrying the indexing '
+                                      "is all that's needed.",
+ 'admin_doc_indexing_retry_button': 'Retry failed documents only',
+ 'admin_doc_indexing_retry_success': '✅ Retry complete: {indexed} of {total} documents indexed '
+                                     'successfully.',
+ 'admin_retrieval_test_header': '🔍 Retrieval Test',
+ 'admin_retrieval_test_caption': 'Runs a real semantic search against Qdrant to verify retrieval '
+                                 'is working end to end -- either scoped to one case, or across '
+                                 'the entire knowledge base.',
+ 'admin_retrieval_test_cost': '💰 Cost note: this embeds your query text via Gemini API only -- it '
+                              'never calls the Claude/Anthropic API.',
+ 'admin_retrieval_case_label': 'Case reference (optional -- leave blank to search the entire '
+                               'knowledge base)',
+ 'admin_retrieval_query_label': 'Search query',
+ 'admin_retrieval_run_button': 'Run retrieval test',
+ 'admin_retrieval_summary_header': '#### Retrieval Summary',
+ 'admin_retrieval_mode_global': '🌍 Global Knowledge Base Search',
+ 'admin_retrieval_mode_case': '📁 Case-specific ({case_ref})',
+ 'admin_retrieval_status_label': 'Status',
+ 'admin_retrieval_status_success': '✅ Successful',
+ 'admin_retrieval_status_failed': '❌ Failed',
+ 'admin_retrieval_mode_row_label': 'Retrieval Mode',
+ 'admin_retrieval_time_label': 'Search time',
+ 'admin_retrieval_query_row_label': 'Query',
+ 'admin_retrieval_docs_returned_label': 'Documents returned',
+ 'admin_retrieval_embedding_model_label': 'Embedding model',
+ 'admin_retrieval_global_notice': '🌍 Global mode: this search applied no case filter and may '
+                                  'return documents from more than one case.',
+ 'admin_retrieval_failed_label': 'Retrieval failed:',
+ 'admin_retrieval_documents_header': '#### Retrieved Documents',
+ 'admin_retrieval_no_docs': 'No documents were returned for this query.',
+ 'admin_retrieval_col_rank': 'Rank',
+ 'admin_retrieval_col_doctype': 'Document Type',
+ 'admin_retrieval_col_reason': 'Retrieval Reason',
+ 'admin_retrieval_col_similarity': 'Similarity',
+ 'admin_retrieval_col_case': 'Case Reference',
+ 'admin_advanced_diagnostics': '🔧 Advanced Diagnostics',
+ 'admin_show_raw_response': 'Show raw response',
+ 'admin_rag_status_header': '📡 RAG Status',
+ 'admin_rag_status_ok': '✅ Semantic retrieval layer is reachable.',
+ 'admin_rag_status_item': 'Item',
+ 'admin_rag_status_value': 'Status',
+ 'admin_rag_qdrant_connection': 'Qdrant connection',
+ 'admin_rag_collection': 'Collection',
+ 'admin_rag_embedding_model': 'Embedding model',
+ 'admin_rag_embedding_dims': 'Embedding dimensions',
+ 'admin_rag_indexed_docs': 'Indexed documents',
+ 'admin_rag_case_ref_index': 'Case reference index',
+ 'admin_rag_doc_id_index': 'Document ID index',
+ 'admin_rag_latest_doc_id': 'Latest document ID',
+ 'admin_rag_latest_case': 'Latest case',
+ 'admin_rag_latest_doctype': 'Latest document type',
+ 'admin_rag_last_indexed': 'Last indexed',
+ 'admin_status_connected': 'Connected',
+ 'admin_status_not_connected': 'Not connected',
+ 'admin_status_present': '✅ Present',
+ 'admin_status_missing': '❌ Missing',
+ 'admin_health_header': '💚 System Health',
+ 'admin_health_overall': '#### Overall Status',
+ 'admin_health_critical': '🔴 Critical',
+ 'admin_health_degraded': '🟡 Degraded (semantic retrieval not configured -- app is using '
+                          'date-based fallback)',
+ 'admin_health_healthy': '🟢 Healthy',
+ 'admin_health_components': '#### Components',
+ 'admin_health_component_col': 'Component',
+ 'admin_health_status_col': 'Status',
+ 'admin_health_component_database': 'Database',
+ 'admin_health_component_qdrant': 'Qdrant',
+ 'admin_health_component_embedding': 'Embedding service (Gemini API)',
+ 'admin_health_component_retrieval': 'Retrieval service',
+ 'admin_health_component_reflection': 'Reflection engine (Claude API)',
+ 'admin_health_healthy_label': 'Healthy',
+ 'admin_health_unreachable_label': 'Unreachable',
+ 'admin_health_available_label': 'Available',
+ 'admin_health_not_configured_label': 'Not configured',
+ 'admin_health_operational_label': '✅ Operational',
+ 'admin_health_fallback_label': '🟡 Fallback mode (recency-based)',
+ 'admin_health_db_error_prefix': 'Database error:',
+ 'admin_health_key_missing': 'ANTHROPIC_API_KEY is not configured -- reflections cannot be '
+                             'generated.',
+ 'admin_config_header': '⚙️ Configuration',
+ 'admin_tools_header': '🧰 Administrative Tools',
+ 'admin_tools_anon_test_header': 'Anonymization Test',
+ 'admin_tools_reset_index_header': 'Reset Search Index (Qdrant)',
+ 'admin_tools_reset_index_caption': 'Deletes and rebuilds the semantic search index from scratch, '
+                                    'using the currently configured embedding provider. Use this '
+                                    'after switching embedding providers (e.g. from Voyage to '
+                                    "Gemini) so old, incompatible data doesn't interfere with new "
+                                    'searches.',
+ 'admin_tools_reset_index_warning': '⚠️ This will permanently delete every existing search vector '
+                                    'in Qdrant. The documents themselves are NOT lost -- they '
+                                    'remain fully intact in the database -- but they will stop '
+                                    'appearing in Knowledge Assistant searches or Reflection '
+                                    'Context until they are re-indexed. Are you sure you want to '
+                                    'continue?',
+ 'admin_tools_reset_index_button': 'Reset search index',
+ 'admin_tools_reset_index_yes': 'Yes, reset',
+ 'admin_tools_reset_index_cancel': 'Cancel',
+ 'admin_tools_reset_index_success': 'The search index was reset successfully. It is now empty and '
+                                    'ready to index new documents with the current embedding '
+                                    'provider.',
+ 'admin_tools_reset_index_failed': 'Could not reset the search index:',
+ 'admin_tools_reset_index_unavailable': 'Qdrant is not configured -- there is no index to reset.',
+ 'admin_tools_future': 'Future administrator tools will appear here.',
+ 'admin_console_caption': 'Administration console for Reflection Space -- system status, indexing, '
+                          'and diagnostic tools.',
+ 'admin_error_log_unknown_page': 'unknown page',
+ 'admin_error_log_generic_error': 'Error',
+ 'admin_error_log_no_message': '(no message)',
+ 'admin_error_log_unknown_role': 'unknown role',
+ 'readiness_category_exception': 'Exception',
+ 'readiness_category_traceback_evidence': 'Traceback',
+ 'readiness_category_root_cause': 'Root Cause',
+ 'readiness_category_timeline': 'Timeline',
+ 'readiness_category_session_context': 'Session Context',
+ 'readiness_category_environment': 'Environment',
+ 'readiness_category_user_information': 'User Information',
+ 'readiness_category_configuration': 'Configuration',
+ 'readiness_category_ai_prompt': 'AI Prompt Generated',
+ 'event_labels': {'Opened page': 'Opened page',
+                  'Changed page': 'Changed page',
+                  'Email sent': 'Email sent',
+                  'User submitted report': 'User submitted report',
+                  'Exception occurred': 'Exception occurred',
+                  'Error logged': 'Error logged'},
+ 'admin_case_export_download': 'Download case #{n}',
+ 'admin_case_export_failed': 'Could not build export.',
+ 'admin_case_export_format': 'Format',
+ 'admin_case_export_header': '📤 Export this case',
+ 'admin_case_field_common_cause': 'Common cause',
+ 'admin_case_field_deployment_date': 'Deployment date (if applicable)',
+ 'admin_case_field_documentation_link': 'Documentation link',
+ 'admin_case_field_external_reference': 'External reference',
+ 'admin_case_field_fix_applied': 'Fix applied',
+ 'admin_case_field_git_commit': 'Git commit',
+ 'admin_case_field_known_fix': 'Known fix',
+ 'admin_case_field_known_workaround': 'Known workaround',
+ 'admin_case_field_lessons_learned': 'Lessons learned',
+ 'admin_case_field_prevention_notes': 'Future prevention notes',
+ 'admin_case_field_resolution_summary': 'Resolution summary',
+ 'admin_case_field_root_cause': "Root cause (administrator's conclusion)",
+ 'admin_case_field_version_fixed': 'Version fixed',
+ 'admin_case_investigation_add': 'Preserve a new investigation',
+ 'admin_case_investigation_by': 'Added by',
+ 'admin_case_investigation_delete': '🗑️ Remove this entry',
+ 'admin_case_investigation_notes': 'Administrator notes',
+ 'admin_case_investigation_notes_input': 'Administrator notes',
+ 'admin_case_investigation_prompt': 'Prompt',
+ 'admin_case_investigation_prompt_input': 'Prompt',
+ 'admin_case_investigation_response': 'AI response',
+ 'admin_case_investigation_response_input': 'AI response',
+ 'admin_case_investigation_save': '💾 Save investigation',
+ 'admin_case_investigation_save_failed': 'Could not save -- please try again.',
+ 'admin_case_investigation_saved': 'Investigation preserved.',
+ 'admin_case_investigation_tool': 'Tool used',
+ 'admin_case_investigations_caption': 'Reflection Space never calls an AI automatically here -- '
+                                      "this is simply a place to preserve investigations you've "
+                                      'already done elsewhere (ChatGPT, Claude, Gemini, or a '
+                                      "manual investigation), so the next person doesn't have to "
+                                      'redo the work.',
+ 'admin_case_investigations_empty': 'No investigations preserved yet.',
+ 'admin_case_investigations_header': '🧠 AI Investigation History',
+ 'admin_case_knowledge_no_issue_id': 'This record predates stable issue references, so case '
+                                     'knowledge (resolution tracking, AI investigation history, '
+                                     "similar issues, export) isn't available for it.",
+ 'admin_case_knowledge_subheader': 'Case knowledge (all optional)',
+ 'admin_case_resolution_header': '✅ Resolution & Case Knowledge',
+ 'admin_case_resolution_history_caption': 'This issue was previously marked Fixed or Closed and '
+                                          'has since recurred. The resolution recorded before each '
+                                          'recurrence is preserved below, even though the form '
+                                          'above now reflects the current investigation.',
+ 'admin_case_resolution_history_header': '📜 Previous resolution history ({n} preserved)',
+ 'admin_case_resolution_history_occurrence': 'occurrence',
+ 'admin_case_resolution_history_reopened_at': 'Reopened at',
+ 'admin_case_resolution_last_updated': 'Last updated {when} by {who}',
+ 'admin_case_resolution_save': '💾 Save resolution & case knowledge',
+ 'admin_case_resolution_save_failed': 'Could not save -- please try again.',
+ 'admin_case_resolution_saved': 'Saved.',
+ 'admin_case_search_ai_tool': 'AI tool used',
+ 'admin_case_search_button': 'Search',
+ 'admin_case_search_caption': 'Search resolved and unresolved cases by what you know about them, '
+                              'not just when they happened. Fill in any combination of fields '
+                              'below -- results match ALL fields you provide.',
+ 'admin_case_search_exception': 'Exception type',
+ 'admin_case_search_find_hint': 'Open the matching case above in AI Diagnostic Centre (by its # '
+                                'reference) for the full record.',
+ 'admin_case_search_header': '🔎 Case Knowledge Search',
+ 'admin_case_search_lesson': 'Lesson learned contains',
+ 'admin_case_search_min_occurrences': 'Minimum occurrence count',
+ 'admin_case_search_no_results': 'No cases match those filters. Try fewer fields.',
+ 'admin_case_search_page': 'Page',
+ 'admin_case_search_resolution': 'Resolution contains',
+ 'admin_case_search_resolution_label': 'Resolution',
+ 'admin_case_search_result_count': '{n} case(s) found.',
+ 'admin_case_search_root_cause': 'Root cause contains',
+ 'admin_case_search_root_cause_label': 'Root cause',
+ 'admin_case_search_status': 'Status',
+ 'admin_case_search_user': 'User',
+ 'admin_case_search_version_fixed': 'Version fixed',
+ 'admin_case_similar_empty': 'No similar previous issues found.',
+ 'admin_case_similar_header': 'Similar Previous Issues',
+ 'admin_error_log_caption': 'Every problem recorded in the app -- crashes, failed AI companion '
+                            'calls, or problems people reported -- shown as a full diagnostic '
+                            'workspace: what happened, how serious it is, and a ready-made prompt '
+                            'you can copy straight into a chat with Claude to get it diagnosed and '
+                            'fixed.',
+ 'admin_error_log_category_label': 'Category',
+ 'admin_error_log_context_label': 'Context',
+ 'admin_error_log_copy_hint': 'Hover over the box below and click the copy icon in the top-right '
+                              'corner.',
+ 'admin_error_log_count_caption': 'Showing {n} of {total} issue(s).',
+ 'admin_error_log_empty': 'No errors recorded. Everything looks clean.',
+ 'admin_error_log_env_app_version': 'App version',
+ 'admin_error_log_env_browser': 'Browser',
+ 'admin_error_log_env_os': 'Operating system',
+ 'admin_error_log_env_python': 'Python version',
+ 'admin_error_log_environment_label': '💻 Environment',
+ 'admin_error_log_evidence_label': '📋 Evidence Collected',
+ 'admin_error_log_exception_message_label': 'Exception message',
+ 'admin_error_log_exception_type_label': 'Exception type',
+ 'admin_error_log_explanation_label': '🗣️ What happened, in plain language',
+ 'admin_error_log_first_seen_label': 'First seen',
+ 'admin_error_log_header': '🩺 AI Diagnostic Centre',
+ 'admin_translation_health_header': '🌐 Translation System Health',
+ 'admin_translation_health_caption': 'Live status of the Español / Euskera / English translation '
+                                     'system.',
+ 'admin_translation_autofilled_warning': '{count} translation key(s) were auto-filled with '
+                                         'placeholder text on startup.',
+ 'admin_translation_autofilled_details': 'View auto-filled keys',
+ 'admin_translation_copied_from': 'copied from',
+ 'admin_translation_in_sync': 'All languages are structurally in sync. Nothing needed '
+                              'auto-filling.',
+ 'admin_translation_runtime_gaps': '⚠️ Keys missing at runtime this session ({count})',
+ 'admin_translation_panel_error': 'Translation health panel could not be loaded right now.',
+ 'admin_error_log_last_seen_label': 'Last seen',
+ 'admin_error_log_no_matches': 'No errors match the current filters.',
+ 'admin_error_log_no_package': 'No AI Diagnostic Package was generated for this record -- it was '
+                               'logged before the Diagnostic Engine existed. The technical details '
+                               'below are still available.',
+ 'admin_error_log_no_traceback': 'No traceback -- this was a user-submitted report, not an '
+                                 'automatic exception.',
+ 'admin_error_log_not_available': 'not available',
+ 'admin_error_log_occurrences_label': 'Occurrences',
+ 'admin_error_log_page_label': 'Page',
+ 'admin_error_log_prompt_label': '🤖 AI Prompt',
+ 'admin_error_log_readiness_explainer': "The AI Readiness Score is not AI-generated -- it's a "
+                                        'simple completeness count of how many of the 7 evidence '
+                                        'categories below are present for this record.',
+ 'admin_error_log_readiness_label': 'AI Readiness',
+ 'admin_error_log_screenshot_error': '(could not display screenshot)',
+ 'admin_error_log_screenshot_label': 'Screenshot',
+ 'admin_error_log_search_label': '🔍 Search (page, error type, or message)',
+ 'admin_error_log_session_label': '🧭 Session Context',
+ 'admin_error_log_severity_filter_label': 'Filter by severity',
+ 'admin_error_log_severity_label': 'Severity',
+ 'admin_error_log_status_filter_label': 'Filter by status',
+ 'admin_error_log_status_label': 'Status',
+ 'admin_error_log_summary_label': 'Summary',
+ 'admin_error_log_technical_label': '🔧 Technical Details',
+ 'admin_error_log_timeline_label': '🕒 Evidence Timeline',
+ 'admin_error_log_traceback_label': 'Full technical traceback',
+ 'admin_error_log_user_label': 'User',
+ 'admin_error_log_when_label': 'When',
+ 'admin_error_log_who_experienced_label': '👥 Who experienced this ({n} shown)',
+ 'admin_error_log_who_experienced_partial': 'Showing the occurrences currently loaded; the total '
+                                            'count above reflects every occurrence recorded.',
+ 'admin_diag_filters_header': '🔍 Filters',
+ 'admin_diag_filter_page': 'Page contains',
+ 'admin_diag_filter_root_cause': 'Root cause contains',
+ 'admin_diag_filter_user': 'User contains',
+ 'admin_diag_filter_date_from': 'From date',
+ 'admin_diag_filter_date_to': 'To date',
+ 'admin_diag_metric_total': 'Total issues',
+ 'admin_diag_metric_open': '🟥 Open',
+ 'admin_diag_metric_fixed': '✅ Fixed',
+ 'admin_diag_metric_warnings': '⚠️ Warnings',
+ 'admin_diag_section_selector': 'View',
+ 'admin_diag_tab_open': '🟥 Open Issues ({n})',
+ 'admin_diag_tab_fixed': '✅ Fixed Issues ({n})',
+ 'admin_diag_tab_warnings': '⚠️ Warnings ({n})',
+ 'admin_diag_tab_trends': '📈 Trend Analysis',
+ 'admin_diag_open_empty': 'No open issues match the current filters.',
+ 'admin_diag_fixed_empty': 'No fixed issues match the current filters.',
+ 'admin_diag_warnings_empty': 'No warnings match the current filters.',
+ 'admin_diag_trends_empty': 'Not enough data yet for trend analysis.',
+ 'admin_diag_trends_caption': 'Built entirely from the issues already loaded above -- volume, hot '
+                              'spots, and the most frequent problems, at a glance.',
+ 'admin_diag_warnings_caption': 'Warnings are non-fatal conditions worth knowing about -- like a '
+                                'partial reflection generation -- kept separate from application '
+                                'errors above.',
+ 'admin_diag_trends_volume_header': '📅 Occurrences over time',
+ 'admin_diag_trends_pages_header': '📍 Most affected pages',
+ 'admin_diag_trends_category_header': '🗂️ Occurrences by category',
+ 'admin_diag_trends_uncategorized': 'Uncategorized',
+ 'admin_diag_trends_top_issues_header': '🔁 Most frequent issues',
+ 'admin_diag_trends_no_issues': 'No issues recorded yet.',
+ 'error_boundary_body': 'This has been recorded as error {ref}. Please try again -- if it keeps '
+                        'happening, tell your administrator the reference number above.',
+ 'error_boundary_heading': 'Something went wrong on this page.',
+ 'rate_limit_exceeded_message': "You've reached the limit of {max} reflections in the last hour on "
+                                'this account. This is a safety limit to prevent accidental '
+                                'repeated requests, not a restriction on your normal work -- '
+                                'please wait a little and try again, or contact your System '
+                                'Administrator if you believe this is a mistake.',
+ 'reflection_duplicate_message': 'This reflection is already being generated. Please wait a moment '
+                                 'for it to finish before trying again.',
+ 'report_problem_caption': 'Something look wrong? Describe it below. Your administrator will be '
+                           'notified right away.',
+ 'report_problem_description_label': 'What happened?',
+ 'report_problem_empty_warning': 'Please add a short description before sending.',
+ 'report_problem_header': '🚩 Report a problem',
+ 'report_problem_send_button': 'Send Report',
+ 'report_problem_sent': 'Report sent. Thank you -- your administrator has been notified.',
+ 'status_labels': {'New': 'New',
+                   'Investigating': 'Investigating',
+                   'Recurred': 'Recurred',
+                   'Fixed': 'Fixed',
+                   'Closed': 'Closed',
+                   'All': 'All',
+                   'Any': 'Any'},
+ 'severity_labels': {'All': 'All',
+                     'error': 'Error',
+                     'warning': 'Warning',
+                     'user_reported': 'User reported'},
+ 'help': {'nav_label': '❓ Help',
+          'page_title': 'Reflection Space Quick Guide',
+          'intro_title': 'What is Reflection Space?',
+          'intro_body': "Reflection Space reads the case documentation you've just written and, "
+                        "before it's finalised, offers reflective questions across eight "
+                        "professional dimensions -- such as whether the client's own voice is "
+                        'present, or whether strengths are being overlooked alongside '
+                        'difficulties.',
+          'guardrail_note': 'The tool never grades, scores, or decides anything for you. You '
+                            'decide what, if anything, to change in your documentation.',
+          'journey_title': 'The three-step reflection journey',
+          'journey_steps': ["1. Today's Documentation -- choose the case note(s) you've just "
+                            'written that you want to reflect on.',
+                            '2. Historical Context -- review which earlier documents for this case '
+                            'have been surfaced as relevant, and include or exclude any of them.',
+                            '3. Professional Reflection -- explore the eight reflective '
+                            'dimensions, optionally have a short conversation about any of them, '
+                            'then update and submit your document.'],
+          'practitioner_title': 'Practitioner workspace',
+          'doc_section_title': '📝 Documentation -- writing a case note',
+          'doc_section_body': 'On the Documentation page, enter the case reference, choose the '
+                              'document type and language, and write your note. Selecting Save '
+                              'stores it as a private draft -- visible only to you -- until you '
+                              'submit it from Reflection Space.',
+          'reflection_section_title': '🪞 Reflection Space -- reflecting before you submit',
+          'reflection_section_body': 'On the Reflection Space page: pick the draft(s) you want to '
+                                     "reflect on, review the historical context that's been "
+                                     "surfaced (untick anything you don't want considered), then "
+                                     'continue to generate your reflection. Explore any of the '
+                                     'eight dimensions, optionally open a short conversation about '
+                                     'one, then edit and submit your document. Afterwards you can '
+                                     'rate how useful the session was -- entirely optional.',
+          'dimensions_title': 'The eight reflective dimensions',
+          'dimensions': [{'label': "Client's Voice",
+                          'desc': "Is the person's own voice, goals, and preferences reflected, or "
+                                  'does the narrative come mostly from the professional?'},
+                         {'label': 'Observation vs Interpretation',
+                          'desc': 'Are statements presented as observed fact, when some are '
+                                  'actually interpretation, assumption, or opinion?'},
+                         {'label': 'Labels & Language',
+                          'desc': 'Are there labels or charged terms that could quietly steer how '
+                                  'this person or family is perceived?'},
+                         {'label': 'Possible Bias',
+                          'desc': 'Are there stereotypes or unexamined assumptions tied to origin, '
+                                  'gender, age, migration status, mental health, or substance '
+                                  'use?'},
+                         {'label': 'Evidence for Decisions',
+                          'desc': 'Are intervention decisions clearly supported by evidence, or do '
+                                  'they rely on implicit assumptions?'},
+                         {'label': 'Missing Information',
+                          'desc': 'Is there relevant information missing whose absence could '
+                                  'change how the situation is understood?'},
+                         {'label': 'Strengths vs Deficits',
+                          'desc': 'Does the language focus mainly on problems and deficits, '
+                                  "overlooking the person's strengths and resources?"},
+                         {'label': 'Continuity',
+                          'desc': 'Are there contradictions or notable shifts across documents '
+                                  'compared with what came before?'}],
+          'growth_section_title': '🌱 My Reflection -- your personal journal',
+          'growth_section_body': "My Reflection is your own space: which themes you've explored "
+                                 'most, and a timeline of your recent reflective moments. No '
+                                 'scores, no comparison to anyone else, visible to no one but you.',
+          'manager_title': 'Manager workspace',
+          'learning_section_title': '📚 Learning',
+          'learning_section_body': "Learning has four tabs: Team Presence (who's active), "
+                                   'Knowledge Assistant (ask a question, get an answer drawn from '
+                                   "the organisation's own case documentation), Learning Insights "
+                                   '(which dimensions have come up most often), and Team Learning '
+                                   '(aggregated themes over the last six months). Everything here '
+                                   "is aggregated and anonymous -- no individual's work can be "
+                                   'singled out.',
+          'case_history_section_title': '🗂️ Case History',
+          'case_history_section_body': 'Case History shows completed documentation and feedback: '
+                                       'an overview of usefulness ratings and comments, and '
+                                       'completed documents grouped by professional, with a toggle '
+                                       'between edited and unedited so you can see what changed.',
+          'research_metrics_section_title': '📊 Research Metrics',
+          'research_metrics_section_body': 'Research Metrics (System Administrator only) gives an '
+                                           'aggregated, pilot-level view: total sessions and '
+                                           'documents completed, how often each dimension was '
+                                           'flagged versus explored, feedback ratings, and a CSV '
+                                           'export.',
+          'admin_title': '🛠️ System Administration',
+          'admin_section_body': 'System Administration brings together user management, document '
+                                'indexing and retrieval testing, system health, configuration, '
+                                'translation health checks, the AI Diagnostic Centre (the error '
+                                'log), and case knowledge search.',
+          'report_problem_title': '🚩 Reporting a problem',
+          'report_problem_body': 'Every page has a 🚩 Report a problem control in the sidebar, '
+                                 'available to everyone. Describe what happened in your own words '
+                                 'and select Send -- the system automatically attaches page, '
+                                 'session, and navigation context.',
+          'privacy_title': '🔒 Privacy and data',
+          'privacy_points': ['Pending drafts are private -- only you can see or open a draft '
+                             'before you submit it.',
+                             'Reflective conversation content is never stored beyond the session '
+                             '-- only which theme was explored, and when.',
+                             'My Reflection is personal and comparison-free: no scores, no '
+                             'ranking, visible to no one but you.',
+                             'Organisation-wide views work only with aggregated, anonymised data.',
+                             'Two-layer role-based access control is enforced throughout the '
+                             'app.']},
+ 'admin_usage_header': '💰 Service Usage & Costs',
+ 'admin_usage_caption': 'What each external service is costing this pilot, estimated from actual '
+                        'recorded API usage. Figures marked "estimate" could not be tied to an '
+                        'exact provider price and should be treated as approximate.',
+ 'admin_usage_status_green': '🟢 OK',
+ 'admin_usage_status_yellow': '🟡 Approaching limit',
+ 'admin_usage_status_orange': '🟠 Near limit',
+ 'admin_usage_status_red': '🔴 At/over limit',
+ 'admin_usage_status_unknown': '⚪ Limit unavailable',
+ 'admin_usage_unavailable': 'Unavailable',
+ 'admin_usage_limit_unavailable': 'Limit unavailable',
+ 'admin_usage_overview_header': 'Overview',
+ 'admin_usage_col_service': 'Service',
+ 'admin_usage_col_usage': 'Usage (this month)',
+ 'admin_usage_col_limit': 'Budget',
+ 'admin_usage_col_pct': '% used',
+ 'admin_usage_col_cost': 'Est. cost (month)',
+ 'admin_usage_col_status': 'Status',
+ 'admin_usage_no_billing_api': 'No billing API',
+ 'admin_usage_connections': 'connections',
+ 'admin_usage_not_started': 'Not started yet',
+ 'admin_usage_provider_billing_unavailable': 'Provider billing data unavailable',
+ 'admin_usage_active_users': 'active users',
+ 'admin_usage_emails_sent': 'emails sent',
+ 'admin_usage_claude_detail_header': 'Claude (Anthropic) detail',
+ 'admin_usage_cost_today': 'Est. cost today',
+ 'admin_usage_cost_month': 'Est. cost this month',
+ 'admin_usage_cost_projected': 'Projected month-end cost',
+ 'admin_usage_input_tokens': 'Input tokens (month)',
+ 'admin_usage_output_tokens': 'Output tokens (month)',
+ 'admin_usage_model_unrecognized': '⚠️ Some calls used a model not in the pricing table -- their '
+                                   'cost is a fallback estimate.',
+ 'admin_usage_anthropic_not_configured': 'Anthropic API key is not configured.',
+ 'admin_usage_per_reflection_header': 'Cost per successful reflection',
+ 'admin_usage_avg_cost_reflection': 'Average Claude cost per reflection',
+ 'admin_usage_reflections_generated': 'Reflections generated (30 days)',
+ 'admin_usage_companion_calls': 'Companion calls (30 days, incl. retries)',
+ 'admin_usage_retry_rate': 'Retry rate',
+ 'admin_usage_no_median_note': "A median isn't available: individual companion calls aren't "
+                               'currently tagged with which reflection they belong to, so only the '
+                               'overall average can be computed.',
+ 'admin_usage_gemini_detail_header': 'Gemini Embeddings detail',
+ 'admin_usage_embeddings_month': 'Embeddings this month',
+ 'admin_usage_embeddings_failed': 'Failed embedding requests (month)',
+ 'admin_usage_gemini_estimate_note': '⚠️ Some embedding calls did not return an exact token count '
+                                     'from the provider; their cost is marked as an estimate.',
+ 'admin_usage_gemini_not_configured': 'Gemini API key is not configured.',
+ 'admin_usage_qdrant_detail_header': 'Qdrant detail',
+ 'admin_usage_qdrant_vectors': 'Vectors stored',
+ 'admin_usage_qdrant_capacity': 'Configured capacity',
+ 'admin_usage_pricing_header': 'Pricing & budget configuration',
+ 'admin_usage_pricing_caption': 'Provider prices are centralized in one place '
+                                '(services/cost_pricing.py) so they never have to be hunted down '
+                                'across the codebase when a provider changes its rates. Monthly '
+                                'budgets used for the status colours above are configured in '
+                                'config.py (MONTHLY_BUDGET_ANTHROPIC_USD, '
+                                'MONTHLY_BUDGET_GEMINI_USD).',
+ 'admin_usage_forecast_header': 'User volume forecast (estimate)',
+ 'admin_usage_forecast_caption': 'Projects monthly cost at a hypothetical number of users, based '
+                                 "on this pilot's own measured average cost per reflection. Adjust "
+                                 'the numbers below.',
+ 'admin_usage_forecast_users': 'Number of users',
+ 'admin_usage_forecast_reflections': 'Reflections per user per month',
+ 'admin_usage_forecast_total_reflections': 'Total reflections/month',
+ 'admin_usage_forecast_claude_cost': 'Projected Claude cost/month',
+ 'admin_usage_forecast_gemini_cost': 'Projected Gemini cost/month',
+ 'admin_usage_forecast_vectors': 'Projected vector count',
+ 'admin_usage_forecast_presets_header': 'Common scenarios',
+ 'admin_usage_forecast_current': 'Current',
+ 'admin_usage_forecast_col_users': 'Users',
+ 'admin_usage_forecast_col_reflections': 'Reflections/month',
+ 'admin_usage_forecast_col_claude_cost': 'Est. Claude cost/month',
+ 'admin_usage_forecast_estimate_disclaimer': '⚠️ All projections above are ESTIMATES based on '
+                                             'currently observed averages, not guaranteed costs.'}
