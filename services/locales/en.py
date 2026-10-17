@@ -850,3 +850,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_usage_forecast_col_claude_cost': 'Est. Claude cost/month',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ All projections above are ESTIMATES based on '
                                              'currently observed averages, not guaranteed costs.'}
+
+
+# EDE Reflection Space workflow strings (kept in their own files; see services/locales/ede_en.py)
+from services.locales.ede_en import EDE_EN as _EDE_EN  # noqa: E402
+LANG_EN.update(_EDE_EN)

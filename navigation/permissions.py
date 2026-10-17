@@ -20,7 +20,7 @@ from typing import Dict
 # "System Administration") so nothing else has to be renamed.
 # ---------------------------------------------------------------------
 
-PRACTITIONER_PAGES = {"Documentation", "Reflection Space", "My Reflection"}
+PRACTITIONER_PAGES = {"Documentation", "Reflection Space", "My Reflection", "EDE Reflection"}
 MANAGER_PAGES = {"Learning", "Case History", "Research Metrics"}
 
 WORKSPACE_ORDER = ["Practitioner", "Manager", "System Administration"]

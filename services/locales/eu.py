@@ -876,3 +876,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ Goiko proiekzio guztiak ESTIMAZIOAK dira, gaur '
                                              'egun behatutako batez bestekoetan oinarrituta, ez '
                                              'bermatutako kosteak.'}
+
+
+# EDE Reflection Space workflow strings (kept in their own files; see services/locales/ede_eu.py)
+from services.locales.ede_eu import EDE_EU as _EDE_EU  # noqa: E402
+LANG_EU.update(_EDE_EU)

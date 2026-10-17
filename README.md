@@ -60,6 +60,80 @@ directive advice.
   database, and SMTP are actually costing/being used, shown on System
   Administration → "Service Usage & Costs". See `SERVICE_USAGE_MONITORING.md`.
 
+## EDE reflection workflow (pilot)
+
+A second, separate screen — **EDE Reflection** (`pages/ede_reflection.py`,
+Practitioner workspace) — helps professionals reflect on how ONE selected
+text documents an intervention. It exists alongside the original Reflection
+Space; nothing of that flow was changed.
+
+**Principle.** The object of learning is professional practice, not the
+people receiving support. Every result is an AI *hypothesis* for
+discussion. The workflow never scores or ranks people, cases or
+professionals, never decides eligibility, diagnosis or risk, and never
+labels a professional as biased.
+
+**How a request flows** (`services/ede_analysis.py`):
+
+1. the text is validated (not empty, not too short/long);
+2. the actor's role is checked again inside the service (fails closed);
+3. the existing anonymiser (`services/anonymizer.py`) is applied;
+4. the document language (Spanish / Basque / English / mixed) is detected
+   locally, without any new library;
+5. programme and document type (from `config.py`) are added to the prompt;
+6. the configured Claude client (`services/reflection_service.py`, same
+   model, timeout, usage ledger and concurrency cap as the rest of the app)
+   analyses all **eight dimensions** in one call;
+7. the reply must be one JSON object matching a strict schema;
+8. every quotation must appear verbatim in the text that was sent to the
+   model (whitespace aside); its paragraph number is recorded;
+9. malformed findings and unsupported quotations are discarded and counted
+   (never repaired, never replaced);
+10. only validated findings reach the screen or an export.
+
+**The eight dimensions** (`services/ede_framework.py`): strengths vs
+deficits · observation vs interpretation · labels · stereotypes and
+assumptions · evidence for decisions · missing information · contradictions
+and change · the person's voice. Findings that rest on wording carry an
+exact quotation; findings about something *not written* use the
+`absence_in_document` type, carry no quotation, and are always shown with the
+reminder that "not in this text" does not mean "unknown". A single document
+can only show contradictions *inside that text*, never change over time.
+
+**Defaults and configuration.** Programme *Social Accommodation – Bizkaia*,
+document type *Follow-up report*, language *automatic*. Change them in
+`config.py` (`EDE_DEFAULT_PROGRAMME`, `EDE_DEFAULT_DOCUMENT_TYPE`) or with
+environment variables of the same name. Limits: `EDE_MAX_DOCUMENT_CHARS`
+(20 000), `EDE_MAX_UPLOAD_BYTES`, `EDE_ANALYSIS_MAX_TOKENS`,
+`EDE_MAX_PROVIDER_ATTEMPTS`, `EDE_MAX_FINDINGS_PER_DIMENSION`. The only
+secret needed is the existing `ANTHROPIC_API_KEY`.
+
+**What is stored.** Nothing new. The text, the results and the
+professional's feedback live only in the browser session and disappear on
+"Clear" or logout. Nothing is written to PostgreSQL or Qdrant and the text is
+never embedded. Existing operational records are used as before: the usage
+ledger (token counts only) and, on failure, the error log (exception class
+name only — never document text or provider messages). Exports are produced
+in memory and contain validated findings plus the user's own notes, never the
+full document.
+
+**Not yet done / needs a human decision before real reports are used:**
+
+- EDE approval and a data-processing agreement for sending social-work text to
+  the AI provider, and confirmation of the provider's retention terms. Until
+  then use synthetic or fully invented texts only.
+- The model name in `services/reflection_service.py` (`CLAUDE_MODEL`) has been
+  reused as-is; confirm it with the provider before the pilot.
+- A native Basque speaker should review `services/locales/ede_eu.py`.
+- The anonymiser is pattern-based: it reduces risk but cannot catch every
+  indirect identifier (rare events, unusual combinations of details).
+- Comparing several documents over time is **not** built. The natural place
+  for it is a new service that takes several already-validated results with
+  verified chronology; it must never merge documents from unrelated people or
+  link them by guessing identity.
+- Language detection is a simple word-frequency check; the professional can
+  override the explanation language.
+
 ## Translations
 
 All user-visible text goes through `services/language.py`. Spanish is the
@@ -92,6 +166,8 @@ Tests are organised by what they guard:
   (Phase 2)
 - `test_scalability_*.py` — pagination, caching, load behaviour under many
   concurrent users (Phase 3)
+- `test_ede_*.py` and `test_security_ede_workflow.py` — the EDE reflection
+  workflow: analysis, evidence checking, interface, privacy
 
 All tests must stay green. If a change breaks one of these, the change is
 wrong, not the test.
