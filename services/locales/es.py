@@ -878,8 +878,3 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ Todas las proyecciones anteriores son '
                                              'ESTIMACIONES basadas en promedios observados '
                                              'actualmente, no costes garantizados.'}
-
-
-# EDE Reflection Space workflow strings (kept in their own files; see services/locales/ede_es.py)
-from services.locales.ede_es import EDE_ES as _EDE_ES  # noqa: E402
-LANG_ES.update(_EDE_ES)

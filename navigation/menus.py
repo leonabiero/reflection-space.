@@ -37,7 +37,6 @@ def render_workspace_menu(T):
         render_workspace_badge(T.get("workmode_practitioner", "Practitioner"), "Practitioner")
         st.sidebar.page_link("pages/documentation.py", label=T.get("nav_doc", "Documentation"))
         st.sidebar.page_link("pages/reflection_space.py", label=T.get("nav_reflection", "Reflection Space"))
-        st.sidebar.page_link("pages/ede_reflection.py", label=T.get("nav_ede", "EDE Reflection"))
         st.sidebar.page_link("pages/growth_dashboard.py", label=T.get("nav_growth", "My Reflection"))
     elif workspace == "Manager":
         render_workspace_badge(T.get("workmode_manager", "Manager"), "Manager")
