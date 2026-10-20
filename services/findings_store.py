@@ -37,6 +37,12 @@ Privacy rules this module enforces
   and get_my_findings filter by the person's own name IN SQL, and
   upsert_feedback refuses to write on someone else's findings. Nothing
   here lets one professional read another's notes.
+- Stage 2: an author may choose to SHARE an observation with the
+  management team's pattern explorer (upsert_feedback(shared_with_team=
+  True)). Only the observation and its exact quote are then readable by
+  management (services/pattern_store.py) -- never the author's name, notes,
+  ratings or alternative explanations. Sharing can be withdrawn at any
+  time and takes effect immediately.
 - No finding text, quote or note is ever written to logs -- logging in
   this module uses ids and counts only.
 - Deleting a document permanently deletes every run that used it,
@@ -261,7 +267,8 @@ def add_finding_to_run(run_id, finding, acting_user):
 
 
 def upsert_feedback(finding_id, user_name, label=None, note="",
-                    alternative_explanation="", flagged_misread=False):
+                    alternative_explanation="", flagged_misread=False,
+                    shared_with_team=None):
     """
     Save (create or replace) THIS professional's response to one finding.
 
@@ -270,6 +277,13 @@ def upsert_feedback(finding_id, user_name, label=None, note="",
     different person, or the label is not one of FEEDBACK_LABELS.
 
     The AI's finding is never touched -- feedback lives in its own table.
+
+    Stage 2 -- sharing: `shared_with_team` is the AUTHOR'S choice to put
+    this observation (its text and exact quote -- never their name or
+    their notes) into the pool the management team's pattern explorer
+    reads. True shares it, False withdraws it immediately, None (the
+    default) leaves whatever was chosen before unchanged. Nothing is
+    ever shared unless the author set it True.
     """
     if not user_name or not finding_id:
         return False
@@ -298,22 +312,49 @@ def upsert_feedback(finding_id, user_name, label=None, note="",
                 conn.rollback()
                 return False
 
-            c.execute(
-                """
-                INSERT INTO finding_feedback
-                    (finding_id, user_name, label, note,
-                     alternative_explanation, flagged_misread, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (finding_id, user_name) DO UPDATE SET
-                    label = EXCLUDED.label,
-                    note = EXCLUDED.note,
-                    alternative_explanation = EXCLUDED.alternative_explanation,
-                    flagged_misread = EXCLUDED.flagged_misread,
-                    updated_at = EXCLUDED.updated_at
-                """,
-                (finding_id, user_name, label, note, alternative,
-                 bool(flagged_misread), now_utc()),
-            )
+            if shared_with_team is None:
+                c.execute(
+                    """
+                    INSERT INTO finding_feedback
+                        (finding_id, user_name, label, note,
+                         alternative_explanation, flagged_misread, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (finding_id, user_name) DO UPDATE SET
+                        label = EXCLUDED.label,
+                        note = EXCLUDED.note,
+                        alternative_explanation = EXCLUDED.alternative_explanation,
+                        flagged_misread = EXCLUDED.flagged_misread,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (finding_id, user_name, label, note, alternative,
+                     bool(flagged_misread), now_utc()),
+                )
+            else:
+                share = bool(shared_with_team)
+                moment = now_utc()
+                c.execute(
+                    """
+                    INSERT INTO finding_feedback
+                        (finding_id, user_name, label, note,
+                         alternative_explanation, flagged_misread, updated_at,
+                         shared_with_team, shared_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (finding_id, user_name) DO UPDATE SET
+                        label = EXCLUDED.label,
+                        note = EXCLUDED.note,
+                        alternative_explanation = EXCLUDED.alternative_explanation,
+                        flagged_misread = EXCLUDED.flagged_misread,
+                        updated_at = EXCLUDED.updated_at,
+                        shared_at = CASE
+                            WHEN NOT EXCLUDED.shared_with_team THEN NULL
+                            WHEN finding_feedback.shared_with_team THEN finding_feedback.shared_at
+                            ELSE EXCLUDED.shared_at
+                        END,
+                        shared_with_team = EXCLUDED.shared_with_team
+                    """,
+                    (finding_id, user_name, label, note, alternative,
+                     bool(flagged_misread), moment, share, moment if share else None),
+                )
         conn.commit()
         return True
     except Exception:
@@ -339,7 +380,7 @@ def get_feedback_for_findings(user_name, finding_ids):
             c.execute(
                 """
                 SELECT finding_id, label, note, alternative_explanation,
-                       flagged_misread, updated_at
+                       flagged_misread, updated_at, shared_with_team
                 FROM finding_feedback
                 WHERE user_name = %s AND finding_id = ANY(%s)
                 """,
@@ -355,6 +396,7 @@ def get_feedback_for_findings(user_name, finding_ids):
             "alternative_explanation": r[3] or "",
             "flagged_misread": bool(r[4]),
             "updated_at": iso(r[5]),
+            "shared_with_team": bool(r[6]),
         }
         for r in rows
     }
@@ -364,7 +406,7 @@ def get_feedback_for_findings(user_name, finding_ids):
 # the 48-hour GDPR deletion window (status='deleted'), and reappears if
 # the document is restored. After the window the run is permanently
 # deleted (delete_runs_for_drafts).
-_NOT_IN_DELETION_WINDOW = """
+NOT_IN_DELETION_WINDOW = """
     NOT EXISTS (
         SELECT 1
         FROM reflection_run_sources s
@@ -387,7 +429,7 @@ def count_my_findings(user_name):
                 SELECT COUNT(*)
                 FROM reflection_findings f
                 JOIN reflection_runs r ON r.id = f.run_id
-                WHERE r.created_by = %s AND {_NOT_IN_DELETION_WINDOW}
+                WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}
                 """,
                 (user_name,),
             )
@@ -419,12 +461,12 @@ def get_my_findings(user_name, limit=20, offset=0):
                        f.questions, f.evidence, f.unverified_quote_count,
                        r.language, r.prompt_version, f.created_at,
                        fb.label, fb.note, fb.alternative_explanation,
-                       fb.flagged_misread, fb.updated_at
+                       fb.flagged_misread, fb.updated_at, fb.shared_with_team
                 FROM reflection_findings f
                 JOIN reflection_runs r ON r.id = f.run_id
                 LEFT JOIN finding_feedback fb
                        ON fb.finding_id = f.id AND fb.user_name = %s
-                WHERE r.created_by = %s AND {_NOT_IN_DELETION_WINDOW}
+                WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}
                 ORDER BY f.created_at DESC, f.id DESC
                 LIMIT %s OFFSET %s
                 """,
@@ -436,7 +478,7 @@ def get_my_findings(user_name, limit=20, offset=0):
 
     results = []
     for r in rows:
-        has_feedback = any([r[11], r[12], r[13], r[14]])
+        has_feedback = any([r[11], r[12], r[13], r[14], r[16]])
         results.append({
             "id": r[0],
             "run_id": r[1],
@@ -455,6 +497,7 @@ def get_my_findings(user_name, limit=20, offset=0):
                 "alternative_explanation": r[13] or "",
                 "flagged_misread": bool(r[14]),
                 "updated_at": iso(r[15]),
+                "shared_with_team": bool(r[16]),
             } if has_feedback else None,
         })
     return results
@@ -490,4 +533,21 @@ def delete_runs_for_drafts(cursor, draft_ids):
         """,
         (ids,),
     )
-    return cursor.rowcount
+    deleted_runs = cursor.rowcount
+    # Stage 2: deleting the runs also removed their observations from any
+    # pattern (ON DELETE CASCADE). A pattern left with NO observations at
+    # all has nothing left to stand on, so its written explanation -- which
+    # was derived from the erased observations -- is erased too. (A pattern
+    # that keeps some observations stays, flagged on screen as needing to
+    # be regenerated; see services/pattern_store.py:list_patterns.)
+    # Skipped on a database that does not have the pattern tables yet.
+    cursor.execute("SELECT to_regclass('patterns')")
+    if cursor.fetchone()[0] is not None:
+        cursor.execute(
+            """
+            DELETE FROM patterns p
+            WHERE p.original_member_count > 0
+              AND NOT EXISTS (SELECT 1 FROM pattern_findings pf WHERE pf.pattern_id = p.id)
+            """
+        )
+    return deleted_runs

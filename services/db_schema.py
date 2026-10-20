@@ -744,6 +744,117 @@ def ensure_schema():
                 )
                 """)
 
+                # --- Stage 2 (pattern explorer): see PATTERNS.md ---
+                #
+                # Sharing is the AUTHOR'S choice and lives on their own
+                # feedback row: only observations whose author ticked
+                # "share with the team review" ever enter the pattern pool.
+                # (ALTER ... IF NOT EXISTS keeps this safe on databases that
+                # already created finding_feedback in Stage 1.)
+                c.execute("""
+                    ALTER TABLE finding_feedback
+                    ADD COLUMN IF NOT EXISTS shared_with_team BOOLEAN NOT NULL DEFAULT FALSE
+                """)
+                c.execute("""
+                    ALTER TABLE finding_feedback
+                    ADD COLUMN IF NOT EXISTS shared_at TIMESTAMPTZ
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_finding_feedback_shared
+                    ON finding_feedback (finding_id) WHERE shared_with_team
+                """)
+                # Cached meaning-vectors for shared observations, so each is
+                # embedded once, not on every generation.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS finding_embeddings (
+                    finding_id INTEGER PRIMARY KEY
+                        REFERENCES reflection_findings(id) ON DELETE CASCADE,
+                    model TEXT NOT NULL,
+                    dims INTEGER NOT NULL,
+                    vector DOUBLE PRECISION[] NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                # One row per pattern-generation attempt (a "snapshot").
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS pattern_runs (
+                    id SERIAL PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    parameters TEXT,
+                    language TEXT,
+                    embedding_model TEXT,
+                    explanation_model TEXT,
+                    prompt_version TEXT,
+                    observations_considered INTEGER NOT NULL DEFAULT 0,
+                    patterns_created INTEGER NOT NULL DEFAULT 0,
+                    error_summary TEXT,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    finished_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS patterns (
+                    id SERIAL PRIMARY KEY,
+                    run_id INTEGER NOT NULL
+                        REFERENCES pattern_runs(id) ON DELETE CASCADE,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    why_it_matters TEXT,
+                    modules TEXT NOT NULL,
+                    alternative_explanations TEXT,
+                    limitations TEXT,
+                    questions TEXT,
+                    grouping_basis TEXT,
+                    explanation_status TEXT NOT NULL DEFAULT 'ai',
+                    status TEXT NOT NULL DEFAULT 'candidate',
+                    original_member_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_patterns_run ON patterns (run_id)
+                """)
+                # Which observations a pattern groups. Deleting the
+                # observation (e.g. permanent document deletion) removes it
+                # from every pattern automatically.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS pattern_findings (
+                    pattern_id INTEGER NOT NULL
+                        REFERENCES patterns(id) ON DELETE CASCADE,
+                    finding_id INTEGER NOT NULL
+                        REFERENCES reflection_findings(id) ON DELETE CASCADE,
+                    excluded BOOLEAN NOT NULL DEFAULT FALSE,
+                    PRIMARY KEY (pattern_id, finding_id)
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pattern_findings_finding
+                    ON pattern_findings (finding_id)
+                """)
+                # Append-only history: generated, status changes, grouping
+                # challenges, carried-over reviews. Never edited or erased
+                # when a status changes.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS pattern_events (
+                    id SERIAL PRIMARY KEY,
+                    pattern_id INTEGER NOT NULL
+                        REFERENCES patterns(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    actor TEXT,
+                    actor_role TEXT,
+                    old_value TEXT,
+                    new_value TEXT,
+                    comment TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pattern_events_pattern
+                    ON pattern_events (pattern_id, id)
+                """)
+
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see

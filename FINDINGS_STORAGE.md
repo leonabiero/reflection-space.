@@ -130,3 +130,8 @@ TEST_DATABASE_URL=postgresql://user:pass@localhost/test_db python -m pytest test
 - Before real service-user data is used, EDE must approve keeping this extra
   text, and the existing data-protection arrangements should be confirmed to
   cover it.
+
+## Stage 2 addition: optional sharing
+Each observation has a share tick (default off) stored in `finding_feedback.shared_with_team`.
+Only that tick lets the management Pattern Review read the observation and its quotation; notes and ratings stay private.
+See `PATTERNS.md`.

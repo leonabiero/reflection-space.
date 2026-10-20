@@ -1,6 +1,7 @@
 import streamlit as st
 
 from services.workspace_style import render_workspace_badge
+from services.pattern_access import can_review_patterns
 
 
 def render_workspace_menu(T):
@@ -42,6 +43,12 @@ def render_workspace_menu(T):
         render_workspace_badge(T.get("workmode_manager", "Manager"), "Manager")
         st.sidebar.page_link("pages/learning.py", label=T.get("nav_learning", "Learning"))
         st.sidebar.page_link("pages/case_history.py", label=T.get("nav_case_history", "Case History"))
+        # Pattern Review is for Supervisors and Programme Managers only
+        # (services/pattern_access.py). The page and the data layer
+        # enforce this themselves; hiding the link just avoids showing a
+        # System Administrator a link that would deny them.
+        if can_review_patterns(role):
+            st.sidebar.page_link("pages/pattern_explorer.py", label=T.get("nav_patterns", "Pattern Review"))
         # Research Metrics is restricted to System Administrator inside
         # the page itself -- only show the link to that role, so
         # Supervisors/Programme Managers never see a link that

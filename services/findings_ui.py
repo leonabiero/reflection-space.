@@ -8,8 +8,9 @@ personal journal (pages/growth_dashboard.py). Keeping them here means a
 quotation and a professional's notes look and behave the same in both.
 
 Nothing here talks to the AI. The only database call is saving a
-professional's own notes (services/findings_store.py:upsert_feedback),
-which the store restricts to the person who ran the reflection.
+professional's own notes and sharing choice
+(services/findings_store.py:upsert_feedback), which the store restricts
+to the person who ran the reflection.
 """
 
 import re
@@ -88,6 +89,16 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
             max_chars=MAX_NOTE_CHARS,
             key=f"{key_prefix}_note_{finding_id}",
         )
+        # Stage 2: sharing is the author's explicit, per-observation
+        # choice. Off unless they tick it; unticking withdraws it at once.
+        # What is shared is the observation and its exact quotation only --
+        # never their name, their notes or their ratings.
+        share = st.checkbox(
+            T["findings_share_label"],
+            value=bool(saved.get("shared_with_team", False)),
+            help=T["findings_share_help"],
+            key=f"{key_prefix}_share_{finding_id}",
+        )
         submitted = st.form_submit_button(T["findings_save_button"])
 
     if not submitted:
@@ -97,6 +108,7 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
         ok = upsert_feedback(
             finding_id, user_name, label=label or None, note=note,
             alternative_explanation=alternative, flagged_misread=misread,
+            shared_with_team=share,
         )
     except Exception:
         ok = False
@@ -111,4 +123,5 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
         "note": (note or "").strip(),
         "alternative_explanation": (alternative or "").strip(),
         "flagged_misread": bool(misread),
+        "shared_with_team": bool(share),
     }
