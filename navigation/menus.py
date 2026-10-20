@@ -49,6 +49,9 @@ def render_workspace_menu(T):
         # System Administrator a link that would deny them.
         if can_review_patterns(role):
             st.sidebar.page_link("pages/pattern_explorer.py", label=T.get("nav_patterns", "Pattern Review"))
+            # Corpus analysis uses the same two roles (services/pattern_access.py);
+            # Social Workers and the System Administrator never see the link.
+            st.sidebar.page_link("pages/corpus_analysis.py", label=T.get("nav_corpus", "Text analysis"))
         # Research Metrics is restricted to System Administrator inside
         # the page itself -- only show the link to that role, so
         # Supervisors/Programme Managers never see a link that

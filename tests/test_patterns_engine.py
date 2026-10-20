@@ -170,3 +170,56 @@ class ExplainerCallTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClusteringSpeedAndEquivalenceTests(unittest.TestCase):
+    @staticmethod
+    def _plain_scan(vectors, threshold):
+        """The simple (slow) version, kept here as the reference answer."""
+        import numpy as np
+        n = len(vectors)
+        if n == 0:
+            return []
+        if n == 1:
+            return [[0]]
+        m = np.asarray(vectors, dtype=float)
+        norms = np.linalg.norm(m, axis=1, keepdims=True); norms[norms == 0] = 1.0
+        unit = m / norms
+        sim = unit @ unit.T
+        np.fill_diagonal(sim, -np.inf)
+        clusters = {i: [i] for i in range(n)}
+        sizes = np.ones(n)
+        while len(clusters) > 1:
+            a, b = divmod(int(np.argmax(sim)), n)
+            best = sim[a, b]
+            if not np.isfinite(best) or best < threshold:
+                break
+            if a > b:
+                a, b = b, a
+            merged = (sizes[a] * sim[a] + sizes[b] * sim[b]) / (sizes[a] + sizes[b])
+            sim[a, :] = merged; sim[:, a] = merged; sim[a, a] = -np.inf
+            sim[b, :] = -np.inf; sim[:, b] = -np.inf
+            sizes[a] += sizes[b]; clusters[a] = clusters[a] + clusters[b]; del clusters[b]
+        return sorted(sorted(c) for c in clusters.values())
+
+    def test_same_answer_as_the_plain_scan(self):
+        import random
+        for seed in range(25):
+            rnd = random.Random(seed)
+            n = rnd.choice([2, 3, 7, 20, 60, 150])
+            dims = rnd.choice([2, 3, 8])
+            centres = [[rnd.gauss(0, 1) for _ in range(dims)] for _ in range(rnd.choice([1, 3, 6]))]
+            vectors = [[c + rnd.gauss(0, 0.25) for c in rnd.choice(centres)] for _ in range(n)]
+            for threshold in (0.5, 0.76, 0.9):
+                self.assertEqual(pe.cluster_by_similarity(vectors, threshold),
+                                 self._plain_scan(vectors, threshold), (seed, n, threshold))
+
+    def test_three_thousand_vectors_are_fast_enough(self):
+        import random, time
+        rnd = random.Random(1)
+        centres = [[rnd.gauss(0, 1) for _ in range(32)] for _ in range(40)]
+        vectors = [[c + rnd.gauss(0, 0.3) for c in rnd.choice(centres)] for _ in range(3000)]
+        started = time.time()
+        clusters = pe.cluster_by_similarity(vectors, 0.76)
+        self.assertLess(time.time() - started, 25)
+        self.assertEqual(sorted(i for c in clusters for i in c), list(range(3000)))

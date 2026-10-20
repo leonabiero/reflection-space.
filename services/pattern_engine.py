@@ -112,6 +112,12 @@ def cluster_by_similarity(vectors, threshold):
     `vectors`, ordered by their first index. Every index appears in
     exactly one cluster (singletons included). Deterministic: ties are
     broken by lowest index.
+
+    Speed: each row keeps its best partner (row_best / row_arg), so a merge
+    only touches the rows it affects instead of re-scanning the whole
+    n-by-n table. This keeps a few thousand passages fast (a plain scan is
+    quadratic per merge); the result is identical to the plain scan, which
+    the tests check.
     """
     n = len(vectors)
     if n == 0:
@@ -123,15 +129,18 @@ def cluster_by_similarity(vectors, threshold):
     sim = unit @ unit.T
     np.fill_diagonal(sim, -np.inf)
 
+    row_arg = np.argmax(sim, axis=1)
+    row_best = sim[np.arange(n), row_arg]
+
     clusters = {i: [i] for i in range(n)}
     sizes = np.ones(n)
 
     while len(clusters) > 1:
-        flat_index = int(np.argmax(sim))
-        a, b = divmod(flat_index, n)
-        best = sim[a, b]
+        a = int(np.argmax(row_best))
+        best = row_best[a]
         if not np.isfinite(best) or best < threshold:
             break
+        b = int(row_arg[a])
         if a > b:
             a, b = b, a
         # Merge b into a. Average linkage: the new group's similarity to
@@ -145,6 +154,23 @@ def cluster_by_similarity(vectors, threshold):
         sizes[a] += sizes[b]
         clusters[a] = clusters[a] + clusters[b]
         del clusters[b]
+
+        # Refresh the best-partner bookkeeping for the rows this merge touched.
+        row_best[b] = -np.inf
+        row_arg[b] = b
+        stale = np.flatnonzero((row_arg == a) | (row_arg == b))
+        for i in set(stale.tolist()) | {a}:
+            if i in clusters:
+                j = int(np.argmax(sim[i]))
+                row_arg[i], row_best[i] = j, sim[i, j]
+        # Rows whose best partner was neither a nor b keep their best value
+        # (the merged similarity can never exceed the larger of the two it
+        # replaces), but a's new row may now be someone's best.
+        others = np.array([i for i in clusters if i != a], dtype=int)
+        if others.size:
+            better = sim[others, a] > row_best[others]
+            for i in others[better].tolist():
+                row_arg[i], row_best[i] = a, sim[i, a]
 
     return sorted(sorted(members) for members in clusters.values())
 

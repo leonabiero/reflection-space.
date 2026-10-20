@@ -21,7 +21,7 @@ from typing import Dict
 # ---------------------------------------------------------------------
 
 PRACTITIONER_PAGES = {"Documentation", "Reflection Space", "My Reflection"}
-MANAGER_PAGES = {"Learning", "Case History", "Research Metrics", "Pattern Review"}
+MANAGER_PAGES = {"Learning", "Case History", "Research Metrics", "Pattern Review", "Text Analysis"}
 
 WORKSPACE_ORDER = ["Practitioner", "Manager", "System Administration"]
 

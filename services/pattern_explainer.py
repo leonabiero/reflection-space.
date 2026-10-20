@@ -154,7 +154,7 @@ def _clean_list(value, minimum, maximum, max_chars):
     return items
 
 
-def validate_explanation(obj):
+def validate_explanation(obj, include_questions=True):
     """Return a cleaned explanation dict, or None if `obj` does not match
     the required shape and limits exactly. Extra keys are ignored; missing
     keys, wrong types, empty or over-long text all make it invalid."""
@@ -165,7 +165,10 @@ def validate_explanation(obj):
     why = _clean_string(obj.get("why_it_matters"), _LIMITS["why_it_matters"])
     alternatives = _clean_list(obj.get("alternative_explanations"), *_LIMITS["alternative_explanations"])
     limitations = _clean_list(obj.get("limitations"), *_LIMITS["limitations"])
-    questions = _clean_list(obj.get("questions"), *_LIMITS["questions"])
+    if include_questions:
+        questions = _clean_list(obj.get("questions"), *_LIMITS["questions"])
+    else:
+        questions = []   # switched off: any questions the model sent are dropped
     if None in (title, description, why, alternatives, limitations, questions):
         return None
     return {
@@ -246,3 +249,121 @@ def explain_pattern(observations, lens_labels_by_key, lang="Español"):
         logger.warning("pattern explanation reply was not valid (attempt %d)", attempt)
 
     return {"explanation": fallback_explanation(lang, unique_labels), "status": "fallback"}
+
+
+# ---------------------------------------------------------------------
+# Corpus analysis: groups of PASSAGES taken directly from documents
+# ---------------------------------------------------------------------
+
+CORPUS_PROMPT_VERSION = "2026-10-corpus-1"
+MAX_PASSAGES_SENT = 12
+
+CORPUS_SYSTEM_PROMPT = """You help a management team in a social-intervention organisation reflect on recurring wording and ideas in professional documentation.
+
+You will receive several short passages copied from different professional documents (names already removed). They have been grouped by a computer because their meaning is similar. Nobody has labelled the documents by author, client group or any other characteristic.
+
+Write a cautious explanation of this group as a CANDIDATE PATTERN FOR REFLECTION. Follow these rules exactly:
+- Use only what is in the passages. Never invent events, quotations, people, dates, numbers or history.
+- Do not state how many passages or documents there are, and do not claim anything about how common this is across the organisation.
+- Do not diagnose, classify, score or rank any person or any professional. Do not infer anyone's intentions, motives or protected characteristics.
+- Because the documents carry no information about who they concern, you cannot say anything about unequal treatment of any group. A recurring theme is NOT proof of bias, and possible bias is NOT proof of discriminatory practice. Use wording such as "candidate pattern", "recurring theme", "may".
+- Offer other plausible explanations that fit the same passages (for example the type of document or a professional template), without inventing facts. Say plainly what cannot be established from passages alone.
+- Use respectful, plain language. Do not give recommendations, action plans, or instructions.
+{questions_rule}
+Return ONLY valid JSON with exactly these keys and no text before or after:
+{{
+  "title": "short descriptive title (under 100 characters)",
+  "description": "2-4 sentences: what the passages have in common",
+  "why_it_matters": "1-3 sentences: why this may matter for reflective practice",
+  "alternative_explanations": ["1-3 other plausible explanations"],
+  "limitations": ["1-3 things that cannot be established from this"]{questions_key}
+}}"""
+
+_QUESTIONS_RULE_ON = "- Questions must be open, non-accusatory, specific to this group, and invite discussion rather than steer toward a conclusion.\n"
+_QUESTIONS_RULE_OFF = "- Do NOT include any questions.\n"
+
+
+def corpus_system_prompt(include_questions=True):
+    return CORPUS_SYSTEM_PROMPT.format(
+        questions_rule=_QUESTIONS_RULE_ON if include_questions else _QUESTIONS_RULE_OFF,
+        questions_key=',\n  "questions": ["2-3 open questions for an individual or a team"]'
+        if include_questions else "",
+    )
+
+
+def build_corpus_user_message(passages):
+    """One passage per line; no document numbers, nothing else."""
+    lines = []
+    for item in passages[:MAX_PASSAGES_SENT]:
+        text = " ".join((item.get("text") or "").split())
+        lines.append(f"- {text}")
+    return "PASSAGES:\n" + "\n".join(lines) + "\n\nReturn the JSON now."
+
+
+def corpus_fallback_explanation(lang, include_questions=True):
+    text = _FALLBACK_TEXT.get(lang, _FALLBACK_TEXT["Español"])
+    titles = {"Español": "Pasajes con significado similar",
+              "English": "Passages with similar meaning",
+              "Euskera": "Esanahi antzeko pasarteak"}
+    descriptions = {
+        "Español": "Estos pasajes se agruparon por la similitud de su significado. La explicación automática no pudo generarse en este momento; lee los pasajes para valorar si comparten algo relevante.",
+        "English": "These passages were grouped because their meaning is similar. The automatic explanation could not be generated just now; please read the passages to judge whether they share something relevant.",
+        "Euskera": "Pasarte hauek euren esanahiaren antzagatik multzokatu dira. Azalpen automatikoa ezin izan da sortu une honetan; irakurri pasarteak partekatzen duten zerbait garrantzitsua dagoen baloratzeko.",
+    }
+    limits = {
+        "Español": "Se trata de un agrupamiento automático de textos sin etiquetar; no permite concluir nada sobre un trato desigual de ningún colectivo.",
+        "English": "This is an automatic grouping of unlabelled texts; it cannot support any conclusion about unequal treatment of any group.",
+        "Euskera": "Etiketarik gabeko testuen multzokatze automatikoa da; ezin da inongo taldeen tratu desberdinari buruzko ondoriorik atera.",
+    }
+    key = lang if lang in titles else "Español"
+    return {
+        "title": titles[key],
+        "description": descriptions[key],
+        "why_it_matters": text["why_it_matters"],
+        "alternative_explanations": list(text["alternative_explanations"]),
+        "limitations": [limits[key]],
+        "questions": list(text["questions"]) if include_questions else [],
+    }
+
+
+def explain_passage_group(passages, lang="Español", include_questions=True):
+    """
+    Explain one group of document passages (corpus analysis).
+
+    `passages`: list of {"text"} dicts, the most representative few.
+    `include_questions`: False when the manager switched AI-written
+    questions off -- the model is told not to write any and any it sends
+    anyway is dropped.
+
+    Returns {"explanation": {...}, "status": "ai"|"fallback"}. Never raises.
+    """
+    system = corpus_system_prompt(include_questions) + "\n\n" + LANG_INSTRUCTIONS.get(
+        lang, LANG_INSTRUCTIONS["Español"])
+    user = build_corpus_user_message(passages)
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        started = time.monotonic()
+        try:
+            message = reflection_service.client.messages.create(
+                model=reflection_service.COMPANION_MODEL,
+                max_tokens=1100,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+        except Exception as exc:
+            reflection_service._record_claude_usage(
+                "corpus_explanation", started, success=False,
+                error_type=type(exc).__name__,
+            )
+            logger.warning("corpus explanation call failed (attempt %d): %s",
+                           attempt, type(exc).__name__)
+            continue
+
+        reflection_service._record_claude_usage("corpus_explanation", started, message=message)
+        raw = next((b.text for b in message.content if getattr(b, "type", None) == "text"), "")
+        explanation = validate_explanation(_parse_json(raw), include_questions=include_questions)
+        if explanation is not None:
+            return {"explanation": explanation, "status": "ai"}
+        logger.warning("corpus explanation reply was not valid (attempt %d)", attempt)
+
+    return {"explanation": corpus_fallback_explanation(lang, include_questions), "status": "fallback"}

@@ -855,6 +855,138 @@ def ensure_schema():
                     ON pattern_events (pattern_id, id)
                 """)
 
+
+                # --- Corpus analysis (see CORPUS.md) ---
+                #
+                # A "collection" of existing texts that managers load to look
+                # for wording and ideas recurring across them. Kept entirely
+                # apart from practitioners' drafts and reflections. File
+                # names are never stored: each text is known by a neutral
+                # number (T-001 ...).
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpora (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    last_doc_no INTEGER NOT NULL DEFAULT 0,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_documents (
+                    id SERIAL PRIMARY KEY,
+                    corpus_id INTEGER NOT NULL
+                        REFERENCES corpora(id) ON DELETE CASCADE,
+                    doc_no INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    char_count INTEGER NOT NULL,
+                    added_by TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (corpus_id, doc_no),
+                    UNIQUE (corpus_id, content_hash)
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_passages (
+                    id SERIAL PRIMARY KEY,
+                    document_id INTEGER NOT NULL
+                        REFERENCES corpus_documents(id) ON DELETE CASCADE,
+                    position INTEGER NOT NULL,
+                    text TEXT NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_corpus_passages_doc
+                    ON corpus_passages (document_id, position)
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_passage_embeddings (
+                    passage_id INTEGER PRIMARY KEY
+                        REFERENCES corpus_passages(id) ON DELETE CASCADE,
+                    model TEXT NOT NULL,
+                    dims INTEGER NOT NULL,
+                    vector DOUBLE PRECISION[] NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_pattern_runs (
+                    id SERIAL PRIMARY KEY,
+                    corpus_id INTEGER NOT NULL
+                        REFERENCES corpora(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    parameters TEXT,
+                    language TEXT,
+                    embedding_model TEXT,
+                    explanation_model TEXT,
+                    prompt_version TEXT,
+                    documents_considered INTEGER NOT NULL DEFAULT 0,
+                    passages_considered INTEGER NOT NULL DEFAULT 0,
+                    patterns_created INTEGER NOT NULL DEFAULT 0,
+                    error_summary TEXT,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    finished_at TIMESTAMPTZ
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_patterns (
+                    id SERIAL PRIMARY KEY,
+                    run_id INTEGER NOT NULL
+                        REFERENCES corpus_pattern_runs(id) ON DELETE CASCADE,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    why_it_matters TEXT,
+                    alternative_explanations TEXT,
+                    limitations TEXT,
+                    questions TEXT,
+                    grouping_basis TEXT,
+                    explanation_status TEXT NOT NULL DEFAULT 'ai',
+                    status TEXT NOT NULL DEFAULT 'candidate',
+                    original_member_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_corpus_patterns_run
+                    ON corpus_patterns (run_id)
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_pattern_passages (
+                    pattern_id INTEGER NOT NULL
+                        REFERENCES corpus_patterns(id) ON DELETE CASCADE,
+                    passage_id INTEGER NOT NULL
+                        REFERENCES corpus_passages(id) ON DELETE CASCADE,
+                    excluded BOOLEAN NOT NULL DEFAULT FALSE,
+                    PRIMARY KEY (pattern_id, passage_id)
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_corpus_pattern_passages_passage
+                    ON corpus_pattern_passages (passage_id)
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_pattern_events (
+                    id SERIAL PRIMARY KEY,
+                    pattern_id INTEGER NOT NULL
+                        REFERENCES corpus_patterns(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    actor TEXT,
+                    actor_role TEXT,
+                    old_value TEXT,
+                    new_value TEXT,
+                    comment TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_corpus_pattern_events_pattern
+                    ON corpus_pattern_events (pattern_id, id)
+                """)
+
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see
