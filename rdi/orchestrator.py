@@ -150,6 +150,18 @@ Failure-shaped outcome (one log_error() call, same numbered "Something
 went wrong" screen as any other unexpected failure), with a
 friendly_message explaining this was a capacity/timing issue, not a
 bug, so the person isn't misled into thinking something is broken.
+
+Saved-findings Stage 1 addition
+---------------------------------
+Each companion now also proposes up to two exact supporting passages
+("evidence"). After all companions finish, every proposed passage is
+checked against the anonymized text the model was given
+(services/evidence.py) -- only passages that really appear in that text
+are kept, the rest are counted and dropped. run_reflection() returns the
+verified results as additive keys ("findings", "module_status", "model",
+"prompt_version") so the page can save them (services/findings_store.py).
+Every pre-existing key and shape in the return value is unchanged, and
+nothing here adds an API call.
 """
 
 import random
@@ -161,7 +173,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import CLAUDE_MAX_CONCURRENT_REFLECTIONS, CLAUDE_REFLECTION_QUEUE_TIMEOUT_SECONDS
 from services.anonymizer import anonymize
-from services.reflection_service import generate_companion_reflection
+from services.reflection_service import generate_companion_reflection, COMPANION_MODEL
+from services.evidence import verify_quotes
+from rdi.companions.prompt_builder import PROMPT_VERSION
 from services.error_log import log_error
 from services.issue_fingerprint import classify_reflection_failure_root_cause
 from rdi.companions import COMPANIONS
@@ -509,26 +523,45 @@ def run_reflection(text, lang="Español", context_description=""):
     # flagged, same as a dimension the model found nothing notable in.
     raw_result = {}
     opportunities = []
+    findings = []
+    module_status = {}
     for companion in COMPANIONS:
         key = companion["key"]
         result = results.get(key)
 
         if result is None:
             raw_result[key] = {"observation": "", "questions": []}
+            module_status[key] = "failed"
             continue
 
         observation = result.get("observation", "")
         questions = result.get("questions", [])
         raw_result[key] = {"observation": observation, "questions": questions}
 
+        # Keep only passages that really appear, word for word, in the
+        # anonymized text the model was given (services/evidence.py).
+        evidence, unverified_count = verify_quotes(result.get("evidence"), safe_text)
+
         opportunity = ReflectiveOpportunity(
             trigger=key,
             context=context_description,
             focus=observation,
             invitation=questions,
+            evidence=evidence,
+            unverified_quote_count=unverified_count,
         )
         if not opportunity.is_empty():
             opportunities.append(opportunity)
+            module_status[key] = "finding"
+            findings.append({
+                "module": key,
+                "observation": observation,
+                "questions": questions,
+                "evidence": evidence,
+                "unverified_quote_count": unverified_count,
+            })
+        else:
+            module_status[key] = "no_finding"
 
     return {
         "opportunities": opportunities,
@@ -536,4 +569,9 @@ def run_reflection(text, lang="Español", context_description=""):
         "failed_count": len(failed_labels),
         "failed_labels": failed_labels,
         "safe_text": safe_text,
+        # Saved-findings Stage 1 (additive keys -- see module docstring).
+        "findings": findings,
+        "module_status": module_status,
+        "model": COMPANION_MODEL,
+        "prompt_version": PROMPT_VERSION,
     }

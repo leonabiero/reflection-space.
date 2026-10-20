@@ -663,6 +663,87 @@ def ensure_schema():
                     CREATE INDEX IF NOT EXISTS idx_service_usage_occurred_at
                     ON service_usage (occurred_at DESC)
                 """)
+                # --- services/findings_store.py: saved reflection findings ---
+                #
+                # Stage 1 of the saved-findings feature (see
+                # FINDINGS_STORAGE.md). Four additive tables; nothing above
+                # is changed. All text stored here is ANONYMIZED text (the
+                # quotes come from what the model was given), and every
+                # child table is removed automatically when its parent run
+                # is deleted (ON DELETE CASCADE) -- which is how permanent
+                # document deletion also erases findings and feedback
+                # (see services/findings_store.py:delete_runs_for_drafts,
+                # called from services/draft_storage.py).
+                #
+                # reflection_runs: one row per generated reflection.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS reflection_runs (
+                    id SERIAL PRIMARY KEY,
+                    case_ref TEXT,
+                    language TEXT,
+                    prompt_version TEXT,
+                    model TEXT,
+                    module_status TEXT,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_runs_created_by_at
+                    ON reflection_runs (created_by, created_at DESC)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_runs_case_ref
+                    ON reflection_runs (case_ref)
+                """)
+                # reflection_run_sources: which documents fed a run, so a
+                # permanent document deletion can find every run that used it.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS reflection_run_sources (
+                    run_id INTEGER NOT NULL
+                        REFERENCES reflection_runs(id) ON DELETE CASCADE,
+                    draft_id INTEGER NOT NULL,
+                    PRIMARY KEY (run_id, draft_id)
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_run_sources_draft
+                    ON reflection_run_sources (draft_id)
+                """)
+                # reflection_findings: the AI's output for one dimension of
+                # one run. Never edited after it is saved.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS reflection_findings (
+                    id SERIAL PRIMARY KEY,
+                    run_id INTEGER NOT NULL
+                        REFERENCES reflection_runs(id) ON DELETE CASCADE,
+                    module TEXT NOT NULL,
+                    observation TEXT NOT NULL,
+                    questions TEXT NOT NULL,
+                    evidence TEXT NOT NULL,
+                    unverified_quote_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (run_id, module)
+                )
+                """)
+                # finding_feedback: the professional's OWN response, kept
+                # apart from the AI's finding. Private to its author.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS finding_feedback (
+                    id SERIAL PRIMARY KEY,
+                    finding_id INTEGER NOT NULL
+                        REFERENCES reflection_findings(id) ON DELETE CASCADE,
+                    user_name TEXT NOT NULL,
+                    label TEXT,
+                    note TEXT,
+                    alternative_explanation TEXT,
+                    flagged_misread BOOLEAN NOT NULL DEFAULT FALSE,
+                    updated_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (finding_id, user_name)
+                )
+                """)
+
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see

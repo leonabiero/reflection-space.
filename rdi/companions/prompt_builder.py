@@ -62,6 +62,16 @@ produces exactly the same number of Claude calls, of the same shape and
 token budget, as before this pass.
 """
 
+# Saved-findings Stage 1: every saved finding records which version of
+# these instructions produced it, so results from different pilot
+# iterations of the wording can be told apart later. Bump this string
+# whenever SHARED_FRAME, SELF_CHECK, a companion focus, or the output
+# format below changes in a way that could change what the model says.
+#   "2026-10-evidence-1"  first version that asks for exact supporting
+#                         passages ("evidence") alongside the observation
+#                         and questions.
+PROMPT_VERSION = "2026-10-evidence-1"
+
 SHARED_FRAME = """You are an experienced colleague and reflective supervisor thinking alongside a social worker about their documentation -- not an auditor, an inspector, a compliance checker, or a report reviewer.
 
 Your role is NOT to evaluate, judge, or critique.
@@ -128,10 +138,18 @@ Return ONLY valid JSON, with exactly this structure and these exact keys. No tex
 
 {
   "observation": "",
+  "evidence": [],
   "questions": []
 }
 
-The "observation" should describe what is written in the documentation (never the person), in one or two neutral sentences. The "questions" should be genuine reflective invitations, not conclusions. Do not include a summary, a recommendation, an action plan, or suggested wording anywhere in your response -- the observation and questions are the entire output.
+The "observation" should describe what is written in the documentation (never the person), in one or two neutral sentences. The "questions" should be genuine reflective invitations, not conclusions.
+
+The "evidence" list holds the passage(s) of the DOCUMENT that your observation is based on:
+- Include 1 or 2 short passages (at most about 30 words each), each copied EXACTLY, word for word, from the DOCUMENT, as one continuous excerpt.
+- Never paraphrase, correct, shorten with "...", combine separate sentences, or translate a passage. Keep it in the language of the document even if you write the rest of your answer in another language.
+- If your observation is about something that is NOT in the text (for example, missing information), or you cannot point to an exact passage, leave "evidence" as an empty list -- never invent or approximate a quotation.
+
+Do not include a summary, a recommendation, an action plan, or suggested wording anywhere in your response -- the observation, evidence and questions are the entire output.
 """
 
     return SHARED_FRAME + focus_block + SELF_CHECK + output_block

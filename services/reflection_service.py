@@ -203,9 +203,15 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
         }
 
 
+# The model used for the one-shot companion reflections. Defined once so
+# the saved-findings feature can record exactly which model produced each
+# finding (services/findings_store.py) without repeating the string.
+COMPANION_MODEL = "claude-sonnet-5"
+
+
 def _call_companion_model(full_system_prompt, safe_text):
     return client.messages.create(
-        model="claude-sonnet-5",
+        model=COMPANION_MODEL,
         # PI-003 root-cause fix (production incident, see rdi/orchestrator.py
         # and services/issue_fingerprint.py's "Invalid Model Response" rule):
         # this was 600. A single dimension's JSON (observation + 1-3
@@ -238,7 +244,15 @@ def _call_companion_model(full_system_prompt, safe_text):
         # their remaining ~unused tokens (up to ~424 additional output
         # tokens each) -- see the accompanying implementation report for
         # the estimated cost impact at this pilot's volume.
-        max_tokens=1024,
+        # Saved-findings Stage 1: raised from 1024 to 1280 because each
+        # companion's JSON now also carries up to two short exact
+        # passages ("evidence", ~60-100 tokens), and this budget must
+        # never again be tight enough to truncate a reply mid-JSON (the
+        # PI-003 failure described above). Like the earlier raise, this
+        # is a CEILING, not a cost: Anthropic bills only for tokens
+        # actually generated. The real added cost is the evidence text
+        # itself -- see FINDINGS_STORAGE.md for the estimate.
+        max_tokens=1280,
         system=full_system_prompt,
         messages=[
             {

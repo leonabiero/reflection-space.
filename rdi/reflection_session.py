@@ -26,6 +26,11 @@ import streamlit as st
 from rdi.companions import COMPANIONS
 from rdi.reflection_objects import ReflectiveOpportunity
 from rdi.companion_retry import retry_companion_once
+from services.evidence import verify_quotes
+from services.findings_store import add_finding_to_run
+from services.db_time import get_logger
+
+logger = get_logger(__name__)
 
 
 _COVERAGE_REASON_TEXT = {
@@ -85,12 +90,39 @@ class _RetryInvitation:
                 observation = generated.get("observation", "")
                 questions = generated.get("questions", [])
                 if observation or questions:
+                    # Saved-findings Stage 1: verify the proposed passages
+                    # against the anonymized text, and save this finding to
+                    # the run the practitioner already has (best effort --
+                    # a failure to save never blocks the reflection).
+                    evidence, unverified_count = verify_quotes(
+                        generated.get("evidence"), self.session.safe_text,
+                    )
                     replacement = ReflectiveOpportunity(
                         trigger=self.trigger,
                         context=self.session.context_summary,
                         focus=observation,
                         invitation=questions,
+                        evidence=evidence,
+                        unverified_quote_count=unverified_count,
                     )
+                    if self.session.run_id:
+                        try:
+                            replacement.finding_id = add_finding_to_run(
+                                self.session.run_id,
+                                {
+                                    "module": self.trigger,
+                                    "observation": observation,
+                                    "questions": questions,
+                                    "evidence": evidence,
+                                    "unverified_quote_count": unverified_count,
+                                },
+                                self.session.run_owner,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Saving a retried finding failed (run_id=%r, module=%r)",
+                                self.session.run_id, self.trigger,
+                            )
                 else:
                     replacement = ReflectiveOpportunity(
                         trigger=self.trigger,
@@ -173,8 +205,26 @@ class ReflectionSession:
         self.submitted_ids = set()
         self.awaiting_feedback = False
 
+        # Saved-findings Stage 1: set by attach_saved_findings() once the
+        # reflection has been written to the database. run_id stays None
+        # if saving failed, in which case the workspace works exactly as
+        # before but offers no saved notes.
+        self.run_id = None
+        self.run_owner = ""
+        self.findings_save_failed = False
+
     def has_error(self):
         return self.error is not None
+
+    def attach_saved_findings(self, run_id, finding_ids, owner):
+        """Record that this reflection was saved as run `run_id`, and
+        link each observation to its saved record (`finding_ids` is
+        {trigger: finding_id}) so the professional's notes have
+        somewhere to attach. `owner` is who ran it."""
+        self.run_id = run_id
+        self.run_owner = owner
+        for opportunity in self.opportunities:
+            opportunity.finding_id = finding_ids.get(opportunity.trigger)
 
     def can_retry_companion(self, trigger):
         return trigger in self.retryable_triggers and trigger not in self.manual_retry_failed

@@ -4,6 +4,7 @@ from services.audit_log import log_action
 from services.qdrant_service import upsert_document, delete_document
 from services.db_time import now_utc, iso, iso_row, get_logger
 from services.db_pool import get_conn as _acquire_pooled_conn
+from services.findings_store import delete_runs_for_drafts
 from services.db_schema import ensure_schema
 
 logger = get_logger(__name__)
@@ -705,6 +706,9 @@ def delete_pending_draft(draft_id, deleted_by="", deleted_by_role=""):
             status, case_ref, doc_type, created_by = row
             if status != "draft" or created_by != deleted_by:
                 return False
+            # Saved reflection findings derived from this document are
+            # erased in the SAME transaction (services/findings_store.py).
+            delete_runs_for_drafts(c, [draft_id])
             c.execute("DELETE FROM draft_history WHERE draft_id=%s", (draft_id,))
             c.execute("DELETE FROM drafts WHERE id=%s", (draft_id,))
         conn.commit()
@@ -878,6 +882,10 @@ def purge_expired_deletions():
             # - Delete all drafts in one query
             if expired:
                 expired_ids = [row[0] for row in expired]
+                # Saved reflection findings (and the professional's notes
+                # on them) derived from these documents are erased in the
+                # SAME transaction -- see services/findings_store.py.
+                delete_runs_for_drafts(c, expired_ids)
                 c.execute("DELETE FROM draft_history WHERE draft_id = ANY(%s)", (expired_ids,))
                 c.execute("DELETE FROM drafts WHERE id = ANY(%s)", (expired_ids,))
         conn.commit()

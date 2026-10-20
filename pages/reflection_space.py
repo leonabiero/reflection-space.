@@ -2,6 +2,8 @@ import streamlit as st
 from collections import defaultdict
 from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
 from services.reflection_log import log_reflection
+from services.findings_store import save_reflection_run, get_feedback_for_findings
+from services.findings_ui import render_evidence, render_notes_form
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
@@ -159,6 +161,7 @@ with error_boundary(
 
         ReflectionContext.clear()
         ReflectionSession.clear()
+        st.session_state.pop("_finding_feedback_cache", None)
 
         # Belt-and-braces reset: whichever path led here (submitting the
         # last draft in a batch, skipping/submitting feedback), make sure no
@@ -381,6 +384,43 @@ with error_boundary(
     # ---------------------------------------------------------------------
 
 
+    def _feedback_for(session, opportunity):
+        """This professional's saved notes for one observation. Loaded
+        once per reflection (one query for all eight observations) and
+        kept in the session, then updated in place after each save."""
+        cache = st.session_state.setdefault("_finding_feedback_cache", {})
+        if session.run_id not in cache:
+            finding_ids = [o.finding_id for o in session.opportunities if o.finding_id]
+            try:
+                cache[session.run_id] = get_feedback_for_findings(user_name, finding_ids)
+            except Exception:
+                cache[session.run_id] = {}
+        return cache[session.run_id].get(opportunity.finding_id, {})
+
+
+    def _render_finding_notes(session, opportunity):
+        """The professional's OWN response to one observation. Saved
+        separately from the AI's text (services/findings_store.py) and
+        private to this person; the form itself is shared with the
+        personal journal (services/findings_ui.py)."""
+        if not opportunity.finding_id:
+            return
+
+        saved = _feedback_for(session, opportunity)
+        header = T["findings_notes_header"]
+        if saved:
+            header = f"{header} ✔"
+
+        with st.expander(header, expanded=False):
+            updated = render_notes_form(
+                T, opportunity.finding_id, user_name, saved, key_prefix="ws",
+            )
+            if updated is not None:
+                st.session_state.setdefault("_finding_feedback_cache", {}).setdefault(
+                    session.run_id, {}
+                )[opportunity.finding_id] = updated
+
+
     def _render_opportunity_tab_body(session, opportunity):
         """
         UX Priority 2 & 4 -- Reflection Dashboard + Navigator.
@@ -394,10 +434,18 @@ with error_boundary(
         """
         if opportunity.focus:
             st.write(opportunity.focus)
+
+        # Saved-findings Stage 1: the exact passage(s) this observation is
+        # based on. Only passages verified word for word against the text
+        # the AI was given are ever shown (services/evidence.py).
+        render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
+
         for q in opportunity.invitation:
             st.markdown(f"- {q}")
 
         st.caption(T["workspace_reminder"])
+
+        _render_finding_notes(session, opportunity)
 
         open_key = f"workspace_open_{opportunity.trigger}"
         is_open = st.session_state.get(open_key, opportunity.explored)
@@ -688,6 +736,38 @@ with error_boundary(
                         case_ref=ctx.case_ref,
                         context_summary=summary,
                     )
+
+                    # Saved-findings Stage 1: keep what the AI found (with
+                    # its verified exact passages) so it can be reopened,
+                    # and so the professional's notes have somewhere to
+                    # attach. Saving is best-effort: if it fails, the
+                    # reflection still works exactly as before -- the
+                    # practitioner is simply told notes can't be saved for
+                    # this one. Every document that fed the reflection is
+                    # recorded, so permanently deleting any of them also
+                    # erases these findings.
+                    if "error" not in result:
+                        try:
+                            saved = save_reflection_run(
+                                case_ref=ctx.case_ref,
+                                source_draft_ids=(
+                                    [d[0] for d in ctx.selected]
+                                    + [h["id"] for h in ctx.included_historical()]
+                                ),
+                                language=st.session_state.lang,
+                                prompt_version=result.get("prompt_version", ""),
+                                model=result.get("model", ""),
+                                module_status=result.get("module_status", {}),
+                                findings=result.get("findings", []),
+                                created_by=user_name,
+                                created_by_role=user_role,
+                            )
+                            session.attach_saved_findings(
+                                saved["run_id"], saved["finding_ids"], user_name,
+                            )
+                        except Exception:
+                            session.findings_save_failed = True
+
                     ReflectionContext.clear()
                     session.save()
 
@@ -763,6 +843,9 @@ with error_boundary(
 
         if session.failed_count > 0:
             st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
+
+        if session.findings_save_failed:
+            st.info(T["findings_not_saved_notice"])
 
         # --- Workspace header: document + context summary, so the
         # practitioner always sees what this reflection is grounded in. ---

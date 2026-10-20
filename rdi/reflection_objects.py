@@ -51,12 +51,25 @@ class ReflectiveOpportunity:
     """A single reflective item shown to the practitioner."""
 
     def __init__(self, trigger, context, focus, invitation,
-                 professional_choice=DEFAULT_PROFESSIONAL_CHOICE):
+                 professional_choice=DEFAULT_PROFESSIONAL_CHOICE,
+                 evidence=None, unverified_quote_count=0, finding_id=None):
         self.trigger = trigger
         self.context = context
         self.focus = focus
         self.invitation = invitation
         self.professional_choice = professional_choice
+
+        # Saved-findings Stage 1 (all optional / additive).
+        # evidence: [{"quote": str}, ...] -- exact passages from the
+        #   anonymized text, already verified (services/evidence.py).
+        # unverified_quote_count: how many proposed passages could not be
+        #   matched exactly and were therefore not kept.
+        # finding_id: id of this observation's saved record
+        #   (services/findings_store.py), or None if it was not saved --
+        #   the professional's own notes attach to this id.
+        self.evidence = list(evidence) if evidence else []
+        self.unverified_quote_count = unverified_quote_count or 0
+        self.finding_id = finding_id
 
         # Sprint 6: conversation state. `conversation` is a list of
         # {"role": "professional" | "ai", "content": str} in the order
@@ -96,4 +109,7 @@ class ReflectiveOpportunity:
             "professional_choice": self.professional_choice,
             "explored": self.explored,
             "conversation": list(self.conversation),
+            "evidence": list(self.evidence),
+            "unverified_quote_count": self.unverified_quote_count,
+            "finding_id": self.finding_id,
         }
