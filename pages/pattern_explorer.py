@@ -12,6 +12,8 @@ from services.pattern_engine import (
 )
 from services.findings_store import FINDING_MODULES
 from services.findings_ui import render_evidence
+from services.report_builder import build_pattern_report
+from datetime import date
 
 # Pattern Explorer
 # ==================
@@ -188,6 +190,38 @@ with error_boundary(
     if not patterns:
         st.info(T["patterns_none_in_view"])
         st.stop()
+
+    # ------------------------------------------------------------------
+    # Printable report (Stage 3): built only from what is shown here.
+    # ------------------------------------------------------------------
+    with st.expander(T["report_section_header"], expanded=False):
+        st.caption(T["report_section_intro"])
+        opt_obs = st.checkbox(T["report_opt_observations"], value=True, key="rep_opt_obs")
+        opt_cases = st.checkbox(T["report_opt_case_refs"], value=False, key="rep_opt_cases")
+        opt_comments = st.checkbox(T["report_opt_comments"], value=True, key="rep_opt_comments")
+        signature = (run_id, tuple(sorted(shown_statuses)), tuple(p["id"] for p in patterns),
+                     opt_obs, opt_cases, opt_comments, st.session_state.lang)
+        if st.button(T["report_prepare_button"], key="rep_prepare"):
+            events = ({p["id"]: pattern_store.get_pattern_events(user_role, p["id"]) for p in patterns}
+                      if opt_comments else {})
+            st.session_state["_patterns_report"] = {
+                "signature": signature,
+                "html": build_pattern_report(
+                    T, st.session_state.lang, lens_labels, run, patterns, events,
+                    prepared_on=date.today().isoformat(), include_observations=opt_obs,
+                    include_case_refs=opt_cases, include_comments=opt_comments),
+            }
+        prepared = st.session_state.get("_patterns_report")
+        if prepared and prepared["signature"] == signature:
+            st.success(T["report_ready"])
+            st.download_button(
+                T["report_download_button"], data=prepared["html"].encode("utf-8"),
+                file_name=f"pattern-report-{run_id}-{date.today().isoformat()}.html",
+                mime="text/html", key="rep_download",
+            )
+            st.caption(T["report_how_to_print"])
+        elif prepared:
+            st.info(T["report_outdated"])
 
     MAX_MEMBERS_SHOWN = 15
 

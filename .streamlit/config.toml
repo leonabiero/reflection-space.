@@ -9,6 +9,12 @@ showSidebarNavigation = false
 # on the System Administration page.
 showErrorDetails = false
 
+[server]
+# Document upload (pages/documentation.py) accepts files up to 5 MB; this
+# makes the server refuse bigger files straight away. Keep equal to
+# MAX_FILE_BYTES in services/document_import.py.
+maxUploadSize = 5
+
 [theme]
 # ---------------------------------------------------------------
 # "Cuaderno de consulta" -- deep indigo ink (dark theme)

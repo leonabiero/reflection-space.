@@ -40,3 +40,14 @@ Nothing is paid again until someone presses the button.
 ## Tests
 `tests/test_patterns_engine.py`, `tests/test_patterns_static.py`, and `tests/test_patterns_store_postgres.py`
 (real database; set `TEST_DATABASE_URL`).
+
+## Stage 3: printable report
+On the Pattern Review page, the "Printable report" section builds one downloadable web page (`services/report_builder.py`)
+for the patterns currently shown (filtered by status). Open it in a browser and print or save as PDF (A4, confidentiality
+footer on each page). No extra software or outside service is used.
+- Same cautious wording as the screen: "candidate pattern", "not a conclusion", a standing list of limits.
+- No author names (even of the managers who commented) and no private notes.
+- Options: include observations and exact quotations (on by default), include team comments (on), include case
+  references (off by default, because paper travels further than a screen).
+- Everything is escaped, the page loads nothing from outside and runs no scripts.
+- Tests: `tests/test_patterns_report.py`.
