@@ -24,6 +24,16 @@ refused both in the menu **and** in the data layer (`services/corpus_store.py`).
 4. The team records its judgement (status + comment), can challenge a passage, and sees the history.
    Judgements are carried over when the same group is found again.
 
+## Step 2: reading each text with the reflection lenses
+Section "Leer cada texto con las lentes de reflexión" (`services/corpus_reading_service.py`).
+- Each text is read ALONE with the same eight lenses practitioners use (`rdi/companions`): 8 AI calls per text, about $0.05 per text (≈ $3.50 for 70 texts; shown on screen before each batch).
+- Batches of 10 texts per click, resumable (unread texts are picked up next time); one reading job at a time.
+- Quotes are checked against the stored text (`services/evidence.py`); unverifiable ones are dropped and counted.
+- "Raised in X of N texts" = the AI raised an observation; it is NOT a measure of how often something happens, and "nothing raised" does not mean "free of it". The page says so.
+- Results are browsable per lens (all texts where it was raised, with exact quotes) and per text (all lenses). Reading again replaces the old reading; "Borrar las lecturas" clears a collection's readings.
+- Tables: `corpus_readings`, `corpus_reading_jobs` (erased with their text/collection). Prompt version `2026-10-corpus-reading-1`.
+- The questions switch applies here too: off = AI told not to write questions, none stored or shown.
+
 ## Switch: AI-written questions
 On by default. When off, the AI is told not to write questions, any it sends is dropped, none are stored or shown.
 
@@ -33,7 +43,7 @@ On by default. When off, the AI is told not to write questions, any it sends is 
 - Grouping Spanish and Basque passages together relies on multilingual embeddings and is **untested**.
 - At most 3000 passages per search, 20 groups explained, 500 texts per collection, 50 collections.
 - Basque wording of the screens needs a native speaker's review.
-- Not yet built: per-text reading with reflection lenses (Step 2), editable word/phrase list with per-text counts (Step 3), printable corpus report.
+- Not yet built: editable word/phrase list with per-text counts (Step 3), printable corpus report.
 
 ## Cost
 Embeddings ≈ $0.015 per ~1000 passages (once per passage). Explanations: up to 20 per search, a few cents.

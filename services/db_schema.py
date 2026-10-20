@@ -987,6 +987,45 @@ def ensure_schema():
                     ON corpus_pattern_events (pattern_id, id)
                 """)
 
+                # Corpus analysis Step 2: each text read through the
+                # reflection lenses (one row per text per lens) and the
+                # jobs that do the reading. Erased with their text.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_readings (
+                    id SERIAL PRIMARY KEY,
+                    document_id INTEGER NOT NULL
+                        REFERENCES corpus_documents(id) ON DELETE CASCADE,
+                    lens TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    observation TEXT,
+                    questions TEXT,
+                    evidence TEXT,
+                    unverified_count INTEGER NOT NULL DEFAULT 0,
+                    model TEXT,
+                    prompt_version TEXT,
+                    include_questions BOOLEAN NOT NULL DEFAULT TRUE,
+                    language TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (document_id, lens)
+                )
+                """)
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_reading_jobs (
+                    id SERIAL PRIMARY KEY,
+                    corpus_id INTEGER NOT NULL
+                        REFERENCES corpora(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    documents_total INTEGER NOT NULL DEFAULT 0,
+                    documents_done INTEGER NOT NULL DEFAULT 0,
+                    failed_lenses INTEGER NOT NULL DEFAULT 0,
+                    error_summary TEXT,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    finished_at TIMESTAMPTZ
+                )
+                """)
+
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see

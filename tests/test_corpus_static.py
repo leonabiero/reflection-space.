@@ -74,12 +74,13 @@ class AccessAndPrivacyTests(unittest.TestCase):
         source = _read("services", "corpus_store.py")
         no_role = re.findall(r"^def ([a-z_]+)\((?!role)", source, re.M)
         self.assertEqual(sorted(n for n in no_role if not n.startswith("_")),
-                         ["content_fingerprint", "finish_run"])
+                         ["content_fingerprint", "finish_reading_job", "finish_run"])
         self.assertNotIn("finish_run", _read("pages", "corpus_analysis.py"))
+        self.assertNotIn("finish_reading_job", _read("pages", "corpus_analysis.py"))
 
     def test_file_names_are_never_stored_or_logged(self):
         store = _read("services", "corpus_store.py")
-        service = _read("services", "corpus_service.py")
+        service = _read("services", "corpus_service.py") + _read("services", "corpus_reading_service.py")
         schema = _read("services", "db_schema.py")
         corpus_ddl = schema[schema.index("CREATE TABLE IF NOT EXISTS corpora"):]
         for word in ("filename", "file_name", "upload.name", "uploaded.name"):
@@ -91,12 +92,13 @@ class AccessAndPrivacyTests(unittest.TestCase):
         self.assertIn("add_document(user_role, user_name, corpus_id, anonymize(text))", page)
 
     def test_no_document_text_in_log_calls(self):
-        for name in ("corpus_store.py", "corpus_service.py"):
+        for name in ("corpus_store.py", "corpus_service.py", "corpus_reading_service.py"):
             for call in re.findall(r"logger\.\w+\((.*?)\)\n", _read("services", name), re.S):
                 self.assertNotRegex(call, r"\btext\b|content|passage\[", name)
 
     def test_collection_is_separate_from_practitioner_data(self):
-        source = _read("services", "corpus_store.py") + _read("services", "corpus_service.py")
+        source = (_read("services", "corpus_store.py") + _read("services", "corpus_service.py")
+                  + _read("services", "corpus_reading_service.py"))
         for table in ("drafts", "reflection_findings", "finding_feedback", "reflections", "pattern_runs"):
             self.assertNotRegex(source, rf"(FROM|JOIN|INTO|UPDATE)\s+{table}\b")
 
@@ -106,6 +108,86 @@ class AccessAndPrivacyTests(unittest.TestCase):
         self.assertFalse(can_review_patterns("System Administrator"))
         self.assertTrue(can_review_patterns("Supervisor"))
         self.assertTrue(can_review_patterns("Programme Manager"))
+
+
+class ReadingServiceOfflineTests(unittest.TestCase):
+    TEXT = "La usuaria no quiso sentarse. Claramente no está motivada para trabajar con nosotros."
+    GOOD = {"observation": "El texto presenta una valoración como hecho.",
+            "evidence": [{"quote": "Claramente no está motivada para trabajar con nosotros."}],
+            "questions": ["¿Qué otra explicación cabría?"]}
+
+    def setUp(self):
+        from services import corpus_reading_service
+        self.rs = corpus_reading_service
+
+    def _reply(self, payload):
+        return SimpleNamespace(content=[SimpleNamespace(type="text", text=payload)], usage=None)
+
+    def _read(self, replies, include_questions=True):
+        calls = []
+
+        def create(**kw):
+            calls.append(kw)
+            reply = replies[min(len(calls) - 1, len(replies) - 1)]
+            if isinstance(reply, Exception):
+                raise reply
+            return self._reply(reply)
+        client = SimpleNamespace(messages=SimpleNamespace(create=create))
+        companion = self.rs.COMPANIONS[0]
+        with patch.object(self.rs.reflection_service, "client", client), \
+             patch.object(self.rs.reflection_service, "_record_claude_usage", lambda *a, **k: None), \
+             patch.object(self.rs.time, "sleep", lambda *_: None):
+            return self.rs.read_lens(companion, self.TEXT, "Español", include_questions), calls
+
+    def test_prompt_follows_the_questions_switch(self):
+        companion = self.rs.COMPANIONS[0]
+        on = self.rs.build_reading_prompt(companion, True)
+        off = self.rs.build_reading_prompt(companion, False)
+        self.assertIn('"questions": []', on)
+        self.assertNotIn('"questions"', off)
+        self.assertIn("Do NOT include any questions", off)
+        self.assertNotIn("1-3 reflective questions", off)
+        for prompt in (on, off):
+            self.assertIn("ONE document", prompt)
+            self.assertIn("never the person", prompt)
+            self.assertIn(companion["label"], prompt)
+
+    def test_a_verified_quote_is_kept_and_a_made_up_one_is_dropped_and_counted(self):
+        bad = dict(self.GOOD, evidence=[{"quote": "Claramente no está motivada para trabajar con nosotros."},
+                                         {"quote": "Esta frase no existe en el texto original."}])
+        reading, _ = self._read([json.dumps(bad)])
+        self.assertEqual(reading["status"], "finding")
+        self.assertEqual(len(reading["evidence"]), 1)
+        self.assertEqual(reading["unverified_count"], 1)
+        self.assertIn(reading["evidence"][0]["quote"], self.TEXT)
+
+    def test_empty_observation_is_no_finding(self):
+        reading, _ = self._read([json.dumps({"observation": "", "evidence": [], "questions": []})])
+        self.assertEqual(reading["status"], "no_finding")
+
+    def test_questions_off_drops_any_questions_sent(self):
+        reading, _ = self._read([json.dumps(self.GOOD)], include_questions=False)
+        self.assertEqual(reading["questions"], [])
+        reading, _ = self._read([json.dumps(self.GOOD)], include_questions=True)
+        self.assertEqual(reading["questions"], ["¿Qué otra explicación cabría?"])
+
+    def test_invalid_reply_is_retried_then_marked_failed(self):
+        reading, calls = self._read(["not json"])
+        self.assertEqual(reading["status"], "failed")
+        self.assertEqual(len(calls), self.rs.MAX_ATTEMPTS)
+        reading, calls = self._read([RuntimeError("down"), json.dumps(self.GOOD)])
+        self.assertEqual(reading["status"], "finding")
+        self.assertEqual(len(calls), 2)
+
+    def test_over_long_observation_is_rejected(self):
+        long_reply = dict(self.GOOD, observation="x" * (self.rs.MAX_OBSERVATION_CHARS + 1))
+        reading, _ = self._read([json.dumps(long_reply)])
+        self.assertEqual(reading["status"], "failed")
+
+    def test_document_text_is_sent_as_stored_and_lens_list_matches_the_practitioner_tool(self):
+        _, calls = self._read([json.dumps(self.GOOD)])
+        self.assertIn(self.TEXT, calls[0]["messages"][0]["content"])
+        self.assertEqual([c["key"] for c in self.rs.COMPANIONS], list(self.rs.READING_LENSES))
 
 
 class ExplainerSwitchTests(unittest.TestCase):

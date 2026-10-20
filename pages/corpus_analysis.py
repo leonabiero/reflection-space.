@@ -5,7 +5,7 @@ from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
-from services import corpus_store, corpus_service, document_import
+from services import corpus_store, corpus_service, corpus_reading_service, document_import
 from services.anonymizer import anonymize
 from services.corpus_engine import (
     CORPUS_SIMILARITY_LEVELS, DEFAULT_CORPUS_SIMILARITY_LEVEL, DEFAULT_MIN_PASSAGES,
@@ -13,6 +13,7 @@ from services.corpus_engine import (
 )
 from services.pattern_engine import MAX_PATTERNS_PER_RUN
 from services.pattern_store import PATTERN_STATUSES, MAX_COMMENT_CHARS
+from services.findings_ui import render_evidence
 
 # Corpus analysis
 # =================
@@ -212,6 +213,121 @@ with error_boundary(
             st.rerun()
 
     # ------------------------------------------------------------------
+    # 3b. Step 2: read each text through the reflection lenses
+    # ------------------------------------------------------------------
+    st.divider()
+    include_questions = st.toggle(T["corpus_questions_switch"], value=True, key="corpus_questions_on")
+    st.caption(T["corpus_questions_help"])
+
+    st.subheader(T["corpus_read_header"])
+    st.caption(T["corpus_read_intro"])
+    lens_labels = T["section_labels"]
+    overview = corpus_store.get_reading_overview(user_role, corpus_id)
+
+    if overview["documents"] == 0:
+        st.info(T["corpus_read_no_texts"])
+    else:
+        st.write(T["corpus_read_status"].format(
+            read=overview["read"], documents=overview["documents"], unread=overview["unread"]))
+        if overview["unread"] == 0:
+            st.success(T["corpus_read_nothing"])
+        else:
+            batch = min(corpus_reading_service.BATCH_SIZE, overview["unread"])
+            st.caption(T["corpus_read_cost_note"].format(
+                batch=batch, cost=f"{batch * corpus_reading_service.APPROX_COST_PER_TEXT_USD:.2f}",
+                per_text=f"{corpus_reading_service.APPROX_COST_PER_TEXT_USD:.2f}"))
+            if st.button(T["corpus_read_button"].format(count=batch), type="primary",
+                         key="corpus_read_btn"):
+                bar = st.progress(0.0, text=T["corpus_reading"])
+                outcome = corpus_reading_service.read_texts(
+                    user_role, user_name, corpus_id, st.session_state.lang,
+                    include_questions=include_questions,
+                    progress=lambda done, total: bar.progress(
+                        done / total, text=T["corpus_read_progress"].format(done=done, total=total)))
+                bar.empty()
+                if outcome["status"] == "busy":
+                    st.warning(T["corpus_read_busy"])
+                elif outcome["status"] == "unavailable":
+                    st.error(T["corpus_read_unavailable"])
+                elif outcome["status"] == "nothing_to_read":
+                    st.info(T["corpus_read_nothing"])
+                else:
+                    st.session_state["_corpus_read_result"] = outcome
+                    st.rerun()
+
+        result = st.session_state.pop("_corpus_read_result", None)
+        if result:
+            st.success(T["corpus_read_done"].format(
+                count=result["documents_read"], remaining=result["remaining"]))
+            if result["failed_lenses"]:
+                st.warning(T["corpus_read_failed_lenses"].format(count=result["failed_lenses"]))
+
+        if overview["read"] or any(v["finding"] or v["no_finding"] for v in overview["lenses"].values()):
+            st.caption(T["corpus_read_caveat"])
+            st.markdown(f"**{T['corpus_lens_counts_header']}**")
+            for lens, counts in overview["lenses"].items():
+                considered = counts["finding"] + counts["no_finding"]
+                if not considered:
+                    continue
+                label = T["corpus_lens_item"].format(
+                    lens=lens_labels.get(lens, lens), raised=counts["finding"], considered=considered)
+                with st.expander(label, expanded=False):
+                    if counts["failed"]:
+                        st.caption(T["corpus_lens_failed_note"].format(count=counts["failed"]))
+                    items = corpus_store.list_lens_readings(user_role, corpus_id, lens)
+                    if not items:
+                        st.write(T["corpus_lens_none"])
+                    for item in items:
+                        st.markdown(f"**{document_label(item['doc_no'])}**")
+                        st.write(item["observation"])
+                        if item["evidence"]:
+                            render_evidence(T, item["evidence"], 0)
+                        else:
+                            st.caption(T["corpus_lens_no_quote"])
+                        if item["unverified_count"]:
+                            st.caption(T["corpus_lens_unverified"].format(count=item["unverified_count"]))
+                        if include_questions and item["questions"]:
+                            for question in item["questions"]:
+                                st.markdown(f"- {question}")
+
+            with st.expander(T["corpus_text_view_header"], expanded=False):
+                doc_numbers = [d["doc_no"] for d in documents]
+                chosen = st.selectbox(T["corpus_text_select"], options=doc_numbers,
+                                      format_func=document_label, key=f"corpus_text_pick_{corpus_id}")
+                readings = corpus_store.get_text_readings(user_role, corpus_id, chosen)
+                if not readings:
+                    st.info(T["corpus_text_no_reading"])
+                for lens in corpus_store.READING_LENSES:
+                    reading = readings.get(lens)
+                    if reading is None:
+                        continue
+                    st.markdown(f"**{lens_labels.get(lens, lens)}**")
+                    if reading["status"] == "failed":
+                        st.caption(T["corpus_text_lens_failed"])
+                    elif reading["status"] == "no_finding":
+                        st.caption(T["corpus_text_lens_none"])
+                    else:
+                        st.write(reading["observation"])
+                        if reading["evidence"]:
+                            render_evidence(T, reading["evidence"], 0)
+                        else:
+                            st.caption(T["corpus_lens_no_quote"])
+                        if reading["unverified_count"]:
+                            st.caption(T["corpus_lens_unverified"].format(count=reading["unverified_count"]))
+                        if include_questions and reading["questions"]:
+                            for question in reading["questions"]:
+                                st.markdown(f"- {question}")
+
+            with st.expander(T["corpus_read_again_header"], expanded=False):
+                st.caption(T["corpus_read_again_help"])
+                sure_again = st.checkbox(T["corpus_read_again_confirm"], key=f"corpus_again_{corpus_id}")
+                if st.button(T["corpus_read_again_button"], disabled=not sure_again,
+                             key=f"corpus_again_btn_{corpus_id}"):
+                    corpus_store.clear_readings(user_role, user_name, corpus_id)
+                    st.session_state["_corpus_flash"] = "corpus_read_cleared_ok"
+                    st.rerun()
+
+    # ------------------------------------------------------------------
     # 4. Search
     # ------------------------------------------------------------------
     st.divider()
@@ -232,8 +348,6 @@ with error_boundary(
             value=DEFAULT_MIN_DOCUMENTS, step=1, key="corpus_min_documents")
         st.caption(T["patterns_threshold_not_proof"])
 
-    include_questions = st.toggle(T["corpus_questions_switch"], value=True, key="corpus_questions_on")
-    st.caption(T["corpus_questions_help"])
     st.caption(T["corpus_cost_note"].format(max_patterns=MAX_PATTERNS_PER_RUN))
     if counts_now["passages"] > MAX_PASSAGES_PER_RUN:
         st.caption(T["corpus_truncated"].format(max=MAX_PASSAGES_PER_RUN))

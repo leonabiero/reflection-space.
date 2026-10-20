@@ -359,6 +359,146 @@ class CorpusRealDatabaseTests(unittest.TestCase):
         self.assertFalse(self.cs.update_pattern_explanation(SUP, "ana", pattern["id"], better))
         self.assertEqual(self.cs.list_patterns(SUP, outcome["run_id"])[0]["title"], "Bueno")
 
+    # ---- Step 2: readings ----
+    def _read_all(self, role=SUP, include_questions=True, batch_size=10, fail_lens=None, replies=None):
+        """Run read_texts with a fake AI: every lens raises an observation quoting the first
+        30 characters of the text, except lenses listed in fail_lens, which fail."""
+        from services import corpus_reading_service as crs
+
+        def fake_read_lens(companion, text, lang, inc):
+            if fail_lens and companion["key"] in fail_lens:
+                return {"lens": companion["key"], "status": "failed", "observation": "",
+                        "questions": [], "evidence": [], "unverified_count": 0}
+            return {"lens": companion["key"], "status": "finding", "observation": f"Obs {companion['key']}",
+                    "questions": ["q"] if inc else [], "evidence": [{"quote": text[:30]}],
+                    "unverified_count": 0}
+        seen = []
+        with patch.object(crs, "is_available", lambda: True), \
+             patch.object(crs, "read_lens", fake_read_lens):
+            outcome = crs.read_texts(role, "test_mgr", self.cid, "Español",
+                                     include_questions=include_questions, batch_size=batch_size,
+                                     progress=lambda d, t: seen.append((d, t)))
+        outcome["_progress"] = seen
+        return outcome
+
+    def test_reading_only_for_the_two_manager_roles(self):
+        from services import corpus_reading_service as crs
+        self._fill(1)
+        for role in (SW, ADMIN, "", None):
+            with self.assertRaises(PermissionError):
+                crs.read_texts(role, "x", self.cid, "Español")
+            for call in (lambda r: self.cs.get_reading_overview(r, self.cid),
+                         lambda r: self.cs.list_lens_readings(r, self.cid, "client_voice"),
+                         lambda r: self.cs.get_text_readings(r, self.cid, 1),
+                         lambda r: self.cs.get_documents_to_read(r, self.cid, 5),
+                         lambda r: self.cs.clear_readings(r, "x", self.cid),
+                         lambda r: self.cs.save_readings(r, 1, []),
+                         lambda r: self.cs.start_reading_job(r, "x", self.cid, 1)):
+                with self.assertRaises(PermissionError):
+                    call(role)
+
+    def test_reads_in_batches_and_resumes_with_the_unread(self):
+        self._fill(5)
+        first = self._read_all(batch_size=3)
+        self.assertEqual((first["status"], first["documents_read"], first["remaining"]), ("completed", 3, 2))
+        self.assertEqual(first["_progress"][-1], (3, 3))
+        overview = self.cs.get_reading_overview(SUP, self.cid)
+        self.assertEqual((overview["documents"], overview["read"], overview["unread"]), (5, 3, 2))
+        second = self._read_all(batch_size=3)
+        self.assertEqual((second["documents_read"], second["remaining"]), (2, 0))
+        self.assertEqual(self._read_all()["status"], "nothing_to_read")
+        counts = self.cs.get_reading_overview(SUP, self.cid)["lenses"]["client_voice"]
+        self.assertEqual(counts, {"finding": 5, "no_finding": 0, "failed": 0})
+
+    def test_a_failed_lens_is_recorded_and_retried_next_time(self):
+        self._fill(2)
+        first = self._read_all(fail_lens={"possible_bias"})
+        self.assertEqual(first["failed_lenses"], 2)
+        self.assertEqual(first["remaining"], 2)           # not fully read -> still to do
+        self.assertEqual(self.cs.get_reading_overview(SUP, self.cid)["lenses"]["possible_bias"]["failed"], 2)
+        second = self._read_all()
+        self.assertEqual((second["documents_read"], second["failed_lenses"], second["remaining"]), (2, 0, 0))
+
+    def test_readings_are_listed_by_lens_with_quotes_and_per_text(self):
+        self._fill(2)
+        self._read_all()
+        items = self.cs.list_lens_readings(SUP, self.cid, "client_voice")
+        self.assertEqual([i["doc_no"] for i in items], [1, 2])
+        self.assertTrue(all(i["evidence"] and i["questions"] == ["q"] for i in items))
+        per_text = self.cs.get_text_readings(SUP, self.cid, 2)
+        self.assertEqual(set(per_text), set(self.cs.READING_LENSES))
+        self.assertEqual(self.cs.list_lens_readings(SUP, self.cid, "not_a_lens"), [])
+
+    def test_questions_switch_off_stores_no_questions(self):
+        self._fill(1)
+        self._read_all(include_questions=False)
+        self.assertEqual(self.cs.list_lens_readings(SUP, self.cid, "client_voice")[0]["questions"], [])
+
+    def test_deleting_a_text_or_collection_erases_its_readings(self):
+        self._fill(2)
+        self._read_all()
+        self.cs.delete_document(SUP, "m", self.cid, 1)
+        overview = self.cs.get_reading_overview(SUP, self.cid)
+        self.assertEqual((overview["documents"], overview["read"]), (1, 1))
+        conn = self._connect()
+        with conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM corpus_readings")
+            self.assertEqual(c.fetchone()[0], len(self.cs.READING_LENSES))
+        conn.close()
+        self.cs.delete_corpus(SUP, "m", self.cid)
+        conn = self._connect()
+        with conn.cursor() as c:
+            for table in ("corpus_readings", "corpus_reading_jobs"):
+                c.execute(f"SELECT COUNT(*) FROM {table}")
+                self.assertEqual(c.fetchone()[0], 0, table)
+        conn.close()
+
+    def test_only_one_reading_job_at_once_and_failure_marks_job_failed(self):
+        from services import corpus_reading_service as crs
+        self._fill(2)
+        job = self.cs.start_reading_job(SUP, "m", self.cid, 2)
+        self.assertIsNotNone(job)
+        self.assertEqual(self._read_all()["status"], "busy")
+        self.cs.finish_reading_job(job, "completed")
+        with patch.object(crs, "is_available", lambda: True), \
+             patch.object(crs, "read_lens", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                crs.read_texts(SUP, "x", self.cid, "Español")
+        conn = self._connect()
+        with conn.cursor() as c:
+            c.execute("SELECT status, error_summary FROM corpus_reading_jobs ORDER BY id DESC LIMIT 1")
+            self.assertEqual(c.fetchone(), ("failed", "RuntimeError"))
+        conn.close()
+        self.assertIsNotNone(self.cs.start_reading_job(SUP, "m", self.cid, 1))
+
+    def test_unavailable_ai_is_reported_not_crashed(self):
+        from services import corpus_reading_service as crs
+        self._fill(1)
+        with patch.object(crs, "is_available", lambda: False):
+            self.assertEqual(crs.read_texts(SUP, "x", self.cid, "Español")["status"], "unavailable")
+
+    def test_clearing_readings_lets_everything_be_read_again(self):
+        self._fill(2)
+        self._read_all()
+        self.assertEqual(self.cs.clear_readings(SUP, "m", self.cid), 2 * len(self.cs.READING_LENSES))
+        self.assertEqual(self.cs.get_reading_overview(SUP, self.cid)["unread"], 2)
+        self.assertEqual(self._read_all()["documents_read"], 2)
+
+    def test_a_text_erased_while_being_read_is_skipped_not_an_error(self):
+        self._fill(1)
+        document_id = self.cs.get_documents_to_read(SUP, self.cid, 1)[0]["id"]
+        self.cs.delete_document(SUP, "m", self.cid, 1)
+        self.assertEqual(self.cs.save_readings(SUP, document_id, [
+            {"lens": "client_voice", "status": "no_finding"}]), 0)
+
+    def test_invalid_readings_are_refused(self):
+        self._fill(1)
+        document_id = self.cs.get_documents_to_read(SUP, self.cid, 1)[0]["id"]
+        with self.assertRaises(ValueError):
+            self.cs.save_readings(SUP, document_id, [{"lens": "bogus", "status": "finding"}])
+        with self.assertRaises(ValueError):
+            self.cs.save_readings(SUP, document_id, [{"lens": "client_voice", "status": "bogus"}])
+
 
 if __name__ == "__main__":
     unittest.main()
