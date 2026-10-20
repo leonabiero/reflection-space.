@@ -1,3 +1,5 @@
+from datetime import date
+
 import streamlit as st
 
 from services.language import init_language
@@ -6,6 +8,8 @@ from services.identity import init_identity, render_identity_footer, require_wor
 from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
 from services import corpus_store, corpus_service, corpus_reading_service, document_import
+from services import corpus_terms
+from services.corpus_report_builder import build_corpus_report
 from services.anonymizer import anonymize
 from services.corpus_engine import (
     CORPUS_SIMILARITY_LEVELS, DEFAULT_CORPUS_SIMILARITY_LEVEL, DEFAULT_MIN_PASSAGES,
@@ -326,6 +330,220 @@ with error_boundary(
                     corpus_store.clear_readings(user_role, user_name, corpus_id)
                     st.session_state["_corpus_flash"] = "corpus_read_cleared_ok"
                     st.rerun()
+
+    # ------------------------------------------------------------------
+    # 3c. Step 3: the word and phrase list
+    # ------------------------------------------------------------------
+    st.divider()
+    st.subheader(T["corpus_terms_header"])
+    st.caption(T["corpus_terms_intro"])
+    st.caption(T["corpus_terms_how"])
+
+    terms_result = st.session_state.pop("_corpus_terms_result", None)
+    if terms_result:
+        if terms_result["status"] != "ok":
+            st.error(T["corpus_result_error"].format(name=T["corpus_terms_header"]))
+        else:
+            st.success(T["corpus_terms_added"].format(
+                added=terms_result["added"], duplicates=terms_result["duplicates"],
+                invalid=len(terms_result["invalid"])))
+            if terms_result["invalid"]:
+                st.warning(T["corpus_terms_invalid_lines"].format(
+                    lines="; ".join(terms_result["invalid"][:10]),
+                    words=corpus_terms.MAX_TERM_WORDS))
+            if terms_result["full"]:
+                st.warning(T["corpus_terms_full"].format(max=corpus_terms.MAX_TERMS_PER_CORPUS))
+
+    with st.form(f"corpus_terms_form_{corpus_id}", clear_on_submit=True):
+        typed_terms = st.text_area(T["corpus_terms_add_label"], height=120, max_chars=4000)
+        terms_submitted = st.form_submit_button(T["corpus_terms_add_button"])
+    if terms_submitted:
+        typed_lines = [line for line in typed_terms.splitlines() if line.strip()]
+        if not typed_lines:
+            st.warning(T["corpus_terms_empty_input"])
+        else:
+            st.session_state["_corpus_terms_result"] = corpus_store.add_terms(
+                user_role, user_name, corpus_id, typed_lines)
+            st.rerun()
+
+    st.caption(T["corpus_terms_starter_help"])
+    if st.button(T["corpus_terms_starter_button"], key=f"corpus_terms_starter_{corpus_id}"):
+        starter = corpus_store.add_terms(
+            user_role, user_name, corpus_id, list(corpus_terms.STARTER_TERMS))
+        st.session_state["_corpus_terms_starter"] = starter
+        st.rerun()
+    starter_done = st.session_state.pop("_corpus_terms_starter", None)
+    if starter_done and starter_done["status"] == "ok":
+        st.success(T["corpus_terms_starter_done"].format(
+            added=starter_done["added"], duplicates=starter_done["duplicates"]))
+        if starter_done["full"]:
+            st.warning(T["corpus_terms_full"].format(max=corpus_terms.MAX_TERMS_PER_CORPUS))
+
+    word_list = corpus_store.list_terms(user_role, corpus_id)
+    word_counts = None
+    word_texts = []
+    if not word_list:
+        st.info(T["corpus_terms_none_yet"])
+    else:
+        if any(t["origin"] == "starter_eu" for t in word_list):
+            st.caption(T["corpus_terms_basque_review"])
+        if counts_now["documents"] == 0:
+            st.info(T["corpus_terms_no_texts"])
+        else:
+            word_texts = corpus_store.get_document_contents(user_role, corpus_id)
+            word_counts = corpus_terms.count_terms(word_list, word_texts)
+            st.markdown(f"**{T['corpus_terms_counts_header']}**")
+            st.caption(T["corpus_terms_caveat"])
+            ordered_terms = sorted(word_counts["terms"],
+                                   key=lambda t: (-t["documents"], t["term"].casefold()))
+            st.dataframe(
+                [{T["corpus_terms_col_term"]: t["term"],
+                  T["corpus_terms_col_texts"]: T["corpus_terms_texts_cell"].format(
+                      documents=t["documents"], total=word_counts["total_documents"]),
+                  T["corpus_terms_col_times"]: t["occurrences"]} for t in ordered_terms],
+                hide_index=True, use_container_width=True)
+            st.download_button(
+                T["corpus_terms_download"],
+                data=corpus_terms.matrix_csv(
+                    word_counts, document_label,
+                    (T["corpus_terms_col_term"], T["corpus_terms_col_texts"],
+                     T["corpus_terms_col_times"])).encode("utf-8-sig"),
+                file_name=f"word-list-{corpus_id}-{date.today().isoformat()}.csv",
+                mime="text/csv", key=f"corpus_terms_csv_{corpus_id}")
+
+            with st.expander(T["corpus_terms_context_header"], expanded=False):
+                st.caption(T["corpus_terms_context_caption"])
+                by_term_id = {t["id"]: t for t in word_list}
+                picked_id = st.selectbox(
+                    T["corpus_terms_context_select"], options=[t["id"] for t in ordered_terms],
+                    format_func=lambda i: by_term_id[i]["term"], key=f"corpus_terms_pick_{corpus_id}")
+                picked = next(t for t in word_counts["terms"] if t["id"] == picked_id)
+                if not picked["doc_numbers"]:
+                    st.info(T["corpus_terms_context_none"])
+                content_by_no = {d["doc_no"]: d["content"] for d in word_texts}
+                for doc_no in picked["doc_numbers"][:20]:
+                    st.markdown("**" + T["corpus_terms_context_line"].format(
+                        label=document_label(doc_no), times=picked["per_doc"][doc_no]) + "**")
+                    for snippet in corpus_terms.term_snippets(
+                            by_term_id[picked_id]["norm"], content_by_no[doc_no], limit=2):
+                        st.caption("“" + snippet + "”")
+                hidden_texts = len(picked["doc_numbers"]) - 20
+                if hidden_texts > 0:
+                    st.caption(T["corpus_terms_context_more"].format(count=hidden_texts))
+
+            with st.expander(T["corpus_terms_text_header"], expanded=False):
+                chosen_text = st.selectbox(
+                    T["corpus_terms_text_select"], options=word_counts["doc_numbers"],
+                    format_func=document_label, key=f"corpus_terms_text_{corpus_id}")
+                rows_for_text = corpus_terms.counts_for_text(word_counts, chosen_text)
+                if not rows_for_text:
+                    st.info(T["corpus_terms_text_none"])
+                for term_text, times in rows_for_text:
+                    st.write(T["corpus_terms_text_line"].format(term=term_text, times=times))
+
+        with st.expander(T["corpus_terms_remove_label"], expanded=False):
+            by_id_terms = {t["id"]: t for t in word_list}
+            to_remove = st.multiselect(
+                T["corpus_terms_remove_label"], options=list(by_id_terms),
+                format_func=lambda i: by_id_terms[i]["term"], key=f"corpus_terms_rm_{corpus_id}")
+            if st.button(T["corpus_terms_remove_button"], disabled=not to_remove,
+                         key=f"corpus_terms_rm_btn_{corpus_id}"):
+                corpus_store.delete_terms(user_role, user_name, corpus_id, to_remove)
+                st.session_state["_corpus_flash"] = "corpus_terms_removed_ok"
+                st.rerun()
+
+    # ------------------------------------------------------------------
+    # 3d. Printable report (built only from what the sections above hold)
+    # ------------------------------------------------------------------
+    st.divider()
+    with st.expander(T["corpus_report_header"], expanded=False):
+        st.caption(T["corpus_report_intro"])
+        report_runs = corpus_store.list_runs(user_role, corpus_id, limit=10)
+        opt_patterns = st.checkbox(T["corpus_report_opt_patterns"], value=bool(report_runs),
+                                   key=f"corpus_rep_patterns_{corpus_id}")
+        report_run_id, report_statuses = None, []
+        if opt_patterns:
+            if not report_runs:
+                st.caption(T["corpus_report_no_run"])
+            else:
+                report_run_by_id = {r["id"]: r for r in report_runs}
+                report_run_id = st.selectbox(
+                    T["corpus_report_run_label"], options=list(report_run_by_id),
+                    format_func=lambda i: T["corpus_run_option"].format(
+                        date=(report_run_by_id[i]["created_at"] or "")[:16],
+                        documents=report_run_by_id[i]["documents_considered"],
+                        patterns=report_run_by_id[i]["patterns_created"]),
+                    key=f"corpus_rep_run_{corpus_id}")
+                report_statuses = st.multiselect(
+                    T["patterns_filter_status"], options=list(PATTERN_STATUSES),
+                    default=[s for s in PATTERN_STATUSES if s != "archived"],
+                    format_func=lambda s: T["patterns_statuses"][s],
+                    key=f"corpus_rep_statuses_{corpus_id}")
+        opt_readings = st.checkbox(T["corpus_report_opt_readings"], value=bool(overview["read"]),
+                                   key=f"corpus_rep_readings_{corpus_id}")
+        opt_terms = st.checkbox(T["corpus_report_opt_terms"], value=bool(word_list),
+                                key=f"corpus_rep_terms_{corpus_id}")
+        opt_passages = st.checkbox(T["corpus_report_opt_passages"], value=True,
+                                   key=f"corpus_rep_passages_{corpus_id}")
+        opt_comments = st.checkbox(T["report_opt_comments"], value=True,
+                                   key=f"corpus_rep_comments_{corpus_id}")
+
+        signature = (
+            corpus_id, counts_now["documents"], counts_now["passages"], report_run_id,
+            tuple(sorted(report_statuses)), opt_patterns, opt_readings, opt_terms,
+            opt_passages, opt_comments, include_questions, st.session_state.lang,
+            overview["read"], tuple(sorted((k, v["finding"], v["no_finding"])
+                                           for k, v in overview["lenses"].items())),
+            tuple(t["id"] for t in word_list),
+        )
+        wants_patterns = bool(opt_patterns and report_run_id)
+        wants_terms = bool(opt_terms and word_list and counts_now["documents"])
+        if not (wants_patterns or opt_readings or wants_terms):
+            st.warning(T["corpus_report_nothing_selected"])
+        elif st.button(T["report_prepare_button"], key=f"corpus_rep_prepare_{corpus_id}"):
+            report_patterns, report_events = None, {}
+            if wants_patterns:
+                report_patterns = corpus_store.list_patterns(
+                    user_role, report_run_id, statuses=report_statuses or None)
+                report_patterns.sort(key=lambda p: (-p["counts"]["documents"],
+                                                    -p["counts"]["passages"], p["id"]))
+                if opt_comments:
+                    report_events = {p["id"]: corpus_store.get_pattern_events(user_role, p["id"])
+                                     for p in report_patterns}
+            report_readings = None
+            if opt_readings:
+                report_readings = {
+                    "overview": overview,
+                    "items": {lens: corpus_store.list_lens_readings(user_role, corpus_id, lens)
+                              for lens, c in overview["lenses"].items()
+                              if c["finding"] or c["no_finding"]},
+                }
+            report_terms = None
+            if wants_terms:
+                report_terms = corpus_terms.count_terms(
+                    word_list, corpus_store.get_document_contents(user_role, corpus_id))
+            st.session_state["_corpus_report"] = {
+                "signature": signature,
+                "html": build_corpus_report(
+                    T, st.session_state.lang, lens_labels, by_id[corpus_id], counts_now,
+                    prepared_on=date.today().isoformat(),
+                    run=(next((r for r in report_runs if r["id"] == report_run_id), None)
+                         if wants_patterns else None),
+                    patterns=report_patterns, events_by_pattern=report_events,
+                    readings=report_readings, terms=report_terms,
+                    include_passages=opt_passages, include_questions=include_questions,
+                    include_comments=opt_comments),
+            }
+        prepared_report = st.session_state.get("_corpus_report")
+        if prepared_report and prepared_report["signature"] == signature:
+            st.success(T["report_ready"])
+            st.download_button(
+                T["report_download_button"], data=prepared_report["html"].encode("utf-8"),
+                file_name=f"text-analysis-report-{corpus_id}-{date.today().isoformat()}.html",
+                mime="text/html", key=f"corpus_rep_download_{corpus_id}")
+            st.caption(T["report_how_to_print"])
+        elif prepared_report:
+            st.info(T["report_outdated"])
 
     # ------------------------------------------------------------------
     # 4. Search

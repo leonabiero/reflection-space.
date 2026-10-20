@@ -34,6 +34,17 @@ Section "Leer cada texto con las lentes de reflexión" (`services/corpus_reading
 - Tables: `corpus_readings`, `corpus_reading_jobs` (erased with their text/collection). Prompt version `2026-10-corpus-reading-1`.
 - The questions switch applies here too: off = AI told not to write questions, none stored or shown.
 
+## Step 3: the word and phrase list
+- A manager keeps a list of words and short phrases per collection (`corpus_terms`, erased with the collection, at most 200 terms).
+- For each term the page shows "in X of N texts" and how many times it appears; per text (choose a text), and where it appears (with short exact excerpts around it). A semicolon-separated CSV of the whole table (terms x texts) can be downloaded: it contains only the typed terms and counts, never text from the documents.
+- Matching (`services/corpus_terms.py`, pure, no AI): capitals and accents ignored (but ñ is not n), whole words only, phrases match in order, a `*` at the end of a word means "any ending" (`etxe*` finds etxea, etxeak, etxean). Typed terms are checked and escaped; they can never act as a regular expression.
+- Counts are computed live from the stored texts, so deleting a text or editing the list is always reflected.
+- A starter list (`STARTER_TERMS_ES`, `STARTER_TERMS_EU`) can be added with one button; each term remembers its origin (`manager`, `starter_es`, `starter_eu`). **The Basque starter words need a native speaker's review**; the page says so while any are on the list.
+- The page says what a count is not: a word can be used to deny something, and an idea can be present without any listed word.
+
+## Printable report
+`services/corpus_report_builder.py` (pure) builds one self-contained HTML page for paper (like the Pattern Review report). The manager chooses the parts: patterns of a chosen search (with the status filter), the lens reading, the word list; and whether to include exact passages/quotes and team comments. It always shows "in X of N texts", names texts only as T-001..., states that the texts carry no labels (so groups cannot be compared), honours the questions switch, escapes everything, includes no scripts and loads nothing from outside.
+
 ## Switch: AI-written questions
 On by default. When off, the AI is told not to write questions, any it sends is dropped, none are stored or shown.
 
@@ -43,17 +54,17 @@ On by default. When off, the AI is told not to write questions, any it sends is 
 - Grouping Spanish and Basque passages together relies on multilingual embeddings and is **untested**.
 - At most 3000 passages per search, 20 groups explained, 500 texts per collection, 50 collections.
 - Basque wording of the screens needs a native speaker's review.
-- Not yet built: editable word/phrase list with per-text counts (Step 3), printable corpus report.
+- The word list counts written words only (no synonyms, no context).
 
 ## Cost
 Embeddings ≈ $0.015 per ~1000 passages (once per passage). Explanations: up to 20 per search, a few cents.
 
 ## Data
 Tables: `corpora`, `corpus_documents`, `corpus_passages`, `corpus_passage_embeddings`, `corpus_pattern_runs`,
-`corpus_patterns`, `corpus_pattern_passages`, `corpus_pattern_events` (all in `services/db_schema.py`).
+`corpus_patterns`, `corpus_pattern_passages`, `corpus_pattern_events`, `corpus_readings`, `corpus_reading_jobs`, `corpus_terms` (all in `services/db_schema.py`).
 Deleting a text or collection erases passages, vectors and their place in patterns (cascade).
 The collection is separate from practitioner data; nothing joins to drafts, reflections or observations.
 
 ## Tests
-`tests/test_corpus_engine.py`, `tests/test_corpus_static.py`, `tests/test_corpus_store_postgres.py`
+`tests/test_corpus_engine.py`, `tests/test_corpus_terms.py`, `tests/test_corpus_report.py`, `tests/test_corpus_static.py`, `tests/test_corpus_store_postgres.py`
 (real database via `TEST_DATABASE_URL`), plus the clustering speed/equivalence tests in `tests/test_patterns_engine.py`.

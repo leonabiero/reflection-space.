@@ -500,5 +500,95 @@ class CorpusRealDatabaseTests(unittest.TestCase):
             self.cs.save_readings(SUP, document_id, [{"lens": "client_voice", "status": "bogus"}])
 
 
+    # ------------------------------------------------------------------
+    # Step 3: the word and phrase list
+    # ------------------------------------------------------------------
+    def test_word_list_only_for_the_two_manager_roles(self):
+        for role in (SW, ADMIN, "", None):
+            for call in (lambda r: self.cs.list_terms(r, self.cid),
+                         lambda r: self.cs.add_terms(r, "x", self.cid, ["agresivo"]),
+                         lambda r: self.cs.delete_terms(r, "x", self.cid, [1]),
+                         lambda r: self.cs.get_document_contents(r, self.cid)):
+                with self.assertRaises(PermissionError):
+                    call(role)
+
+    def test_terms_are_added_once_and_bad_ones_are_reported(self):
+        out = self.cs.add_terms(SUP, "mgr", self.cid, ["Agresivo", "agresivo ", "AGRESIVO", "no quiere", "a*", "mal;bien", ""])
+        self.assertEqual(out["status"], "ok")
+        self.assertEqual(out["added"], 2)
+        self.assertEqual(out["duplicates"], 2)
+        self.assertEqual(sorted(out["invalid"]), ["a*", "mal;bien"])
+        listed = self.cs.list_terms(SUP, self.cid)
+        self.assertEqual([t["term"] for t in listed], ["Agresivo", "no quiere"])
+        self.assertEqual(listed[0]["origin"], "manager")
+
+    def test_starter_terms_keep_their_origin_and_do_not_duplicate(self):
+        from services import corpus_terms
+        first = self.cs.add_terms(SUP, "mgr", self.cid, list(corpus_terms.STARTER_TERMS))
+        self.assertEqual(first["invalid"], [])
+        self.assertEqual(first["added"], len(corpus_terms.STARTER_TERMS))
+        again = self.cs.add_terms(SUP, "mgr", self.cid, list(corpus_terms.STARTER_TERMS))
+        self.assertEqual(again["added"], 0)
+        self.assertEqual(again["duplicates"], len(corpus_terms.STARTER_TERMS))
+        origins = {t["origin"] for t in self.cs.list_terms(SUP, self.cid)}
+        self.assertEqual(origins, {"starter_es", "starter_eu"})
+
+    def test_the_list_has_a_limit(self):
+        from services import corpus_terms
+        words = [f"palabra{i:03d}" for i in range(corpus_terms.MAX_TERMS_PER_CORPUS + 5)]
+        out = self.cs.add_terms(SUP, "mgr", self.cid, words)
+        self.assertEqual(out["added"], corpus_terms.MAX_TERMS_PER_CORPUS)
+        self.assertTrue(out["full"])
+
+    def test_terms_can_be_removed_and_missing_collection_is_reported(self):
+        self.cs.add_terms(SUP, "mgr", self.cid, ["uno dos", "tres"])
+        ids = [t["id"] for t in self.cs.list_terms(SUP, self.cid)]
+        self.assertEqual(self.cs.delete_terms(SUP, "mgr", self.cid, ids[:1]), 1)
+        self.assertEqual(len(self.cs.list_terms(SUP, self.cid)), 1)
+        self.assertEqual(self.cs.delete_terms(SUP, "mgr", self.cid, []), 0)
+        self.assertEqual(self.cs.add_terms(SUP, "mgr", 999999, ["algo"])["status"], "missing")
+
+    def test_a_term_of_one_collection_cannot_be_removed_through_another(self):
+        other = self.cs.create_corpus(SUP, "mgr", "Otra")
+        self.cs.add_terms(SUP, "mgr", self.cid, ["uno"])
+        term_id = self.cs.list_terms(SUP, self.cid)[0]["id"]
+        self.assertEqual(self.cs.delete_terms(SUP, "mgr", other, [term_id]), 0)
+        self.assertEqual(len(self.cs.list_terms(SUP, self.cid)), 1)
+
+    def test_deleting_the_collection_erases_its_word_list(self):
+        self.cs.add_terms(SUP, "mgr", self.cid, ["uno", "dos"])
+        self.cs.delete_corpus(SUP, "mgr", self.cid)
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute("SELECT COUNT(*) FROM corpus_terms")
+                self.assertEqual(c.fetchone()[0], 0)
+        finally:
+            conn.close()
+
+    def test_counts_use_the_stored_texts(self):
+        from services import corpus_terms
+        self.cs.add_document(SUP, "mgr", self.cid, "La usuaria es muy agresiva con el equipo y se niega a venir. Hoy no quiere hablar.")
+        self.cs.add_document(SUP, "mgr", self.cid, "Se muestra tranquila. No Quiere hablar del tema, pero colabora con nosotros siempre.")
+        self.cs.add_document(SUP, "mgr", self.cid, "Sin ninguna dificultad especial en la visita de seguimiento de esta semana, todo normal.")
+        self.cs.add_terms(SUP, "mgr", self.cid, ["agresiv*", "no quiere", "mal"])
+        result = corpus_terms.count_terms(
+            self.cs.list_terms(SUP, self.cid), self.cs.get_document_contents(SUP, self.cid))
+        by = {t["term"]: t for t in result["terms"]}
+        self.assertEqual(result["total_documents"], 3)
+        self.assertEqual(by["agresiv*"]["doc_numbers"], [1])
+        self.assertEqual(by["no quiere"]["doc_numbers"], [1, 2])
+        self.assertEqual(by["mal"]["documents"], 0)      # "normal" is not "mal"
+
+    def test_deleting_a_text_changes_the_counts(self):
+        from services import corpus_terms
+        self.cs.add_document(SUP, "mgr", self.cid, "La persona dice que no quiere seguir con la actividad del centro.")
+        self.cs.add_terms(SUP, "mgr", self.cid, ["no quiere"])
+        terms = self.cs.list_terms(SUP, self.cid)
+        self.assertEqual(corpus_terms.count_terms(terms, self.cs.get_document_contents(SUP, self.cid))["terms"][0]["documents"], 1)
+        self.cs.delete_document(SUP, "mgr", self.cid, 1)
+        self.assertEqual(corpus_terms.count_terms(terms, self.cs.get_document_contents(SUP, self.cid))["terms"][0]["documents"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

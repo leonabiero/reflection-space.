@@ -1026,6 +1026,22 @@ def ensure_schema():
                 )
                 """)
 
+                # Corpus analysis Step 3: the manager's list of words and
+                # phrases to count. Belongs to one collection; erased with it.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS corpus_terms (
+                    id SERIAL PRIMARY KEY,
+                    corpus_id INTEGER NOT NULL
+                        REFERENCES corpora(id) ON DELETE CASCADE,
+                    term TEXT NOT NULL,
+                    term_norm TEXT NOT NULL,
+                    origin TEXT NOT NULL DEFAULT 'manager',
+                    created_by TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (corpus_id, term_norm)
+                )
+                """)
+
             conn.commit()
 
             # One-time TEXT -> TIMESTAMPTZ migrations (see

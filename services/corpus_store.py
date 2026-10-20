@@ -21,6 +21,10 @@ HISTORY: pattern wording is never overwritten by a review; status changes,
 challenged passages and carried-over judgements are appended to
 corpus_pattern_events.
 
+The word and phrase list (corpus_terms) belongs to one collection and is
+erased with it. Word counts are NOT stored: they are computed from the
+stored texts each time, so they can never be out of date.
+
 Deleting a text or a whole collection erases its passages, vectors and
 their place in every pattern (database cascade). A pattern left with no
 passages is no longer shown; one that lost some is flagged on screen
@@ -35,6 +39,7 @@ from datetime import timedelta
 from services.corpus_engine import (
     split_passages, summarise_passages,
 )
+from services.corpus_terms import MAX_TERMS_PER_CORPUS, parse_term
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import now_utc, iso, get_logger
 from services.pattern_access import require_pattern_role
@@ -1068,6 +1073,127 @@ def clear_readings(role, actor, corpus_id):
     except Exception:
         conn.rollback()
         logger.exception("clear_readings FAILED: corpus_id=%r", corpus_id)
+        raise
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------
+# Step 3: the word and phrase list
+# ---------------------------------------------------------------------
+
+def get_document_contents(role, corpus_id):
+    """The full (already name-removed) text of every document of a
+    collection, in number order, for counting words: doc_no, content.
+    Used only to count; the page never prints a whole text."""
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "SELECT doc_no, content FROM corpus_documents WHERE corpus_id = %s ORDER BY doc_no",
+                (corpus_id,),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"doc_no": r[0], "content": r[1] or ""} for r in rows]
+
+
+def list_terms(role, corpus_id):
+    """The collection's word list in the order it was built: id, term,
+    norm, origin ('manager', 'starter_es' or 'starter_eu')."""
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "SELECT id, term, term_norm, origin FROM corpus_terms "
+                "WHERE corpus_id = %s ORDER BY id",
+                (corpus_id,),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"id": r[0], "term": r[1], "norm": r[2], "origin": r[3]} for r in rows]
+
+
+def add_terms(role, actor, corpus_id, raw_terms, origin="manager"):
+    """
+    Add words or phrases to a collection's list. `raw_terms` is a list of
+    typed strings. Returns:
+      {"status": "ok", "added": n, "duplicates": n, "invalid": [typed strings
+       that could not be used], "full": True if the list limit stopped some}
+      {"status": "missing"}   the collection does not exist
+    Nothing is added twice (capitals, accents and spacing are ignored).
+    """
+    require_pattern_role(role)
+    if not actor:
+        return {"status": "missing"}
+    added, duplicates, invalid, full = 0, 0, [], False
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT id FROM corpora WHERE id = %s FOR UPDATE", (corpus_id,))
+            if not c.fetchone():
+                conn.rollback()
+                return {"status": "missing"}
+            c.execute("SELECT COUNT(*) FROM corpus_terms WHERE corpus_id = %s", (corpus_id,))
+            total = c.fetchone()[0]
+            for raw in raw_terms:
+                # A term may arrive as a plain string or as (origin, string).
+                item_origin, text = (raw if isinstance(raw, tuple) else (origin, raw))
+                parsed = parse_term(text)
+                if parsed is None:
+                    if (text or "").strip():
+                        invalid.append((text or "").strip()[:80])
+                    continue
+                if total >= MAX_TERMS_PER_CORPUS:
+                    full = True
+                    continue
+                c.execute(
+                    """
+                    INSERT INTO corpus_terms (corpus_id, term, term_norm, origin, created_by, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (corpus_id, term_norm) DO NOTHING
+                    """,
+                    (corpus_id, parsed["term"], parsed["norm"], item_origin, actor, now_utc()),
+                )
+                if c.rowcount:
+                    added += 1
+                    total += 1
+                else:
+                    duplicates += 1
+        conn.commit()
+        return {"status": "ok", "added": added, "duplicates": duplicates,
+                "invalid": invalid, "full": full}
+    except Exception:
+        conn.rollback()
+        logger.exception("add_terms FAILED: corpus_id=%r", corpus_id)
+        raise
+    finally:
+        conn.close()
+
+
+def delete_terms(role, actor, corpus_id, term_ids):
+    """Remove words from a collection's list. Returns how many were removed."""
+    require_pattern_role(role)
+    ids = [int(i) for i in term_ids or []]
+    if not ids:
+        return 0
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "DELETE FROM corpus_terms WHERE corpus_id = %s AND id = ANY(%s)",
+                (corpus_id, ids),
+            )
+            removed = c.rowcount
+        conn.commit()
+        return removed
+    except Exception:
+        conn.rollback()
+        logger.exception("delete_terms FAILED: corpus_id=%r", corpus_id)
         raise
     finally:
         conn.close()
