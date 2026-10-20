@@ -804,3 +804,270 @@ def get_pattern_events(role, pattern_id):
         conn.close()
     return [{"kind": r[0], "actor": r[1] or "", "actor_role": r[2] or "", "old_value": r[3] or "",
              "new_value": r[4] or "", "comment": r[5] or "", "created_at": iso(r[6])} for r in rows]
+
+
+# ---------------------------------------------------------------------
+# Step 2: readings of each text through the reflection lenses
+# ---------------------------------------------------------------------
+#
+# One row per text per lens: the AI's observation (written in the
+# interface language), optional questions, and the exact passages that
+# were VERIFIED to appear in the stored text (services/evidence.py). The
+# reading of a text is replaced if it is read again; it is erased with
+# the text. A lens the AI did not raise anything for is stored as
+# "no_finding" -- that means "nothing raised", never "nothing there".
+
+from services.findings_store import FINDING_MODULES as READING_LENSES
+
+READING_STATUSES = ("finding", "no_finding", "failed")
+_READING_LOCK_KEY = 7731003
+
+
+def get_documents_to_read(role, corpus_id, limit):
+    """The next texts that still need reading (fewer than all lenses
+    successfully read), in number order: id, doc_no, content."""
+    require_pattern_role(role)
+    limit = max(1, min(int(limit), 100))
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT d.id, d.doc_no, d.content
+                FROM corpus_documents d
+                WHERE d.corpus_id = %s
+                  AND (SELECT COUNT(*) FROM corpus_readings r
+                       WHERE r.document_id = d.id AND r.status <> 'failed') < %s
+                ORDER BY d.doc_no LIMIT %s
+                """,
+                (corpus_id, len(READING_LENSES), limit),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"id": r[0], "doc_no": r[1], "content": r[2]} for r in rows]
+
+
+def start_reading_job(role, actor, corpus_id, documents_total):
+    """Begin a reading job. Returns its id, or None if another reading is
+    already running (so repeated clicks cannot start duplicate paid work)
+    or the collection does not exist."""
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT pg_advisory_xact_lock(%s)", (_READING_LOCK_KEY,))
+            c.execute("SELECT 1 FROM corpora WHERE id = %s", (corpus_id,))
+            if not c.fetchone():
+                conn.rollback()
+                return None
+            c.execute(
+                "SELECT id FROM corpus_reading_jobs WHERE status = 'running' AND created_at > %s LIMIT 1",
+                (now_utc() - RUN_STALE_AFTER,),
+            )
+            if c.fetchone():
+                conn.rollback()
+                return None
+            c.execute(
+                """
+                INSERT INTO corpus_reading_jobs
+                    (corpus_id, status, documents_total, created_by, created_by_role, created_at)
+                VALUES (%s, 'running', %s, %s, %s, %s) RETURNING id
+                """,
+                (corpus_id, int(documents_total), actor, role, now_utc()),
+            )
+            job_id = c.fetchone()[0]
+        conn.commit()
+        return job_id
+    except Exception:
+        conn.rollback()
+        logger.exception("start_reading_job FAILED")
+        raise
+    finally:
+        conn.close()
+
+
+def finish_reading_job(job_id, status, documents_done=0, failed_lenses=0, error_summary=""):
+    """Close a reading job as 'completed' or 'failed'. `error_summary`
+    must be a short technical reason, never text from the documents."""
+    if status not in ("completed", "failed"):
+        raise ValueError("status must be 'completed' or 'failed'")
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                UPDATE corpus_reading_jobs
+                SET status = %s, documents_done = %s, failed_lenses = %s,
+                    error_summary = %s, finished_at = %s
+                WHERE id = %s
+                """,
+                (status, documents_done, failed_lenses, (error_summary or "")[:500],
+                 now_utc(), job_id),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("finish_reading_job FAILED: job_id=%r", job_id)
+        raise
+    finally:
+        conn.close()
+
+
+def save_readings(role, document_id, readings):
+    """
+    Replace the stored reading of one text with `readings`, a list of dicts:
+    lens, status, observation, questions (list), evidence (list of
+    {"quote"}), unverified_count, model, prompt_version, include_questions,
+    language. One transaction. Returns how many rows were saved (0 if the
+    text was erased in the meantime).
+    """
+    require_pattern_role(role)
+    clean = []
+    for r in readings:
+        if r.get("lens") not in READING_LENSES or r.get("status") not in READING_STATUSES:
+            raise ValueError("invalid reading")
+        clean.append(r)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT id FROM corpus_documents WHERE id = %s FOR SHARE", (document_id,))
+            if not c.fetchone():
+                conn.rollback()
+                return 0
+            c.execute("DELETE FROM corpus_readings WHERE document_id = %s", (document_id,))
+            for r in clean:
+                c.execute(
+                    """
+                    INSERT INTO corpus_readings
+                        (document_id, lens, status, observation, questions, evidence,
+                         unverified_count, model, prompt_version, include_questions,
+                         language, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (document_id, r["lens"], r["status"], r.get("observation", ""),
+                     _dumps(r.get("questions", [])), _dumps(r.get("evidence", [])),
+                     int(r.get("unverified_count", 0)), r.get("model", ""),
+                     r.get("prompt_version", ""), bool(r.get("include_questions", True)),
+                     r.get("language", ""), now_utc()),
+                )
+        conn.commit()
+        return len(clean)
+    except Exception:
+        conn.rollback()
+        logger.exception("save_readings FAILED: document_id=%r", document_id)
+        raise
+    finally:
+        conn.close()
+
+
+def get_reading_overview(role, corpus_id):
+    """
+    Honest counts for the reading of a collection:
+      documents      texts in the collection
+      read           texts with every lens successfully read
+      unread         texts still to read (including ones with a failed lens)
+      lenses         {lens: {"finding": n, "no_finding": n, "failed": n}} over ALL texts
+    """
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM corpus_documents WHERE corpus_id = %s", (corpus_id,))
+            documents = c.fetchone()[0]
+            c.execute(
+                """
+                SELECT COUNT(*) FROM corpus_documents d
+                WHERE d.corpus_id = %s
+                  AND (SELECT COUNT(*) FROM corpus_readings r
+                       WHERE r.document_id = d.id AND r.status <> 'failed') >= %s
+                """,
+                (corpus_id, len(READING_LENSES)),
+            )
+            read = c.fetchone()[0]
+            c.execute(
+                """
+                SELECT r.lens, r.status, COUNT(*)
+                FROM corpus_readings r JOIN corpus_documents d ON d.id = r.document_id
+                WHERE d.corpus_id = %s GROUP BY r.lens, r.status
+                """,
+                (corpus_id,),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    lenses = {lens: {"finding": 0, "no_finding": 0, "failed": 0} for lens in READING_LENSES}
+    for lens, status, count in rows:
+        if lens in lenses and status in lenses[lens]:
+            lenses[lens][status] = count
+    return {"documents": documents, "read": read, "unread": documents - read, "lenses": lenses}
+
+
+def list_lens_readings(role, corpus_id, lens):
+    """Every text where the AI raised an observation for `lens`, in text
+    order: doc_no, observation, questions, evidence, unverified_count."""
+    require_pattern_role(role)
+    if lens not in READING_LENSES:
+        return []
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT d.doc_no, r.observation, r.questions, r.evidence, r.unverified_count
+                FROM corpus_readings r JOIN corpus_documents d ON d.id = r.document_id
+                WHERE d.corpus_id = %s AND r.lens = %s AND r.status = 'finding'
+                ORDER BY d.doc_no
+                """,
+                (corpus_id, lens),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"doc_no": r[0], "observation": r[1] or "", "questions": _loads(r[2], []),
+             "evidence": _loads(r[3], []), "unverified_count": r[4]} for r in rows]
+
+
+def get_text_readings(role, corpus_id, doc_no):
+    """One text's reading across all lenses: {lens: {status, observation,
+    questions, evidence, unverified_count}} (lenses not read are absent)."""
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT r.lens, r.status, r.observation, r.questions, r.evidence, r.unverified_count
+                FROM corpus_readings r JOIN corpus_documents d ON d.id = r.document_id
+                WHERE d.corpus_id = %s AND d.doc_no = %s
+                """,
+                (corpus_id, doc_no),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return {r[0]: {"status": r[1], "observation": r[2] or "", "questions": _loads(r[3], []),
+                   "evidence": _loads(r[4], []), "unverified_count": r[5]} for r in rows}
+
+
+def clear_readings(role, actor, corpus_id):
+    """Forget every reading of a collection (so all its texts can be read
+    again). Returns how many rows were erased."""
+    require_pattern_role(role)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "DELETE FROM corpus_readings WHERE document_id IN "
+                "(SELECT id FROM corpus_documents WHERE corpus_id = %s)",
+                (corpus_id,),
+            )
+            erased = c.rowcount
+        conn.commit()
+        return erased
+    except Exception:
+        conn.rollback()
+        logger.exception("clear_readings FAILED: corpus_id=%r", corpus_id)
+        raise
+    finally:
+        conn.close()
