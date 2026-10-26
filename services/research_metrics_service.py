@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from services.reflection_log import get_theme_flag_counts, get_total_reflection_count, THEME_KEYS
 from services.exploration_log import get_aggregated_theme_counts
 from services.feedback_store import get_feedback_summary
-from services.draft_storage import get_completed_draft_count
+from services.reflection_records import count_saved_observations
 
 # Research Metrics
 # ==================
@@ -39,7 +39,10 @@ def build_research_summary(window_days=182):
             "window_days": int,
             "since": str (ISO date),
             "total_reflection_sessions": int,
-            "total_documents_completed": int,
+            "total_observations_saved": int,   # AI observations kept in
+                                               # saved reflections (the
+                                               # reflection-only redesign
+                                               # stores no documents)
             "theme_flag_counts": {theme_key: int},      # AI raised it
             "theme_explore_counts": {theme_key: int},   # practitioner explored it
             "feedback": {
@@ -54,7 +57,7 @@ def build_research_summary(window_days=182):
         "window_days": window_days,
         "since": since_iso[:10],
         "total_reflection_sessions": get_total_reflection_count(since_iso=since_iso),
-        "total_documents_completed": get_completed_draft_count(since_iso=since_iso),
+        "total_observations_saved": count_saved_observations(since_iso=since_iso),
         "theme_flag_counts": get_theme_flag_counts(since_iso=since_iso),
         "theme_explore_counts": get_aggregated_theme_counts(since_iso=since_iso),
         "feedback": get_feedback_summary(),
@@ -97,7 +100,7 @@ def build_research_export_csv(summary):
     buffer.write(f"window_days,{summary['window_days']}\n")
     buffer.write(f"since,{summary['since']}\n")
     buffer.write(f"total_reflection_sessions,{summary['total_reflection_sessions']}\n")
-    buffer.write(f"total_documents_completed,{summary['total_documents_completed']}\n")
+    buffer.write(f"total_observations_saved,{summary['total_observations_saved']}\n")
     fb = summary["feedback"]
     buffer.write(f"feedback_count,{fb['count']}\n")
     buffer.write(f"feedback_average,{fb['average'] if fb['average'] is not None else ''}\n")

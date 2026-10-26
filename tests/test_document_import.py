@@ -157,7 +157,10 @@ class WiringTests(unittest.TestCase):
             for key in ("doc_import_label", "doc_import_help", "doc_import_loaded"):
                 self.assertTrue(lang[key])
             self.assertEqual(set(lang["doc_import_errors"]), reasons)
-        page = (ROOT / "pages" / "documentation.py").read_text(encoding="utf-8")
+        # Since the reflection-only redesign (REFLECTIONS.md) the upload lives
+        # on the single Reflection Space screen; the old Documentation page
+        # is only a redirect.
+        page = (ROOT / "pages" / "reflection_space.py").read_text(encoding="utf-8")
         self.assertIn("document_import.extract_text", page)
 
     def test_module_never_logs_or_stores(self):

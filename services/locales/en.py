@@ -24,7 +24,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'empty': 'Please write some text',
  'new': 'New document',
  'reflection': 'Reflection space',
- 'home_subtitle': 'A space for documentation and reflection in practice.',
+ 'home_subtitle': 'A space for reflection in practice.',
  'nav_hint': 'Use the sidebar to navigate.',
  'nav_header': 'Navigate:',
  'nav_doc': '📝 Documentation',
@@ -36,7 +36,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'reflection_folders_intro': 'Documents awaiting reflection, grouped by case.',
  'reflection_same_day_notice': '⚠️ This case has more than one document from the same day.',
  'reflection_no_case_ref': '(No case reference)',
- 'reflection_active_case_prefix': 'Reflecting on case:',
+ 'reflection_active_case_prefix': 'Reflection code:',
  'reflection_delete_button': 'Delete document',
  'reflection_delete_confirm': 'Are you sure you want to delete this document? This cannot be '
                               'undone.',
@@ -44,13 +44,12 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'reflection_context_title': 'Reflection Context',
  'reflection_context_current_label': 'Selected document(s):',
  'reflection_context_historical_label': 'Relevant historical documents for this case:',
- 'reflection_context_summary_strong': "This reflection uses today's documentation together with "
-                                      '{count} relevant historical documents.',
- 'reflection_context_summary_limited': "This reflection primarily uses today's documentation, "
-                                       'because limited relevant historical information was found.',
- 'reflection_context_summary_none': 'This appears to be the first documented interaction for this '
-                                    'case.',
- 'reflection_context_continue': 'Continue to reflection',
+ 'reflection_context_summary_strong': "This reflection uses today's case together with {count} "
+                                      'related earlier reflections.',
+ 'reflection_context_summary_limited': "This reflection mainly uses today's case, with few related "
+                                       'earlier reflections.',
+ 'reflection_context_summary_none': "This reflection uses today's case only.",
+ 'reflection_context_continue': 'Generate the reflection',
  'reflection_context_back': 'Back to selection',
  'reflection_partial_failure_notice': 'Some reflection perspectives ({count}) could not be '
                                       'generated. The reflection has still been produced. This has '
@@ -125,9 +124,9 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_sample_label': 'Sample text (fake details only)',
  'admin_run_button': 'Run anonymizer',
  'admin_output_label': 'Anonymized output (what is sent to Claude):',
- 'nav_case_history': '🗂️ Case History',
- 'case_history_title': 'Case History',
- 'case_history_no_items': 'No completed reflections yet.',
+ 'nav_case_history': '🗂️ Reflection History',
+ 'case_history_title': 'Reflection History',
+ 'case_history_no_items': 'No saved reflections yet.',
  'case_history_original_label': 'Original version',
  'case_history_current_label': 'Current version',
  'case_history_edited_label': 'Edited',
@@ -147,7 +146,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'case_history_toggle_label': 'Show:',
  'case_history_edited_option': 'Edited',
  'case_history_not_edited_option': 'Not edited',
- 'case_history_no_items_for_filter': 'No documents for this selection.',
+ 'case_history_no_items_for_filter': 'No reflections for this selection.',
  'case_history_showing_recent': 'Showing the {shown} most recent documents out of {total}. Use the '
                                 'date filter above to see older documents.',
  'feedback_showing_recent': 'Showing the {shown} most recent comments out of {total}.',
@@ -180,7 +179,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'audit_action_restored': 'Restored',
  'audit_action_purged': 'Permanently purged',
  'workspace_opportunities_header': 'Reflection Opportunities',
- 'workspace_document_header': 'Current document',
+ 'workspace_document_header': 'Case text (not saved)',
  'workspace_context_header': 'Reflection context',
  'workspace_progress_label': 'Explored: {explored} of {total}',
  'workspace_explore_button': 'Explore',
@@ -204,7 +203,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'growth_themes_header': "Areas you've explored most",
  'growth_themes_caption': 'Based on {total} recorded exploration moment(s)',
  'growth_history_header': 'Recent reflective moments',
- 'growth_entry_line': '**{theme}** — case {case} — {count} exchange(s) — {date}',
+ 'growth_entry_line': '**{theme}** — reflection {case} — {count} exchange(s) — {date}',
  'growth_session_count_label': 'Total exploration moments recorded',
  'nav_team_learning': '🌍 Team Learning',
  'team_learning_title': '🌍 Team Reflective Themes',
@@ -257,14 +256,14 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'why_similarity_high': 'High',
  'why_similarity_moderate': 'Moderate',
  'why_similarity_low': 'Low',
- 'journey_step1': "Today's Documentation",
- 'journey_step2': 'Historical Context',
+ 'journey_step1': 'Your Case',
+ 'journey_step2': 'Earlier Reflections',
  'journey_step3': 'Professional Reflection',
  'journey_step4': 'Reflective Questions',
- 'journey_step1_desc': "Today's document(s) are selected for reflection.",
- 'journey_step2_desc': 'Relevant historical documents for this case are retrieved.',
- 'journey_step3_desc': "The AI analyses today's documentation together with the historical "
-                       'context.',
+ 'journey_step1_desc': 'You write, paste or upload the case you want to reflect on.',
+ 'journey_step2_desc': 'Your earlier reflections that are linked or share themes are found.',
+ 'journey_step3_desc': "The AI analyses today's case together with any earlier reflections you "
+                       'included.',
  'journey_step4_desc': "You're invited to consider reflective questions.",
  'historical_timeline_header': 'Historical Timeline',
  'historical_timeline_intro': 'Relevant documents for this case, arranged chronologically.',
@@ -299,8 +298,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'learning_tab_team': '🌍 Team Learning',
  'ka_header': 'Ask about organisational knowledge',
  'ka_intro': "Ask a natural-language question about the organisation's reflective patterns, "
-             'themes, and activity. Answers are grounded only in indexed documentation and '
-             'reflections -- never in outside general knowledge.',
+             'themes, and activity. Answers are grounded only in saved reflections -- never in '
+             'outside general knowledge.',
  'ka_question_label': 'Your question',
  'ka_question_placeholder': 'For example: What patterns have come up in Kulunka this quarter?',
  'ka_ask_button': 'Ask',
@@ -324,7 +323,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'ka_evidence_count': '{count} relevant document(s) retrieved',
  'ka_evidence_doc_type_col': 'Document type',
  'ka_evidence_date_col': 'Date',
- 'ka_evidence_case_col': 'Case/service reference',
+ 'ka_evidence_case_col': 'Reflection code',
  'ka_evidence_relevance_col': 'Relevance',
  'ka_evidence_none': 'No relevant documents were retrieved for this question.',
  'admin_user_mgmt_header': '👥 User Management',
@@ -434,8 +433,12 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_tools_header': '🧰 Administrative Tools',
  'admin_anon_empty_warning': 'Type or paste a sample text first, then press the button again.',
  'admin_anon_no_changes': 'The anonymizer found no personal details to replace in this text.',
- 'admin_anon_stale_note': 'You have changed the text since the last test: press the button again to see the updated result.',
- 'admin_anon_tags_help': "Tags: [PERSON] = person's name · [LOCATION] = place · [ADDRESS] = address · [ORGANISATION] = centre or organisation · [ID] = DNI/NIE, case file, account or other identifier · [PHONE] = phone · [EMAIL] = email · [DATE] = date.",
+ 'admin_anon_stale_note': 'You have changed the text since the last test: press the button again '
+                          'to see the updated result.',
+ 'admin_anon_tags_help': "Tags: [PERSON] = person's name · [LOCATION] = place · [ADDRESS] = "
+                         'address · [ORGANISATION] = centre or organisation · [ID] = DNI/NIE, case '
+                         'file, account or other identifier · [PHONE] = phone · [EMAIL] = email · '
+                         '[DATE] = date.',
  'admin_tools_anon_test_header': 'Anonymization Test',
  'admin_tools_reset_index_header': 'Reset Search Index (Qdrant)',
  'admin_tools_reset_index_caption': 'Deletes and rebuilds the semantic search index from scratch, '
@@ -681,35 +684,39 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'help': {'nav_label': '❓ Help',
           'page_title': 'Reflection Space Quick Guide',
           'intro_title': 'What is Reflection Space?',
-          'intro_body': "Reflection Space reads the case documentation you've just written and, "
-                        "before it's finalised, offers reflective questions across eight "
+          'intro_body': 'Reflection Space helps you reflect on a case on the spot: you write, '
+                        'paste or upload the case and it offers reflective questions across eight '
                         "professional dimensions -- such as whether the client's own voice is "
                         'present, or whether strengths are being overlooked alongside '
-                        'difficulties.',
+                        'difficulties. It is not a place to store documents: only the reflection '
+                        'is saved.',
           'guardrail_note': 'The tool never grades, scores, or decides anything for you. You '
-                            'decide what, if anything, to change in your documentation.',
+                            'decide what, if anything, to do with what it made you think about.',
           'journey_title': 'The three-step reflection journey',
-          'journey_steps': ["1. Today's Documentation -- choose the case note(s) you've just "
-                            'written that you want to reflect on.',
-                            '2. Historical Context -- review which earlier documents for this case '
-                            'have been surfaced as relevant, and include or exclude any of them.',
+          'journey_steps': ['1. Your Case -- write, paste or upload the case, choose the type of '
+                            'text, tick a few themes with no personal details and, if you like, '
+                            'link an earlier reflection by its code.',
+                            '2. Earlier Reflections -- review your earlier reflections that are '
+                            'linked or share themes, and include or exclude any of them.',
                             '3. Professional Reflection -- explore the eight reflective '
                             'dimensions, optionally have a short conversation about any of them, '
-                            'then update and submit your document.'],
+                            'add your notes and finish. The case text is discarded when you '
+                            'finish.'],
           'practitioner_title': 'Practitioner workspace',
-          'doc_section_title': '📝 Documentation -- writing a case note',
-          'doc_section_body': 'On the Documentation page, enter the case reference, choose the '
-                              'document type and language, and write your note. Selecting Save '
-                              'stores it as a private draft -- visible only to you -- until you '
-                              'submit it from Reflection Space.',
-          'reflection_section_title': '🪞 Reflection Space -- reflecting before you submit',
-          'reflection_section_body': 'On the Reflection Space page: pick the draft(s) you want to '
-                                     "reflect on, review the historical context that's been "
-                                     "surfaced (untick anything you don't want considered), then "
-                                     'continue to generate your reflection. Explore any of the '
+          'doc_section_title': '📝 Your case -- write, paste or upload',
+          'doc_section_body': 'There is no separate Documentation page any more. On Reflection '
+                              'Space you write or paste the case (or upload a Word, PDF or text '
+                              'file: only the text is read). Each reflection gets a neutral code '
+                              '(for example RS-7F3K2Q) and the themes you tick; none of that '
+                              'identifies the person. The case text is never saved.',
+          'reflection_section_title': '🪞 Reflection Space -- reflecting on the spot',
+          'reflection_section_body': "After you continue, you'll see your earlier reflections that "
+                                     "are linked or share themes (untick any you don't want "
+                                     'considered) and generate your reflection. Explore any of the '
                                      'eight dimensions, optionally open a short conversation about '
-                                     'one, then edit and submit your document. Afterwards you can '
-                                     'rate how useful the session was -- entirely optional.',
+                                     'one, add your notes and select Finish reflection. Afterwards '
+                                     'you can rate how useful the session was -- entirely '
+                                     'optional.',
           'dimensions_title': 'The eight reflective dimensions',
           'dimensions': [{'label': "Client's Voice",
                           'desc': "Is the person's own voice, goals, and preferences reflected, or "
@@ -744,40 +751,45 @@ LANG_EN = {'title': '🧠 Reflection Space',
           'learning_section_title': '📚 Learning',
           'learning_section_body': "Learning has four tabs: Team Presence (who's active), "
                                    'Knowledge Assistant (ask a question, get an answer drawn from '
-                                   "the organisation's own case documentation), Learning Insights "
+                                   "the organisation's saved reflections), Learning Insights "
                                    '(which dimensions have come up most often), and Team Learning '
                                    '(aggregated themes over the last six months). Everything here '
                                    "is aggregated and anonymous -- no individual's work can be "
                                    'singled out.',
-          'case_history_section_title': '🗂️ Case History',
-          'case_history_section_body': 'Case History shows completed documentation and feedback: '
-                                       'an overview of usefulness ratings and comments, and '
-                                       'completed documents grouped by professional, with a toggle '
-                                       'between edited and unedited so you can see what changed.',
+          'case_history_section_title': '🗂️ Reflection History',
+          'case_history_section_body': 'Reflection History shows the feedback received (usefulness '
+                                       'ratings and comments) and the saved reflections, each with '
+                                       "its neutral code, themes and the AI's observations. You "
+                                       'can filter by date and theme. It never shows case text or '
+                                       "professionals' private notes.",
           'research_metrics_section_title': '📊 Research Metrics',
           'research_metrics_section_body': 'Research Metrics (System Administrator only) gives an '
-                                           'aggregated, pilot-level view: total sessions and '
-                                           'documents completed, how often each dimension was '
-                                           'flagged versus explored, feedback ratings, and a CSV '
-                                           'export.',
+                                           'aggregated, pilot-level view: total reflection '
+                                           'sessions and observations saved, how often each '
+                                           'dimension was flagged versus explored, feedback '
+                                           'ratings, and a CSV export.',
           'admin_title': '🛠️ System Administration',
           'admin_section_body': 'System Administration brings together user management, document '
                                 'indexing and retrieval testing, system health, configuration, '
                                 'translation health checks, the AI Diagnostic Centre (the error '
-                                'log), and case knowledge search.',
+                                'log), and case knowledge search. It also lets you permanently '
+                                'erase old documents stored before the change to "reflections '
+                                'only".',
           'report_problem_title': '🚩 Reporting a problem',
           'report_problem_body': 'Every page has a 🚩 Report a problem control in the sidebar, '
                                  'available to everyone. Describe what happened in your own words '
                                  'and select Send -- the system automatically attaches page, '
                                  'session, and navigation context.',
           'privacy_title': '🔒 Privacy and data',
-          'privacy_points': ['Pending drafts are private -- only you can see or open a draft '
-                             'before you submit it.',
+          'privacy_points': ['The case text is never saved -- it only exists while the reflection '
+                             'lasts and is discarded when you finish.',
+                             'Each reflection is identified by a neutral code and themes with no '
+                             'personal details, never by names.',
+                             'Your notes on the observations are private -- only you can see them.',
                              'Reflective conversation content is never stored beyond the session '
                              '-- only which theme was explored, and when.',
                              'My Reflection is personal and comparison-free: no scores, no '
                              'ranking, visible to no one but you.',
-                             'Organisation-wide views work only with aggregated, anonymised data.',
                              'Two-layer role-based access control is enforced throughout the '
                              'app.']},
  'admin_usage_header': '💰 Service Usage & Costs',
@@ -854,81 +866,127 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_usage_forecast_col_claude_cost': 'Est. Claude cost/month',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ All projections above are ESTIMATES based on '
                                              'currently observed averages, not guaranteed costs.',
- 'findings_evidence_caption': 'Passage from the documentation this observation is based on:',
- 'findings_unverified_notice': '{count} passage(s) proposed by the AI did not match the text exactly and are not shown.',
+ 'findings_evidence_caption': 'Passage from the case text this observation is based on:',
+ 'findings_unverified_notice': '{count} passage(s) proposed by the AI did not match the text '
+                               'exactly and are not shown.',
  'findings_notes_header': 'My notes and sharing with the team',
  'findings_label_prompt': 'How did you find it?',
  'findings_label_none': 'Not rated',
- 'findings_labels': {'useful': 'Useful', 'not_relevant': 'Not relevant', 'uncertain': 'Not sure', 'discuss': 'To discuss later'},
+ 'findings_labels': {'useful': 'Useful',
+                     'not_relevant': 'Not relevant',
+                     'uncertain': 'Not sure',
+                     'discuss': 'To discuss later'},
  'findings_misread_label': 'I think the AI misunderstood the context',
  'findings_alternative_label': 'Another possible explanation (optional)',
  'findings_note_label': 'My reflection or note (optional)',
  'findings_save_button': 'Save my notes',
  'findings_save_success': 'Notes saved.',
  'findings_save_error': "Your notes couldn't be saved. Please try again in a moment.",
- 'findings_not_saved_notice': "This reflection couldn't be saved, so you won't be able to keep notes on it. You can carry on working as normal.",
+ 'findings_not_saved_notice': "This reflection couldn't be saved, so you won't be able to keep "
+                              'notes on it. You can carry on working as normal.',
  'findings_journal_header': 'Saved observations and your notes',
- 'findings_journal_intro': 'Here you can return to the observations from your reflections, with the exact passage each is based on, and write or review your own notes. Your notes are for you alone.',
- 'findings_journal_empty': 'There are no saved observations yet. They will appear here after your next reflection.',
+ 'findings_journal_intro': 'Here you can return to the observations from your reflections, with '
+                           'the exact passage each is based on, and write or review your own '
+                           'notes. Your notes are for you alone.',
+ 'findings_journal_empty': 'There are no saved observations yet. They will appear here after your '
+                           'next reflection.',
  'findings_journal_count': '{total} saved observation(s) — page {page} of {pages}',
  'findings_journal_newer': '← Newer',
  'findings_journal_older': 'Older →',
  'nav_patterns': '🔎 Pattern Review',
  'findings_share_label': 'Share this observation with the team review',
- 'findings_share_help': "If ticked, the observation and its exact quotation may appear, without your name and without your notes, in the management team's pattern review. You can withdraw it at any time. If not ticked, nobody else sees it.",
- 'findings_notes_privacy': 'Your notes and ratings are private: only you can see them. They are saved separately from what the AI said, which is never changed. Only if you tick "Share" are the observation and its quotation shared (never your name or notes).',
+ 'findings_share_help': 'If ticked, the observation and its exact quotation may appear, without '
+                        "your name and without your notes, in the management team's pattern "
+                        'review. You can withdraw it at any time. If not ticked, nobody else sees '
+                        'it.',
+ 'findings_notes_privacy': 'Your notes and ratings are private: only you can see them. They are '
+                           'saved separately from what the AI said, which is never changed. Only '
+                           'if you tick "Share" are the observation and its quotation shared '
+                           '(never your name or notes).',
  'patterns_title': '🔎 Pattern Review',
  'patterns_no_access': 'This page is only for supervision and programme management.',
- 'patterns_intro': 'This page helps the team look for themes that recur across shared observations. What it shows are candidate patterns for reflection, not conclusions: a group of similar observations is not evidence of bias or poor practice, and this small, voluntarily shared set does not represent the organisation. The team decides what a pattern means, if anything.',
+ 'patterns_intro': 'This page helps the team look for themes that recur across shared '
+                   'observations. What it shows are candidate patterns for reflection, not '
+                   'conclusions: a group of similar observations is not evidence of bias or poor '
+                   'practice, and this small, voluntarily shared set does not represent the '
+                   'organisation. The team decides what a pattern means, if anything.',
  'patterns_pool_header': 'What is available to review',
- 'patterns_pool_caption': 'Only observations that professionals chose to share appear here. You never see who wrote them or their private notes.',
+ 'patterns_pool_caption': 'Only observations that professionals chose to share appear here. You '
+                          'never see who wrote them or their private notes.',
  'patterns_filter_lenses': 'Limit to these reflection points (empty = all)',
  'patterns_filter_from': 'From (optional)',
  'patterns_filter_to': 'To (optional)',
  'patterns_pool_empty': 'There are no shared observations with these filters yet.',
- 'patterns_pool_counts': '{observations} shared observation(s) from {reflections} reflection(s) and {cases} distinct case reference(s).',
- 'patterns_pool_no_case': '{count} reflection(s) have no case reference, so they do not count as cases.',
+ 'patterns_pool_counts': '{observations} shared observation(s) from {reflections} reflection(s) '
+                         'and {cases} distinct case reference(s).',
+ 'patterns_pool_no_case': '{count} reflection(s) have no case reference, so they do not count as '
+                          'cases.',
  'patterns_generate_header': 'Look for patterns',
  'patterns_settings_header': 'Search settings',
- 'patterns_settings_intro': 'These settings are starting points, not proven values. Change them and compare the results.',
+ 'patterns_settings_intro': 'These settings are starting points, not proven values. Change them '
+                            'and compare the results.',
  'patterns_similarity_label': 'How alike observations must be',
  'patterns_similarity_levels': {'broad': 'Broad', 'balanced': 'Balanced', 'strict': 'Strict'},
- 'patterns_similarity_help': 'Broad groups looser resemblances (more groups, more noise). Strict needs a closer resemblance (fewer, more reliable groups).',
+ 'patterns_similarity_help': 'Broad groups looser resemblances (more groups, more noise). Strict '
+                             'needs a closer resemblance (fewer, more reliable groups).',
  'patterns_min_observations_label': 'Minimum observations per group',
  'patterns_min_reflections_label': 'Minimum distinct reflections per group',
- 'patterns_threshold_not_proof': 'Reaching these minimums proves nothing: it only decides whether a group is worth showing for discussion.',
- 'patterns_cost_note': 'Looking for patterns uses AI to write up to {max_patterns} explanations (a few cents in total). You only pay again if you press the button again.',
- 'patterns_pool_truncated': 'There are more shared observations than are compared at once; the {max} most recent are used.',
+ 'patterns_threshold_not_proof': 'Reaching these minimums proves nothing: it only decides whether '
+                                 'a group is worth showing for discussion.',
+ 'patterns_cost_note': 'Looking for patterns uses AI to write up to {max_patterns} explanations (a '
+                       'few cents in total). You only pay again if you press the button again.',
+ 'patterns_pool_truncated': 'There are more shared observations than are compared at once; the '
+                            '{max} most recent are used.',
  'patterns_not_enough': 'At least {minimum} shared observations are needed to look for patterns.',
  'patterns_generate_button': 'Look for patterns',
  'patterns_generating': 'Looking for patterns…',
  'patterns_busy': 'A search is already running. Wait for it to finish and try again.',
- 'patterns_unavailable': 'The meaning-matching service is not configured, so patterns cannot be searched for right now.',
- 'patterns_none_found': 'No group met the minimums among {observations} observations. Try a broader setting, or wait for more shared observations.',
- 'patterns_generated_ok': 'Found {patterns} candidate pattern(s) among {observations} observations.',
- 'patterns_not_embedded': '{count} observation(s) could not be compared this time and were left out.',
- 'patterns_fallback_notice': 'The explanation for {count} pattern(s) could not be written; a plain text is shown and you can retry it.',
+ 'patterns_unavailable': 'The meaning-matching service is not configured, so patterns cannot be '
+                         'searched for right now.',
+ 'patterns_none_found': 'No group met the minimums among {observations} observations. Try a '
+                        'broader setting, or wait for more shared observations.',
+ 'patterns_generated_ok': 'Found {patterns} candidate pattern(s) among {observations} '
+                          'observations.',
+ 'patterns_not_embedded': '{count} observation(s) could not be compared this time and were left '
+                          'out.',
+ 'patterns_fallback_notice': 'The explanation for {count} pattern(s) could not be written; a plain '
+                             'text is shown and you can retry it.',
  'patterns_review_header': 'Review candidate patterns',
  'patterns_no_runs': 'No patterns have been searched for yet.',
  'patterns_run_select': 'Search to review',
  'patterns_run_option': '{date} — {observations} observations — {patterns} pattern(s)',
- 'patterns_run_caption': 'Settings of this search: {level} similarity; at least {min_obs} observations from at least {min_refl} distinct reflections.',
+ 'patterns_run_caption': 'Settings of this search: {level} similarity; at least {min_obs} '
+                         'observations from at least {min_refl} distinct reflections.',
  'patterns_filter_status': 'Show statuses',
- 'patterns_statuses': {'candidate': 'Candidate', 'under_review': 'Under review', 'worth_discussing': 'Worth discussing', 'not_supported': 'Not supported after review', 'archived': 'Archived'},
+ 'patterns_statuses': {'candidate': 'Candidate',
+                       'under_review': 'Under review',
+                       'worth_discussing': 'Worth discussing',
+                       'not_supported': 'Not supported after review',
+                       'archived': 'Archived'},
  'patterns_none_in_view': 'There are no patterns with these filters.',
- 'patterns_cases_none': 'None of these reflections has a case reference, so nothing can be said about cases.',
- 'patterns_cases_incomplete': '{missing} of the {total} reflections have no case reference, so recurrence across cases cannot be established; it can only be said to appear in several reflections.',
- 'patterns_cases_single': 'All the observations relate to one case reference: this is repetition within a case, not across cases.',
+ 'patterns_cases_none': 'None of these reflections has a case reference, so nothing can be said '
+                        'about cases.',
+ 'patterns_cases_incomplete': '{missing} of the {total} reflections have no case reference, so '
+                              'recurrence across cases cannot be established; it can only be said '
+                              'to appear in several reflections.',
+ 'patterns_cases_single': 'All the observations relate to one case reference: this is repetition '
+                          'within a case, not across cases.',
  'patterns_cases_multiple': 'The observations come from {cases} distinct case references.',
  'patterns_item_header': '{title} — {status} — {observations} obs. / {reflections} reflections',
  'patterns_candidate_label': 'Candidate pattern for reflection — not a conclusion.',
- 'patterns_counts_line': '{observations} observation(s) · {reflections} distinct reflection(s) · {cases} distinct case(s)',
- 'patterns_case_ref_caveat': 'Case references are typed by hand: a typo can make one case count as two.',
+ 'patterns_counts_line': '{observations} observation(s) · {reflections} distinct reflection(s) · '
+                         '{cases} distinct case(s)',
+ 'patterns_case_ref_caveat': 'Case references are typed by hand: a typo can make one case count as '
+                             'two.',
  'patterns_dates_line': 'Reflections between {first} and {last}',
  'patterns_lenses_line': 'Reflection points: {lenses}',
- 'patterns_lost_members': '{count} of the observations in this pattern are no longer available (withdrawn by their author or erased). The written explanation may still reflect them: look for patterns again before relying on it.',
- 'patterns_below_minimum': 'With the current observations, this group no longer reaches the minimums it was found with.',
- 'patterns_explanation_failed': 'The automatic explanation for this pattern could not be written. A plain text is shown.',
+ 'patterns_lost_members': '{count} of the observations in this pattern are no longer available '
+                          '(withdrawn by their author or erased). The written explanation may '
+                          'still reflect them: look for patterns again before relying on it.',
+ 'patterns_below_minimum': 'With the current observations, this group no longer reaches the '
+                           'minimums it was found with.',
+ 'patterns_explanation_failed': 'The automatic explanation for this pattern could not be written. '
+                                'A plain text is shown.',
  'patterns_explanation_retry': 'Retry the explanation',
  'patterns_retry_ok': 'Explanation written.',
  'patterns_retry_failed': 'The explanation still could not be written. Please try again later.',
@@ -945,27 +1003,56 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'patterns_restore_button': 'Include it again',
  'patterns_restored_ok': 'Observation included again.',
  'patterns_review_status_header': "The team's assessment",
- 'patterns_review_help': 'Record your own judgement here. What the AI proposed is never deleted or changed.',
+ 'patterns_review_help': 'Record your own judgement here. What the AI proposed is never deleted or '
+                         'changed.',
  'patterns_status_label': 'Status',
  'patterns_comment_label': 'Comment (optional)',
  'patterns_save_review': 'Save assessment',
  'patterns_review_saved': 'Assessment saved.',
  'patterns_review_nothing': 'There is no change to save.',
  'patterns_history_header': 'History',
- 'patterns_event_kinds': {'generated': 'Pattern generated', 'status_changed': 'Status changed', 'carried_over': 'Assessment carried over from an earlier search', 'member_excluded': 'Observation removed from the pattern', 'member_restored': 'Observation included again', 'explanation_regenerated': 'Explanation written again'},
+ 'patterns_event_kinds': {'generated': 'Pattern generated',
+                          'status_changed': 'Status changed',
+                          'carried_over': 'Assessment carried over from an earlier search',
+                          'member_excluded': 'Observation removed from the pattern',
+                          'member_restored': 'Observation included again',
+                          'explanation_regenerated': 'Explanation written again'},
  'patterns_event_status_change': '({old} → {new})',
  'patterns_event_system': 'System',
  'doc_import_label': 'Or upload a document (Word, PDF or text)',
- 'doc_import_help': 'Only the text is read; the file itself is not saved. Up to {max_mb} MB, {max_pages} pages and about {max_chars} characters. Scanned PDFs (photos of paper) cannot be read.',
- 'doc_import_loaded': 'Text loaded. Please check and correct it before saving: the file itself is not saved.',
- 'doc_import_errors': {'unsupported': 'This type of file is not supported. Use Word (.docx), PDF or text (.txt).', 'too_large': 'The file is too large (maximum {max_mb} MB).', 'too_long': 'The document is too long (maximum about {max_chars} characters). Split it into parts and upload each one separately.', 'too_many_pages': 'The PDF has too many pages (maximum {max_pages}).', 'encrypted': 'The file is password-protected. Remove the protection and upload it again.', 'no_text': 'No text was found in the file. If it is a scanned PDF, copy the text by hand or use a version with text.', 'unreadable': 'The file could not be read. It may be damaged; try saving it again or paste the text.', 'unavailable': 'Reading this type of file is not available right now. Please paste the text directly.'},
+ 'doc_import_help': 'Only the text is read; the file itself is not saved. Up to {max_mb} MB, '
+                    '{max_pages} pages and about {max_chars} characters. Scanned PDFs (photos of '
+                    'paper) cannot be read.',
+ 'doc_import_loaded': 'Text loaded. Check and correct it before continuing: neither the file nor '
+                      'the text is saved.',
+ 'doc_import_errors': {'unsupported': 'This type of file is not supported. Use Word (.docx), PDF '
+                                      'or text (.txt).',
+                       'too_large': 'The file is too large (maximum {max_mb} MB).',
+                       'too_long': 'The document is too long (maximum about {max_chars} '
+                                   'characters). Split it into parts and upload each one '
+                                   'separately.',
+                       'too_many_pages': 'The PDF has too many pages (maximum {max_pages}).',
+                       'encrypted': 'The file is password-protected. Remove the protection and '
+                                    'upload it again.',
+                       'no_text': 'No text was found in the file. If it is a scanned PDF, copy the '
+                                  'text by hand or use a version with text.',
+                       'unreadable': 'The file could not be read. It may be damaged; try saving it '
+                                     'again or paste the text.',
+                       'unavailable': 'Reading this type of file is not available right now. '
+                                      'Please paste the text directly.'},
  'report_doc_title': 'Report of candidate patterns for reflection',
  'report_confidential': 'Confidential document for the management team',
  'report_prepared': 'Prepared on {date}',
  'report_how_to_read_title': 'How to read this report',
- 'report_how_to_read': 'This report lists candidate patterns: groups of similar observations the team may wish to discuss. They are not conclusions. A group of similar observations is not evidence of bias or poor practice, and the observations come from a small set that professionals chose to share voluntarily, so they do not represent the organisation. The team decides what each pattern means, if anything.',
+ 'report_how_to_read': 'This report lists candidate patterns: groups of similar observations the '
+                       'team may wish to discuss. They are not conclusions. A group of similar '
+                       'observations is not evidence of bias or poor practice, and the '
+                       'observations come from a small set that professionals chose to share '
+                       'voluntarily, so they do not represent the organisation. The team decides '
+                       'what each pattern means, if anything.',
  'report_search_title': 'The search it comes from',
- 'report_search_line': 'Search of {date}: {observations} shared observations compared and {patterns} candidate pattern(s) found.',
+ 'report_search_line': 'Search of {date}: {observations} shared observations compared and '
+                       '{patterns} candidate pattern(s) found.',
  'report_filters_line': 'Search filters: {filters}',
  'report_no_filters': 'none',
  'report_statuses_line': 'Statuses included in this report: {statuses}',
@@ -981,23 +1068,45 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'report_observations_omitted': 'Observations and quotations are not included in this report.',
  'report_quote_label': 'Exact quotation',
  'report_limits_title': 'Limits of this report',
- 'report_limits_list': ['It is an automatic grouping by similarity of meaning; it may join unrelated observations or separate related ones.', 'The observations come from AI-assisted reflections and from professionals who chose to share them; they are not a complete or representative record.', 'Case references are typed by hand: a typo can make one case count as two.', 'The explanatory text is written by AI from the observations and may reflect observations withdrawn after the search.', 'Nothing in this report identifies who wrote an observation or includes their private notes.'],
+ 'report_limits_list': ['It is an automatic grouping by similarity of meaning; it may join '
+                        'unrelated observations or separate related ones.',
+                        'The observations come from AI-assisted reflections and from professionals '
+                        'who chose to share them; they are not a complete or representative '
+                        'record.',
+                        'Case references are typed by hand: a typo can make one case count as two.',
+                        'The explanatory text is written by AI from the observations and may '
+                        'reflect observations withdrawn after the search.',
+                        'Nothing in this report identifies who wrote an observation or includes '
+                        'their private notes.'],
  'report_footer': 'Confidential · Candidate patterns for reflection, not conclusions · {date}',
  'report_section_header': 'Printable report',
- 'report_section_intro': 'Creates a document to print or save as PDF with the patterns shown above (according to the chosen statuses).',
+ 'report_section_intro': 'Creates a document to print or save as PDF with the patterns shown above '
+                         '(according to the chosen statuses).',
  'report_opt_observations': 'Include the observations and their exact quotations',
- 'report_opt_case_refs': 'Include case references (off by default: paper travels further than a screen)',
+ 'report_opt_case_refs': 'Include case references (off by default: paper travels further than a '
+                         'screen)',
  'report_opt_comments': 'Include the team comments',
  'report_prepare_button': 'Prepare report',
  'report_ready': 'Report prepared.',
  'report_download_button': 'Download report',
- 'report_how_to_print': 'Open the downloaded file in your browser and press Ctrl+P (or Print) to print it or save it as a PDF.',
- 'report_outdated': 'You changed the search, the statuses or the options: prepare the report again.',
+ 'report_how_to_print': 'Open the downloaded file in your browser and press Ctrl+P (or Print) to '
+                        'print it or save it as a PDF.',
+ 'report_outdated': 'You changed the search, the statuses or the options: prepare the report '
+                    'again.',
  'nav_corpus': '📚 Text analysis',
  'corpus_title': '📚 Text analysis',
  'corpus_no_access': 'This page is only for supervision and programme coordination.',
- 'corpus_intro': "Here the management team can load existing texts (for example EDE's raw texts) and look for passages with a similar meaning that recur across several documents. What appears are candidate patterns for reflection, not conclusions: a repeated expression does not show bias or poor practice, and may simply reflect the type of document or a template.",
- 'corpus_privacy_note': "Before saving, each text has names and personal details removed by the app's automatic system, which may not catch everything: only load texts that are already anonymised. Texts are identified by a number (T-001, T-002…); file names are not stored. This collection is kept apart from professionals' reflections and is visible only to supervision and coordination.",
+ 'corpus_intro': "Here the management team can load existing texts (for example EDE's raw texts) "
+                 'and look for passages with a similar meaning that recur across several '
+                 'documents. What appears are candidate patterns for reflection, not conclusions: '
+                 'a repeated expression does not show bias or poor practice, and may simply '
+                 'reflect the type of document or a template.',
+ 'corpus_privacy_note': 'Before saving, each text has names and personal details removed by the '
+                        "app's automatic system, which may not catch everything: only load texts "
+                        'that are already anonymised. Texts are identified by a number (T-001, '
+                        'T-002…); file names are not stored. This collection is kept apart from '
+                        "professionals' reflections and is visible only to supervision and "
+                        'coordination.',
  'corpus_collection_header': 'Text collection',
  'corpus_create_header': 'Create a new collection',
  'corpus_create_name_label': 'Collection name',
@@ -1008,9 +1117,11 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'corpus_select_label': 'Collection',
  'corpus_option': '{name} ({documents} texts)',
  'corpus_add_header': 'Add texts',
- 'corpus_add_intro': 'You can add texts one by one, several at a time, or all together. If you add the same text twice, the app notices and does not duplicate it.',
+ 'corpus_add_intro': 'You can add texts one by one, several at a time, or all together. If you add '
+                     'the same text twice, the app notices and does not duplicate it.',
  'corpus_upload_label': 'Upload files (Word, PDF or text)',
- 'corpus_too_many_files': 'You selected too many files at once: only the first {max} will be added. Upload the rest afterwards.',
+ 'corpus_too_many_files': 'You selected too many files at once: only the first {max} will be '
+                          'added. Upload the rest afterwards.',
  'corpus_add_files_button': 'Add the selected files',
  'corpus_adding': 'Adding texts…',
  'corpus_paste_label': 'Or paste a text here',
@@ -1033,96 +1144,144 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'corpus_doc_deleted_ok': 'Text deleted, with its passages and its place in the patterns.',
  'corpus_docs_more': 'And {count} more texts.',
  'corpus_delete_collection': 'Delete the whole collection',
- 'corpus_delete_collection_help': 'All texts, passages and patterns in this collection are erased. This cannot be undone.',
- 'corpus_delete_collection_confirm': 'I understand everything will be erased and this cannot be undone',
+ 'corpus_delete_collection_help': 'All texts, passages and patterns in this collection are erased. '
+                                  'This cannot be undone.',
+ 'corpus_delete_collection_confirm': 'I understand everything will be erased and this cannot be '
+                                     'undone',
  'corpus_delete_collection_button': 'Delete collection',
  'corpus_deleted_ok': 'Collection deleted.',
  'corpus_generate_header': 'Look for recurring passages',
  'corpus_settings_header': 'Search settings',
- 'corpus_settings_intro': 'These settings are starting points, not proven values. Change them and compare the results.',
+ 'corpus_settings_intro': 'These settings are starting points, not proven values. Change them and '
+                          'compare the results.',
  'corpus_similarity_label': 'Similarity required between passages',
- 'corpus_similarity_help': 'Broad groups passages with a looser resemblance (more groups, more noise). Strict requires a closer resemblance (fewer, more reliable groups).',
+ 'corpus_similarity_help': 'Broad groups passages with a looser resemblance (more groups, more '
+                           'noise). Strict requires a closer resemblance (fewer, more reliable '
+                           'groups).',
  'corpus_min_passages_label': 'Minimum passages per pattern',
  'corpus_min_documents_label': 'Minimum different texts per pattern',
  'corpus_questions_switch': 'Include AI-written questions',
- 'corpus_questions_help': 'If you switch this off, the AI does not write questions and none are shown. The other explanations are still written.',
- 'corpus_cost_note': 'Searching uses AI to write up to {max_patterns} explanations (a few cents in total) and to give meaning to new passages (very cheap, and only once per passage). You only pay again if you press the button again.',
- 'corpus_truncated': 'The collection has more passages than one search can hold; the first {max} (in text order) will be used.',
+ 'corpus_questions_help': 'If you switch this off, the AI does not write questions and none are '
+                          'shown. The other explanations are still written.',
+ 'corpus_cost_note': 'Searching uses AI to write up to {max_patterns} explanations (a few cents in '
+                     'total) and to give meaning to new passages (very cheap, and only once per '
+                     'passage). You only pay again if you press the button again.',
+ 'corpus_truncated': 'The collection has more passages than one search can hold; the first {max} '
+                     '(in text order) will be used.',
  'corpus_not_enough': 'At least {minimum} texts are needed in the collection to search.',
  'corpus_generate_button': 'Look for recurring passages',
  'corpus_generating': 'Working… this may take a minute.',
  'corpus_busy': 'A search is already running. Please wait for it to finish.',
- 'corpus_unavailable': 'The service that compares meanings is not set up, so searching is not possible right now.',
- 'corpus_none_found': 'No group appeared in enough different texts ({documents} texts, {passages} passages reviewed). Try a broader similarity or lower minimums.',
+ 'corpus_unavailable': 'The service that compares meanings is not set up, so searching is not '
+                       'possible right now.',
+ 'corpus_none_found': 'No group appeared in enough different texts ({documents} texts, {passages} '
+                      'passages reviewed). Try a broader similarity or lower minimums.',
  'corpus_generated_ok': '{patterns} candidate patterns were found across {documents} texts.',
  'corpus_not_embedded': '{count} passages could not be compared this time and were left out.',
- 'corpus_fallback_notice': 'For {count} patterns the automatic explanation could not be written; a plain text is shown and you can try again.',
+ 'corpus_fallback_notice': 'For {count} patterns the automatic explanation could not be written; a '
+                           'plain text is shown and you can try again.',
  'corpus_review_header': 'Review the candidate patterns',
  'corpus_no_runs': 'No search has been run on this collection yet.',
  'corpus_run_select': 'Search',
  'corpus_run_option': '{date} — {documents} texts — {patterns} patterns',
- 'corpus_run_caption': 'Similarity: {level} · minimum passages: {min_passages} · minimum texts: {min_documents} · AI questions: {questions}',
+ 'corpus_run_caption': 'Similarity: {level} · minimum passages: {min_passages} · minimum texts: '
+                       '{min_documents} · AI questions: {questions}',
  'corpus_yes': 'yes',
  'corpus_no': 'no',
  'corpus_none_in_view': 'No pattern matches the chosen statuses.',
- 'corpus_no_groups_note': 'The texts carry no labels (neither of who wrote them nor of who they concern), so this page cannot say anything about whether different groups are treated alike or differently. It only shows what recurs and in how many texts.',
+ 'corpus_no_groups_note': 'The texts carry no labels (neither of who wrote them nor of who they '
+                          'concern), so this page cannot say anything about whether different '
+                          'groups are treated alike or differently. It only shows what recurs and '
+                          'in how many texts.',
  'corpus_item_header': '{title} — {status} — in {documents} of {total} texts',
  'corpus_counts_line': 'Appears in {documents} of {total} texts ({percent}%) · {passages} passages',
  'corpus_documents_line': 'Texts: {labels}',
- 'corpus_lost_members': "{count} of this pattern's passages are no longer available (the text was deleted). The written explanation may still reflect them: search again before relying on it.",
- 'corpus_below_minimum': 'With the current texts, this group no longer reaches the minimums it was found with.',
+ 'corpus_lost_members': "{count} of this pattern's passages are no longer available (the text was "
+                        'deleted). The written explanation may still reflect them: search again '
+                        'before relying on it.',
+ 'corpus_below_minimum': 'With the current texts, this group no longer reaches the minimums it was '
+                         'found with.',
  'corpus_passages_header': 'Exact passages',
  'corpus_more_passages': 'And {count} more passages are not shown here.',
  'corpus_exclude_button': 'This passage does not belong in this pattern',
  'corpus_excluded_ok': 'Passage removed from the pattern.',
  'corpus_restored_ok': 'Passage included again.',
  'corpus_read_header': 'Read each text with the reflection lenses',
- 'corpus_read_intro': "The AI reads each text separately with the same eight reflection lenses professionals use (the person's voice, observation versus interpretation, labels and language, possible bias, and so on) and keeps only quotes that really appear in the text. It does not compare texts with each other: the app calculates the counts.",
+ 'corpus_read_intro': 'The AI reads each text separately with the same eight reflection lenses '
+                      "professionals use (the person's voice, observation versus interpretation, "
+                      'labels and language, possible bias, and so on) and keeps only quotes that '
+                      'really appear in the text. It does not compare texts with each other: the '
+                      'app calculates the counts.',
  'corpus_read_no_texts': 'Add texts so they can be read.',
  'corpus_read_status': '{read} of {documents} texts read; {unread} to go.',
  'corpus_read_nothing': 'All texts have been read.',
- 'corpus_read_cost_note': 'Each text is read with eight AI calls: about ${per_text} per text. This batch (up to {batch} texts) will cost about ${cost}. Texts are read in batches so each click does not take too long; press again to continue with the next ones.',
+ 'corpus_read_cost_note': 'Each text is read with eight AI calls: about ${per_text} per text. This '
+                          'batch (up to {batch} texts) will cost about ${cost}. Texts are read in '
+                          'batches so each click does not take too long; press again to continue '
+                          'with the next ones.',
  'corpus_read_button': 'Read the next {count} texts',
  'corpus_reading': 'Reading texts…',
  'corpus_read_progress': 'Read {done} of {total} texts',
  'corpus_read_busy': 'A reading is already running. Please wait for it to finish.',
  'corpus_read_unavailable': 'The AI service is not set up, so reading is not possible right now.',
  'corpus_read_done': '{count} texts were read. {remaining} to go.',
- 'corpus_read_failed_lenses': '{count} readings could not be completed; they will be tried again next time.',
- 'corpus_read_caveat': '"Raised" means the AI raised an observation in that text with that lens. It does not measure how often something happens, and when it raises nothing that does not mean the text is free of it.',
+ 'corpus_read_failed_lenses': '{count} readings could not be completed; they will be tried again '
+                              'next time.',
+ 'corpus_read_caveat': '"Raised" means the AI raised an observation in that text with that lens. '
+                       'It does not measure how often something happens, and when it raises '
+                       'nothing that does not mean the text is free of it.',
  'corpus_lens_counts_header': 'Which lenses were raised, by text',
  'corpus_lens_item': '{lens} — raised in {raised} of {considered} texts',
  'corpus_lens_failed_note': 'In {count} texts this lens could not be read.',
  'corpus_lens_none': 'The AI raised nothing with this lens.',
- 'corpus_lens_no_quote': 'No exact passage (the observation may be about something missing from the text).',
- 'corpus_lens_unverified': '{count} proposed passage(s) could not be checked against the text and are not shown.',
+ 'corpus_lens_no_quote': 'No exact passage (the observation may be about something missing from '
+                         'the text).',
+ 'corpus_lens_unverified': '{count} proposed passage(s) could not be checked against the text and '
+                           'are not shown.',
  'corpus_text_view_header': 'See the reading of one text',
  'corpus_text_select': 'Text',
  'corpus_text_no_reading': 'This text has not been read yet.',
  'corpus_text_lens_failed': 'This lens could not be read.',
  'corpus_text_lens_none': 'The AI raised nothing.',
  'corpus_read_again_header': 'Read all texts again',
- 'corpus_read_again_help': 'Erases all readings of this collection so it can be read again from scratch (you pay again).',
- 'corpus_read_again_confirm': 'I understand the readings will be erased and reading again costs again',
+ 'corpus_read_again_help': 'Erases all readings of this collection so it can be read again from '
+                           'scratch (you pay again).',
+ 'corpus_read_again_confirm': 'I understand the readings will be erased and reading again costs '
+                              'again',
  'corpus_read_again_button': 'Erase the readings',
  'corpus_read_cleared_ok': 'Readings erased.',
  'corpus_terms_header': 'Word and phrase list',
- 'corpus_terms_intro': 'Counts in how many texts each word or phrase on your list appears. It is only a count of written words: it does not interpret meaning, and a word not appearing does not mean the idea is absent from the text in other words.',
- 'corpus_terms_how': 'Write one word or phrase per line. Capitals and accents do not matter. Add * at the end of a word to include its endings: "agresiv*" finds agresivo, agresiva, agresivos… This is especially useful in Basque, where words change at the end: "etxe*" finds etxea, etxeak, etxean…',
+ 'corpus_terms_intro': 'Counts in how many texts each word or phrase on your list appears. It is '
+                       'only a count of written words: it does not interpret meaning, and a word '
+                       'not appearing does not mean the idea is absent from the text in other '
+                       'words.',
+ 'corpus_terms_how': 'Write one word or phrase per line. Capitals and accents do not matter. Add * '
+                     'at the end of a word to include its endings: "agresiv*" finds agresivo, '
+                     'agresiva, agresivos… This is especially useful in Basque, where words change '
+                     'at the end: "etxe*" finds etxea, etxeak, etxean…',
  'corpus_terms_add_label': 'Words or phrases (one per line)',
  'corpus_terms_add_button': 'Add to the list',
  'corpus_terms_empty_input': 'Write at least one word or phrase.',
  'corpus_terms_added': 'Added: {added}. Already on the list: {duplicates}. Not valid: {invalid}.',
- 'corpus_terms_invalid_lines': 'These lines could not be used: {lines}. Only letters and numbers are allowed (and * at the end of a word, after at least three letters), with at most {words} words per phrase.',
+ 'corpus_terms_invalid_lines': 'These lines could not be used: {lines}. Only letters and numbers '
+                               'are allowed (and * at the end of a word, after at least three '
+                               'letters), with at most {words} words per phrase.',
  'corpus_terms_full': 'The list has reached its limit of {max} words or phrases.',
- 'corpus_terms_starter_help': 'A starting point with words and phrases that sometimes appear in texts that describe people in a negative or closed way. It is an example list: edit it, remove what does not help and add your own. The Basque part needs to be reviewed by a Basque speaker before it is relied on.',
+ 'corpus_terms_starter_help': 'A starting point with words and phrases that sometimes appear in '
+                              'texts that describe people in a negative or closed way. It is an '
+                              'example list: edit it, remove what does not help and add your own. '
+                              'The Basque part needs to be reviewed by a Basque speaker before it '
+                              'is relied on.',
  'corpus_terms_starter_button': 'Add the starter list (Spanish and Basque)',
  'corpus_terms_starter_done': 'Starter list added: {added} new ({duplicates} were already there).',
- 'corpus_terms_basque_review': 'The Basque words in the starter list are a first proposal: a Basque speaker must review them.',
+ 'corpus_terms_basque_review': 'The Basque words in the starter list are a first proposal: a '
+                               'Basque speaker must review them.',
  'corpus_terms_none_yet': 'The list is empty. Add words or use the starter list.',
  'corpus_terms_no_texts': 'Add texts to the collection so there is something to count.',
  'corpus_terms_counts_header': 'Results',
- 'corpus_terms_caveat': '"Texts" counts the texts that contain the word at least once. It does not measure whether something is common, or good or bad: a word can also be used to deny something ("not aggressive"). Always look at the context.',
+ 'corpus_terms_caveat': '"Texts" counts the texts that contain the word at least once. It does not '
+                        'measure whether something is common, or good or bad: a word can also be '
+                        'used to deny something ("not aggressive"). Always look at the context.',
  'corpus_terms_col_term': 'Word or phrase',
  'corpus_terms_col_texts': 'Texts',
  'corpus_terms_col_times': 'Times',
@@ -1142,27 +1301,144 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'corpus_terms_text_line': '{term}: {times}',
  'corpus_terms_download': 'Download the full table (CSV)',
  'corpus_report_header': 'Printable report',
- 'corpus_report_intro': 'Creates a document to print or save as PDF with the parts you choose. Texts appear only by their number (T-001…).',
+ 'corpus_report_intro': 'Creates a document to print or save as PDF with the parts you choose. '
+                        'Texts appear only by their number (T-001…).',
  'corpus_report_opt_patterns': 'Include the patterns from a search',
  'corpus_report_run_label': 'Pattern search to include',
  'corpus_report_opt_readings': 'Include the reading through the lenses',
  'corpus_report_opt_terms': 'Include the word list',
- 'corpus_report_opt_passages': 'Include the passages and exact quotes (unticked: only counts and explanations)',
+ 'corpus_report_opt_passages': 'Include the passages and exact quotes (unticked: only counts and '
+                               'explanations)',
  'corpus_report_nothing_selected': 'Tick at least one part of the report.',
  'corpus_report_no_run': 'There are no pattern searches yet, so no patterns will be included.',
  'corpus_report_doc_title': 'Text analysis report',
- 'corpus_report_how_to_read': 'This report shows what recurs in a set of texts that already exist. The patterns are candidates for reflection, not conclusions: a theme recurring does not prove bias or poor practice. The strength of each finding is always given as "in how many of the texts it appears". The team decides what it means, if anything.',
+ 'corpus_report_how_to_read': 'This report shows what recurs in a set of texts that already exist. '
+                              'The patterns are candidates for reflection, not conclusions: a '
+                              'theme recurring does not prove bias or poor practice. The strength '
+                              'of each finding is always given as "in how many of the texts it '
+                              'appears". The team decides what it means, if anything.',
  'corpus_report_collection_title': 'The collection',
  'corpus_report_collection_line': 'Collection "{name}": {documents} texts and {passages} passages.',
  'corpus_report_search_title': 'Pattern search',
- 'corpus_report_search_line': 'Search of {date}: {documents} texts and {passages} passages compared; {patterns} candidate pattern(s) found.',
+ 'corpus_report_search_line': 'Search of {date}: {documents} texts and {passages} passages '
+                              'compared; {patterns} candidate pattern(s) found.',
  'corpus_report_col_texts': 'In how many texts',
  'corpus_report_col_passages': 'Passages',
  'corpus_report_passages_omitted': 'The passages and quotes are not included in this report.',
  'corpus_report_readings_title': 'Reading of each text through the lenses',
- 'corpus_report_readings_omitted': 'The observations and exact quotes are not included in this report; below, the texts where the AI raised something.',
+ 'corpus_report_readings_omitted': 'The observations and exact quotes are not included in this '
+                                   'report; below, the texts where the AI raised something.',
  'corpus_report_terms_title': 'Word and phrase list',
  'corpus_report_col_where': 'Texts where it appears',
  'corpus_report_more_texts': '(and {count} more)',
- 'corpus_report_limits_list': ['The texts carry no labels (neither of who wrote them nor of who they concern): this report cannot say anything about whether different groups are treated alike or differently.', 'Grouping into patterns is automatic, by similarity of meaning; it can join unrelated passages or separate related ones.', 'The reading through the lenses is done by the AI text by text: "raised" does not measure how often something happens, and when it raises nothing that does not mean the text is free of it.', 'The word count covers written words only: it does not understand context or synonyms.', 'The texts in the collection are the ones the team chose to load; they are not necessarily representative of all documentation.', 'Automatic anonymisation may not catch all personal details: check this report before sharing it.'],
- 'corpus_report_footer': 'Confidential · Candidates for reflection, not conclusions · {date}'}
+ 'corpus_report_limits_list': ['The texts carry no labels (neither of who wrote them nor of who '
+                               'they concern): this report cannot say anything about whether '
+                               'different groups are treated alike or differently.',
+                               'Grouping into patterns is automatic, by similarity of meaning; it '
+                               'can join unrelated passages or separate related ones.',
+                               'The reading through the lenses is done by the AI text by text: '
+                               '"raised" does not measure how often something happens, and when it '
+                               'raises nothing that does not mean the text is free of it.',
+                               'The word count covers written words only: it does not understand '
+                               'context or synonyms.',
+                               'The texts in the collection are the ones the team chose to load; '
+                               'they are not necessarily representative of all documentation.',
+                               'Automatic anonymisation may not catch all personal details: check '
+                               'this report before sharing it.'],
+ 'corpus_report_footer': 'Confidential · Candidates for reflection, not conclusions · {date}',
+ 'rs_intro': 'Write, paste or upload the case you want to reflect on, and reflect on it straight '
+             'away. The case text is only used during this reflection and is never saved: what is '
+             'saved is the reflection.',
+ 'rs_code_label': 'Code for this reflection:',
+ 'rs_code_help': 'A neutral code created by the app. It does not identify anyone. Note it down if '
+                 'you later want to link another reflection about the same situation.',
+ 'rs_note_type_label': 'Type of text',
+ 'rs_tags_label': 'Case themes (no personal details)',
+ 'rs_tags_placeholder': 'Choose one or more themes',
+ 'rs_tags_help': 'Tick up to {max} themes that describe the situation, never the person. They are '
+                 'used later to find your reflections on similar situations.',
+ 'rs_tags_short_label': 'Themes',
+ 'rs_no_tags': 'No themes',
+ 'rs_previous_code_label': 'Does this continue an earlier reflection? (optional)',
+ 'rs_previous_code_placeholder': 'RS-XXXXXX',
+ 'rs_previous_code_help': "If you reflected on this same situation before, enter that reflection's "
+                          'code here so it is taken into account. You can only link your own '
+                          'reflections.',
+ 'rs_previous_code_invalid': "That code isn't in the right format. It should look like RS-7F3K2Q.",
+ 'rs_previous_code_not_found': 'No reflection of yours with the code {code} was found. Check the '
+                               'code or leave the field empty.',
+ 'rs_previous_code_check_failed': "The earlier code couldn't be checked right now. Try again or "
+                                  'leave the field empty.',
+ 'rs_case_text_label': 'Case text',
+ 'rs_case_text_placeholder': 'Write or paste the case here…',
+ 'rs_case_text_not_saved_note': '🔒 This text is not saved. It only exists while this reflection '
+                                'lasts.',
+ 'rs_continue_button': 'Continue',
+ 'rs_case_text_review_label': 'Case text (not saved)',
+ 'rs_similar_header': 'Your related earlier reflections',
+ 'rs_similar_intro': 'Your reflections linked to this one or sharing themes with it. Untick any '
+                     "you don't want taken into account.",
+ 'rs_similar_none': 'You have no earlier reflections linked to this one or sharing its themes. The '
+                    "reflection will use today's text only.",
+ 'rs_similar_failed': "Your earlier reflections couldn't be searched right now. You can continue: "
+                      "the reflection will use today's text only.",
+ 'rs_similar_reason_linked': 'Linked as an earlier reflection on this situation',
+ 'rs_similar_reason_tags': 'Shared themes',
+ 'rs_similar_include_label': 'Take this reflection into account',
+ 'rs_similar_observations_label': 'See its observations',
+ 'rs_similar_used_label': 'Earlier reflections included',
+ 'rs_back_to_case_button': 'Back to the case',
+ 'rs_finish_header': 'Finish the reflection',
+ 'rs_finish_caption': 'Your reflection and your notes are saved under the code {code}. When you '
+                      'finish, the case text is discarded.',
+ 'rs_finish_caption_unsaved': "This reflection couldn't be saved. When you finish, the case text "
+                              'is discarded.',
+ 'rs_finish_button': 'Finish reflection',
+ 'rs_finished_success': '✔ Reflection finished. The case text has been discarded.',
+ 'rs_start_over_button': 'Start again',
+ 'ch_reflections_header': 'Saved reflections',
+ 'ch_reflections_intro': "Each reflection is shown with its neutral code and themes. The AI's "
+                         "observations are shown; never the case text (it isn't saved) and never "
+                         "professionals' private notes.",
+ 'ch_tag_filter_label': 'Theme',
+ 'ch_all_tags': 'All themes',
+ 'ch_showing_recent': 'Showing the {shown} most recent of {total} reflections. Pick a date or '
+                      'theme to narrow it down.',
+ 'ch_author_label': 'Done by',
+ 'ch_linked_label': 'Continues reflection',
+ 'ch_no_observations': 'This reflection has no saved observations.',
+ 'ch_delete_button': 'Delete reflection',
+ 'ch_delete_confirm': 'Are you sure you want to delete this reflection? Its observations and the '
+                      'notes on them will be erased. This cannot be undone.',
+ 'ch_deleted_success': '✔ Reflection deleted.',
+ 'ch_delete_failed': '⚠ The reflection could not be deleted.',
+ 'research_observations_label': 'Observations saved',
+ 'admin_legacy_docs_header': '🗑️ Erase old stored documents',
+ 'admin_legacy_docs_none': 'No old stored documents remain. Reflection Space only stores '
+                           'reflections.',
+ 'admin_legacy_docs_count': '{count} document(s) saved before the change to "reflections only" '
+                            'remain.',
+ 'admin_legacy_docs_caption': 'This permanently erases: every old document, its edit history, the '
+                              'reflections generated from them (with their observations and notes) '
+                              'and their search copies. New reflections are not touched. This '
+                              'cannot be undone.',
+ 'admin_legacy_docs_confirm_word': 'ERASE',
+ 'admin_legacy_docs_confirm_label': 'To confirm, type {word}',
+ 'admin_legacy_docs_button': 'Erase all old documents',
+ 'admin_legacy_docs_done': '✔ {count} old document(s) erased.',
+ 'admin_legacy_docs_refused': 'Only the System Administrator can do this.',
+ 'admin_legacy_docs_count_failed': "Couldn't check how many old documents remain.",
+ 'case_tag_labels': {'housing': 'Housing / homelessness',
+                     'employment_training': 'Employment and training',
+                     'income_benefits': 'Income and benefits',
+                     'mental_health': 'Mental health',
+                     'physical_health': 'Physical health',
+                     'addictions': 'Addictions',
+                     'disability': 'Disability',
+                     'family_relationships': 'Family relationships',
+                     'children_youth': 'Children and young people',
+                     'older_people': 'Older people',
+                     'gender_violence': 'Gender-based violence',
+                     'social_isolation': 'Loneliness / social isolation',
+                     'migration_integration': 'Migration and integration',
+                     'legal_administrative': 'Legal and administrative matters'}}

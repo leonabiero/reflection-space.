@@ -24,7 +24,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'empty': 'Mesedez idatzi testua',
  'new': 'Dokumentu berria',
  'reflection': 'Hausnarketa gunea',
- 'home_subtitle': 'Praktikan dokumentatzeko eta hausnartzeko gune bat.',
+ 'home_subtitle': 'Praktikan hausnartzeko gune bat.',
  'nav_hint': 'Erabili alboko barra nabigatzeko.',
  'nav_header': 'Nabigatu:',
  'nav_doc': '📝 Dokumentazioa',
@@ -36,7 +36,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'reflection_folders_intro': 'Hausnartzeko dauden dokumentuak, kasuka multzokatuta.',
  'reflection_same_day_notice': '⚠️ Kasu honek egun bereko dokumentu bat baino gehiago ditu.',
  'reflection_no_case_ref': '(Kasu-erreferentziarik gabe)',
- 'reflection_active_case_prefix': 'Hausnartzen ari zaren kasua:',
+ 'reflection_active_case_prefix': 'Hausnarketaren kodea:',
  'reflection_delete_button': 'Dokumentua ezabatu',
  'reflection_delete_confirm': 'Ziur zaude dokumentu hau ezabatu nahi duzula? Ekintza hau ezin da '
                               'desegin.',
@@ -44,13 +44,12 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'reflection_context_title': 'Hausnarketaren testuingurua',
  'reflection_context_current_label': 'Hautatutako dokumentua(k):',
  'reflection_context_historical_label': 'Kasu honetako dokumentu historiko garrantzitsuak:',
- 'reflection_context_summary_strong': 'Hausnarketa honek gaurko dokumentazioa eta garrantzitsuak '
-                                      'diren {count} dokumentu historiko erabiltzen ditu.',
- 'reflection_context_summary_limited': 'Hausnarketa honek batez ere gaurko dokumentazioa '
-                                       'erabiltzen du, informazio historiko garrantzitsu gutxi '
-                                       'aurkitu baita.',
- 'reflection_context_summary_none': 'Kasu honetarako dokumentatutako lehen interakzioa dirudi.',
- 'reflection_context_continue': 'Hausnarketara jarraitu',
+ 'reflection_context_summary_strong': 'Hausnarketa honek gaurko kasua eta lotutako {count} aurreko '
+                                      'hausnarketa erabiltzen ditu.',
+ 'reflection_context_summary_limited': 'Hausnarketa honek batez ere gaurko kasua erabiltzen du, '
+                                       'lotutako aurreko hausnarketa gutxirekin.',
+ 'reflection_context_summary_none': 'Hausnarketa honek gaurko kasua bakarrik erabiltzen du.',
+ 'reflection_context_continue': 'Sortu hausnarketa',
  'reflection_context_back': 'Hautaketara itzuli',
  'reflection_partial_failure_notice': 'Hausnarketa-ikuspegi batzuk ({count}) ezin izan dira sortu. '
                                       'Hausnarketa hala ere sortu da. Hau berrikusteko '
@@ -127,9 +126,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_sample_label': 'Lagin-testua (datu faltsuak soilik)',
  'admin_run_button': 'Anonimizatzailea exekutatu',
  'admin_output_label': 'Irteera anonimizatua (Claude-ra bidaltzen dena):',
- 'nav_case_history': '🗂️ Kasuen historia',
- 'case_history_title': 'Kasuen historia',
- 'case_history_no_items': 'Oraindik ez dago osatutako hausnarketarik.',
+ 'nav_case_history': '🗂️ Hausnarketen historia',
+ 'case_history_title': 'Hausnarketen historia',
+ 'case_history_no_items': 'Oraindik ez dago gordetako hausnarketarik.',
  'case_history_original_label': 'Jatorrizko bertsioa',
  'case_history_current_label': 'Uneko bertsioa',
  'case_history_edited_label': 'Editatua',
@@ -150,7 +149,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'case_history_toggle_label': 'Erakutsi:',
  'case_history_edited_option': 'Editatuak',
  'case_history_not_edited_option': 'Editatu gabeak',
- 'case_history_no_items_for_filter': 'Ez dago dokumenturik hautapen honetarako.',
+ 'case_history_no_items_for_filter': 'Ez dago hausnarketarik hautapen honetarako.',
  'case_history_showing_recent': '{total} dokumentuetatik azken {shown} erakusten ari da. Erabili '
                                 'data-iragazkia dokumentu zaharragoak ikusteko.',
  'feedback_showing_recent': '{total} iruzkinetatik azken {shown} erakusten ari da.',
@@ -183,7 +182,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'audit_action_restored': 'Berreskuratua',
  'audit_action_purged': 'Behin betiko ezabatua',
  'workspace_opportunities_header': 'Hausnarketa aukerak',
- 'workspace_document_header': 'Uneko dokumentua',
+ 'workspace_document_header': 'Kasuaren testua (ez da gordetzen)',
  'workspace_context_header': 'Hausnarketaren testuingurua',
  'workspace_progress_label': 'Aztertuta: {explored} / {total}',
  'workspace_explore_button': 'Aztertu',
@@ -207,7 +206,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'growth_themes_header': 'Gehien aztertu dituzun arloak',
  'growth_themes_caption': 'Erregistratutako {total} azterketa-unetan oinarrituta',
  'growth_history_header': 'Duela gutxiko hausnarketa-uneak',
- 'growth_entry_line': '**{theme}** — {case} kasua — {count} truke — {date}',
+ 'growth_entry_line': '**{theme}** — {case} hausnarketa — {count} truke — {date}',
  'growth_session_count_label': 'Guztira erregistratutako azterketa-uneak',
  'nav_team_learning': '🌍 Taldearen Ikaskuntza',
  'team_learning_title': '🌍 Taldearen Hausnarketa Gaiak',
@@ -261,13 +260,14 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'why_similarity_high': 'Altua',
  'why_similarity_moderate': 'Ertaina',
  'why_similarity_low': 'Baxua',
- 'journey_step1': 'Gaurko Dokumentazioa',
- 'journey_step2': 'Testuinguru Historikoa',
+ 'journey_step1': 'Zure kasua',
+ 'journey_step2': 'Aurreko hausnarketak',
  'journey_step3': 'Hausnarketa Profesionala',
  'journey_step4': 'Hausnarketa Galderak',
- 'journey_step1_desc': 'Gaurko dokumentuak hautatzen dira hausnartzeko.',
- 'journey_step2_desc': 'Kasu honetako dokumentu historiko garrantzitsuak berreskuratzen dira.',
- 'journey_step3_desc': 'IAk gaurko dokumentazioa testuinguru historikoarekin batera aztertzen du.',
+ 'journey_step1_desc': 'Hausnartu nahi duzun kasua idatzi, itsatsi edo igotzen duzu.',
+ 'journey_step2_desc': 'Lotutako edo gai komunak dituzten zure aurreko hausnarketak bilatzen dira.',
+ 'journey_step3_desc': 'IAk gaurko kasua aztertzen du, barne hartu dituzun aurreko hausnarketekin '
+                       'batera.',
  'journey_step4_desc': 'Hausnarketa galderak kontsideratzeko gonbidatzen zaitu.',
  'historical_timeline_header': 'Denbora-lerro historikoa',
  'historical_timeline_intro': 'Kasu honetako dokumentu garrantzitsuak, kronologikoki ordenatuta.',
@@ -302,8 +302,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'learning_tab_team': '🌍 Taldearen Ikaskuntza',
  'ka_header': 'Galdetu erakundearen ezagutzari buruz',
  'ka_intro': 'Egin galdera bat hizkuntza naturalean erakundearen eredu, gai eta jarduera '
-             'erreflexiboari buruz. Erantzunak indexatutako dokumentazio eta hausnarketetan '
-             'oinarritzen dira soilik — inoiz ez kanpoko ezagutza orokorrean.',
+             'erreflexiboari buruz. Erantzunak gordetako hausnarketetan oinarritzen dira soilik — '
+             'inoiz ez kanpoko ezagutza orokorrean.',
  'ka_question_label': 'Zure galdera',
  'ka_question_placeholder': 'Adibidez: Zein eredu sortu dira Kulunkan hiruhileko honetan?',
  'ka_ask_button': 'Galdetu',
@@ -327,7 +327,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'ka_evidence_count': '{count} dokumentu garrantzitsu berreskuratuta',
  'ka_evidence_doc_type_col': 'Dokumentu mota',
  'ka_evidence_date_col': 'Data',
- 'ka_evidence_case_col': 'Kasu/zerbitzu erreferentzia',
+ 'ka_evidence_case_col': 'Hausnarketaren kodea',
  'ka_evidence_relevance_col': 'Garrantzia',
  'ka_evidence_none': 'Ez da galdera honentzako dokumentu garrantzitsurik berreskuratu.',
  'admin_user_mgmt_header': '👥 Erabiltzaileen kudeaketa',
@@ -439,10 +439,16 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                              'sortu.',
  'admin_config_header': '⚙️ Konfigurazioa',
  'admin_tools_header': '🧰 Administrazio-tresnak',
- 'admin_anon_empty_warning': 'Idatzi edo itsatsi lehenik lagin-testu bat eta sakatu berriro botoia.',
- 'admin_anon_no_changes': 'Anonimizatzaileak ez du ordezkatzeko datu pertsonalik aurkitu testu honetan.',
- 'admin_anon_stale_note': 'Testua aldatu duzu azken probatik: sakatu berriro botoia emaitza eguneratua ikusteko.',
- 'admin_anon_tags_help': 'Etiketak: [PERSON] = pertsona-izena · [LOCATION] = tokia · [ADDRESS] = helbidea · [ORGANISATION] = zentroa edo erakundea · [ID] = NAN/AIZ, espedientea, kontua edo beste identifikatzaile bat · [PHONE] = telefonoa · [EMAIL] = posta elektronikoa · [DATE] = data.',
+ 'admin_anon_empty_warning': 'Idatzi edo itsatsi lehenik lagin-testu bat eta sakatu berriro '
+                             'botoia.',
+ 'admin_anon_no_changes': 'Anonimizatzaileak ez du ordezkatzeko datu pertsonalik aurkitu testu '
+                          'honetan.',
+ 'admin_anon_stale_note': 'Testua aldatu duzu azken probatik: sakatu berriro botoia emaitza '
+                          'eguneratua ikusteko.',
+ 'admin_anon_tags_help': 'Etiketak: [PERSON] = pertsona-izena · [LOCATION] = tokia · [ADDRESS] = '
+                         'helbidea · [ORGANISATION] = zentroa edo erakundea · [ID] = NAN/AIZ, '
+                         'espedientea, kontua edo beste identifikatzaile bat · [PHONE] = telefonoa '
+                         '· [EMAIL] = posta elektronikoa · [DATE] = data.',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
  'admin_tools_reset_index_header': 'Bilaketa-indizea berrezarri (Qdrant)',
  'admin_tools_reset_index_caption': 'Bilaketa semantikoaren indizea ezabatu eta hutsik berriz '
@@ -695,35 +701,41 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'help': {'nav_label': '❓ Laguntza',
           'page_title': 'Reflection Spaceren gida azkarra',
           'intro_title': 'Zer da Reflection Space?',
-          'intro_body': 'Reflection Spacek idatzi berri duzun kasuaren dokumentazioa irakurtzen du '
-                        'eta, behin betiko bihurtu aurretik, gogoeta-galderak eskaintzen ditu '
-                        'zortzi dimentsio profesionaletan -- adibidez, pertsonaren ahotsa presente '
-                        'dagoen ala ez, edo indarguneak alboratzen ari diren zailtasunen ondoan.',
-          'guardrail_note': 'Tresnak inoiz ez du ebaluatzen, puntuatzen edo zure ordez '
-                            'erabakitzen. Zuk erabakitzen duzu zer aldatu, hala badagokio, zure '
-                            'dokumentazioan.',
+          'intro_body': 'Reflection Spacek kasu bati buruz une berean hausnartzen laguntzen dizu: '
+                        'kasua idatzi, itsatsi edo igotzen duzu eta hausnarketarako galderak '
+                        'eskaintzen dizkizu zortzi dimentsio profesionaletan -- adibidez, '
+                        'erabiltzailearen ahotsa agertzen den, edo zailtasunen ondoan haren '
+                        'indarguneak ahazten ari diren. Ez da dokumentuak gordetzeko lekua: '
+                        'hausnarketa bakarrik gordetzen da.',
+          'guardrail_note': 'Tresnak ez du inoiz ezer kalifikatzen, puntuatzen edo zure ordez '
+                            'erabakitzen. Zuk erabakitzen duzu zer egin, ezer egitekotan, '
+                            'pentsarazi dizunarekin.',
           'journey_title': 'Hiru urratseko gogoeta-bidea',
-          'journey_steps': ['1. Gaurko dokumentazioa -- aukeratu gogoeta egin nahi duzun '
-                            'kasu-ohar(rak).',
-                            '2. Aurrekari historikoa -- errebisatu kasu honetako aurreko zein '
-                            'dokumentu agertu diren garrantzitsu gisa, eta sartu edo kendu nahi '
+          'journey_steps': ['1. Zure kasua -- idatzi, itsatsi edo igo kasua, aukeratu testu mota, '
+                            'markatu datu pertsonalik gabeko gai batzuk eta, nahi baduzu, lotu '
+                            'aurreko hausnarketa bat bere kodearekin.',
+                            '2. Aurreko hausnarketak -- berrikusi lotutako edo gai komunak '
+                            'dituzten zure aurreko hausnarketak, eta sartu edo kendu nahi '
                             'dituzunak.',
-                            '3. Gogoeta profesionala -- arakatu zortzi gogoeta-dimentsioak, nahi '
-                            'izanez gero elkarrizketa labur bat izan haietako edozeinetan, eta '
-                            'ondoren eguneratu eta bidali zure dokumentua.'],
+                            '3. Hausnarketa profesionala -- arakatu zortzi dimentsio '
+                            'erreflexiboak, hitz egin labur haietako bati buruz nahi baduzu, '
+                            'gehitu zure oharrak eta amaitu. Kasuaren testua baztertu egiten da '
+                            'amaitzean.'],
           'practitioner_title': 'Profesionalaren area',
-          'doc_section_title': '📝 Dokumentazioa -- kasu-ohar bat idaztea',
-          'doc_section_body': 'Dokumentazioa orrian, sartu kasuaren erreferentzia, aukeratu '
-                              'dokumentu mota eta hizkuntza, eta idatzi zure oharra. Gorde '
-                              'sakatzean zirriborro pribatu gisa gordetzen da -- zuk bakarrik ikus '
-                              'dezakezu -- Reflection Spacetik bidali arte.',
-          'reflection_section_title': '🪞 Reflection Space -- bidali aurretik gogoeta egitea',
-          'reflection_section_body': 'Reflection Space orrian: aukeratu gogoeta egin nahi duzun '
-                                     'zirriborroa(k), errebisatu agertu den aurrekari historikoa '
-                                     '(nahi ez duzuna desmarka dezakezu) eta jarraitu zure gogoeta '
-                                     'sortzeko. Arakatu zortzi dimentsioetako edozein, ireki '
-                                     'elkarrizketa labur bat nahi izanez gero, eta gero editatu '
-                                     'eta bidali zure dokumentua. Ondoren saioaren '
+          'doc_section_title': '📝 Zure kasua -- idatzi, itsatsi edo igo',
+          'doc_section_body': 'Jada ez dago Dokumentazio orri bereizirik. Reflection Spacen kasua '
+                              'idatzi edo itsasten duzu (edo Word, PDF edo testu bat igo: testua '
+                              'bakarrik irakurtzen da). Hausnarketa bakoitzak kode neutro bat '
+                              'jasotzen du (adibidez RS-7F3K2Q) eta markatzen dituzun gaiak; '
+                              'horietako ezerk ez du pertsona identifikatzen. Kasuaren testua ez '
+                              'da inoiz gordetzen.',
+          'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
+          'reflection_section_body': 'Jarraitu ondoren, lotutako edo gai komunak dituzten zure '
+                                     'aurreko hausnarketak ikusiko dituzu (kontuan hartu nahi ez '
+                                     'dituzunei marka ken diezaiekezu) eta zure hausnarketa '
+                                     'sortuko duzu. Arakatu zortzi dimentsioetako edozein, ireki '
+                                     'elkarrizketa labur bat nahi baduzu, gehitu zure oharrak eta '
+                                     'sakatu Amaitu hausnarketa. Ondoren saioaren '
                                      'erabilgarritasuna balora dezakezu -- guztiz aukerakoa.',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
@@ -759,48 +771,52 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'manager_title': 'Zuzendaritza-taldearen area',
           'learning_section_title': '📚 Ikaskuntza',
           'learning_section_body': 'Ikaskuntzak lau fitxa ditu: Taldearen presentzia (nor dagoen '
-                                   'aktibo), Ezagutza-laguntzailea (galdera bat egin eta '
-                                   'erakundearen kasu-dokumentazioan oinarritutako erantzuna '
-                                   'jaso), Ikaskuntza-ikuspegiak (zein dimentsio agertu diren '
-                                   'gehien) eta Taldearen ikaskuntza (azken sei hilabeteetako gai '
-                                   'agregatuak). Hemengo guztia agregatua eta anonimoa da -- '
-                                   'inoren lana ezin da bereizita seinalatu.',
-          'case_history_section_title': '🗂️ Kasuen historiala',
-          'case_history_section_body': 'Kasuen historialak dokumentazio osatua eta jasotako '
-                                       'feedbacka erakusten ditu: erabilgarritasun-balorazioen eta '
-                                       'iruzkinen ikuspegi orokorra, eta profesionalka '
-                                       'multzokatutako dokumentu osatuak, editatuaren eta editatu '
-                                       'gabearen artean aldatzeko aukerarekin, zer aldatu den '
-                                       'ikusteko.',
+                                   'aktibo), Ezagutza-laguntzailea (egin galdera bat eta jaso '
+                                   'erakundearen gordetako hausnarketetan oinarritutako '
+                                   'erantzuna), Ikaskuntzak (zein dimentsio agertu diren maizen) '
+                                   'eta Taldearen ikaskuntza (azken sei hilabeteetako gai '
+                                   'bateratuak). Hemen dena da bateratua eta anonimoa -- ezin da '
+                                   'inoren lana bereiz seinalatu.',
+          'case_history_section_title': '🗂️ Hausnarketen historia',
+          'case_history_section_body': 'Hausnarketen historiak jasotako feedbacka '
+                                       '(erabilgarritasun-balorazioak eta iruzkinak) eta gordetako '
+                                       'hausnarketak erakusten ditu, bakoitza bere kode '
+                                       'neutroarekin, gaiekin eta IAren behaketekin. Data eta '
+                                       'gaiaren arabera iragazi daiteke. Ez du inoiz kasuaren '
+                                       'testua edo profesionalen ohar pribatuak erakusten.',
           'research_metrics_section_title': '📊 Ikerketa-metrikak',
-          'research_metrics_section_body': 'Ikerketa-metrikak (Sistema-administratzaileak '
-                                           'bakarrik) proiektu-mailako ikuspegi agregatu bat '
-                                           'eskaintzen du: guztira egindako saioak eta osatutako '
-                                           'dokumentuak, dimentsio bakoitza zenbat aldiz seinalatu '
-                                           'den arakatu den aldean, feedback-balorazioak eta CSV '
-                                           'esportazioa.',
+          'research_metrics_section_body': 'Ikerketa-metrikek (Sistemaren administratzailea '
+                                           'bakarrik) piloto-mailako ikuspegi bateratua eskaintzen '
+                                           'dute: hausnarketa-saioak eta gordetako behaketak '
+                                           'guztira, dimentsio bakoitza zenbatetan seinalatu den '
+                                           'eta zenbatetan arakatu den, feedback-balorazioak eta '
+                                           'CSV esportazio bat.',
           'admin_title': '🛠️ Sistemaren administrazioa',
           'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen kudeaketa, '
                                 'dokumentuen indexazioa eta berreskurapen-probak, sistemaren '
                                 'osasun-egoera, konfigurazioa, itzulpenen osasun-egiaztapenak, IA '
                                 'Diagnostiko Zentroa (errore-erregistroa) eta kasuen ezagutzan '
-                                'bilaketa.',
+                                'bilaketa. «Hausnarketak bakarrik» aldaketaren aurretik gordetako '
+                                'dokumentu zaharrak behin betiko ezabatzeko aukera ere ematen du.',
           'report_problem_title': '🚩 Arazo bat jakinaraztea',
           'report_problem_body': 'Orri bakoitzak 🚩 Arazo bat jakinarazi kontrol bat du alboko '
                                  'barran, edonorentzat eskuragarri. Deskribatu gertatutakoa zure '
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Zirriborro pendienteak pribatuak dira -- zuk bakarrik ikus edo ireki '
-                             'ditzakezu bidali baino lehen.',
-                             'Gogoeta-elkarrizketen edukia ez da inoiz saioaren mugetatik haratago '
-                             'gordetzen -- zein gai landu den eta noiz bakarrik erregistratzen da.',
-                             'Nire Gogoeta pertsonala da eta ez du konparaziorik onartzen: '
-                             'puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikusgai.',
-                             'Erakunde osoko ikuspegiek soilik datu agregatu eta anonimoekin '
-                             'funtzionatzen dute.',
-                             'Rolen araberako sarbide-kontrola bi mailatan aplikatzen da aplikazio '
-                             'osoan.']},
+          'privacy_points': ['Kasuaren testua ez da inoiz gordetzen -- hausnarketak irauten duen '
+                             'bitartean bakarrik dago eta amaitzean baztertzen da.',
+                             'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko '
+                             'gaiekin identifikatzen da, inoiz ez izenekin.',
+                             'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus '
+                             'ditzakezu.',
+                             'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago '
+                             'gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen '
+                             'da.',
+                             'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: '
+                             'puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.',
+                             'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da '
+                             'aplikazio osoan.']},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -880,81 +896,132 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ Goiko proiekzio guztiak ESTIMAZIOAK dira, gaur '
                                              'egun behatutako batez bestekoetan oinarrituta, ez '
                                              'bermatutako kosteak.',
- 'findings_evidence_caption': 'Behaketa honen oinarri den dokumentazioko pasartea:',
- 'findings_unverified_notice': 'IAk proposatutako {count} pasarte ez datoz testuarekin zehazki bat, eta ez dira erakusten.',
+ 'findings_evidence_caption': 'Behaketa honen oinarri den kasuaren testuko pasartea:',
+ 'findings_unverified_notice': 'IAk proposatutako {count} pasarte ez datoz testuarekin zehazki '
+                               'bat, eta ez dira erakusten.',
  'findings_notes_header': 'Nire oharrak eta taldearekin partekatzea',
  'findings_label_prompt': 'Zer iruditu zaizu?',
  'findings_label_none': 'Baloratu gabe',
- 'findings_labels': {'useful': 'Baliagarria', 'not_relevant': 'Garrantzirik gabea', 'uncertain': 'Ez daukat argi', 'discuss': 'Geroago komentatzeko'},
+ 'findings_labels': {'useful': 'Baliagarria',
+                     'not_relevant': 'Garrantzirik gabea',
+                     'uncertain': 'Ez daukat argi',
+                     'discuss': 'Geroago komentatzeko'},
  'findings_misread_label': 'Uste dut IAk ez duela testuingurua ondo ulertu',
  'findings_alternative_label': 'Beste azalpen posible bat (aukerakoa)',
  'findings_note_label': 'Nire hausnarketa edo oharra (aukerakoa)',
  'findings_save_button': 'Gorde nire oharrak',
  'findings_save_success': 'Oharrak gorde dira.',
  'findings_save_error': 'Ezin izan dira zure oharrak gorde. Saiatu berriro une batean.',
- 'findings_not_saved_notice': 'Hausnarketa hau ezin izan da gorde; beraz, ezingo dituzu horri buruzko oharrak gorde. Normaltasunez jarrai dezakezu lanean.',
+ 'findings_not_saved_notice': 'Hausnarketa hau ezin izan da gorde; beraz, ezingo dituzu horri '
+                              'buruzko oharrak gorde. Normaltasunez jarrai dezakezu lanean.',
  'findings_journal_header': 'Gordetako behaketak eta zure oharrak',
- 'findings_journal_intro': 'Hemen zure hausnarketetako behaketetara itzul zaitezke, oinarri dituzten pasarte zehatzekin, eta zure oharrak idatzi edo berrikusi. Zure oharrak zuretzat bakarrik dira.',
- 'findings_journal_empty': 'Oraindik ez dago gordetako behaketarik. Zure hurrengo hausnarketaren ondoren agertuko dira hemen.',
+ 'findings_journal_intro': 'Hemen zure hausnarketetako behaketetara itzul zaitezke, oinarri '
+                           'dituzten pasarte zehatzekin, eta zure oharrak idatzi edo berrikusi. '
+                           'Zure oharrak zuretzat bakarrik dira.',
+ 'findings_journal_empty': 'Oraindik ez dago gordetako behaketarik. Zure hurrengo hausnarketaren '
+                           'ondoren agertuko dira hemen.',
  'findings_journal_count': '{total} gordetako behaketa — {page}. orria ({pages} orritik)',
  'findings_journal_newer': '← Berrienak',
  'findings_journal_older': 'Zaharrenak →',
  'nav_patterns': '🔎 Patroien berrikuspena',
  'findings_share_label': 'Partekatu behaketa hau taldearen berrikuspenarekin',
- 'findings_share_help': 'Markatzen baduzu, behaketa eta bere aipu zehatza kudeaketa-taldearen patroien berrikuspenean ager daitezke, zure izenik eta oharrik gabe. Noiznahi kendu dezakezu. Markatzen ez baduzu, inork ez du ikusiko.',
- 'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da inoiz aldatzen. «Partekatu» markatzen baduzu bakarrik partekatzen dira behaketa eta bere aipua (inoiz ez zure izena edo oharrak).',
+ 'findings_share_help': 'Markatzen baduzu, behaketa eta bere aipu zehatza kudeaketa-taldearen '
+                        'patroien berrikuspenean ager daitezke, zure izenik eta oharrik gabe. '
+                        'Noiznahi kendu dezakezu. Markatzen ez baduzu, inork ez du ikusiko.',
+ 'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus '
+                           'ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da '
+                           'inoiz aldatzen. «Partekatu» markatzen baduzu bakarrik partekatzen dira '
+                           'behaketa eta bere aipua (inoiz ez zure izena edo oharrak).',
  'patterns_title': '🔎 Patroien berrikuspena',
  'patterns_no_access': 'Orri hau gainbegiratzerako eta programaren kudeaketarako bakarrik da.',
- 'patterns_intro': 'Orri honek partekatutako behaketetan errepikatzen diren gaiak bilatzen laguntzen dio taldeari. Erakusten duena hausnarketarako patroi hautagaiak dira, ez ondorioak: behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta borondatez partekatutako sorta txiki honek ez du erakundea ordezkatzen. Taldeak erabakitzen du patroi batek zer esan nahi duen, esan nahi badu.',
+ 'patterns_intro': 'Orri honek partekatutako behaketetan errepikatzen diren gaiak bilatzen '
+                   'laguntzen dio taldeari. Erakusten duena hausnarketarako patroi hautagaiak '
+                   'dira, ez ondorioak: behaketa antzeko multzo batek ez du alborapenik edo jardun '
+                   'txarrik frogatzen, eta borondatez partekatutako sorta txiki honek ez du '
+                   'erakundea ordezkatzen. Taldeak erabakitzen du patroi batek zer esan nahi duen, '
+                   'esan nahi badu.',
  'patterns_pool_header': 'Zer dago berrikusteko',
- 'patterns_pool_caption': 'Profesionalek partekatzea erabaki dituzten behaketak soilik agertzen dira hemen. Ez duzu inoiz ikusten nork idatzi dituen, ezta haien ohar pribatuak ere.',
+ 'patterns_pool_caption': 'Profesionalek partekatzea erabaki dituzten behaketak soilik agertzen '
+                          'dira hemen. Ez duzu inoiz ikusten nork idatzi dituen, ezta haien ohar '
+                          'pribatuak ere.',
  'patterns_filter_lenses': 'Mugatu hausnarketa-puntu hauetara (hutsik = guztiak)',
  'patterns_filter_from': 'Noiztik (aukerakoa)',
  'patterns_filter_to': 'Noiz arte (aukerakoa)',
  'patterns_pool_empty': 'Oraindik ez dago partekatutako behaketarik iragazki hauekin.',
- 'patterns_pool_counts': '{observations} partekatutako behaketa, {reflections} hausnarketatik eta {cases} kasu-erreferentzia desberdinetatik.',
- 'patterns_pool_no_case': '{count} hausnarketak ez dute kasu-erreferentziarik, beraz ez dira kasutzat kontatzen.',
+ 'patterns_pool_counts': '{observations} partekatutako behaketa, {reflections} hausnarketatik eta '
+                         '{cases} kasu-erreferentzia desberdinetatik.',
+ 'patterns_pool_no_case': '{count} hausnarketak ez dute kasu-erreferentziarik, beraz ez dira '
+                          'kasutzat kontatzen.',
  'patterns_generate_header': 'Bilatu patroiak',
  'patterns_settings_header': 'Bilaketaren ezarpenak',
- 'patterns_settings_intro': 'Ezarpen hauek abiapuntuak dira, ez frogatutako balioak. Aldatu itzazu eta alderatu emaitzak.',
+ 'patterns_settings_intro': 'Ezarpen hauek abiapuntuak dira, ez frogatutako balioak. Aldatu itzazu '
+                            'eta alderatu emaitzak.',
  'patterns_similarity_label': 'Zenbat antzeko izan behar diren behaketak',
  'patterns_similarity_levels': {'broad': 'Zabala', 'balanced': 'Orekatua', 'strict': 'Zorrotza'},
- 'patterns_similarity_help': 'Zabalak antz lausoagoko behaketak multzokatzen ditu (multzo gehiago, zarata gehiago). Zorrotzak antz handiagoa eskatzen du (multzo gutxiago, fidagarriagoak).',
+ 'patterns_similarity_help': 'Zabalak antz lausoagoko behaketak multzokatzen ditu (multzo gehiago, '
+                             'zarata gehiago). Zorrotzak antz handiagoa eskatzen du (multzo '
+                             'gutxiago, fidagarriagoak).',
  'patterns_min_observations_label': 'Gutxieneko behaketak multzoko',
  'patterns_min_reflections_label': 'Gutxieneko hausnarketa desberdinak multzoko',
- 'patterns_threshold_not_proof': 'Gutxieneko hauek betetzeak ez du ezer frogatzen: multzo bat eztabaidatzeko erakustea merezi duen ala ez erabakitzen du soilik.',
- 'patterns_cost_note': 'Patroiak bilatzeak IA erabiltzen du {max_patterns} azalpen arte idazteko (zentimo gutxi guztira). Botoia berriro sakatzen baduzu bakarrik ordaintzen da berriro.',
- 'patterns_pool_truncated': 'Aldi berean alderatzen direnak baino partekatutako behaketa gehiago daude; azkeneko {max} erabiltzen dira.',
+ 'patterns_threshold_not_proof': 'Gutxieneko hauek betetzeak ez du ezer frogatzen: multzo bat '
+                                 'eztabaidatzeko erakustea merezi duen ala ez erabakitzen du '
+                                 'soilik.',
+ 'patterns_cost_note': 'Patroiak bilatzeak IA erabiltzen du {max_patterns} azalpen arte idazteko '
+                       '(zentimo gutxi guztira). Botoia berriro sakatzen baduzu bakarrik '
+                       'ordaintzen da berriro.',
+ 'patterns_pool_truncated': 'Aldi berean alderatzen direnak baino partekatutako behaketa gehiago '
+                            'daude; azkeneko {max} erabiltzen dira.',
  'patterns_not_enough': 'Gutxienez {minimum} partekatutako behaketa behar dira patroiak bilatzeko.',
  'patterns_generate_button': 'Bilatu patroiak',
  'patterns_generating': 'Patroiak bilatzen…',
  'patterns_busy': 'Bilaketa bat martxan dago jada. Itxaron amaitu arte eta saiatu berriro.',
- 'patterns_unavailable': 'Esanahiaren araberako alderaketa-zerbitzua ez dago konfiguratuta; beraz, orain ezin dira patroiak bilatu.',
- 'patterns_none_found': 'Ez da gutxienekoak betetzen dituen multzorik aurkitu {observations} behaketen artean. Probatu ezarpen zabalago bat, edo itxaron partekatutako behaketa gehiago izan arte.',
- 'patterns_generated_ok': '{patterns} patroi hautagai aurkitu dira {observations} behaketen artean.',
- 'patterns_not_embedded': '{count} behaketa ezin izan dira alderatu oraingoan, eta kanpoan geratu dira.',
- 'patterns_fallback_notice': '{count} patroiren azalpena ezin izan da idatzi; testu sinple bat erakusten da eta berriro saia zaitezke.',
+ 'patterns_unavailable': 'Esanahiaren araberako alderaketa-zerbitzua ez dago konfiguratuta; beraz, '
+                         'orain ezin dira patroiak bilatu.',
+ 'patterns_none_found': 'Ez da gutxienekoak betetzen dituen multzorik aurkitu {observations} '
+                        'behaketen artean. Probatu ezarpen zabalago bat, edo itxaron partekatutako '
+                        'behaketa gehiago izan arte.',
+ 'patterns_generated_ok': '{patterns} patroi hautagai aurkitu dira {observations} behaketen '
+                          'artean.',
+ 'patterns_not_embedded': '{count} behaketa ezin izan dira alderatu oraingoan, eta kanpoan geratu '
+                          'dira.',
+ 'patterns_fallback_notice': '{count} patroiren azalpena ezin izan da idatzi; testu sinple bat '
+                             'erakusten da eta berriro saia zaitezke.',
  'patterns_review_header': 'Berrikusi patroi hautagaiak',
  'patterns_no_runs': 'Oraindik ez da patroirik bilatu.',
  'patterns_run_select': 'Berrikusteko bilaketa',
  'patterns_run_option': '{date} — {observations} behaketa — {patterns} patroi',
- 'patterns_run_caption': 'Bilaketa honen ezarpenak: antzekotasun {level}; gutxienez {min_obs} behaketa gutxienez {min_refl} hausnarketa desberdinetatik.',
+ 'patterns_run_caption': 'Bilaketa honen ezarpenak: antzekotasun {level}; gutxienez {min_obs} '
+                         'behaketa gutxienez {min_refl} hausnarketa desberdinetatik.',
  'patterns_filter_status': 'Erakutsi egoerak',
- 'patterns_statuses': {'candidate': 'Hautagaia', 'under_review': 'Berrikusten', 'worth_discussing': 'Komentatzea merezi du', 'not_supported': 'Berrikusi ondoren ez da babesten', 'archived': 'Artxibatua'},
+ 'patterns_statuses': {'candidate': 'Hautagaia',
+                       'under_review': 'Berrikusten',
+                       'worth_discussing': 'Komentatzea merezi du',
+                       'not_supported': 'Berrikusi ondoren ez da babesten',
+                       'archived': 'Artxibatua'},
  'patterns_none_in_view': 'Ez dago patroirik iragazki hauekin.',
- 'patterns_cases_none': 'Hausnarketa hauetako batek ere ez du kasu-erreferentziarik; beraz, ezin da kasuei buruz ezer esan.',
- 'patterns_cases_incomplete': '{total} hausnarketatik {missing}ek ez dute kasu-erreferentziarik; beraz, ezin da ezarri kasuen artean errepikatzen denik, hainbat hausnarketatan agertzen dela baino ezin da esan.',
- 'patterns_cases_single': 'Behaketa guztiak kasu-erreferentzia bati dagozkio: kasu baten barruko errepikapena da, ez kasuen artekoa.',
+ 'patterns_cases_none': 'Hausnarketa hauetako batek ere ez du kasu-erreferentziarik; beraz, ezin '
+                        'da kasuei buruz ezer esan.',
+ 'patterns_cases_incomplete': '{total} hausnarketatik {missing}ek ez dute kasu-erreferentziarik; '
+                              'beraz, ezin da ezarri kasuen artean errepikatzen denik, hainbat '
+                              'hausnarketatan agertzen dela baino ezin da esan.',
+ 'patterns_cases_single': 'Behaketa guztiak kasu-erreferentzia bati dagozkio: kasu baten barruko '
+                          'errepikapena da, ez kasuen artekoa.',
  'patterns_cases_multiple': 'Behaketak {cases} kasu-erreferentzia desberdinetatik datoz.',
  'patterns_item_header': '{title} — {status} — {observations} behaketa / {reflections} hausnarketa',
  'patterns_candidate_label': 'Hausnarketarako patroi hautagaia — ez da ondorio bat.',
- 'patterns_counts_line': '{observations} behaketa · {reflections} hausnarketa desberdin · {cases} kasu desberdin',
- 'patterns_case_ref_caveat': 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa kontatzea eragin dezake.',
+ 'patterns_counts_line': '{observations} behaketa · {reflections} hausnarketa desberdin · {cases} '
+                         'kasu desberdin',
+ 'patterns_case_ref_caveat': 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi '
+                             'gisa kontatzea eragin dezake.',
  'patterns_dates_line': 'Hausnarketak {first} eta {last} artean',
  'patterns_lenses_line': 'Hausnarketa-puntuak: {lenses}',
- 'patterns_lost_members': 'Patroi honetako {count} behaketa ez daude eskuragarri jada (egileak kenduak edo ezabatuak). Idatzitako azalpenak oraindik islatu ditzake: bilatu patroiak berriro horretan fidatu aurretik.',
- 'patterns_below_minimum': 'Oraingo behaketekin, multzo honek ez ditu jada aurkitu zenekoko gutxienekoak betetzen.',
- 'patterns_explanation_failed': 'Patroi honen azalpen automatikoa ezin izan da idatzi. Testu sinple bat erakusten da.',
+ 'patterns_lost_members': 'Patroi honetako {count} behaketa ez daude eskuragarri jada (egileak '
+                          'kenduak edo ezabatuak). Idatzitako azalpenak oraindik islatu ditzake: '
+                          'bilatu patroiak berriro horretan fidatu aurretik.',
+ 'patterns_below_minimum': 'Oraingo behaketekin, multzo honek ez ditu jada aurkitu zenekoko '
+                           'gutxienekoak betetzen.',
+ 'patterns_explanation_failed': 'Patroi honen azalpen automatikoa ezin izan da idatzi. Testu '
+                                'sinple bat erakusten da.',
  'patterns_explanation_retry': 'Saiatu azalpena berriro',
  'patterns_retry_ok': 'Azalpena idatzi da.',
  'patterns_retry_failed': 'Azalpena oraindik ezin da idatzi. Saiatu berriro geroago.',
@@ -971,27 +1038,55 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'patterns_restore_button': 'Sartu berriro',
  'patterns_restored_ok': 'Behaketa berriro sartu da.',
  'patterns_review_status_header': 'Taldearen balorazioa',
- 'patterns_review_help': 'Erregistratu hemen zuen irizpidea. IAk proposatutakoa ez da inoiz ezabatzen edo aldatzen.',
+ 'patterns_review_help': 'Erregistratu hemen zuen irizpidea. IAk proposatutakoa ez da inoiz '
+                         'ezabatzen edo aldatzen.',
  'patterns_status_label': 'Egoera',
  'patterns_comment_label': 'Iruzkina (aukerakoa)',
  'patterns_save_review': 'Gorde balorazioa',
  'patterns_review_saved': 'Balorazioa gorde da.',
  'patterns_review_nothing': 'Ez dago gordetzeko aldaketarik.',
  'patterns_history_header': 'Historia',
- 'patterns_event_kinds': {'generated': 'Patroia sortu da', 'status_changed': 'Egoera aldatu da', 'carried_over': 'Balorazioa aurreko bilaketa batetik heredatu da', 'member_excluded': 'Behaketa patroitik kendu da', 'member_restored': 'Behaketa berriro sartu da', 'explanation_regenerated': 'Azalpena berriro idatzi da'},
+ 'patterns_event_kinds': {'generated': 'Patroia sortu da',
+                          'status_changed': 'Egoera aldatu da',
+                          'carried_over': 'Balorazioa aurreko bilaketa batetik heredatu da',
+                          'member_excluded': 'Behaketa patroitik kendu da',
+                          'member_restored': 'Behaketa berriro sartu da',
+                          'explanation_regenerated': 'Azalpena berriro idatzi da'},
  'patterns_event_status_change': '({old} → {new})',
  'patterns_event_system': 'Sistema',
  'doc_import_label': 'Edo igo dokumentu bat (Word, PDF edo testua)',
- 'doc_import_help': 'Testua bakarrik irakurtzen da; fitxategia ez da gordetzen. {max_mb} MB, {max_pages} orrialde eta {max_chars} karaktere inguru arte. Eskaneatutako PDFak (paperaren argazkiak) ezin dira irakurri.',
- 'doc_import_loaded': 'Testua kargatu da. Berrikusi eta zuzendu gorde aurretik: fitxategia bera ez da gordetzen.',
- 'doc_import_errors': {'unsupported': 'Fitxategi mota hau ez da onartzen. Erabili Word (.docx), PDF edo testua (.txt).', 'too_large': 'Fitxategia handiegia da (gehienez {max_mb} MB).', 'too_long': 'Dokumentua luzeegia da (gehienez {max_chars} karaktere inguru). Zatitu eta igo zati bakoitza bereizita.', 'too_many_pages': 'PDFak orrialde gehiegi ditu (gehienez {max_pages}).', 'encrypted': 'Fitxategia pasahitzez babestuta dago. Kendu babesa eta igo berriro.', 'no_text': 'Ez da testurik aurkitu fitxategian. Eskaneatutako PDF bat bada, kopiatu testua eskuz edo erabili testua duen bertsio bat.', 'unreadable': 'Ezin izan da fitxategia irakurri. Hondatuta egon daiteke; saiatu berriro gordetzen edo itsatsi testua.', 'unavailable': 'Fitxategi mota hau irakurtzea ez dago erabilgarri orain. Itsatsi testua zuzenean.'},
+ 'doc_import_help': 'Testua bakarrik irakurtzen da; fitxategia ez da gordetzen. {max_mb} MB, '
+                    '{max_pages} orrialde eta {max_chars} karaktere inguru arte. Eskaneatutako '
+                    'PDFak (paperaren argazkiak) ezin dira irakurri.',
+ 'doc_import_loaded': 'Testua kargatuta. Berrikusi eta zuzendu jarraitu aurretik: ez fitxategia ez '
+                      'testua ez dira gordetzen.',
+ 'doc_import_errors': {'unsupported': 'Fitxategi mota hau ez da onartzen. Erabili Word (.docx), '
+                                      'PDF edo testua (.txt).',
+                       'too_large': 'Fitxategia handiegia da (gehienez {max_mb} MB).',
+                       'too_long': 'Dokumentua luzeegia da (gehienez {max_chars} karaktere '
+                                   'inguru). Zatitu eta igo zati bakoitza bereizita.',
+                       'too_many_pages': 'PDFak orrialde gehiegi ditu (gehienez {max_pages}).',
+                       'encrypted': 'Fitxategia pasahitzez babestuta dago. Kendu babesa eta igo '
+                                    'berriro.',
+                       'no_text': 'Ez da testurik aurkitu fitxategian. Eskaneatutako PDF bat bada, '
+                                  'kopiatu testua eskuz edo erabili testua duen bertsio bat.',
+                       'unreadable': 'Ezin izan da fitxategia irakurri. Hondatuta egon daiteke; '
+                                     'saiatu berriro gordetzen edo itsatsi testua.',
+                       'unavailable': 'Fitxategi mota hau irakurtzea ez dago erabilgarri orain. '
+                                      'Itsatsi testua zuzenean.'},
  'report_doc_title': 'Hausnarketarako patroi hautagaien txostena',
  'report_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
  'report_prepared': '{date}(e)an prestatua',
  'report_how_to_read_title': 'Nola irakurri txosten hau',
- 'report_how_to_read': 'Txosten honek patroi hautagaiak biltzen ditu: taldeak komentatu nahi ditzakeen behaketa antzeko multzoak. Ez dira ondorioak. Behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta behaketak profesionalek borondatez partekatzea erabaki duten sorta txiki batetik datoz; beraz, ez dute erakundea ordezkatzen. Taldeak erabakitzen du patroi bakoitzak zer esan nahi duen, esan nahi badu.',
+ 'report_how_to_read': 'Txosten honek patroi hautagaiak biltzen ditu: taldeak komentatu nahi '
+                       'ditzakeen behaketa antzeko multzoak. Ez dira ondorioak. Behaketa antzeko '
+                       'multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta behaketak '
+                       'profesionalek borondatez partekatzea erabaki duten sorta txiki batetik '
+                       'datoz; beraz, ez dute erakundea ordezkatzen. Taldeak erabakitzen du patroi '
+                       'bakoitzak zer esan nahi duen, esan nahi badu.',
  'report_search_title': 'Zein bilaketatik datorren',
- 'report_search_line': '{date}(e)ko bilaketa: partekatutako {observations} behaketa alderatu dira eta {patterns} patroi hautagai aurkitu dira.',
+ 'report_search_line': '{date}(e)ko bilaketa: partekatutako {observations} behaketa alderatu dira '
+                       'eta {patterns} patroi hautagai aurkitu dira.',
  'report_filters_line': 'Bilaketaren iragazkiak: {filters}',
  'report_no_filters': 'bat ere ez',
  'report_statuses_line': 'Txosten honetan sartutako egoerak: {statuses}',
@@ -1007,23 +1102,45 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'report_observations_omitted': 'Behaketak eta aipuak ez dira txosten honetan sartzen.',
  'report_quote_label': 'Aipu zehatza',
  'report_limits_title': 'Txosten honen mugak',
- 'report_limits_list': ['Esanahiaren antzagatiko multzokatze automatikoa da; erlazionatu gabeko behaketak elkartu ditzake edo erlazionatuak bereizi.', 'Behaketak IAren laguntzako hausnarketetatik eta partekatzea erabaki duten profesionalengandik datoz; ez dira erregistro osoa edo adierazgarria.', 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa kontatzea eragin dezake.', 'Azalpen-testua IAk idazten du behaketetatik abiatuta, eta bilaketaren ondoren kendutako behaketak islatu ditzake.', 'Txosten honetako ezerk ez du identifikatzen behaketa nork idatzi duen, ezta bere ohar pribatuak barne hartzen ere.'],
+ 'report_limits_list': ['Esanahiaren antzagatiko multzokatze automatikoa da; erlazionatu gabeko '
+                        'behaketak elkartu ditzake edo erlazionatuak bereizi.',
+                        'Behaketak IAren laguntzako hausnarketetatik eta partekatzea erabaki duten '
+                        'profesionalengandik datoz; ez dira erregistro osoa edo adierazgarria.',
+                        'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa '
+                        'kontatzea eragin dezake.',
+                        'Azalpen-testua IAk idazten du behaketetatik abiatuta, eta bilaketaren '
+                        'ondoren kendutako behaketak islatu ditzake.',
+                        'Txosten honetako ezerk ez du identifikatzen behaketa nork idatzi duen, '
+                        'ezta bere ohar pribatuak barne hartzen ere.'],
  'report_footer': 'Konfidentziala · Hausnarketarako patroi hautagaiak, ez ondorioak · {date}',
  'report_section_header': 'Inprimatzeko txostena',
- 'report_section_intro': 'Goian erakusten diren patroiekin (hautatutako egoeren arabera) inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du.',
+ 'report_section_intro': 'Goian erakusten diren patroiekin (hautatutako egoeren arabera) '
+                         'inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du.',
  'report_opt_observations': 'Sartu behaketak eta haien aipu zehatzak',
- 'report_opt_case_refs': 'Sartu kasu-erreferentziak (lehenespenez markatu gabe: paperak pantailak baino gehiago zirkulatzen du)',
+ 'report_opt_case_refs': 'Sartu kasu-erreferentziak (lehenespenez markatu gabe: paperak pantailak '
+                         'baino gehiago zirkulatzen du)',
  'report_opt_comments': 'Sartu taldearen iruzkinak',
  'report_prepare_button': 'Prestatu txostena',
  'report_ready': 'Txostena prestatu da.',
  'report_download_button': 'Deskargatu txostena',
- 'report_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta sakatu Ctrl+P (edo Inprimatu) inprimatzeko edo PDF gisa gordetzeko.',
+ 'report_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta sakatu Ctrl+P (edo '
+                        'Inprimatu) inprimatzeko edo PDF gisa gordetzeko.',
  'report_outdated': 'Bilaketa, egoerak edo aukerak aldatu dituzu: prestatu txostena berriro.',
  'nav_corpus': '📚 Testuen azterketa',
  'corpus_title': '📚 Testuen azterketa',
  'corpus_no_access': 'Orri hau gainbegiratzerako eta programaren koordinaziorako soilik da.',
- 'corpus_intro': 'Hemen kudeaketa-taldeak lehendik dauden testuak (adibidez, EDEren testu gordinak) kargatu ditzake, eta hainbat dokumentutan errepikatzen diren esanahi antzeko pasarteak bilatu. Agertzen direnak hausnarketarako eredu hautagaiak dira, ez ondorioak: esamolde errepikatu batek ez du alborapenik edo jardun txarrik frogatzen, eta dokumentu motagatik edo txantiloi batengatik izan daiteke.',
- 'corpus_privacy_note': 'Gorde aurretik, testu bakoitzari izenak eta datu pertsonalak kentzen zaizkio aplikazioaren sistema automatikoarekin, eta baliteke dena ez detektatzea: kargatu anonimizatuta dauden testuak soilik. Testuak zenbaki batekin identifikatzen dira (T-001, T-002…); fitxategien izenak ez dira gordetzen. Bilduma hau profesionalen hausnarketetatik bereizita dago, eta gainbegiratzeak eta koordinazioak soilik ikusten dute.',
+ 'corpus_intro': 'Hemen kudeaketa-taldeak lehendik dauden testuak (adibidez, EDEren testu '
+                 'gordinak) kargatu ditzake, eta hainbat dokumentutan errepikatzen diren esanahi '
+                 'antzeko pasarteak bilatu. Agertzen direnak hausnarketarako eredu hautagaiak '
+                 'dira, ez ondorioak: esamolde errepikatu batek ez du alborapenik edo jardun '
+                 'txarrik frogatzen, eta dokumentu motagatik edo txantiloi batengatik izan '
+                 'daiteke.',
+ 'corpus_privacy_note': 'Gorde aurretik, testu bakoitzari izenak eta datu pertsonalak kentzen '
+                        'zaizkio aplikazioaren sistema automatikoarekin, eta baliteke dena ez '
+                        'detektatzea: kargatu anonimizatuta dauden testuak soilik. Testuak zenbaki '
+                        'batekin identifikatzen dira (T-001, T-002…); fitxategien izenak ez dira '
+                        'gordetzen. Bilduma hau profesionalen hausnarketetatik bereizita dago, eta '
+                        'gainbegiratzeak eta koordinazioak soilik ikusten dute.',
  'corpus_collection_header': 'Testu-bilduma',
  'corpus_create_header': 'Sortu bilduma berri bat',
  'corpus_create_name_label': 'Bildumaren izena',
@@ -1034,9 +1151,12 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'corpus_select_label': 'Bilduma',
  'corpus_option': '{name} ({documents} testu)',
  'corpus_add_header': 'Gehitu testuak',
- 'corpus_add_intro': 'Testuak banan-banan, batera edo guztiak aldi berean gehi ditzakezu. Testu bera bi aldiz gehitzen baduzu, aplikazioak antzematen du eta ez du bikoizten.',
+ 'corpus_add_intro': 'Testuak banan-banan, batera edo guztiak aldi berean gehi ditzakezu. Testu '
+                     'bera bi aldiz gehitzen baduzu, aplikazioak antzematen du eta ez du '
+                     'bikoizten.',
  'corpus_upload_label': 'Igo fitxategiak (Word, PDF edo testua)',
- 'corpus_too_many_files': 'Fitxategi gehiegi hautatu dituzu aldi berean: lehenengo {max} soilik gehituko dira. Igo gainerakoak gero.',
+ 'corpus_too_many_files': 'Fitxategi gehiegi hautatu dituzu aldi berean: lehenengo {max} soilik '
+                          'gehituko dira. Igo gainerakoak gero.',
  'corpus_add_files_button': 'Gehitu hautatutako fitxategiak',
  'corpus_adding': 'Testuak gehitzen…',
  'corpus_paste_label': 'Edo itsatsi testu bat hemen',
@@ -1059,96 +1179,151 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'corpus_doc_deleted_ok': 'Testua ezabatu da, bere pasarteekin eta ereduetan zuen lekuarekin.',
  'corpus_docs_more': 'Eta {count} testu gehiago.',
  'corpus_delete_collection': 'Ezabatu bilduma osoa',
- 'corpus_delete_collection_help': 'Bilduma honetako testu, pasarte eta eredu guztiak ezabatzen dira. Ezin da desegin.',
+ 'corpus_delete_collection_help': 'Bilduma honetako testu, pasarte eta eredu guztiak ezabatzen '
+                                  'dira. Ezin da desegin.',
  'corpus_delete_collection_confirm': 'Ulertzen dut dena ezabatuko dela eta ezin dela desegin',
  'corpus_delete_collection_button': 'Ezabatu bilduma',
  'corpus_deleted_ok': 'Bilduma ezabatu da.',
  'corpus_generate_header': 'Bilatu errepikatzen diren pasarteak',
  'corpus_settings_header': 'Bilaketaren doikuntzak',
- 'corpus_settings_intro': 'Doikuntza hauek abiapuntuak dira, ez balio frogatuak. Aldatu itzazu eta alderatu emaitzak.',
+ 'corpus_settings_intro': 'Doikuntza hauek abiapuntuak dira, ez balio frogatuak. Aldatu itzazu eta '
+                          'alderatu emaitzak.',
  'corpus_similarity_label': 'Pasarteen artean eskatutako antzekotasuna',
- 'corpus_similarity_help': 'Zabalak antzekotasun ahulagoa duten pasarteak multzokatzen ditu (multzo gehiago, zarata gehiago). Zorrotzak antzekotasun handiagoa eskatzen du (multzo gutxiago, fidagarriagoak).',
+ 'corpus_similarity_help': 'Zabalak antzekotasun ahulagoa duten pasarteak multzokatzen ditu '
+                           '(multzo gehiago, zarata gehiago). Zorrotzak antzekotasun handiagoa '
+                           'eskatzen du (multzo gutxiago, fidagarriagoak).',
  'corpus_min_passages_label': 'Gutxieneko pasarte kopurua ereduko',
  'corpus_min_documents_label': 'Gutxieneko testu desberdinen kopurua ereduko',
  'corpus_questions_switch': 'Sartu AAk idatzitako galderak',
- 'corpus_questions_help': 'Desaktibatzen baduzu, AAk ez du galderarik idatziko eta ez da bat ere erakutsiko. Gainerako azalpenak idatziko dira.',
- 'corpus_cost_note': 'Bilatzeak AA erabiltzen du gehienez {max_patterns} azalpen idazteko (zentimo gutxi batzuk guztira) eta pasarte berriei esanahia emateko (oso merkea, eta pasarte bakoitzeko behin bakarrik). Botoia berriro sakatzen baduzu soilik ordaintzen da berriro.',
- 'corpus_truncated': 'Bildumak bilaketa batean sartzen direnak baino pasarte gehiago ditu; lehenengo {max} erabiliko dira (testuen ordenaren arabera).',
+ 'corpus_questions_help': 'Desaktibatzen baduzu, AAk ez du galderarik idatziko eta ez da bat ere '
+                          'erakutsiko. Gainerako azalpenak idatziko dira.',
+ 'corpus_cost_note': 'Bilatzeak AA erabiltzen du gehienez {max_patterns} azalpen idazteko (zentimo '
+                     'gutxi batzuk guztira) eta pasarte berriei esanahia emateko (oso merkea, eta '
+                     'pasarte bakoitzeko behin bakarrik). Botoia berriro sakatzen baduzu soilik '
+                     'ordaintzen da berriro.',
+ 'corpus_truncated': 'Bildumak bilaketa batean sartzen direnak baino pasarte gehiago ditu; '
+                     'lehenengo {max} erabiliko dira (testuen ordenaren arabera).',
  'corpus_not_enough': 'Bilatzeko gutxienez {minimum} testu behar dira bilduman.',
  'corpus_generate_button': 'Bilatu errepikatzen diren pasarteak',
  'corpus_generating': 'Lanean… minutu bat behar izan dezake.',
  'corpus_busy': 'Bilaketa bat martxan dago jada. Itxaron amaitu arte.',
- 'corpus_unavailable': 'Esanahiak alderatzen dituen zerbitzua ez dago konfiguratuta, beraz ezin da bilatu orain.',
- 'corpus_none_found': 'Ez da testu desberdin nahikotan agertzen den multzorik aurkitu ({documents} testu, {passages} pasarte aztertuta). Probatu antzekotasun zabalagoarekin edo gutxieneko txikiagoekin.',
+ 'corpus_unavailable': 'Esanahiak alderatzen dituen zerbitzua ez dago konfiguratuta, beraz ezin da '
+                       'bilatu orain.',
+ 'corpus_none_found': 'Ez da testu desberdin nahikotan agertzen den multzorik aurkitu ({documents} '
+                      'testu, {passages} pasarte aztertuta). Probatu antzekotasun zabalagoarekin '
+                      'edo gutxieneko txikiagoekin.',
  'corpus_generated_ok': '{patterns} eredu hautagai aurkitu dira {documents} testutan.',
- 'corpus_not_embedded': '{count} pasarte ezin izan dira alderatu oraingoan eta kanpoan geratu dira.',
- 'corpus_fallback_notice': '{count} eredutan ezin izan da azalpen automatikoa idatzi; testu sinple bat erakusten da eta berriro saia zaitezke.',
+ 'corpus_not_embedded': '{count} pasarte ezin izan dira alderatu oraingoan eta kanpoan geratu '
+                        'dira.',
+ 'corpus_fallback_notice': '{count} eredutan ezin izan da azalpen automatikoa idatzi; testu sinple '
+                           'bat erakusten da eta berriro saia zaitezke.',
  'corpus_review_header': 'Berrikusi eredu hautagaiak',
  'corpus_no_runs': 'Oraindik ez da bilaketarik egin bilduma honetan.',
  'corpus_run_select': 'Bilaketa',
  'corpus_run_option': '{date} — {documents} testu — {patterns} eredu',
- 'corpus_run_caption': 'Antzekotasuna: {level} · gutxieneko pasarteak: {min_passages} · gutxieneko testuak: {min_documents} · AAren galderak: {questions}',
+ 'corpus_run_caption': 'Antzekotasuna: {level} · gutxieneko pasarteak: {min_passages} · gutxieneko '
+                       'testuak: {min_documents} · AAren galderak: {questions}',
  'corpus_yes': 'bai',
  'corpus_no': 'ez',
  'corpus_none_in_view': 'Hautatutako egoeretan ez dago eredurik.',
- 'corpus_no_groups_note': 'Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori buruzkoak diren), beraz orri honek ezin du ezer esan talde desberdinak berdin ala desberdin tratatzen diren. Zer errepikatzen den eta zenbat testutan bakarrik erakusten du.',
+ 'corpus_no_groups_note': 'Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori '
+                          'buruzkoak diren), beraz orri honek ezin du ezer esan talde desberdinak '
+                          'berdin ala desberdin tratatzen diren. Zer errepikatzen den eta zenbat '
+                          'testutan bakarrik erakusten du.',
  'corpus_item_header': '{title} — {status} — testuak: {documents} / {total}',
- 'corpus_counts_line': 'Agertzen den testu kopurua: {documents} / {total} (% {percent}) · {passages} pasarte',
+ 'corpus_counts_line': 'Agertzen den testu kopurua: {documents} / {total} (% {percent}) · '
+                       '{passages} pasarte',
  'corpus_documents_line': 'Testuak: {labels}',
- 'corpus_lost_members': 'Eredu honetako {count} pasarte ez daude eskuragarri jada (testua ezabatu da). Idatzitako azalpenak oraindik haiek islatu ditzake: bilatu berriro fidatu aurretik.',
- 'corpus_below_minimum': 'Oraingo testuekin, multzo honek ez ditu jada aurkitu zenean zituen gutxienekoak betetzen.',
+ 'corpus_lost_members': 'Eredu honetako {count} pasarte ez daude eskuragarri jada (testua ezabatu '
+                        'da). Idatzitako azalpenak oraindik haiek islatu ditzake: bilatu berriro '
+                        'fidatu aurretik.',
+ 'corpus_below_minimum': 'Oraingo testuekin, multzo honek ez ditu jada aurkitu zenean zituen '
+                         'gutxienekoak betetzen.',
  'corpus_passages_header': 'Pasarte zehatzak',
  'corpus_more_passages': 'Eta {count} pasarte gehiago ez dira hemen erakusten.',
  'corpus_exclude_button': 'Pasarte hau ez dagokio eredu honi',
  'corpus_excluded_ok': 'Pasartea ereduatik kendu da.',
  'corpus_restored_ok': 'Pasartea berriro sartu da.',
  'corpus_read_header': 'Irakurri testu bakoitza hausnarketa-lenteekin',
- 'corpus_read_intro': 'AAk testu bakoitza bereizita irakurtzen du profesionalek erabiltzen dituzten zortzi hausnarketa-lente berberekin (pertsonaren ahotsa, behaketa eta interpretazioa, etiketak eta hizkuntza, alborapen posiblea, etab.) eta testuan benetan agertzen diren aipuak soilik gordetzen ditu. Ez ditu testuak elkarren artean alderatzen: kontaketak aplikazioak kalkulatzen ditu.',
+ 'corpus_read_intro': 'AAk testu bakoitza bereizita irakurtzen du profesionalek erabiltzen '
+                      'dituzten zortzi hausnarketa-lente berberekin (pertsonaren ahotsa, behaketa '
+                      'eta interpretazioa, etiketak eta hizkuntza, alborapen posiblea, etab.) eta '
+                      'testuan benetan agertzen diren aipuak soilik gordetzen ditu. Ez ditu '
+                      'testuak elkarren artean alderatzen: kontaketak aplikazioak kalkulatzen '
+                      'ditu.',
  'corpus_read_no_texts': 'Gehitu testuak irakurri ahal izateko.',
  'corpus_read_status': '{documents} testutik {read} irakurrita; {unread} falta dira.',
  'corpus_read_nothing': 'Testu guztiak irakurrita daude.',
- 'corpus_read_cost_note': 'Testu bakoitza AAri egindako zortzi deirekin irakurtzen da: gutxi gorabehera {per_text} $ testuko. Sorta honek (gehienez {batch} testu) {cost} $ inguru kostatuko du. Testuak sortetan irakurtzen dira, klik bakoitzak asko ez luzatzeko; sakatu berriro hurrengoekin jarraitzeko.',
+ 'corpus_read_cost_note': 'Testu bakoitza AAri egindako zortzi deirekin irakurtzen da: gutxi '
+                          'gorabehera {per_text} $ testuko. Sorta honek (gehienez {batch} testu) '
+                          '{cost} $ inguru kostatuko du. Testuak sortetan irakurtzen dira, klik '
+                          'bakoitzak asko ez luzatzeko; sakatu berriro hurrengoekin jarraitzeko.',
  'corpus_read_button': 'Irakurri hurrengo {count} testuak',
  'corpus_reading': 'Testuak irakurtzen…',
  'corpus_read_progress': '{total} testutik {done} irakurrita',
  'corpus_read_busy': 'Irakurketa bat martxan dago jada. Itxaron amaitu arte.',
  'corpus_read_unavailable': 'AA zerbitzua ez dago konfiguratuta, beraz ezin da irakurri orain.',
  'corpus_read_done': '{count} testu irakurri dira. {remaining} falta dira.',
- 'corpus_read_failed_lenses': '{count} irakurketa ezin izan dira osatu; hurrengoan berriro saiatuko dira.',
- 'corpus_read_caveat': '"Aipatua" esan nahi du AAk testu horretan lente horrekin behaketa bat planteatu duela. Ez du neurtzen zerbait zenbatetan gertatzen den, eta ezer aipatzen ez duenean horrek ez du esan nahi testua horretatik libre dagoenik.',
+ 'corpus_read_failed_lenses': '{count} irakurketa ezin izan dira osatu; hurrengoan berriro '
+                              'saiatuko dira.',
+ 'corpus_read_caveat': '"Aipatua" esan nahi du AAk testu horretan lente horrekin behaketa bat '
+                       'planteatu duela. Ez du neurtzen zerbait zenbatetan gertatzen den, eta ezer '
+                       'aipatzen ez duenean horrek ez du esan nahi testua horretatik libre '
+                       'dagoenik.',
  'corpus_lens_counts_header': 'Zein lente aipatu diren, testuka',
  'corpus_lens_item': '{lens} — aipatutako testuak: {raised} / {considered}',
  'corpus_lens_failed_note': '{count} testutan lente hau ezin izan da irakurri.',
  'corpus_lens_none': 'AAk ez du ezer planteatu lente honekin.',
- 'corpus_lens_no_quote': 'Aipu zehatzik gabe (behaketa testuan falta den zerbaiti buruzkoa izan daiteke).',
- 'corpus_lens_unverified': 'Proposatutako {count} pasarte ezin izan dira testuan egiaztatu eta ez dira erakusten.',
+ 'corpus_lens_no_quote': 'Aipu zehatzik gabe (behaketa testuan falta den zerbaiti buruzkoa izan '
+                         'daiteke).',
+ 'corpus_lens_unverified': 'Proposatutako {count} pasarte ezin izan dira testuan egiaztatu eta ez '
+                           'dira erakusten.',
  'corpus_text_view_header': 'Ikusi testu baten irakurketa',
  'corpus_text_select': 'Testua',
  'corpus_text_no_reading': 'Testu hau ez da oraindik irakurri.',
  'corpus_text_lens_failed': 'Lente hau ezin izan da irakurri.',
  'corpus_text_lens_none': 'AAk ez du ezer planteatu.',
  'corpus_read_again_header': 'Irakurri berriro testu guztiak',
- 'corpus_read_again_help': 'Bilduma honen irakurketa guztiak ezabatzen ditu hutsetik berriro irakurri ahal izateko (berriro ordaintzen da).',
- 'corpus_read_again_confirm': 'Ulertzen dut irakurketak ezabatuko direla eta berriro irakurtzeak berriro kostatzen duela',
+ 'corpus_read_again_help': 'Bilduma honen irakurketa guztiak ezabatzen ditu hutsetik berriro '
+                           'irakurri ahal izateko (berriro ordaintzen da).',
+ 'corpus_read_again_confirm': 'Ulertzen dut irakurketak ezabatuko direla eta berriro irakurtzeak '
+                              'berriro kostatzen duela',
  'corpus_read_again_button': 'Ezabatu irakurketak',
  'corpus_read_cleared_ok': 'Irakurketak ezabatu dira.',
  'corpus_terms_header': 'Hitzen eta esamoldeen zerrenda',
- 'corpus_terms_intro': 'Zerrendako hitz edo esamolde bakoitza zenbat testutan agertzen den zenbatzen du. Idatzitako hitzen zenbaketa soila da: ez du esanahia interpretatzen, eta hitz bat ez agertzeak ez du esan nahi ideia testuan beste hitz batzuekin ez dagoenik.',
- 'corpus_terms_how': 'Idatzi hitz edo esamolde bat lerroko. Maiuskulek eta azentuek ez dute axolarik. Gehitu * hitz baten amaieran bere bukaerak barne hartzeko: «etxe*» hitzak etxea, etxeak, etxean… aurkitzen ditu. Batez ere euskaraz erabilgarria da, hitzek amaieran aldatzen baitira; gaztelaniaz, «agresiv*» hitzak agresivo, agresiva, agresivos… aurkitzen ditu.',
+ 'corpus_terms_intro': 'Zerrendako hitz edo esamolde bakoitza zenbat testutan agertzen den '
+                       'zenbatzen du. Idatzitako hitzen zenbaketa soila da: ez du esanahia '
+                       'interpretatzen, eta hitz bat ez agertzeak ez du esan nahi ideia testuan '
+                       'beste hitz batzuekin ez dagoenik.',
+ 'corpus_terms_how': 'Idatzi hitz edo esamolde bat lerroko. Maiuskulek eta azentuek ez dute '
+                     'axolarik. Gehitu * hitz baten amaieran bere bukaerak barne hartzeko: «etxe*» '
+                     'hitzak etxea, etxeak, etxean… aurkitzen ditu. Batez ere euskaraz '
+                     'erabilgarria da, hitzek amaieran aldatzen baitira; gaztelaniaz, «agresiv*» '
+                     'hitzak agresivo, agresiva, agresivos… aurkitzen ditu.',
  'corpus_terms_add_label': 'Hitzak edo esamoldeak (bat lerroko)',
  'corpus_terms_add_button': 'Gehitu zerrendara',
  'corpus_terms_empty_input': 'Idatzi gutxienez hitz edo esamolde bat.',
  'corpus_terms_added': 'Gehituta: {added}. Zerrendan zeuden: {duplicates}. Baliogabeak: {invalid}.',
- 'corpus_terms_invalid_lines': 'Lerro hauek ezin izan dira erabili: {lines}. Letrak eta zenbakiak bakarrik onartzen dira (eta * hitzaren amaieran, gutxienez hiru letraren ondoren), gehienez {words} hitz esamolde bakoitzeko.',
+ 'corpus_terms_invalid_lines': 'Lerro hauek ezin izan dira erabili: {lines}. Letrak eta zenbakiak '
+                               'bakarrik onartzen dira (eta * hitzaren amaieran, gutxienez hiru '
+                               'letraren ondoren), gehienez {words} hitz esamolde bakoitzeko.',
  'corpus_terms_full': 'Zerrendak gehienezko mugara iritsi da: {max} hitz edo esamolde.',
- 'corpus_terms_starter_help': 'Abiapuntu bat: kasu-oharretan batzuetan pertsonak modu negatibo edo itxian deskribatzeko agertzen diren hitz eta esamoldeak. Adibide-zerrenda bat da: editatu, kendu balio ez duena eta gehitu zurea. Euskarazko zatia euskaraz dakien pertsona batek berrikusi behar du benetan erabili aurretik.',
+ 'corpus_terms_starter_help': 'Abiapuntu bat: kasu-oharretan batzuetan pertsonak modu negatibo edo '
+                              'itxian deskribatzeko agertzen diren hitz eta esamoldeak. '
+                              'Adibide-zerrenda bat da: editatu, kendu balio ez duena eta gehitu '
+                              'zurea. Euskarazko zatia euskaraz dakien pertsona batek berrikusi '
+                              'behar du benetan erabili aurretik.',
  'corpus_terms_starter_button': 'Gehitu hasierako zerrenda (gaztelania eta euskara)',
  'corpus_terms_starter_done': 'Hasierako zerrenda gehituta: {added} berri ({duplicates} bazeuden).',
- 'corpus_terms_basque_review': 'Hasierako zerrendako euskarazko hitzak lehen proposamen bat dira: euskaraz dakien pertsona batek berrikusi behar ditu.',
+ 'corpus_terms_basque_review': 'Hasierako zerrendako euskarazko hitzak lehen proposamen bat dira: '
+                               'euskaraz dakien pertsona batek berrikusi behar ditu.',
  'corpus_terms_none_yet': 'Zerrenda hutsik dago. Gehitu hitzak edo erabili hasierako zerrenda.',
  'corpus_terms_no_texts': 'Gehitu testuak bildumara zenbatzeko zerbait egon dadin.',
  'corpus_terms_counts_header': 'Emaitzak',
- 'corpus_terms_caveat': '«Testuak» zutabeak hitza gutxienez behin duten testuak zenbatzen ditu. Ez du neurtzen zerbait ohikoa den, ezta on edo txarra den ere: hitz bat zerbait ukatzeko ere erabil daiteke («ez da oldarkorra»). Begiratu beti testuingurua.',
+ 'corpus_terms_caveat': '«Testuak» zutabeak hitza gutxienez behin duten testuak zenbatzen ditu. Ez '
+                        'du neurtzen zerbait ohikoa den, ezta on edo txarra den ere: hitz bat '
+                        'zerbait ukatzeko ere erabil daiteke («ez da oldarkorra»). Begiratu beti '
+                        'testuingurua.',
  'corpus_terms_col_term': 'Hitza edo esamoldea',
  'corpus_terms_col_texts': 'Testuak',
  'corpus_terms_col_times': 'Aldiak',
@@ -1168,27 +1343,148 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'corpus_terms_text_line': '{term}: {times}',
  'corpus_terms_download': 'Deskargatu taula osoa (CSV)',
  'corpus_report_header': 'Inprimatzeko txostena',
- 'corpus_report_intro': 'Inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du, hautatzen dituzun zatiekin. Testuak zenbakiarekin bakarrik agertzen dira (T-001…).',
+ 'corpus_report_intro': 'Inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du, hautatzen '
+                        'dituzun zatiekin. Testuak zenbakiarekin bakarrik agertzen dira (T-001…).',
  'corpus_report_opt_patterns': 'Sartu bilaketa bateko ereduak',
  'corpus_report_run_label': 'Sartu beharreko eredu-bilaketa',
  'corpus_report_opt_readings': 'Sartu lenteekin egindako irakurketa',
  'corpus_report_opt_terms': 'Sartu hitzen zerrenda',
- 'corpus_report_opt_passages': 'Sartu pasarteak eta aipu zehatzak (hautatu gabe: zenbaketak eta azalpenak bakarrik)',
+ 'corpus_report_opt_passages': 'Sartu pasarteak eta aipu zehatzak (hautatu gabe: zenbaketak eta '
+                               'azalpenak bakarrik)',
  'corpus_report_nothing_selected': 'Hautatu txostenaren zati bat gutxienez.',
  'corpus_report_no_run': 'Oraindik ez dago eredu-bilaketarik: ez da eredurik sartuko.',
  'corpus_report_doc_title': 'Testuen azterketaren txostena',
- 'corpus_report_how_to_read': 'Txosten honek lehendik idatzita dauden testu-multzo batean zer errepikatzen den biltzen du. Ereduak hausnarketarako hautagaiak dira, ez ondorioak: gai bat errepikatzeak ez du alborapenik edo jardun txarrik frogatzen. Aurkikuntza bakoitzaren indarra beti «testuen zenbatetan agertzen den» gisa adierazten da. Taldeak erabakitzen du zer esan nahi duen, esan nahi badu.',
+ 'corpus_report_how_to_read': 'Txosten honek lehendik idatzita dauden testu-multzo batean zer '
+                              'errepikatzen den biltzen du. Ereduak hausnarketarako hautagaiak '
+                              'dira, ez ondorioak: gai bat errepikatzeak ez du alborapenik edo '
+                              'jardun txarrik frogatzen. Aurkikuntza bakoitzaren indarra beti '
+                              '«testuen zenbatetan agertzen den» gisa adierazten da. Taldeak '
+                              'erabakitzen du zer esan nahi duen, esan nahi badu.',
  'corpus_report_collection_title': 'Bilduma',
  'corpus_report_collection_line': '«{name}» bilduma: {documents} testu eta {passages} pasarte.',
  'corpus_report_search_title': 'Eredu-bilaketa',
- 'corpus_report_search_line': '{date}(e)ko bilaketa: {documents} testu eta {passages} pasarte alderatu dira; eredu hautagai {patterns} aurkitu dira.',
+ 'corpus_report_search_line': '{date}(e)ko bilaketa: {documents} testu eta {passages} pasarte '
+                              'alderatu dira; eredu hautagai {patterns} aurkitu dira.',
  'corpus_report_col_texts': 'Zenbat testutan',
  'corpus_report_col_passages': 'Pasarteak',
  'corpus_report_passages_omitted': 'Pasarteak eta aipuak ez dira txosten honetan sartzen.',
  'corpus_report_readings_title': 'Testu bakoitzaren irakurketa lenteekin',
- 'corpus_report_readings_omitted': 'Behaketak eta aipu zehatzak ez dira txosten honetan sartzen; behean, AAk zerbait planteatu duen testuak.',
+ 'corpus_report_readings_omitted': 'Behaketak eta aipu zehatzak ez dira txosten honetan sartzen; '
+                                   'behean, AAk zerbait planteatu duen testuak.',
  'corpus_report_terms_title': 'Hitzen eta esamoldeen zerrenda',
  'corpus_report_col_where': 'Agertzen den testuak',
  'corpus_report_more_texts': '(eta {count} gehiago)',
- 'corpus_report_limits_list': ['Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori buruzkoak diren): txosten honek ezin du ezer esan talde desberdinak berdin ala desberdin tratatzen diren.', 'Ereduen multzokatzea automatikoa da, esanahiaren antzagatik; erlazionatu gabeko pasarteak elkartu ditzake edo erlazionatuak bereizi.', 'Lenteekin egindako irakurketa AAk egiten du, testuz testu: «aipatua» ez du neurtzen zerbait zenbatetan gertatzen den, eta ezer aipatzen ez duenean horrek ez du esan nahi testua horretatik libre dagoenik.', 'Hitzen zenbaketak idatzitako hitzak soilik hartzen ditu kontuan: ez ditu testuingurua ez sinonimoak ulertzen.', 'Bildumako testuak taldeak kargatzea erabaki dituenak dira; ez dira nahitaez dokumentazio osoaren adierazgarri.', 'Anonimizazio automatikoak baliteke datu pertsonal guztiak ez detektatzea: berrikusi txosten hau partekatu aurretik.'],
- 'corpus_report_footer': 'Konfidentziala · Hausnarketarako hautagaiak, ez ondorioak · {date}'}
+ 'corpus_report_limits_list': ['Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori '
+                               'buruzkoak diren): txosten honek ezin du ezer esan talde '
+                               'desberdinak berdin ala desberdin tratatzen diren.',
+                               'Ereduen multzokatzea automatikoa da, esanahiaren antzagatik; '
+                               'erlazionatu gabeko pasarteak elkartu ditzake edo erlazionatuak '
+                               'bereizi.',
+                               'Lenteekin egindako irakurketa AAk egiten du, testuz testu: '
+                               '«aipatua» ez du neurtzen zerbait zenbatetan gertatzen den, eta '
+                               'ezer aipatzen ez duenean horrek ez du esan nahi testua horretatik '
+                               'libre dagoenik.',
+                               'Hitzen zenbaketak idatzitako hitzak soilik hartzen ditu kontuan: '
+                               'ez ditu testuingurua ez sinonimoak ulertzen.',
+                               'Bildumako testuak taldeak kargatzea erabaki dituenak dira; ez dira '
+                               'nahitaez dokumentazio osoaren adierazgarri.',
+                               'Anonimizazio automatikoak baliteke datu pertsonal guztiak ez '
+                               'detektatzea: berrikusi txosten hau partekatu aurretik.'],
+ 'corpus_report_footer': 'Konfidentziala · Hausnarketarako hautagaiak, ez ondorioak · {date}',
+ 'rs_intro': 'Idatzi, itsatsi edo igo hausnartu nahi duzun kasua eta hausnartu une berean. '
+             'Kasuaren testua hausnarketa honetan bakarrik erabiltzen da eta ez da inoiz '
+             'gordetzen: hausnarketa da gordetzen dena.',
+ 'rs_code_label': 'Hausnarketa honen kodea:',
+ 'rs_code_help': 'Aplikazioak sortutako kode neutroa. Ez du inor identifikatzen. Idatzi ezazu '
+                 'geroago egoera berari buruzko beste hausnarketa bat lotu nahi baduzu.',
+ 'rs_note_type_label': 'Testu mota',
+ 'rs_tags_label': 'Kasuaren gaiak (datu pertsonalik gabe)',
+ 'rs_tags_placeholder': 'Aukeratu gai bat edo gehiago',
+ 'rs_tags_help': 'Markatu gehienez {max} gai, egoera deskribatzen dutenak, inoiz ez pertsona. '
+                 'Geroago antzeko egoerei buruzko zure hausnarketak aurkitzeko balio dute.',
+ 'rs_tags_short_label': 'Gaiak',
+ 'rs_no_tags': 'Gairik gabe',
+ 'rs_previous_code_label': 'Aurreko hausnarketa baten jarraipena da? (aukerakoa)',
+ 'rs_previous_code_placeholder': 'RS-XXXXXX',
+ 'rs_previous_code_help': 'Egoera berari buruz lehenago hausnartu bazenuen, idatzi hemen '
+                          'hausnarketa haren kodea kontuan hartzeko. Zure hausnarketak bakarrik '
+                          'lotu ditzakezu.',
+ 'rs_previous_code_invalid': 'Kode horrek ez du formatu zuzena. RS-7F3K2Q bezalakoa izan behar du.',
+ 'rs_previous_code_not_found': 'Ez da {code} kodea duen zure hausnarketarik aurkitu. Egiaztatu '
+                               'kodea edo utzi eremua hutsik.',
+ 'rs_previous_code_check_failed': 'Ezin izan da aurreko kodea orain egiaztatu. Saiatu berriro edo '
+                                  'utzi eremua hutsik.',
+ 'rs_case_text_label': 'Kasuaren testua',
+ 'rs_case_text_placeholder': 'Idatzi edo itsatsi kasua hemen…',
+ 'rs_case_text_not_saved_note': '🔒 Testu hau ez da gordetzen. Hausnarketak irauten duen bitartean '
+                                'bakarrik dago.',
+ 'rs_continue_button': 'Jarraitu',
+ 'rs_case_text_review_label': 'Kasuaren testua (ez da gordetzen)',
+ 'rs_similar_header': 'Zure aurreko hausnarketa lotuak',
+ 'rs_similar_intro': 'Honekin lotutako edo gai komunak dituzten zure hausnarketak. Kendu marka '
+                     'kontuan hartu nahi ez dituzunei.',
+ 'rs_similar_none': 'Ez dago zure aurreko hausnarketarik lotuta edo gai komunekin. Hausnarketa '
+                    'gaurko testuarekin bakarrik egingo da.',
+ 'rs_similar_failed': 'Ezin izan dira zure aurreko hausnarketak orain bilatu. Jarrai dezakezu: '
+                      'hausnarketa gaurko testuarekin bakarrik egingo da.',
+ 'rs_similar_reason_linked': 'Egoera honen aurreko hausnarketa gisa lotuta',
+ 'rs_similar_reason_tags': 'Gai komunak',
+ 'rs_similar_include_label': 'Hausnarketa hau kontuan hartu',
+ 'rs_similar_observations_label': 'Ikusi bere behaketak',
+ 'rs_similar_used_label': 'Barne hartutako aurreko hausnarketak',
+ 'rs_back_to_case_button': 'Itzuli kasura',
+ 'rs_finish_header': 'Amaitu hausnarketa',
+ 'rs_finish_caption': 'Zure hausnarketa eta oharrak {code} kodearekin gordeta geratzen dira. '
+                      'Amaitzean, kasuaren testua baztertu egiten da.',
+ 'rs_finish_caption_unsaved': 'Ezin izan da hausnarketa hau gorde. Amaitzean, kasuaren testua '
+                              'baztertu egiten da.',
+ 'rs_finish_button': 'Amaitu hausnarketa',
+ 'rs_finished_success': '✔ Hausnarketa amaituta. Kasuaren testua baztertu da.',
+ 'rs_start_over_button': 'Hasi berriro',
+ 'ch_reflections_header': 'Gordetako hausnarketak',
+ 'ch_reflections_intro': 'Hausnarketa bakoitza bere kode neutroarekin eta gaiekin agertzen da. '
+                         'IAren behaketak erakusten dira; inoiz ez kasuaren testua (ez da '
+                         'gordetzen) ezta profesionalen ohar pribatuak ere.',
+ 'ch_tag_filter_label': 'Gaia',
+ 'ch_all_tags': 'Gai guztiak',
+ 'ch_showing_recent': '{total} hausnarketetatik azken {shown}ak erakusten dira. Aukeratu data edo '
+                      'gai bat mugatzeko.',
+ 'ch_author_label': 'Egilea',
+ 'ch_linked_label': 'Hausnarketa honen jarraipena',
+ 'ch_no_observations': 'Hausnarketa honek ez du gordetako behaketarik.',
+ 'ch_delete_button': 'Ezabatu hausnarketa',
+ 'ch_delete_confirm': 'Ziur zaude hausnarketa hau ezabatu nahi duzula? Bere behaketak eta lotutako '
+                      'oharrak ezabatuko dira. Ekintza hau ezin da desegin.',
+ 'ch_deleted_success': '✔ Hausnarketa ezabatuta.',
+ 'ch_delete_failed': '⚠ Ezin izan da hausnarketa ezabatu.',
+ 'research_observations_label': 'Gordetako behaketak',
+ 'admin_legacy_docs_header': '🗑️ Ezabatu gordetako dokumentu zaharrak',
+ 'admin_legacy_docs_none': 'Ez da gordetako dokumentu zaharrik geratzen. Reflection Spacek '
+                           'hausnarketak bakarrik gordetzen ditu.',
+ 'admin_legacy_docs_count': '«Hausnarketak bakarrik» aldaketaren aurretik gordetako {count} '
+                            'dokumentu geratzen dira.',
+ 'admin_legacy_docs_caption': 'Betiko ezabatuko dira: dokumentu zahar guztiak, haien aldaketen '
+                              'historia, haietatik sortutako hausnarketak (behaketa eta oharrekin) '
+                              'eta haien bilaketa-kopiak. Hausnarketa berriak ez dira ukitzen. '
+                              'Ekintza hau ezin da desegin.',
+ 'admin_legacy_docs_confirm_word': 'EZABATU',
+ 'admin_legacy_docs_confirm_label': 'Berresteko, idatzi {word}',
+ 'admin_legacy_docs_button': 'Ezabatu dokumentu zahar guztiak',
+ 'admin_legacy_docs_done': '✔ {count} dokumentu zahar ezabatu dira.',
+ 'admin_legacy_docs_refused': 'Sistemaren administratzaileak bakarrik egin dezake hau.',
+ 'admin_legacy_docs_count_failed': 'Ezin izan da kontsultatu zenbat dokumentu zahar geratzen '
+                                   'diren.',
+ 'case_tag_labels': {'housing': 'Etxebizitza / etxegabetasuna',
+                     'employment_training': 'Enplegua eta prestakuntza',
+                     'income_benefits': 'Diru-sarrerak eta prestazioak',
+                     'mental_health': 'Osasun mentala',
+                     'physical_health': 'Osasun fisikoa',
+                     'addictions': 'Mendekotasunak',
+                     'disability': 'Desgaitasuna',
+                     'family_relationships': 'Familia-harremanak',
+                     'children_youth': 'Haurtzaroa eta gazteria',
+                     'older_people': 'Adinekoak',
+                     'gender_violence': 'Genero-indarkeria',
+                     'social_isolation': 'Bakardadea / isolamendu soziala',
+                     'migration_integration': 'Migrazioa eta integrazioa',
+                     'legal_administrative': 'Lege- eta administrazio-izapideak'}}

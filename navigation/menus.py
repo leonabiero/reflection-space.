@@ -36,7 +36,9 @@ def render_workspace_menu(T):
 
     if workspace == "Practitioner":
         render_workspace_badge(T.get("workmode_practitioner", "Practitioner"), "Practitioner")
-        st.sidebar.page_link("pages/documentation.py", label=T.get("nav_doc", "Documentation"))
+        # Reflection-only redesign (REFLECTIONS.md): Documentation and
+        # Reflection Space are now ONE screen -- the case is written,
+        # pasted or uploaded and reflected on in the same place.
         st.sidebar.page_link("pages/reflection_space.py", label=T.get("nav_reflection", "Reflection Space"))
         st.sidebar.page_link("pages/growth_dashboard.py", label=T.get("nav_growth", "My Reflection"))
     elif workspace == "Manager":

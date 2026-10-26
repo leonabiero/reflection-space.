@@ -3,6 +3,12 @@
 This document describes what Reflection Space now keeps after a reflection,
 who can see it, how it is deleted, what it costs, and what is **not** done yet.
 
+> **October 2026 update — reflection-only design.** Case documents are no
+> longer stored at all; the saved reflection described here is now *the*
+> record. Each run also carries a neutral `reflection_code`, non-personal
+> `case_tags`, a `note_type` and an optional `previous_code`, and new runs have
+> no rows in `reflection_run_sources`. See `REFLECTIONS.md`.
+
 ## What changed, in one paragraph
 
 Before, a reflection was shown on screen and then forgotten (only a yes/no
@@ -16,8 +22,8 @@ finding, and can come back to them later on the "My Reflection" page.
 
 | Table | One row per | Holds |
 |---|---|---|
-| `reflection_runs` | generated reflection | case reference, language, prompt version, model, per-dimension status (`finding` / `no_finding` / `failed`), who ran it, when |
-| `reflection_run_sources` | document used by a run | which documents (current + any history included) fed the run |
+| `reflection_runs` | generated reflection | reflection code (also stored as case reference), case themes, type of text, optional link to an earlier code, language, prompt version, model, per-dimension status (`finding` / `no_finding` / `failed`), who ran it, when |
+| `reflection_run_sources` | document used by a run | which stored documents fed the run (only reflections made before October 2026; new ones use no stored document) |
 | `reflection_findings` | dimension with a result | observation, questions, verified quotes, how many proposed quotes were rejected |
 | `finding_feedback` | professional + finding | label, note, alternative explanation, "AI misunderstood" flag |
 

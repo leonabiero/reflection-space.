@@ -24,7 +24,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'empty': 'Por favor escribe un texto',
  'new': 'Nuevo documento',
  'reflection': 'Espacio de reflexión',
- 'home_subtitle': 'Un espacio para la documentación y la reflexión en la práctica.',
+ 'home_subtitle': 'Un espacio para la reflexión en la práctica.',
  'nav_hint': 'Usa la barra lateral para navegar.',
  'nav_header': 'Navegar:',
  'nav_doc': '📝 Documentación',
@@ -36,7 +36,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'reflection_folders_intro': 'Documentos pendientes de reflexión, agrupados por caso.',
  'reflection_same_day_notice': '⚠️ Este caso tiene más de un documento del mismo día.',
  'reflection_no_case_ref': '(Sin referencia de caso)',
- 'reflection_active_case_prefix': 'Reflexionando sobre el caso:',
+ 'reflection_active_case_prefix': 'Código de la reflexión:',
  'reflection_delete_button': 'Eliminar documento',
  'reflection_delete_confirm': '¿Confirmas que quieres eliminar este documento? Esta acción no se '
                               'puede deshacer.',
@@ -44,14 +44,12 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'reflection_context_title': 'Contexto de la reflexión',
  'reflection_context_current_label': 'Documento(s) seleccionado(s):',
  'reflection_context_historical_label': 'Documentos históricos relevantes de este caso:',
- 'reflection_context_summary_strong': 'Esta reflexión utiliza la documentación de hoy junto con '
-                                      '{count} documentos históricos relevantes.',
- 'reflection_context_summary_limited': 'Esta reflexión utiliza principalmente la documentación de '
-                                       'hoy, ya que se encontró información histórica limitada '
-                                       'relevante.',
- 'reflection_context_summary_none': 'Esta parece ser la primera interacción documentada para este '
-                                    'caso.',
- 'reflection_context_continue': 'Continuar a la reflexión',
+ 'reflection_context_summary_strong': 'Esta reflexión usa el caso de hoy junto con {count} '
+                                      'reflexiones anteriores relacionadas.',
+ 'reflection_context_summary_limited': 'Esta reflexión usa sobre todo el caso de hoy, con pocas '
+                                       'reflexiones anteriores relacionadas.',
+ 'reflection_context_summary_none': 'Esta reflexión usa solo el caso de hoy.',
+ 'reflection_context_continue': 'Generar la reflexión',
  'reflection_context_back': 'Volver a la selección',
  'reflection_partial_failure_notice': 'Algunas perspectivas de reflexión no se pudieron generar '
                                       '({count}). La reflexión se ha producido de todas formas. '
@@ -128,9 +126,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_sample_label': 'Texto de muestra (solo datos ficticios)',
  'admin_run_button': 'Ejecutar anonimizador',
  'admin_output_label': 'Salida anonimizada (lo que se envía a Claude):',
- 'nav_case_history': '🗂️ Historial de casos',
- 'case_history_title': 'Historial de casos',
- 'case_history_no_items': 'Aún no hay reflexiones completadas.',
+ 'nav_case_history': '🗂️ Historial de reflexiones',
+ 'case_history_title': 'Historial de reflexiones',
+ 'case_history_no_items': 'Aún no hay reflexiones guardadas.',
  'case_history_original_label': 'Versión original',
  'case_history_current_label': 'Versión actual',
  'case_history_edited_label': 'Editado',
@@ -151,7 +149,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'case_history_toggle_label': 'Mostrar:',
  'case_history_edited_option': 'Editados',
  'case_history_not_edited_option': 'No editados',
- 'case_history_no_items_for_filter': 'No hay documentos para esta selección.',
+ 'case_history_no_items_for_filter': 'No hay reflexiones para esta selección.',
  'case_history_showing_recent': 'Mostrando los {shown} documentos más recientes de {total}. Usa el '
                                 'filtro de fecha para ver documentos anteriores.',
  'feedback_showing_recent': 'Mostrando los {shown} comentarios más recientes de {total}.',
@@ -184,7 +182,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'audit_action_restored': 'Restaurado',
  'audit_action_purged': 'Purgado permanentemente',
  'workspace_opportunities_header': 'Oportunidades de reflexión',
- 'workspace_document_header': 'Documento actual',
+ 'workspace_document_header': 'Texto del caso (no se guarda)',
  'workspace_context_header': 'Contexto de la reflexión',
  'workspace_progress_label': 'Explorado(s): {explored} de {total}',
  'workspace_explore_button': 'Explorar',
@@ -208,7 +206,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'growth_themes_header': 'Áreas que más has explorado',
  'growth_themes_caption': 'Basado en {total} momento(s) de exploración registrados',
  'growth_history_header': 'Momentos reflexivos recientes',
- 'growth_entry_line': '**{theme}** — caso {case} — {count} intercambio(s) — {date}',
+ 'growth_entry_line': '**{theme}** — reflexión {case} — {count} intercambio(s) — {date}',
  'growth_session_count_label': 'Momentos de exploración registrados en total',
  'nav_team_learning': '🌍 Aprendizaje del Equipo',
  'team_learning_title': '🌍 Temas Reflexivos del Equipo',
@@ -262,13 +260,14 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'why_similarity_high': 'Alta',
  'why_similarity_moderate': 'Moderada',
  'why_similarity_low': 'Baja',
- 'journey_step1': 'Documentación de Hoy',
- 'journey_step2': 'Contexto Histórico',
+ 'journey_step1': 'Tu caso',
+ 'journey_step2': 'Reflexiones anteriores',
  'journey_step3': 'Reflexión Profesional',
  'journey_step4': 'Preguntas Reflexivas',
- 'journey_step1_desc': 'Se seleccionan los documentos de hoy para la reflexión.',
- 'journey_step2_desc': 'Se recuperan documentos históricos relevantes de este caso.',
- 'journey_step3_desc': 'La IA analiza la documentación de hoy junto con el contexto histórico.',
+ 'journey_step1_desc': 'Escribes, pegas o subes el caso sobre el que quieres reflexionar.',
+ 'journey_step2_desc': 'Se buscan tus reflexiones anteriores enlazadas o con temas en común.',
+ 'journey_step3_desc': 'La IA analiza el caso de hoy junto con las reflexiones anteriores que '
+                       'hayas incluido.',
  'journey_step4_desc': 'Se te invita a considerar preguntas reflexivas.',
  'historical_timeline_header': 'Línea temporal histórica',
  'historical_timeline_intro': 'Documentos relevantes de este caso, ordenados cronológicamente.',
@@ -303,8 +302,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'learning_tab_team': '🌍 Aprendizaje del Equipo',
  'ka_header': 'Pregunta sobre el conocimiento organizacional',
  'ka_intro': 'Haz una pregunta en lenguaje natural sobre los patrones, temas y actividad reflexiva '
-             'de la organización. Las respuestas se basan únicamente en la documentación y '
-             'reflexiones indexadas — nunca en conocimiento general externo.',
+             'de la organización. Las respuestas se basan únicamente en las reflexiones guardadas '
+             '— nunca en conocimiento general externo.',
  'ka_question_label': 'Tu pregunta',
  'ka_question_placeholder': 'Por ejemplo: ¿Qué patrones han surgido en Kulunka este trimestre?',
  'ka_ask_button': 'Preguntar',
@@ -328,7 +327,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'ka_evidence_count': '{count} documento(s) relevante(s) recuperado(s)',
  'ka_evidence_doc_type_col': 'Tipo de documento',
  'ka_evidence_date_col': 'Fecha',
- 'ka_evidence_case_col': 'Referencia de caso/servicio',
+ 'ka_evidence_case_col': 'Código de la reflexión',
  'ka_evidence_relevance_col': 'Relevancia',
  'ka_evidence_none': 'No se recuperó ningún documento relevante para esta pregunta.',
  'admin_user_mgmt_header': '👥 Gestión de usuarios',
@@ -439,10 +438,16 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                              'reflexiones.',
  'admin_config_header': '⚙️ Configuración',
  'admin_tools_header': '🧰 Herramientas administrativas',
- 'admin_anon_empty_warning': 'Escribe o pega primero un texto de muestra y vuelve a pulsar el botón.',
- 'admin_anon_no_changes': 'El anonimizador no ha encontrado datos personales que sustituir en este texto.',
- 'admin_anon_stale_note': 'Has cambiado el texto desde la última prueba: pulsa el botón otra vez para ver el resultado actualizado.',
- 'admin_anon_tags_help': 'Etiquetas: [PERSON] = nombre de persona · [LOCATION] = lugar · [ADDRESS] = dirección · [ORGANISATION] = centro u organización · [ID] = DNI/NIE, expediente, cuenta u otro identificador · [PHONE] = teléfono · [EMAIL] = correo · [DATE] = fecha.',
+ 'admin_anon_empty_warning': 'Escribe o pega primero un texto de muestra y vuelve a pulsar el '
+                             'botón.',
+ 'admin_anon_no_changes': 'El anonimizador no ha encontrado datos personales que sustituir en este '
+                          'texto.',
+ 'admin_anon_stale_note': 'Has cambiado el texto desde la última prueba: pulsa el botón otra vez '
+                          'para ver el resultado actualizado.',
+ 'admin_anon_tags_help': 'Etiquetas: [PERSON] = nombre de persona · [LOCATION] = lugar · [ADDRESS] '
+                         '= dirección · [ORGANISATION] = centro u organización · [ID] = DNI/NIE, '
+                         'expediente, cuenta u otro identificador · [PHONE] = teléfono · [EMAIL] = '
+                         'correo · [DATE] = fecha.',
  'admin_tools_anon_test_header': 'Prueba de anonimización',
  'admin_tools_reset_index_header': 'Reiniciar el índice de búsqueda (Qdrant)',
  'admin_tools_reset_index_caption': 'Elimina y vuelve a crear el índice de búsqueda semántica '
@@ -699,36 +704,38 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'help': {'nav_label': '❓ Ayuda',
           'page_title': 'Guía rápida de Reflection Space',
           'intro_title': '¿Qué es Reflection Space?',
-          'intro_body': 'Reflection Space lee la documentación del caso que acabas de escribir y, '
-                        'antes de que quede finalizada, te ofrece preguntas reflexivas en ocho '
+          'intro_body': 'Reflection Space te ayuda a reflexionar sobre un caso en el momento: '
+                        'escribes, pegas o subes el caso y te ofrece preguntas reflexivas en ocho '
                         'dimensiones profesionales -- por ejemplo, si la voz de la persona usuaria '
                         'está presente, o si se están pasando por alto sus fortalezas junto a las '
-                        'dificultades.',
+                        'dificultades. No es un lugar para guardar documentos: solo se guarda la '
+                        'reflexión.',
           'guardrail_note': 'La herramienta nunca califica, puntúa ni decide nada por ti. Tú '
-                            'decides qué cambiar, si acaso, en tu documentación.',
+                            'decides qué hacer, si acaso, con lo que te haya hecho pensar.',
           'journey_title': 'El recorrido de reflexión en tres pasos',
-          'journey_steps': ['1. Documentación de hoy -- elige la(s) nota(s) de caso que acabas de '
-                            'escribir y sobre las que quieres reflexionar.',
-                            '2. Contexto histórico -- revisa qué documentos anteriores del caso se '
-                            'han mostrado como relevantes, e incluye o excluye los que quieras.',
+          'journey_steps': ['1. Tu caso -- escribe, pega o sube el caso, elige el tipo de texto, '
+                            'marca algunos temas sin datos personales y, si quieres, enlaza una '
+                            'reflexión anterior con su código.',
+                            '2. Reflexiones anteriores -- revisa tus reflexiones anteriores '
+                            'enlazadas o con temas en común, e incluye o excluye las que quieras.',
                             '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, '
-                            'conversa brevemente sobre alguna si quieres, y después actualiza y '
-                            'envía tu documento.'],
+                            'conversa brevemente sobre alguna si quieres, añade tus notas y '
+                            'termina. El texto del caso se descarta al terminar.'],
           'practitioner_title': 'Espacio del profesional',
-          'doc_section_title': '📝 Documentación -- escribir una nota de caso',
-          'doc_section_body': 'En la página Documentación, indica la referencia del caso, elige el '
-                              'tipo de documento y el idioma, y escribe tu nota. Al pulsar Guardar '
-                              'se almacena como borrador privado -- solo tú puedes verlo -- hasta '
-                              'que lo envíes desde Reflection Space.',
-          'reflection_section_title': '🪞 Reflection Space -- reflexionar antes de enviar',
-          'reflection_section_body': 'En la página Reflection Space: elige el/los borrador(es) '
-                                     'sobre los que quieres reflexionar, revisa el contexto '
-                                     'histórico que se ha mostrado (puedes desmarcar lo que no '
-                                     'quieras tener en cuenta) y continúa para generar tu '
-                                     'reflexión. Explora cualquiera de las ocho dimensiones, abre '
-                                     'una breve conversación sobre alguna si quieres, y luego '
-                                     'edita y envía tu documento. Después puedes valorar la '
-                                     'utilidad de la sesión -- totalmente opcional.',
+          'doc_section_title': '📝 Tu caso -- escribir, pegar o subir',
+          'doc_section_body': 'Ya no hay una página de Documentación aparte. En Reflection Space '
+                              'escribes o pegas el caso (o subes un Word, PDF o texto: solo se lee '
+                              'el texto). Cada reflexión recibe un código neutro (por ejemplo '
+                              'RS-7F3K2Q) y los temas que marques; nada de eso identifica a la '
+                              'persona. El texto del caso nunca se guarda.',
+          'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
+          'reflection_section_body': 'Después de continuar, verás tus reflexiones anteriores '
+                                     'enlazadas o con temas en común (puedes desmarcar las que no '
+                                     'quieras tener en cuenta) y generarás tu reflexión. Explora '
+                                     'cualquiera de las ocho dimensiones, abre una breve '
+                                     'conversación sobre alguna si quieres, añade tus notas y '
+                                     'pulsa Terminar reflexión. Después puedes valorar la utilidad '
+                                     'de la sesión -- totalmente opcional.',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '
@@ -764,45 +771,49 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'learning_section_title': '📚 Aprendizaje',
           'learning_section_body': 'Aprendizaje tiene cuatro pestañas: Presencia del equipo (quién '
                                    'está activo), Asistente de conocimiento (haz una pregunta y '
-                                   'obtén una respuesta basada en la documentación de casos de la '
+                                   'obtén una respuesta basada en las reflexiones guardadas de la '
                                    'organización), Aprendizajes (qué dimensiones han aparecido más '
                                    'a menudo) y Aprendizaje del equipo (temas agregados de los '
                                    'últimos seis meses). Todo aquí es agregado y anónimo -- no se '
                                    'puede señalar el trabajo de ninguna persona en concreto.',
-          'case_history_section_title': '🗂️ Historial de casos',
-          'case_history_section_body': 'Historial de casos muestra la documentación completada y '
-                                       'el feedback recibido: una visión general de las '
-                                       'valoraciones de utilidad y los comentarios, y los '
-                                       'documentos completados agrupados por profesional, con un '
-                                       'interruptor entre editado y no editado para ver qué '
-                                       'cambió.',
+          'case_history_section_title': '🗂️ Historial de reflexiones',
+          'case_history_section_body': 'Historial de reflexiones muestra el feedback recibido '
+                                       '(valoraciones de utilidad y comentarios) y las reflexiones '
+                                       'guardadas, cada una con su código neutro, sus temas y las '
+                                       'observaciones de la IA. Se puede filtrar por fecha y por '
+                                       'tema. Nunca muestra el texto del caso ni las notas '
+                                       'privadas de los profesionales.',
           'research_metrics_section_title': '📊 Métricas de investigación',
           'research_metrics_section_body': 'Métricas de investigación (solo Administrador del '
                                            'sistema) ofrece una vista agregada a nivel de piloto: '
-                                           'sesiones y documentos completados en total, con qué '
-                                           'frecuencia se señaló cada dimensión frente a cuántas '
-                                           'veces se exploró, valoraciones de feedback, y una '
-                                           'exportación en CSV.',
+                                           'sesiones de reflexión y observaciones guardadas en '
+                                           'total, con qué frecuencia se señaló cada dimensión '
+                                           'frente a cuántas veces se exploró, valoraciones de '
+                                           'feedback, y una exportación en CSV.',
           'admin_title': '🛠️ Administración del sistema',
           'admin_section_body': 'Administración del sistema reúne la gestión de usuarios, la '
                                 'indexación de documentos y pruebas de recuperación, el estado de '
                                 'salud del sistema, la configuración, las comprobaciones de estado '
                                 'de las traducciones, el Centro de diagnóstico con IA (el registro '
-                                'de errores) y la búsqueda en el conocimiento de casos.',
+                                'de errores) y la búsqueda en el conocimiento de casos. También '
+                                'permite borrar de forma definitiva los documentos antiguos '
+                                'guardados antes del cambio a «solo reflexiones».',
           'report_problem_title': '🚩 Reportar un problema',
           'report_problem_body': 'Cada página tiene un control 🚩 Reportar un problema en la barra '
                                  'lateral, disponible para todo el mundo. Describe lo ocurrido con '
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['Los borradores pendientes son privados -- solo tú puedes verlos o '
-                             'abrirlos antes de enviarlos.',
+          'privacy_points': ['El texto del caso nunca se guarda -- solo existe mientras dura la '
+                             'reflexión y se descarta al terminar.',
+                             'Cada reflexión se identifica con un código neutro y temas sin datos '
+                             'personales, nunca con nombres.',
+                             'Tus notas sobre las observaciones son privadas -- solo tú puedes '
+                             'verlas.',
                              'El contenido de las conversaciones reflexivas nunca se guarda más '
                              'allá de la sesión -- solo se registra qué tema se exploró y cuándo.',
                              'Mi Reflexión es personal y no admite comparaciones: sin '
                              'puntuaciones, sin clasificaciones, visible solo para ti.',
-                             'Las vistas de toda la organización solo funcionan con datos '
-                             'agregados y anónimos.',
                              'El control de acceso basado en roles se aplica en dos niveles en '
                              'toda la aplicación.']},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
@@ -882,81 +893,131 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_usage_forecast_estimate_disclaimer': '⚠️ Todas las proyecciones anteriores son '
                                              'ESTIMACIONES basadas en promedios observados '
                                              'actualmente, no costes garantizados.',
- 'findings_evidence_caption': 'Pasaje de la documentación en el que se basa esta observación:',
- 'findings_unverified_notice': '{count} pasaje(s) propuesto(s) por la IA no coincidía(n) exactamente con el texto y no se muestra(n).',
+ 'findings_evidence_caption': 'Pasaje del texto del caso en el que se basa esta observación:',
+ 'findings_unverified_notice': '{count} pasaje(s) propuesto(s) por la IA no coincidía(n) '
+                               'exactamente con el texto y no se muestra(n).',
  'findings_notes_header': 'Mis notas y compartir con el equipo',
  'findings_label_prompt': '¿Cómo te ha resultado?',
  'findings_label_none': 'Sin valorar',
- 'findings_labels': {'useful': 'Útil', 'not_relevant': 'No relevante', 'uncertain': 'No lo tengo claro', 'discuss': 'Para comentar más adelante'},
+ 'findings_labels': {'useful': 'Útil',
+                     'not_relevant': 'No relevante',
+                     'uncertain': 'No lo tengo claro',
+                     'discuss': 'Para comentar más adelante'},
  'findings_misread_label': 'Creo que la IA no ha entendido bien el contexto',
  'findings_alternative_label': 'Otra explicación posible (opcional)',
  'findings_note_label': 'Mi reflexión o nota (opcional)',
  'findings_save_button': 'Guardar mis notas',
  'findings_save_success': 'Notas guardadas.',
  'findings_save_error': 'No se han podido guardar tus notas. Inténtalo de nuevo en un momento.',
- 'findings_not_saved_notice': 'Esta reflexión no se ha podido guardar, así que no podrás conservar notas sobre ella. Puedes seguir trabajando con normalidad.',
+ 'findings_not_saved_notice': 'Esta reflexión no se ha podido guardar, así que no podrás conservar '
+                              'notas sobre ella. Puedes seguir trabajando con normalidad.',
  'findings_journal_header': 'Observaciones guardadas y tus notas',
- 'findings_journal_intro': 'Aquí puedes volver a las observaciones de tus reflexiones, con el pasaje exacto en el que se basan, y escribir o revisar tus propias notas. Tus notas son solo para ti.',
- 'findings_journal_empty': 'Todavía no hay observaciones guardadas. Aparecerán aquí después de tu próxima reflexión.',
+ 'findings_journal_intro': 'Aquí puedes volver a las observaciones de tus reflexiones, con el '
+                           'pasaje exacto en el que se basan, y escribir o revisar tus propias '
+                           'notas. Tus notas son solo para ti.',
+ 'findings_journal_empty': 'Todavía no hay observaciones guardadas. Aparecerán aquí después de tu '
+                           'próxima reflexión.',
  'findings_journal_count': '{total} observación(es) guardada(s) — página {page} de {pages}',
  'findings_journal_newer': '← Más recientes',
  'findings_journal_older': 'Más antiguas →',
  'nav_patterns': '🔎 Revisión de patrones',
  'findings_share_label': 'Compartir esta observación con la revisión del equipo',
- 'findings_share_help': 'Si lo marcas, la observación y su cita exacta podrán aparecer, sin tu nombre y sin tus notas, en la revisión de patrones del equipo de gestión. Puedes retirarlo en cualquier momento. Si no lo marcas, nadie más la ve.',
- 'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se guardan aparte de lo que dijo la IA, que nunca se modifica. Solo si marcas «Compartir» se comparte la observación y su cita (nunca tu nombre ni tus notas).',
+ 'findings_share_help': 'Si lo marcas, la observación y su cita exacta podrán aparecer, sin tu '
+                        'nombre y sin tus notas, en la revisión de patrones del equipo de gestión. '
+                        'Puedes retirarlo en cualquier momento. Si no lo marcas, nadie más la ve.',
+ 'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se '
+                           'guardan aparte de lo que dijo la IA, que nunca se modifica. Solo si '
+                           'marcas «Compartir» se comparte la observación y su cita (nunca tu '
+                           'nombre ni tus notas).',
  'patterns_title': '🔎 Revisión de patrones',
  'patterns_no_access': 'Esta página es solo para supervisión y coordinación del programa.',
- 'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones compartidas. Lo que muestra son patrones candidatos para la reflexión, no conclusiones: un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y este conjunto pequeño y compartido voluntariamente no representa a la organización. El equipo decide qué significa, si es que significa algo.',
+ 'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones '
+                   'compartidas. Lo que muestra son patrones candidatos para la reflexión, no '
+                   'conclusiones: un grupo de observaciones parecidas no demuestra sesgo ni mala '
+                   'práctica, y este conjunto pequeño y compartido voluntariamente no representa a '
+                   'la organización. El equipo decide qué significa, si es que significa algo.',
  'patterns_pool_header': 'Qué hay para revisar',
- 'patterns_pool_caption': 'Solo aparecen observaciones que los profesionales han decidido compartir. Nunca ves quién las escribió ni sus notas privadas.',
+ 'patterns_pool_caption': 'Solo aparecen observaciones que los profesionales han decidido '
+                          'compartir. Nunca ves quién las escribió ni sus notas privadas.',
  'patterns_filter_lenses': 'Limitar a estos puntos de reflexión (vacío = todos)',
  'patterns_filter_from': 'Desde (opcional)',
  'patterns_filter_to': 'Hasta (opcional)',
  'patterns_pool_empty': 'Todavía no hay observaciones compartidas con estos filtros.',
- 'patterns_pool_counts': '{observations} observación(es) compartida(s), de {reflections} reflexión(es) y {cases} referencia(s) de caso distinta(s).',
- 'patterns_pool_no_case': '{count} reflexión(es) no tienen referencia de caso, por lo que no cuentan como casos.',
+ 'patterns_pool_counts': '{observations} observación(es) compartida(s), de {reflections} '
+                         'reflexión(es) y {cases} referencia(s) de caso distinta(s).',
+ 'patterns_pool_no_case': '{count} reflexión(es) no tienen referencia de caso, por lo que no '
+                          'cuentan como casos.',
  'patterns_generate_header': 'Buscar patrones',
  'patterns_settings_header': 'Ajustes de la búsqueda',
- 'patterns_settings_intro': 'Estos ajustes son puntos de partida, no valores demostrados. Cámbialos y compara los resultados.',
+ 'patterns_settings_intro': 'Estos ajustes son puntos de partida, no valores demostrados. '
+                            'Cámbialos y compara los resultados.',
  'patterns_similarity_label': 'Cuánto deben parecerse las observaciones',
  'patterns_similarity_levels': {'broad': 'Amplio', 'balanced': 'Equilibrado', 'strict': 'Estricto'},
- 'patterns_similarity_help': 'Amplio agrupa observaciones con un parecido más flojo (más grupos, más ruido). Estricto exige un parecido mayor (menos grupos, más fiables).',
+ 'patterns_similarity_help': 'Amplio agrupa observaciones con un parecido más flojo (más grupos, '
+                             'más ruido). Estricto exige un parecido mayor (menos grupos, más '
+                             'fiables).',
  'patterns_min_observations_label': 'Mínimo de observaciones por grupo',
  'patterns_min_reflections_label': 'Mínimo de reflexiones distintas por grupo',
- 'patterns_threshold_not_proof': 'Alcanzar estos mínimos no demuestra nada: solo decide si un grupo merece mostrarse para su discusión.',
- 'patterns_cost_note': 'Buscar patrones usa IA para redactar hasta {max_patterns} explicaciones (unos pocos céntimos en total). Solo se vuelve a pagar si pulsas el botón de nuevo.',
- 'patterns_pool_truncated': 'Hay más observaciones compartidas de las que se comparan de una vez; se usan las {max} más recientes.',
- 'patterns_not_enough': 'Hacen falta al menos {minimum} observaciones compartidas para buscar patrones.',
+ 'patterns_threshold_not_proof': 'Alcanzar estos mínimos no demuestra nada: solo decide si un '
+                                 'grupo merece mostrarse para su discusión.',
+ 'patterns_cost_note': 'Buscar patrones usa IA para redactar hasta {max_patterns} explicaciones '
+                       '(unos pocos céntimos en total). Solo se vuelve a pagar si pulsas el botón '
+                       'de nuevo.',
+ 'patterns_pool_truncated': 'Hay más observaciones compartidas de las que se comparan de una vez; '
+                            'se usan las {max} más recientes.',
+ 'patterns_not_enough': 'Hacen falta al menos {minimum} observaciones compartidas para buscar '
+                        'patrones.',
  'patterns_generate_button': 'Buscar patrones',
  'patterns_generating': 'Buscando patrones…',
  'patterns_busy': 'Ya hay una búsqueda en curso. Espera a que termine e inténtalo de nuevo.',
- 'patterns_unavailable': 'El servicio de comparación por significado no está configurado, así que ahora no se pueden buscar patrones.',
- 'patterns_none_found': 'No se ha encontrado ningún grupo que cumpla los mínimos entre {observations} observaciones. Prueba con un ajuste más amplio o espera a tener más observaciones compartidas.',
- 'patterns_generated_ok': 'Se han encontrado {patterns} patrón(es) candidato(s) entre {observations} observaciones.',
- 'patterns_not_embedded': '{count} observación(es) no se pudieron comparar esta vez y han quedado fuera.',
- 'patterns_fallback_notice': 'No se pudo redactar la explicación de {count} patrón(es); se muestra un texto sencillo y puedes reintentarlo.',
+ 'patterns_unavailable': 'El servicio de comparación por significado no está configurado, así que '
+                         'ahora no se pueden buscar patrones.',
+ 'patterns_none_found': 'No se ha encontrado ningún grupo que cumpla los mínimos entre '
+                        '{observations} observaciones. Prueba con un ajuste más amplio o espera a '
+                        'tener más observaciones compartidas.',
+ 'patterns_generated_ok': 'Se han encontrado {patterns} patrón(es) candidato(s) entre '
+                          '{observations} observaciones.',
+ 'patterns_not_embedded': '{count} observación(es) no se pudieron comparar esta vez y han quedado '
+                          'fuera.',
+ 'patterns_fallback_notice': 'No se pudo redactar la explicación de {count} patrón(es); se muestra '
+                             'un texto sencillo y puedes reintentarlo.',
  'patterns_review_header': 'Revisar patrones candidatos',
  'patterns_no_runs': 'Todavía no se ha buscado ningún patrón.',
  'patterns_run_select': 'Búsqueda a revisar',
  'patterns_run_option': '{date} — {observations} observaciones — {patterns} patrón(es)',
- 'patterns_run_caption': 'Ajustes de esta búsqueda: parecido {level}; mínimo {min_obs} observaciones de al menos {min_refl} reflexiones distintas.',
+ 'patterns_run_caption': 'Ajustes de esta búsqueda: parecido {level}; mínimo {min_obs} '
+                         'observaciones de al menos {min_refl} reflexiones distintas.',
  'patterns_filter_status': 'Mostrar estados',
- 'patterns_statuses': {'candidate': 'Candidato', 'under_review': 'En revisión', 'worth_discussing': 'Merece comentarse', 'not_supported': 'No respaldado tras revisar', 'archived': 'Archivado'},
+ 'patterns_statuses': {'candidate': 'Candidato',
+                       'under_review': 'En revisión',
+                       'worth_discussing': 'Merece comentarse',
+                       'not_supported': 'No respaldado tras revisar',
+                       'archived': 'Archivado'},
  'patterns_none_in_view': 'No hay patrones con estos filtros.',
- 'patterns_cases_none': 'Ninguna de estas reflexiones tiene referencia de caso, así que no se puede decir nada sobre casos.',
- 'patterns_cases_incomplete': '{missing} de las {total} reflexiones no tienen referencia de caso, así que no se puede establecer que se repita entre casos; solo que aparece en varias reflexiones.',
- 'patterns_cases_single': 'Todas las observaciones corresponden a una misma referencia de caso: es una repetición dentro de un caso, no entre casos.',
+ 'patterns_cases_none': 'Ninguna de estas reflexiones tiene referencia de caso, así que no se '
+                        'puede decir nada sobre casos.',
+ 'patterns_cases_incomplete': '{missing} de las {total} reflexiones no tienen referencia de caso, '
+                              'así que no se puede establecer que se repita entre casos; solo que '
+                              'aparece en varias reflexiones.',
+ 'patterns_cases_single': 'Todas las observaciones corresponden a una misma referencia de caso: es '
+                          'una repetición dentro de un caso, no entre casos.',
  'patterns_cases_multiple': 'Las observaciones proceden de {cases} referencias de caso distintas.',
  'patterns_item_header': '{title} — {status} — {observations} obs. / {reflections} reflexiones',
  'patterns_candidate_label': 'Patrón candidato para la reflexión — no es una conclusión.',
- 'patterns_counts_line': '{observations} observación(es) · {reflections} reflexión(es) distinta(s) · {cases} caso(s) distinto(s)',
- 'patterns_case_ref_caveat': 'Las referencias de caso se escriben a mano: una errata puede hacer que un mismo caso cuente como dos.',
+ 'patterns_counts_line': '{observations} observación(es) · {reflections} reflexión(es) distinta(s) '
+                         '· {cases} caso(s) distinto(s)',
+ 'patterns_case_ref_caveat': 'Las referencias de caso se escriben a mano: una errata puede hacer '
+                             'que un mismo caso cuente como dos.',
  'patterns_dates_line': 'Reflexiones entre {first} y {last}',
  'patterns_lenses_line': 'Puntos de reflexión: {lenses}',
- 'patterns_lost_members': '{count} de las observaciones de este patrón ya no están disponibles (retiradas por quien las escribió o eliminadas). La explicación escrita puede seguir reflejándolas: conviene volver a buscar patrones antes de fiarse de ella.',
- 'patterns_below_minimum': 'Con las observaciones actuales, este grupo ya no alcanza los mínimos con los que se encontró.',
- 'patterns_explanation_failed': 'La explicación automática de este patrón no se pudo redactar. Se muestra un texto sencillo.',
+ 'patterns_lost_members': '{count} de las observaciones de este patrón ya no están disponibles '
+                          '(retiradas por quien las escribió o eliminadas). La explicación escrita '
+                          'puede seguir reflejándolas: conviene volver a buscar patrones antes de '
+                          'fiarse de ella.',
+ 'patterns_below_minimum': 'Con las observaciones actuales, este grupo ya no alcanza los mínimos '
+                           'con los que se encontró.',
+ 'patterns_explanation_failed': 'La explicación automática de este patrón no se pudo redactar. Se '
+                                'muestra un texto sencillo.',
  'patterns_explanation_retry': 'Reintentar la explicación',
  'patterns_retry_ok': 'Explicación redactada.',
  'patterns_retry_failed': 'Sigue sin poder redactarse la explicación. Inténtalo más tarde.',
@@ -973,27 +1034,56 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'patterns_restore_button': 'Volver a incluirla',
  'patterns_restored_ok': 'Observación incluida de nuevo.',
  'patterns_review_status_header': 'Valoración del equipo',
- 'patterns_review_help': 'Registra aquí vuestro propio juicio. Lo que propuso la IA no se borra ni se modifica.',
+ 'patterns_review_help': 'Registra aquí vuestro propio juicio. Lo que propuso la IA no se borra ni '
+                         'se modifica.',
  'patterns_status_label': 'Estado',
  'patterns_comment_label': 'Comentario (opcional)',
  'patterns_save_review': 'Guardar valoración',
  'patterns_review_saved': 'Valoración guardada.',
  'patterns_review_nothing': 'No hay ningún cambio que guardar.',
  'patterns_history_header': 'Historial',
- 'patterns_event_kinds': {'generated': 'Patrón generado', 'status_changed': 'Estado cambiado', 'carried_over': 'Valoración heredada de una búsqueda anterior', 'member_excluded': 'Observación retirada del patrón', 'member_restored': 'Observación incluida de nuevo', 'explanation_regenerated': 'Explicación redactada de nuevo'},
+ 'patterns_event_kinds': {'generated': 'Patrón generado',
+                          'status_changed': 'Estado cambiado',
+                          'carried_over': 'Valoración heredada de una búsqueda anterior',
+                          'member_excluded': 'Observación retirada del patrón',
+                          'member_restored': 'Observación incluida de nuevo',
+                          'explanation_regenerated': 'Explicación redactada de nuevo'},
  'patterns_event_status_change': '({old} → {new})',
  'patterns_event_system': 'Sistema',
  'doc_import_label': 'O sube un documento (Word, PDF o texto)',
- 'doc_import_help': 'Solo se lee el texto; el archivo no se guarda. Hasta {max_mb} MB, {max_pages} páginas y unos {max_chars} caracteres. Los PDF escaneados (fotos de papel) no se pueden leer.',
- 'doc_import_loaded': 'Texto cargado. Revísalo y corrígelo antes de guardar: el archivo en sí no se guarda.',
- 'doc_import_errors': {'unsupported': 'Este tipo de archivo no se admite. Usa Word (.docx), PDF o texto (.txt).', 'too_large': 'El archivo es demasiado grande (máximo {max_mb} MB).', 'too_long': 'El documento es demasiado largo (máximo unos {max_chars} caracteres). Divídelo en partes y sube cada una por separado.', 'too_many_pages': 'El PDF tiene demasiadas páginas (máximo {max_pages}).', 'encrypted': 'El archivo está protegido con contraseña. Quita la protección y vuelve a subirlo.', 'no_text': 'No se ha encontrado texto en el archivo. Si es un PDF escaneado, copia el texto a mano o usa una versión con texto.', 'unreadable': 'No se ha podido leer el archivo. Puede estar dañado; prueba a guardarlo de nuevo o pega el texto.', 'unavailable': 'La lectura de este tipo de archivo no está disponible ahora mismo. Pega el texto directamente.'},
+ 'doc_import_help': 'Solo se lee el texto; el archivo no se guarda. Hasta {max_mb} MB, {max_pages} '
+                    'páginas y unos {max_chars} caracteres. Los PDF escaneados (fotos de papel) no '
+                    'se pueden leer.',
+ 'doc_import_loaded': 'Texto cargado. Revísalo y corrígelo antes de continuar: el archivo y el '
+                      'texto no se guardan.',
+ 'doc_import_errors': {'unsupported': 'Este tipo de archivo no se admite. Usa Word (.docx), PDF o '
+                                      'texto (.txt).',
+                       'too_large': 'El archivo es demasiado grande (máximo {max_mb} MB).',
+                       'too_long': 'El documento es demasiado largo (máximo unos {max_chars} '
+                                   'caracteres). Divídelo en partes y sube cada una por separado.',
+                       'too_many_pages': 'El PDF tiene demasiadas páginas (máximo {max_pages}).',
+                       'encrypted': 'El archivo está protegido con contraseña. Quita la protección '
+                                    'y vuelve a subirlo.',
+                       'no_text': 'No se ha encontrado texto en el archivo. Si es un PDF '
+                                  'escaneado, copia el texto a mano o usa una versión con texto.',
+                       'unreadable': 'No se ha podido leer el archivo. Puede estar dañado; prueba '
+                                     'a guardarlo de nuevo o pega el texto.',
+                       'unavailable': 'La lectura de este tipo de archivo no está disponible ahora '
+                                      'mismo. Pega el texto directamente.'},
  'report_doc_title': 'Informe de patrones candidatos para la reflexión',
  'report_confidential': 'Documento confidencial para el equipo de gestión',
  'report_prepared': 'Preparado el {date}',
  'report_how_to_read_title': 'Cómo leer este informe',
- 'report_how_to_read': 'Este informe recoge patrones candidatos: grupos de observaciones parecidas que el equipo puede querer comentar. No son conclusiones. Un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y las observaciones proceden de un conjunto pequeño que los profesionales han decidido compartir voluntariamente, por lo que no representan a la organización. El equipo decide qué significa cada patrón, si es que significa algo.',
+ 'report_how_to_read': 'Este informe recoge patrones candidatos: grupos de observaciones parecidas '
+                       'que el equipo puede querer comentar. No son conclusiones. Un grupo de '
+                       'observaciones parecidas no demuestra sesgo ni mala práctica, y las '
+                       'observaciones proceden de un conjunto pequeño que los profesionales han '
+                       'decidido compartir voluntariamente, por lo que no representan a la '
+                       'organización. El equipo decide qué significa cada patrón, si es que '
+                       'significa algo.',
  'report_search_title': 'Búsqueda de la que procede',
- 'report_search_line': 'Búsqueda del {date}: {observations} observaciones compartidas comparadas y {patterns} patrón(es) candidato(s) encontrado(s).',
+ 'report_search_line': 'Búsqueda del {date}: {observations} observaciones compartidas comparadas y '
+                       '{patterns} patrón(es) candidato(s) encontrado(s).',
  'report_filters_line': 'Filtros de la búsqueda: {filters}',
  'report_no_filters': 'ninguno',
  'report_statuses_line': 'Estados incluidos en este informe: {statuses}',
@@ -1009,23 +1099,46 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'report_observations_omitted': 'Las observaciones y las citas no se incluyen en este informe.',
  'report_quote_label': 'Cita exacta',
  'report_limits_title': 'Límites de este informe',
- 'report_limits_list': ['Es una agrupación automática por parecido de significado; puede unir observaciones que no tienen relación o separar otras que sí la tienen.', 'Las observaciones proceden de reflexiones asistidas por IA y de profesionales que decidieron compartirlas; no son un registro completo ni representativo.', 'Las referencias de caso se escriben a mano: una errata puede hacer que un mismo caso cuente como dos.', 'El texto explicativo lo redacta la IA a partir de las observaciones y puede reflejar observaciones retiradas después de la búsqueda.', 'Ningún elemento de este informe identifica a quien escribió una observación ni incluye sus notas privadas.'],
+ 'report_limits_list': ['Es una agrupación automática por parecido de significado; puede unir '
+                        'observaciones que no tienen relación o separar otras que sí la tienen.',
+                        'Las observaciones proceden de reflexiones asistidas por IA y de '
+                        'profesionales que decidieron compartirlas; no son un registro completo ni '
+                        'representativo.',
+                        'Las referencias de caso se escriben a mano: una errata puede hacer que un '
+                        'mismo caso cuente como dos.',
+                        'El texto explicativo lo redacta la IA a partir de las observaciones y '
+                        'puede reflejar observaciones retiradas después de la búsqueda.',
+                        'Ningún elemento de este informe identifica a quien escribió una '
+                        'observación ni incluye sus notas privadas.'],
  'report_footer': 'Confidencial · Patrones candidatos para la reflexión, no conclusiones · {date}',
  'report_section_header': 'Informe imprimible',
- 'report_section_intro': 'Genera un documento para imprimir o guardar como PDF con los patrones que se muestran arriba (según el estado elegido).',
+ 'report_section_intro': 'Genera un documento para imprimir o guardar como PDF con los patrones '
+                         'que se muestran arriba (según el estado elegido).',
  'report_opt_observations': 'Incluir las observaciones y sus citas exactas',
- 'report_opt_case_refs': 'Incluir las referencias de caso (desmarcado por defecto: el papel circula más que la pantalla)',
+ 'report_opt_case_refs': 'Incluir las referencias de caso (desmarcado por defecto: el papel '
+                         'circula más que la pantalla)',
  'report_opt_comments': 'Incluir los comentarios del equipo',
  'report_prepare_button': 'Preparar informe',
  'report_ready': 'Informe preparado.',
  'report_download_button': 'Descargar informe',
- 'report_how_to_print': 'Abre el archivo descargado en tu navegador y pulsa Ctrl+P (o Imprimir) para imprimirlo o guardarlo como PDF.',
- 'report_outdated': 'Has cambiado la búsqueda, los estados o las opciones: vuelve a preparar el informe.',
+ 'report_how_to_print': 'Abre el archivo descargado en tu navegador y pulsa Ctrl+P (o Imprimir) '
+                        'para imprimirlo o guardarlo como PDF.',
+ 'report_outdated': 'Has cambiado la búsqueda, los estados o las opciones: vuelve a preparar el '
+                    'informe.',
  'nav_corpus': '📚 Análisis de textos',
  'corpus_title': '📚 Análisis de textos',
  'corpus_no_access': 'Esta página es solo para supervisión y coordinación del programa.',
- 'corpus_intro': 'Aquí el equipo de gestión puede cargar textos ya existentes (por ejemplo, los textos en bruto de EDE) y buscar pasajes con un significado parecido que se repiten en varios documentos. Lo que aparece son patrones candidatos para la reflexión, no conclusiones: una expresión repetida no demuestra sesgo ni mala práctica, y puede deberse al tipo de documento o a una plantilla.',
- 'corpus_privacy_note': 'Antes de guardarse, a cada texto se le quitan nombres y datos personales con el sistema automático de la aplicación, que puede no detectarlo todo: carga solo textos ya anonimizados. Los textos se identifican con un número (T-001, T-002…); los nombres de archivo no se guardan. Esta colección está separada de las reflexiones de los profesionales y solo la ven supervisión y coordinación.',
+ 'corpus_intro': 'Aquí el equipo de gestión puede cargar textos ya existentes (por ejemplo, los '
+                 'textos en bruto de EDE) y buscar pasajes con un significado parecido que se '
+                 'repiten en varios documentos. Lo que aparece son patrones candidatos para la '
+                 'reflexión, no conclusiones: una expresión repetida no demuestra sesgo ni mala '
+                 'práctica, y puede deberse al tipo de documento o a una plantilla.',
+ 'corpus_privacy_note': 'Antes de guardarse, a cada texto se le quitan nombres y datos personales '
+                        'con el sistema automático de la aplicación, que puede no detectarlo todo: '
+                        'carga solo textos ya anonimizados. Los textos se identifican con un '
+                        'número (T-001, T-002…); los nombres de archivo no se guardan. Esta '
+                        'colección está separada de las reflexiones de los profesionales y solo la '
+                        'ven supervisión y coordinación.',
  'corpus_collection_header': 'Colección de textos',
  'corpus_create_header': 'Crear una colección nueva',
  'corpus_create_name_label': 'Nombre de la colección',
@@ -1036,9 +1149,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'corpus_select_label': 'Colección',
  'corpus_option': '{name} ({documents} textos)',
  'corpus_add_header': 'Añadir textos',
- 'corpus_add_intro': 'Puedes añadir los textos de uno en uno, varios a la vez o todos juntos. Si añades dos veces el mismo texto, la aplicación lo detecta y no lo duplica.',
+ 'corpus_add_intro': 'Puedes añadir los textos de uno en uno, varios a la vez o todos juntos. Si '
+                     'añades dos veces el mismo texto, la aplicación lo detecta y no lo duplica.',
  'corpus_upload_label': 'Sube archivos (Word, PDF o texto)',
- 'corpus_too_many_files': 'Has seleccionado demasiados archivos de golpe: se añadirán solo los primeros {max}. Sube el resto después.',
+ 'corpus_too_many_files': 'Has seleccionado demasiados archivos de golpe: se añadirán solo los '
+                          'primeros {max}. Sube el resto después.',
  'corpus_add_files_button': 'Añadir los archivos seleccionados',
  'corpus_adding': 'Añadiendo textos…',
  'corpus_paste_label': 'O pega un texto aquí',
@@ -1048,7 +1163,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'corpus_added_summary': 'Se han añadido {added} de {total} textos.',
  'corpus_result_added': '{name}: añadido como {label} ({passages} pasajes).',
  'corpus_result_duplicate': '{name}: ya estaba en la colección como {label}; no se ha duplicado.',
- 'corpus_result_empty': '{name}: no se ha podido sacar ningún pasaje utilizable (texto demasiado corto).',
+ 'corpus_result_empty': '{name}: no se ha podido sacar ningún pasaje utilizable (texto demasiado '
+                        'corto).',
  'corpus_result_full': '{name}: la colección está llena (máximo {max} textos).',
  'corpus_result_refused': '{name}: {reason}',
  'corpus_result_error': '{name}: no se ha podido añadir. Inténtalo de nuevo.',
@@ -1061,96 +1177,149 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'corpus_doc_deleted_ok': 'Texto eliminado, con sus pasajes y su lugar en los patrones.',
  'corpus_docs_more': 'Y {count} textos más.',
  'corpus_delete_collection': 'Eliminar toda la colección',
- 'corpus_delete_collection_help': 'Se borran todos los textos, pasajes y patrones de esta colección. No se puede deshacer.',
+ 'corpus_delete_collection_help': 'Se borran todos los textos, pasajes y patrones de esta '
+                                  'colección. No se puede deshacer.',
  'corpus_delete_collection_confirm': 'Entiendo que se borrará todo y que no se puede deshacer',
  'corpus_delete_collection_button': 'Eliminar colección',
  'corpus_deleted_ok': 'Colección eliminada.',
  'corpus_generate_header': 'Buscar pasajes que se repiten',
  'corpus_settings_header': 'Ajustes de la búsqueda',
- 'corpus_settings_intro': 'Estos ajustes son puntos de partida, no valores demostrados. Cámbialos y compara los resultados.',
+ 'corpus_settings_intro': 'Estos ajustes son puntos de partida, no valores demostrados. Cámbialos '
+                          'y compara los resultados.',
  'corpus_similarity_label': 'Parecido exigido entre pasajes',
- 'corpus_similarity_help': 'Amplio agrupa pasajes con un parecido más flojo (más grupos, más ruido). Estricto exige un parecido mayor (menos grupos, más fiables).',
+ 'corpus_similarity_help': 'Amplio agrupa pasajes con un parecido más flojo (más grupos, más '
+                           'ruido). Estricto exige un parecido mayor (menos grupos, más fiables).',
  'corpus_min_passages_label': 'Mínimo de pasajes por patrón',
  'corpus_min_documents_label': 'Mínimo de textos distintos por patrón',
  'corpus_questions_switch': 'Incluir preguntas redactadas por la IA',
- 'corpus_questions_help': 'Si lo desactivas, la IA no redacta preguntas y no se muestra ninguna. Las demás explicaciones sí se redactan.',
- 'corpus_cost_note': 'Buscar usa IA para redactar hasta {max_patterns} explicaciones (unos pocos céntimos en total) y para dar significado a los pasajes nuevos (muy barato, y solo una vez por pasaje). Solo se vuelve a pagar si pulsas el botón de nuevo.',
- 'corpus_truncated': 'La colección tiene más pasajes de los que caben en una búsqueda; se usarán los {max} primeros (por orden de texto).',
+ 'corpus_questions_help': 'Si lo desactivas, la IA no redacta preguntas y no se muestra ninguna. '
+                          'Las demás explicaciones sí se redactan.',
+ 'corpus_cost_note': 'Buscar usa IA para redactar hasta {max_patterns} explicaciones (unos pocos '
+                     'céntimos en total) y para dar significado a los pasajes nuevos (muy barato, '
+                     'y solo una vez por pasaje). Solo se vuelve a pagar si pulsas el botón de '
+                     'nuevo.',
+ 'corpus_truncated': 'La colección tiene más pasajes de los que caben en una búsqueda; se usarán '
+                     'los {max} primeros (por orden de texto).',
  'corpus_not_enough': 'Para buscar hacen falta al menos {minimum} textos en la colección.',
  'corpus_generate_button': 'Buscar pasajes que se repiten',
  'corpus_generating': 'Trabajando… puede tardar un minuto.',
  'corpus_busy': 'Ya hay una búsqueda en marcha. Espera a que termine.',
- 'corpus_unavailable': 'El servicio que compara significados no está configurado, así que ahora no se puede buscar.',
- 'corpus_none_found': 'No se ha encontrado ningún grupo que aparezca en suficientes textos distintos ({documents} textos, {passages} pasajes revisados). Prueba con un parecido más amplio o con menos mínimos.',
+ 'corpus_unavailable': 'El servicio que compara significados no está configurado, así que ahora no '
+                       'se puede buscar.',
+ 'corpus_none_found': 'No se ha encontrado ningún grupo que aparezca en suficientes textos '
+                      'distintos ({documents} textos, {passages} pasajes revisados). Prueba con un '
+                      'parecido más amplio o con menos mínimos.',
  'corpus_generated_ok': 'Se han encontrado {patterns} patrones candidatos en {documents} textos.',
  'corpus_not_embedded': '{count} pasajes no se han podido comparar esta vez y han quedado fuera.',
- 'corpus_fallback_notice': 'En {count} patrones no se pudo redactar la explicación automática; se muestra un texto sencillo y puedes reintentarlo.',
+ 'corpus_fallback_notice': 'En {count} patrones no se pudo redactar la explicación automática; se '
+                           'muestra un texto sencillo y puedes reintentarlo.',
  'corpus_review_header': 'Revisar los patrones candidatos',
  'corpus_no_runs': 'Todavía no se ha hecho ninguna búsqueda en esta colección.',
  'corpus_run_select': 'Búsqueda',
  'corpus_run_option': '{date} — {documents} textos — {patterns} patrones',
- 'corpus_run_caption': 'Parecido: {level} · mínimo de pasajes: {min_passages} · mínimo de textos: {min_documents} · preguntas de la IA: {questions}',
+ 'corpus_run_caption': 'Parecido: {level} · mínimo de pasajes: {min_passages} · mínimo de textos: '
+                       '{min_documents} · preguntas de la IA: {questions}',
  'corpus_yes': 'sí',
  'corpus_no': 'no',
  'corpus_none_in_view': 'Ningún patrón coincide con los estados elegidos.',
- 'corpus_no_groups_note': 'Los textos no llevan etiquetas (ni de quién los escribió ni de a quién se refieren), así que esta página no puede decir nada sobre si se trata igual o distinto a distintos colectivos. Solo muestra qué se repite y en cuántos textos.',
+ 'corpus_no_groups_note': 'Los textos no llevan etiquetas (ni de quién los escribió ni de a quién '
+                          'se refieren), así que esta página no puede decir nada sobre si se trata '
+                          'igual o distinto a distintos colectivos. Solo muestra qué se repite y '
+                          'en cuántos textos.',
  'corpus_item_header': '{title} — {status} — en {documents} de {total} textos',
- 'corpus_counts_line': 'Aparece en {documents} de {total} textos ({percent} %) · {passages} pasajes',
+ 'corpus_counts_line': 'Aparece en {documents} de {total} textos ({percent} %) · {passages} '
+                       'pasajes',
  'corpus_documents_line': 'Textos: {labels}',
- 'corpus_lost_members': '{count} de los pasajes de este patrón ya no están disponibles (el texto se eliminó). La explicación escrita puede seguir reflejándolos: conviene volver a buscar antes de fiarse de ella.',
- 'corpus_below_minimum': 'Con los textos actuales, este grupo ya no alcanza los mínimos con los que se encontró.',
+ 'corpus_lost_members': '{count} de los pasajes de este patrón ya no están disponibles (el texto '
+                        'se eliminó). La explicación escrita puede seguir reflejándolos: conviene '
+                        'volver a buscar antes de fiarse de ella.',
+ 'corpus_below_minimum': 'Con los textos actuales, este grupo ya no alcanza los mínimos con los '
+                         'que se encontró.',
  'corpus_passages_header': 'Pasajes exactos',
  'corpus_more_passages': 'Y {count} pasajes más no se muestran aquí.',
  'corpus_exclude_button': 'Este pasaje no pertenece a este patrón',
  'corpus_excluded_ok': 'Pasaje retirado del patrón.',
  'corpus_restored_ok': 'Pasaje incluido de nuevo.',
  'corpus_read_header': 'Leer cada texto con las lentes de reflexión',
- 'corpus_read_intro': 'La IA lee cada texto por separado con las mismas ocho lentes de reflexión que usan los profesionales (voz de la persona, observación frente a interpretación, etiquetas y lenguaje, posible sesgo, etc.) y guarda solo las citas que aparecen de verdad en el texto. No compara unos textos con otros: los recuentos los calcula la aplicación.',
+ 'corpus_read_intro': 'La IA lee cada texto por separado con las mismas ocho lentes de reflexión '
+                      'que usan los profesionales (voz de la persona, observación frente a '
+                      'interpretación, etiquetas y lenguaje, posible sesgo, etc.) y guarda solo '
+                      'las citas que aparecen de verdad en el texto. No compara unos textos con '
+                      'otros: los recuentos los calcula la aplicación.',
  'corpus_read_no_texts': 'Añade textos para poder leerlos.',
  'corpus_read_status': '{read} de {documents} textos leídos; faltan {unread}.',
  'corpus_read_nothing': 'Todos los textos están leídos.',
- 'corpus_read_cost_note': 'Cada texto se lee con ocho llamadas a la IA: unos {per_text} $ por texto. Esta tanda (hasta {batch} textos) costará unos {cost} $. Se lee por tandas para que cada pulsación no tarde demasiado; puedes pulsar de nuevo para seguir con los siguientes.',
+ 'corpus_read_cost_note': 'Cada texto se lee con ocho llamadas a la IA: unos {per_text} $ por '
+                          'texto. Esta tanda (hasta {batch} textos) costará unos {cost} $. Se lee '
+                          'por tandas para que cada pulsación no tarde demasiado; puedes pulsar de '
+                          'nuevo para seguir con los siguientes.',
  'corpus_read_button': 'Leer los siguientes {count} textos',
  'corpus_reading': 'Leyendo textos…',
  'corpus_read_progress': 'Leídos {done} de {total} textos',
  'corpus_read_busy': 'Ya hay una lectura en marcha. Espera a que termine.',
- 'corpus_read_unavailable': 'El servicio de IA no está configurado, así que ahora no se puede leer.',
+ 'corpus_read_unavailable': 'El servicio de IA no está configurado, así que ahora no se puede '
+                            'leer.',
  'corpus_read_done': 'Se han leído {count} textos. Faltan {remaining}.',
- 'corpus_read_failed_lenses': '{count} lecturas no se pudieron completar; se intentarán de nuevo la próxima vez.',
- 'corpus_read_caveat': '«Señalada» significa que la IA planteó una observación en ese texto con esa lente. No mide con qué frecuencia ocurre algo, y que no señale nada no significa que el texto esté libre de ello.',
+ 'corpus_read_failed_lenses': '{count} lecturas no se pudieron completar; se intentarán de nuevo '
+                              'la próxima vez.',
+ 'corpus_read_caveat': '«Señalada» significa que la IA planteó una observación en ese texto con '
+                       'esa lente. No mide con qué frecuencia ocurre algo, y que no señale nada no '
+                       'significa que el texto esté libre de ello.',
  'corpus_lens_counts_header': 'Qué lentes se han señalado, por texto',
  'corpus_lens_item': '{lens} — señalada en {raised} de {considered} textos',
  'corpus_lens_failed_note': 'En {count} textos esta lente no se pudo leer.',
  'corpus_lens_none': 'La IA no planteó nada con esta lente.',
- 'corpus_lens_no_quote': 'Sin cita exacta (la observación puede referirse a algo que falta en el texto).',
- 'corpus_lens_unverified': '{count} pasaje(s) propuesto(s) no se pudo(pudieron) comprobar en el texto y no se muestra(n).',
+ 'corpus_lens_no_quote': 'Sin cita exacta (la observación puede referirse a algo que falta en el '
+                         'texto).',
+ 'corpus_lens_unverified': '{count} pasaje(s) propuesto(s) no se pudo(pudieron) comprobar en el '
+                           'texto y no se muestra(n).',
  'corpus_text_view_header': 'Ver la lectura de un texto',
  'corpus_text_select': 'Texto',
  'corpus_text_no_reading': 'Este texto todavía no se ha leído.',
  'corpus_text_lens_failed': 'Esta lente no se pudo leer.',
  'corpus_text_lens_none': 'La IA no planteó nada.',
  'corpus_read_again_header': 'Volver a leer todos los textos',
- 'corpus_read_again_help': 'Borra todas las lecturas de esta colección para poder leerla de nuevo desde cero (se vuelve a pagar).',
- 'corpus_read_again_confirm': 'Entiendo que se borrarán las lecturas y que volver a leer cuesta de nuevo',
+ 'corpus_read_again_help': 'Borra todas las lecturas de esta colección para poder leerla de nuevo '
+                           'desde cero (se vuelve a pagar).',
+ 'corpus_read_again_confirm': 'Entiendo que se borrarán las lecturas y que volver a leer cuesta de '
+                              'nuevo',
  'corpus_read_again_button': 'Borrar las lecturas',
  'corpus_read_cleared_ok': 'Lecturas borradas.',
  'corpus_terms_header': 'Lista de palabras y expresiones',
- 'corpus_terms_intro': 'Cuenta en cuántos textos aparece cada palabra o expresión de tu lista. Es solo un recuento de palabras escritas: no interpreta el significado, y que una palabra no aparezca no quiere decir que la idea no esté en el texto con otras palabras.',
- 'corpus_terms_how': 'Escribe una palabra o expresión por línea. No importan las mayúsculas ni los acentos. Añade * al final de una palabra para incluir sus terminaciones: «agresiv*» encuentra agresivo, agresiva, agresivos… Es especialmente útil en euskera, donde las palabras cambian al final: «etxe*» encuentra etxea, etxeak, etxean…',
+ 'corpus_terms_intro': 'Cuenta en cuántos textos aparece cada palabra o expresión de tu lista. Es '
+                       'solo un recuento de palabras escritas: no interpreta el significado, y que '
+                       'una palabra no aparezca no quiere decir que la idea no esté en el texto '
+                       'con otras palabras.',
+ 'corpus_terms_how': 'Escribe una palabra o expresión por línea. No importan las mayúsculas ni los '
+                     'acentos. Añade * al final de una palabra para incluir sus terminaciones: '
+                     '«agresiv*» encuentra agresivo, agresiva, agresivos… Es especialmente útil en '
+                     'euskera, donde las palabras cambian al final: «etxe*» encuentra etxea, '
+                     'etxeak, etxean…',
  'corpus_terms_add_label': 'Palabras o expresiones (una por línea)',
  'corpus_terms_add_button': 'Añadir a la lista',
  'corpus_terms_empty_input': 'Escribe al menos una palabra o expresión.',
- 'corpus_terms_added': 'Añadidas: {added}. Ya estaban en la lista: {duplicates}. No válidas: {invalid}.',
- 'corpus_terms_invalid_lines': 'No se han podido usar estas líneas: {lines}. Solo se admiten letras y números (y * al final de una palabra, tras al menos tres letras), con un máximo de {words} palabras por expresión.',
+ 'corpus_terms_added': 'Añadidas: {added}. Ya estaban en la lista: {duplicates}. No válidas: '
+                       '{invalid}.',
+ 'corpus_terms_invalid_lines': 'No se han podido usar estas líneas: {lines}. Solo se admiten '
+                               'letras y números (y * al final de una palabra, tras al menos tres '
+                               'letras), con un máximo de {words} palabras por expresión.',
  'corpus_terms_full': 'La lista ha llegado al máximo de {max} palabras o expresiones.',
- 'corpus_terms_starter_help': 'Un punto de partida con palabras y expresiones que a veces aparecen en textos que describen a las personas de forma negativa o cerrada. Es una lista de ejemplo: edítala, quita lo que no sirva y añade lo tuyo. La parte en euskera necesita la revisión de una persona vascohablante antes de usarse en serio.',
+ 'corpus_terms_starter_help': 'Un punto de partida con palabras y expresiones que a veces aparecen '
+                              'en textos que describen a las personas de forma negativa o cerrada. '
+                              'Es una lista de ejemplo: edítala, quita lo que no sirva y añade lo '
+                              'tuyo. La parte en euskera necesita la revisión de una persona '
+                              'vascohablante antes de usarse en serio.',
  'corpus_terms_starter_button': 'Añadir la lista inicial (castellano y euskera)',
  'corpus_terms_starter_done': 'Lista inicial añadida: {added} nuevas ({duplicates} ya estaban).',
- 'corpus_terms_basque_review': 'Las palabras en euskera de la lista inicial son una primera propuesta: una persona vascohablante debe revisarlas.',
+ 'corpus_terms_basque_review': 'Las palabras en euskera de la lista inicial son una primera '
+                               'propuesta: una persona vascohablante debe revisarlas.',
  'corpus_terms_none_yet': 'La lista está vacía. Añade palabras o usa la lista inicial.',
  'corpus_terms_no_texts': 'Añade textos a la colección para poder contar.',
  'corpus_terms_counts_header': 'Resultados',
- 'corpus_terms_caveat': '«Textos» cuenta los textos que contienen la palabra al menos una vez. No mide si algo es frecuente, ni si es bueno o malo: una palabra también puede usarse para negar algo («no es agresivo»). Mira siempre el contexto.',
+ 'corpus_terms_caveat': '«Textos» cuenta los textos que contienen la palabra al menos una vez. No '
+                        'mide si algo es frecuente, ni si es bueno o malo: una palabra también '
+                        'puede usarse para negar algo («no es agresivo»). Mira siempre el '
+                        'contexto.',
  'corpus_terms_col_term': 'Palabra o expresión',
  'corpus_terms_col_texts': 'Textos',
  'corpus_terms_col_times': 'Veces',
@@ -1170,27 +1339,146 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'corpus_terms_text_line': '{term}: {times}',
  'corpus_terms_download': 'Descargar la tabla completa (CSV)',
  'corpus_report_header': 'Informe imprimible',
- 'corpus_report_intro': 'Genera un documento para imprimir o guardar como PDF con las partes que elijas. Los textos aparecen solo con su número (T-001…).',
+ 'corpus_report_intro': 'Genera un documento para imprimir o guardar como PDF con las partes que '
+                        'elijas. Los textos aparecen solo con su número (T-001…).',
  'corpus_report_opt_patterns': 'Incluir los patrones de una búsqueda',
  'corpus_report_run_label': 'Búsqueda de patrones que se incluirá',
  'corpus_report_opt_readings': 'Incluir la lectura con las lentes',
  'corpus_report_opt_terms': 'Incluir la lista de palabras',
- 'corpus_report_opt_passages': 'Incluir los fragmentos y las citas exactas (desmarcado: solo recuentos y explicaciones)',
+ 'corpus_report_opt_passages': 'Incluir los fragmentos y las citas exactas (desmarcado: solo '
+                               'recuentos y explicaciones)',
  'corpus_report_nothing_selected': 'Marca al menos una parte del informe.',
  'corpus_report_no_run': 'Todavía no hay búsquedas de patrones: no se incluirán patrones.',
  'corpus_report_doc_title': 'Informe del análisis de textos',
- 'corpus_report_how_to_read': 'Este informe recoge qué se repite en un conjunto de textos ya escritos. Los patrones son candidatos para la reflexión, no conclusiones: que un tema se repita no demuestra sesgo ni mala práctica. La fuerza de cada hallazgo se expresa siempre como «en cuántos de los textos aparece». El equipo decide qué significa, si es que significa algo.',
+ 'corpus_report_how_to_read': 'Este informe recoge qué se repite en un conjunto de textos ya '
+                              'escritos. Los patrones son candidatos para la reflexión, no '
+                              'conclusiones: que un tema se repita no demuestra sesgo ni mala '
+                              'práctica. La fuerza de cada hallazgo se expresa siempre como «en '
+                              'cuántos de los textos aparece». El equipo decide qué significa, si '
+                              'es que significa algo.',
  'corpus_report_collection_title': 'La colección',
  'corpus_report_collection_line': 'Colección «{name}»: {documents} textos y {passages} fragmentos.',
  'corpus_report_search_title': 'Búsqueda de patrones',
- 'corpus_report_search_line': 'Búsqueda del {date}: {documents} textos y {passages} fragmentos comparados; {patterns} patrón(es) candidato(s) encontrado(s).',
+ 'corpus_report_search_line': 'Búsqueda del {date}: {documents} textos y {passages} fragmentos '
+                              'comparados; {patterns} patrón(es) candidato(s) encontrado(s).',
  'corpus_report_col_texts': 'En cuántos textos',
  'corpus_report_col_passages': 'Fragmentos',
  'corpus_report_passages_omitted': 'Los fragmentos y las citas no se incluyen en este informe.',
  'corpus_report_readings_title': 'Lectura de cada texto con las lentes',
- 'corpus_report_readings_omitted': 'Las observaciones y las citas exactas no se incluyen en este informe; abajo, los textos donde la IA planteó algo.',
+ 'corpus_report_readings_omitted': 'Las observaciones y las citas exactas no se incluyen en este '
+                                   'informe; abajo, los textos donde la IA planteó algo.',
  'corpus_report_terms_title': 'Lista de palabras y expresiones',
  'corpus_report_col_where': 'Textos donde aparece',
  'corpus_report_more_texts': '(y {count} más)',
- 'corpus_report_limits_list': ['Los textos no llevan etiquetas (ni de quién los escribió ni de a quién se refieren): este informe no puede decir nada sobre si se trata igual o distinto a distintos colectivos.', 'El agrupamiento de patrones es automático, por parecido de significado; puede unir fragmentos sin relación o separar otros que sí la tienen.', 'La lectura con las lentes la hace la IA texto a texto: «señalada» no mide con qué frecuencia ocurre algo, y que no señale nada no significa que el texto esté libre de ello.', 'El recuento de palabras es solo de palabras escritas: no entiende el contexto ni los sinónimos.', 'Los textos de la colección son los que el equipo decidió cargar; no son necesariamente representativos de toda la documentación.', 'La anonimización automática puede no detectar todos los datos personales: revisa este informe antes de compartirlo.'],
- 'corpus_report_footer': 'Confidencial · Candidatos para la reflexión, no conclusiones · {date}'}
+ 'corpus_report_limits_list': ['Los textos no llevan etiquetas (ni de quién los escribió ni de a '
+                               'quién se refieren): este informe no puede decir nada sobre si se '
+                               'trata igual o distinto a distintos colectivos.',
+                               'El agrupamiento de patrones es automático, por parecido de '
+                               'significado; puede unir fragmentos sin relación o separar otros '
+                               'que sí la tienen.',
+                               'La lectura con las lentes la hace la IA texto a texto: «señalada» '
+                               'no mide con qué frecuencia ocurre algo, y que no señale nada no '
+                               'significa que el texto esté libre de ello.',
+                               'El recuento de palabras es solo de palabras escritas: no entiende '
+                               'el contexto ni los sinónimos.',
+                               'Los textos de la colección son los que el equipo decidió cargar; '
+                               'no son necesariamente representativos de toda la documentación.',
+                               'La anonimización automática puede no detectar todos los datos '
+                               'personales: revisa este informe antes de compartirlo.'],
+ 'corpus_report_footer': 'Confidencial · Candidatos para la reflexión, no conclusiones · {date}',
+ 'rs_intro': 'Escribe, pega o sube el caso sobre el que quieres reflexionar y reflexiona en el '
+             'momento. El texto del caso solo se usa durante esta reflexión y nunca se guarda: lo '
+             'que se guarda es la reflexión.',
+ 'rs_code_label': 'Código de esta reflexión:',
+ 'rs_code_help': 'Código neutro generado por la aplicación. No identifica a ninguna persona. '
+                 'Anótalo si más adelante quieres enlazar otra reflexión sobre la misma situación.',
+ 'rs_note_type_label': 'Tipo de texto',
+ 'rs_tags_label': 'Temas del caso (sin datos personales)',
+ 'rs_tags_placeholder': 'Elige uno o varios temas',
+ 'rs_tags_help': 'Marca hasta {max} temas que describan la situación, nunca a la persona. Sirven '
+                 'para encontrar después tus reflexiones sobre situaciones parecidas.',
+ 'rs_tags_short_label': 'Temas',
+ 'rs_no_tags': 'Sin temas',
+ 'rs_previous_code_label': '¿Continúa una reflexión anterior? (opcional)',
+ 'rs_previous_code_placeholder': 'RS-XXXXXX',
+ 'rs_previous_code_help': 'Si ya reflexionaste antes sobre esta misma situación, escribe aquí el '
+                          'código de aquella reflexión para tenerla en cuenta. Solo puedes enlazar '
+                          'tus propias reflexiones.',
+ 'rs_previous_code_invalid': 'Ese código no tiene el formato correcto. Debe ser como RS-7F3K2Q.',
+ 'rs_previous_code_not_found': 'No se ha encontrado ninguna reflexión tuya con el código {code}. '
+                               'Revisa el código o deja el campo vacío.',
+ 'rs_previous_code_check_failed': 'No se ha podido comprobar el código anterior en este momento. '
+                                  'Inténtalo de nuevo o deja el campo vacío.',
+ 'rs_case_text_label': 'Texto del caso',
+ 'rs_case_text_placeholder': 'Escribe o pega aquí el caso…',
+ 'rs_case_text_not_saved_note': '🔒 Este texto no se guarda. Solo existe mientras dura esta '
+                                'reflexión.',
+ 'rs_continue_button': 'Continuar',
+ 'rs_case_text_review_label': 'Texto del caso (no se guarda)',
+ 'rs_similar_header': 'Tus reflexiones anteriores relacionadas',
+ 'rs_similar_intro': 'Reflexiones tuyas enlazadas con esta o con temas en común. Desmarca las que '
+                     'no quieras tener en cuenta.',
+ 'rs_similar_none': 'No hay reflexiones anteriores tuyas enlazadas o con temas en común. La '
+                    'reflexión se hará solo con el texto de hoy.',
+ 'rs_similar_failed': 'No se han podido buscar tus reflexiones anteriores en este momento. Puedes '
+                      'continuar: la reflexión se hará solo con el texto de hoy.',
+ 'rs_similar_reason_linked': 'Enlazada como reflexión anterior de esta situación',
+ 'rs_similar_reason_tags': 'Temas en común',
+ 'rs_similar_include_label': 'Tener en cuenta esta reflexión',
+ 'rs_similar_observations_label': 'Ver sus observaciones',
+ 'rs_similar_used_label': 'Reflexiones anteriores incluidas',
+ 'rs_back_to_case_button': 'Volver al caso',
+ 'rs_finish_header': 'Terminar la reflexión',
+ 'rs_finish_caption': 'Tu reflexión y tus notas quedan guardadas con el código {code}. Al '
+                      'terminar, el texto del caso se descarta.',
+ 'rs_finish_caption_unsaved': 'Esta reflexión no se ha podido guardar. Al terminar, el texto del '
+                              'caso se descarta.',
+ 'rs_finish_button': 'Terminar reflexión',
+ 'rs_finished_success': '✔ Reflexión terminada. El texto del caso se ha descartado.',
+ 'rs_start_over_button': 'Empezar de nuevo',
+ 'ch_reflections_header': 'Reflexiones guardadas',
+ 'ch_reflections_intro': 'Cada reflexión aparece con su código neutro y sus temas. Se muestran las '
+                         'observaciones de la IA; nunca el texto del caso (no se guarda) ni las '
+                         'notas privadas de los profesionales.',
+ 'ch_tag_filter_label': 'Tema',
+ 'ch_all_tags': 'Todos los temas',
+ 'ch_showing_recent': 'Mostrando las {shown} reflexiones más recientes de {total}. Elige una fecha '
+                      'o un tema para acotar.',
+ 'ch_author_label': 'Realizada por',
+ 'ch_linked_label': 'Continúa la reflexión',
+ 'ch_no_observations': 'Esta reflexión no tiene observaciones guardadas.',
+ 'ch_delete_button': 'Eliminar reflexión',
+ 'ch_delete_confirm': '¿Confirmas que quieres eliminar esta reflexión? Se borrarán sus '
+                      'observaciones y las notas asociadas. Esta acción no se puede deshacer.',
+ 'ch_deleted_success': '✔ Reflexión eliminada.',
+ 'ch_delete_failed': '⚠ No se pudo eliminar la reflexión.',
+ 'research_observations_label': 'Observaciones guardadas',
+ 'admin_legacy_docs_header': '🗑️ Borrar documentos antiguos guardados',
+ 'admin_legacy_docs_none': 'No queda ningún documento antiguo guardado. Reflection Space solo '
+                           'guarda reflexiones.',
+ 'admin_legacy_docs_count': 'Quedan {count} documento(s) guardados antes del cambio a «solo '
+                            'reflexiones».',
+ 'admin_legacy_docs_caption': 'Se borrarán para siempre: todos los documentos antiguos, su '
+                              'historial de cambios, las reflexiones generadas a partir de ellos '
+                              '(con sus observaciones y notas) y sus copias de búsqueda. Las '
+                              'reflexiones nuevas no se tocan. Esta acción no se puede deshacer.',
+ 'admin_legacy_docs_confirm_word': 'BORRAR',
+ 'admin_legacy_docs_confirm_label': 'Para confirmar, escribe {word}',
+ 'admin_legacy_docs_button': 'Borrar todos los documentos antiguos',
+ 'admin_legacy_docs_done': '✔ Se han borrado {count} documento(s) antiguos.',
+ 'admin_legacy_docs_refused': 'Solo el Administrador del sistema puede hacer esto.',
+ 'admin_legacy_docs_count_failed': 'No se ha podido consultar cuántos documentos antiguos quedan.',
+ 'case_tag_labels': {'housing': 'Vivienda / sinhogarismo',
+                     'employment_training': 'Empleo y formación',
+                     'income_benefits': 'Ingresos y prestaciones',
+                     'mental_health': 'Salud mental',
+                     'physical_health': 'Salud física',
+                     'addictions': 'Adicciones',
+                     'disability': 'Discapacidad',
+                     'family_relationships': 'Relaciones familiares',
+                     'children_youth': 'Infancia y juventud',
+                     'older_people': 'Personas mayores',
+                     'gender_violence': 'Violencia de género',
+                     'social_isolation': 'Soledad / aislamiento social',
+                     'migration_integration': 'Migración e integración',
+                     'legal_administrative': 'Trámites legales y administrativos'}}

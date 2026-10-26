@@ -899,3 +899,73 @@ def purge_expired_deletions():
     for draft_id, case_ref, doc_type in expired:
         delete_document(draft_id)
         log_action("purged", draft_id, case_ref, doc_type, "system", "system")
+
+
+# --- Reflection-only redesign: erasing the old stored documents ---
+#
+# Since October 2026 (see REFLECTIONS.md) Reflection Space no longer
+# stores case documents at all -- only reflections. Documents saved
+# before that change still sit in the `drafts` table. The EDE decision
+# was to erase them permanently. That is done ON PURPOSE, by a System
+# Administrator, from System Administration -> "Erase old stored
+# documents" (pages/admin_sections/legacy_documents.py) -- never
+# automatically on start-up, so a deployment can never wipe data by
+# accident.
+
+def count_all_stored_documents():
+    """How many old documents (any status) are still stored."""
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM drafts")
+            (count,) = c.fetchone()
+    finally:
+        conn.close()
+    return count
+
+
+def erase_all_stored_documents(actor_name, actor_role):
+    """
+    Permanently erase EVERY stored document (pending, completed and
+    soft-deleted), its edit history, and -- in the same transaction,
+    exactly like every other permanent deletion in this module -- every
+    reflection that was generated from those documents
+    (findings_store.delete_runs_for_drafts). Their search copies in
+    Qdrant are then removed too (delete_document), so no retrievable
+    trace remains.
+
+    System Administrator only (checked here, not just in the page).
+    Reflections created after the redesign are not linked to any
+    document and are NOT touched.
+
+    Returns the number of documents erased, or None if refused.
+    """
+    if actor_role != "System Administrator" or not actor_name:
+        return None
+
+    conn = _get_conn()
+    erased = []
+    try:
+        with conn.cursor() as c:
+            c.execute("SELECT id, case_ref, doc_type FROM drafts")
+            erased = c.fetchall()
+            if erased:
+                ids = [row[0] for row in erased]
+                delete_runs_for_drafts(c, ids)
+                c.execute("DELETE FROM draft_history WHERE draft_id = ANY(%s)", (ids,))
+                c.execute("DELETE FROM drafts WHERE id = ANY(%s)", (ids,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("erase_all_stored_documents FAILED (rolled back, %d document(s))", len(erased))
+        raise
+    finally:
+        conn.close()
+
+    for draft_id, case_ref, doc_type in erased:
+        delete_document(draft_id)
+    log_action(
+        "purged", None, "", "all documents", actor_name, actor_role,
+        details=f"erased all {len(erased)} stored document(s) (reflection-only redesign)",
+    )
+    return len(erased)

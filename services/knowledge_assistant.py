@@ -12,24 +12,20 @@ This module does NOT create a second vector database, a second
 retrieval pipeline, or a second Anthropic client pattern. It is a thin
 orchestration layer over pieces that already exist:
 
-    - rdi.retrieval_service.retrieve_global_context() -- the SAME
-      case-unscoped semantic search already used by the System
-      Administration page's Retrieval Test "global mode", just reused
-      here for a second, equally authorised purpose: letting
-      Supervisors and Programme Managers ask organisation-wide
-      questions that need evidence from across every case, not just
-      one (see rdi/retrieval_service.py's module docstring,
-      "Organisation-wide (case-unscoped) retrieval --
-      retrieve_global_context()", which lists both authorised call
-      sites and the roles permitted to use each one). This is a
-      distinct code path from rdi/context_engine.py's per-case
-      retrieval (retrieve_historical_context()), which is completely
-      untouched by this and remains hard-scoped to one case for every
-      practitioner-facing use.
+    - services.reflection_records.search_reflection_evidence() (wrapped
+      below as retrieve_global_context()). Reflection-only redesign,
+      October 2026 (REFLECTIONS.md): case documents are no longer
+      stored, so organisation-wide evidence now comes from the SAVED
+      REFLECTIONS -- the AI's observations across every professional's
+      reflections, never anyone's private notes and never case text.
+      Previously this searched stored documents through
+      rdi.retrieval_service.retrieve_global_context(); that module is
+      untouched and still serves the System Administration Retrieval
+      Test for any documents stored before the redesign.
 
     - services.research_metrics_service.build_research_summary() -- the
       SAME organisation-wide, anonymous aggregate counts (theme flags,
-      theme explorations, completed documents, feedback) already used
+      theme explorations, observations saved, feedback) already used
       by the Research Metrics page. Reused here (not recomputed) so
       "how often is possible_bias raised" type questions are answered
       from real, already-audited numbers rather than the model's own
@@ -75,18 +71,35 @@ for how this scales with actual Knowledge Assistant usage.
 
 import json
 import time
+from datetime import datetime, timedelta
 import traceback
 import anthropic
 
 from config import ANTHROPIC_API_KEY
 from services.anonymizer import anonymize
-from rdi.retrieval_service import retrieve_global_context
+from services.reflection_records import search_reflection_evidence
 from services.research_metrics_service import build_research_summary
 from services.error_log import log_error
 from services import usage_ledger
 from services.cost_pricing import estimate_anthropic_cost
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+
+def retrieve_global_context(query_text, limit=8, since_iso=None):
+    """
+    Evidence for one question.
+
+    Reflection-only redesign (October 2026, see REFLECTIONS.md):
+    Reflection Space no longer stores case documents, so the evidence is
+    now the organisation's SAVED REFLECTIONS -- the AI's observations,
+    each with its dimension, reflection code and date -- found by
+    services/reflection_records.search_reflection_evidence(). The name
+    and the returned shape (content, doc_type, case_ref, completed_at,
+    score) are kept so the rest of this module, the Learning page and
+    the tests are unchanged. `doc_type` now carries the dimension key.
+    """
+    return search_reflection_evidence(query_text, limit=limit, since_iso=since_iso)
 
 CLAUDE_MODEL = "claude-sonnet-5"
 
@@ -106,13 +119,14 @@ Programme Managers understand patterns across the organisation's \
 reflective practice data.
 
 You will be given two kinds of grounding material:
-1. RETRIEVED EVIDENCE -- short, anonymized excerpts from real documentation \
-and reflections, each with metadata (document type, approximate date, \
-case/service reference, semantic relevance).
+1. RETRIEVED EVIDENCE -- short observations from real saved reflections \
+(the case documents themselves are never stored), each with metadata \
+(reflective dimension, approximate date, neutral reflection code, \
+relevance).
 2. AGGREGATE STATISTICS -- organisation-wide counts already computed \
 elsewhere in the system (how often each of the 8 reflective dimensions \
 was flagged by the AI or explored by a professional, total reflection \
-sessions, total completed documents, feedback ratings).
+sessions, total observations saved, feedback ratings).
 
 Hard rules, no exceptions:
 - Answer ONLY from the RETRIEVED EVIDENCE and AGGREGATE STATISTICS you are \
@@ -167,7 +181,7 @@ def _build_evidence_block(docs):
         score = d.get("score")
 
         evidence_lines.append(
-            f"[{i}] doc_type={d.get('doc_type', '')!r} date={date[:10]!r} "
+            f"[{i}] dimension={d.get('doc_type', '')!r} date={date[:10]!r} "
             f"case_ref={case_ref!r} relevance={score if score is not None else 'n/a'}\n"
             f"excerpt: {safe_excerpt}"
         )
@@ -187,7 +201,7 @@ def _build_stats_block(summary):
     lines = [
         f"Period: last {summary['window_days']} days (since {summary['since']})",
         f"Total reflection sessions generated: {summary['total_reflection_sessions']}",
-        f"Total documents completed: {summary['total_documents_completed']}",
+        f"Total observations saved: {summary['total_observations_saved']}",
         "Theme flagged-by-AI counts: " + ", ".join(f"{k}={theme_flag.get(k, 0)}" for k in theme_flag),
         "Theme explored-by-professional counts: " + ", ".join(f"{k}={theme_explore.get(k, 0)}" for k in theme_explore),
     ]
@@ -258,7 +272,8 @@ def ask(question, lang="Español", evidence_limit=DEFAULT_EVIDENCE_LIMIT,
     if not question:
         return {"error": "Empty question", "raw": ""}
 
-    docs = retrieve_global_context(query_text=question, limit=evidence_limit)
+    since_iso = (datetime.now() - timedelta(days=window_days)).isoformat()
+    docs = retrieve_global_context(query_text=question, limit=evidence_limit, since_iso=since_iso)
     evidence_block, evidence_for_ui = _build_evidence_block(docs)
 
     summary = build_research_summary(window_days=window_days)
@@ -271,7 +286,7 @@ def ask(question, lang="Español", evidence_limit=DEFAULT_EVIDENCE_LIMIT,
 {question}
 
 RETRIEVED EVIDENCE ({len(docs)} item(s)):
-{evidence_block if evidence_block else "(no relevant documents were retrieved for this question)"}
+{evidence_block if evidence_block else "(no relevant saved reflections were found for this question)"}
 
 AGGREGATE STATISTICS:
 {stats_block}
@@ -328,10 +343,10 @@ AGGREGATE STATISTICS:
         confidence = "insufficient"
         if not limitations:
             limitations = {
-                "Español": "No se recuperó ningún documento relevante para esta pregunta.",
-                "Euskera": "Ez da galdera honentzako dokumentu garrantzitsurik berreskuratu.",
-                "English": "No relevant documents were retrieved for this question.",
-            }.get(lang, "No relevant documents were retrieved for this question.")
+                "Español": "No se encontró ninguna reflexión guardada relevante para esta pregunta.",
+                "Euskera": "Ez da galdera honentzako gordetako hausnarketa garrantzitsurik aurkitu.",
+                "English": "No relevant saved reflections were found for this question.",
+            }.get(lang, "No se encontró ninguna reflexión guardada relevante para esta pregunta.")
 
     return {
         "answer": answer,

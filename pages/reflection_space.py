@@ -1,6 +1,4 @@
 import streamlit as st
-from collections import defaultdict
-from services.draft_storage import get_drafts, finalize_draft, delete_pending_draft
 from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
 from services.findings_ui import render_evidence, render_notes_form
@@ -11,18 +9,41 @@ from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.rag_logging import rag_log
-from services.explanation_builder import build_explanations, similarity_category
 from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from services import request_dedup
+from services import document_import
+from services import reflection_records
 from config import REQUEST_DEDUP_TTL_MINUTES
-from rdi.context_engine import get_historical_context
 from rdi.orchestrator import run_reflection
 from services.error_log import error_boundary, render_application_error_screen
-from services.confirm_state import is_confirming, start_confirming, clear_confirming
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
 from rdi.companions import COMPANIONS
+
+# =====================================================================
+# Reflection Space -- ONE screen, reflection on the spot
+# =====================================================================
+#
+# Reflection-only redesign (October 2026, agreed with the EDE team --
+# see REFLECTIONS.md). There is no separate Documentation screen any
+# more and no documents are stored:
+#
+#   1. Your case        -- write, paste or upload the case text, tick a
+#                          few non-personal case tags, optionally link an
+#                          earlier reflection by its code.
+#   2. Earlier          -- the professional's OWN linked / similar
+#      reflections         earlier reflections are offered as context
+#                          (each can be left out).
+#   3. Professional     -- the eight reflective dimensions, exactly as
+#      reflection          before (tabs, conversations, private notes).
+#
+# Only the REFLECTION is saved (services/findings_store.py), identified
+# by a neutral app-generated code plus the case tags
+# (services/reflection_records.py). The case text exists only in this
+# browser session (ReflectionContext / ReflectionSession) and is
+# discarded when the professional finishes, starts again or logs out.
+# =====================================================================
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -41,34 +62,6 @@ with error_boundary(
     # opportunity's stored observation text.
     COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 
-    # Hybrid RAG transparency: a short badge per retrieval reason, so the
-    # practitioner can see not just WHICH documents were retrieved but WHY,
-    # alongside the existing checkbox review/deselect controls -- this is
-    # additive to _format_historical_option, nothing about deselecting or
-    # reviewing documents changes.
-    #
-    # A document can now carry MORE THAN ONE reason (e.g. it's both the
-    # case's latest Assessment AND a semantic match -- see
-    # rdi/retrieval_service.py, "Multi-reason merge"), so
-    # _format_historical_option renders one badge per reason present,
-    # always in this fixed order, rather than a single badge.
-    MATCH_REASON_BADGES = {
-        "must_include": "📌",
-        "semantic": "🔎",
-        "recency": "🕒",
-    }
-    MATCH_REASON_ORDER = ["must_include", "semantic", "recency"]
-
-    # Phase 3 (Practitioner UX): a short badge label per reason, shown next
-    # to the icon on the Better Historical Document Cards (UX Priority 6).
-    # Purely cosmetic -- reuses the exact same match_reasons data that was
-    # already being retrieved and displayed via MATCH_REASON_BADGES above.
-    MATCH_REASON_TEXT_KEY = {
-        "must_include": "why_reason_must_include_generic",
-        "semantic": "why_reason_semantic_generic",
-        "recency": "why_reason_recency",
-    }
-
     # Small emoji used purely to make each reflective dimension visually
     # distinct on the Reflection Dashboard tabs (UX Priority 2). Cosmetic
     # only -- does not affect which companions run or what they return.
@@ -83,56 +76,38 @@ with error_boundary(
         "continuity": "🔗",
     }
 
-    # Localized month names for the Historical Timeline (UX Priority 5).
-    # Kept local to this page rather than in services/language.py, since
-    # it's a small, purely presentational lookup table with no reuse
-    # elsewhere in the app.
-    _MONTH_NAMES = {
-        "Español": ["", "enero", "febrero", "marzo", "abril", "mayo", "junio",
-                    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
-        "Euskera": ["", "urtarrila", "otsaila", "martxoa", "apirila", "maiatza", "ekaina",
-                    "uztaila", "abuztua", "iraila", "urria", "azaroa", "abendua"],
-        "English": ["", "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"],
-    }
+    # Why an earlier reflection is being offered (badge per reason).
+    SIMILAR_REASON_BADGES = {"linked": "🔗", "tags": "🏷️"}
 
+    # Widget keys of the "Your case" form. They carry a nonce so the whole
+    # form can be emptied in one go after a reflection is finished.
+    FORM_NONCE_KEY = "rs_form_nonce"
+    NEW_CODE_KEY = "rs_new_code"
+    PREFILL_KEY = "rs_prefill"
+    FLASH_KEY = "rs_flash"
 
-    def _month_year_label(date_str):
-        """'2025-03-14T...' -> 'March 2025' (localized). Falls back to the
-        raw date fragment if the string can't be parsed -- purely cosmetic,
-        never blocks rendering."""
-        if not date_str or len(date_str) < 7:
-            return date_str or ""
-        try:
-            year, month = date_str[:4], int(date_str[5:7])
-            names = _MONTH_NAMES.get(st.session_state.lang, _MONTH_NAMES["English"])
-            return f"{names[month]} {year}"
-        except Exception:
-            return date_str[:7]
+    def _form_key(name):
+        return f"rs_{name}_{st.session_state.get(FORM_NONCE_KEY, 0)}"
+
+    def _tag_label(key):
+        return T["case_tag_labels"].get(key, key.replace("_", " ").title())
+
+    def _tags_line(tags):
+        return ", ".join(_tag_label(t) for t in tags) if tags else T["rs_no_tags"]
 
 
     # ---------------------------------------------------------------------
     # Session-state hygiene
     # ---------------------------------------------------------------------
-    # Several widgets on this page use keys that are scoped only to a
-    # document id or a dimension "trigger" (e.g. "ctx_hist_42",
-    # "workspace_open_client_voice"). Both of those can legitimately repeat
-    # across DIFFERENT reflection sessions -- a historical document can be
-    # offered again later, and there are only 8 possible trigger values
-    # shared by every case. Streamlit keeps a widget's value in
-    # st.session_state for as long as the key exists, so without an
-    # explicit reset, a checkbox someone unchecked (or a dimension someone
-    # expanded) in one reflection would silently carry its state into an
-    # entirely different, later reflection that happens to reuse the same
-    # key.
-    #
-    # _reset_ephemeral_widget_state() removes every session_state key that
-    # starts with one of the given prefixes, so the next time those widgets
-    # are created they fall back to their real defaults (all historical
-    # documents included; every Professional Reflection tab collapsed)
-    # instead of inheriting stale state. This changes nothing about the
-    # workflow itself -- it only makes sure each new reflection starts from
-    # a clean slate, exactly as if the page had never been visited before.
+    # Several widgets on this page use keys that are scoped only to an
+    # earlier reflection's id or a dimension "trigger" (e.g. "ctx_sim_42",
+    # "workspace_open_client_voice"). Both can legitimately repeat across
+    # DIFFERENT reflection sessions, and Streamlit keeps a widget's value
+    # for as long as its key exists -- so without an explicit reset, a
+    # checkbox unticked (or a dimension expanded) in one reflection would
+    # silently carry into a later, unrelated one. This removes every
+    # session_state key starting with one of the given prefixes, so each
+    # new reflection starts from a clean slate.
     def _reset_ephemeral_widget_state(prefixes):
         for key in list(st.session_state.keys()):
             if any(key.startswith(prefix) for prefix in prefixes):
@@ -140,14 +115,13 @@ with error_boundary(
 
 
     def _clear_all():
-        """Leaving the reflection flow entirely, whatever stage it was at --
-        resets both the context and the session objects.
+        """Leaving the reflection flow entirely, whatever stage it was at.
 
-        Sprint 7: before the session (and its in-memory conversations) is
-        discarded, log which themes were actually explored and how many
-        turns each ran to (see services.exploration_log). No conversation
-        text is persisted -- only the fact that this theme was explored, by
-        whom, on which case, for the Growth/Team dashboards to read later.
+        Before the session (and its in-memory conversations AND the case
+        text) is discarded, log which themes were actually explored and
+        how many turns each ran to (services.exploration_log). No
+        conversation text and no case text is persisted -- only the fact
+        that this theme was explored, by whom, on which reflection code.
         """
         session = ReflectionSession.get_active()
         if session is not None:
@@ -163,125 +137,38 @@ with error_boundary(
         ReflectionSession.clear()
         st.session_state.pop("_finding_feedback_cache", None)
 
-        # Belt-and-braces reset: whichever path led here (submitting the
-        # last draft in a batch, skipping/submitting feedback), make sure no
-        # leftover checkbox, explore/collapse, input, or error state from
-        # this reflection can bleed into the next one.
         _reset_ephemeral_widget_state([
-            "ctx_hist_", "workspace_open_", "convo_input_", "convo_error_",
+            "ctx_sim_", "workspace_open_", "convo_input_", "convo_error_",
         ])
+
+
+    def _start_fresh(flash=None):
+        """Forget everything about the current reflection -- including the
+        case text -- and present an empty "Your case" form with a new
+        reflection code."""
+        _clear_all()
+        st.session_state.pop(NEW_CODE_KEY, None)
+        st.session_state.pop(PREFILL_KEY, None)
+        st.session_state[FORM_NONCE_KEY] = st.session_state.get(FORM_NONCE_KEY, 0) + 1
+        if flash:
+            st.session_state[FLASH_KEY] = flash
 
 
     def _date_only(iso_str):
         return (iso_str or "")[:10]
 
 
-    def _format_draft_option(d):
-        # d = (id, case_ref, doc_type, content, created_at, created_by, created_by_role)
-        doc_type, created_at, creator, role = d[2], d[4], d[5] or T["unknown_label"], d[6] or ""
-        role_label = T.get("role_labels", {}).get(role, role)
-        role_suffix = f", {role_label}" if role_label else ""
-        time_part = created_at[11:16] if created_at and len(created_at) >= 16 else ""
-        return f"{doc_type} ({time_part}) — {creator}{role_suffix}"
-
-
-    def _historical_badges(h):
-        """Return the ordered list of reason keys present on this historical
-        document (e.g. ["must_include", "semantic"]) -- shared by both the
-        checkbox label and the card renderer below."""
-        reasons = h.get("match_reasons")
-        if not reasons:
-            reasons = [h.get("match_reason")] if h.get("match_reason") else []
-        return [r for r in MATCH_REASON_ORDER if r in reasons]
-
-
-    def _format_historical_option(h):
-        # h is a dict from rdi.context_engine.get_historical_context() --
-        # now also carrying "score", "match_reason" (primary, back-compat)
-        # and "match_reasons" (full list -- see rdi/retrieval_service.py),
-        # used only for the transparency badge(s).
-        date_part = _date_only(h.get("completed_at") or h.get("created_at"))
-        edited_suffix = f" — {T['case_history_completed_label']}" if h.get("was_edited") else ""
-
-        badges = "".join(MATCH_REASON_BADGES[r] for r in _historical_badges(h))
-        badge_prefix = f"{badges} " if badges else ""
-        return f"{badge_prefix}{h['doc_type']} ({date_part}){edited_suffix}"
-
-
-    def _render_why_included(h, current_text):
-        """
-        Sprint 11 (Explainability). Renders the collapsed "Why was this
-        included?" panel for one historical document on the Reflection
-        Context screen.
-
-        Purely presentational -- reads only fields the retrieval pipeline
-        already attaches to `h` (match_reasons/match_reason, doc_type,
-        content, score) via services.explanation_builder, and makes no
-        Anthropic API call. Does not change which documents are retrieved,
-        their order, or whether they're included -- that stays fully
-        controlled by the checkbox above this panel.
-
-        Note on nesting: Streamlit does not support an expander nested
-        inside another expander, so the optional "Technical details"
-        (similarity category) is rendered as a divided sub-section INSIDE
-        the same "Why was this included?" expander, rather than as a
-        separate nested expander -- both stay collapsed together by
-        default, which keeps the collapsed-by-default requirement intact.
-        """
-        explanations = build_explanations(h, current_text, T)
-        if not explanations:
-            return
-
-        with st.expander(T["why_included_label"], expanded=False):
-            for line in explanations:
-                st.write(f"✓ {line}")
-
-            sim_cat = similarity_category(h.get("score"))
-            if sim_cat:
-                st.divider()
-                st.caption(T["why_technical_details_label"])
-                st.write(f"{T['why_similarity_label']} {T['why_similarity_' + sim_cat]}")
-
-
-    # ---------------------------------------------------------------------
-    # Phase 3 (Practitioner UX)
-    # ---------------------------------------------------------------------
-    # Everything below this line is presentational: it reorganises how
-    # existing data (historical documents, opportunities, retrieval
-    # reasons, session progress) is LAID OUT on screen. It does not call
-    # the Anthropic API, does not change retrieval/ranking, does not
-    # change the prompts, and does not add, remove, or reorder any of the
-    # 8 reflective dimensions.
-
-    # UX pass: the Reflection Journey now has three stages instead of four.
-    # "Reflective Questions" was removed as a separate stage -- the
-    # questions are already part of the Professional Reflection stage
-    # (they appear inside each dimension's tab), so showing them as their
-    # own step was misleading rather than clarifying.
     JOURNEY_STEPS = ["journey_step1", "journey_step2", "journey_step3"]
 
 
     def _render_journey(active_step):
         """
-        UX Priority 1 -- Reflection Journey.
-
-        Renders a single-line horizontal progress strip (Today's
-        Documentation -> Historical Context -> Professional Reflection) so
-        the practitioner always knows where they are in the flow.
-        `active_step` is 1-3; steps before it are shown as done (✓), the
-        active one is highlighted, later ones are shown as upcoming.
-
-        Rendered as one flex row of inline-block spans (rather than
-        st.columns, which forces each label into a fixed-width column and
-        was what caused stage names to wrap onto two lines) with
-        "white-space: nowrap" on every stage, so all three names reliably
-        stay on a single line regardless of screen width. Long-term, if a
-        future stage name were ever long enough to still overflow on a
-        narrow phone screen, the row scrolls horizontally rather than
-        wrapping and breaking the layout.
-
-        This explains the WORKFLOW in plain language -- it never exposes
-        retrieval internals, model names, or prompt structure.
+        Reflection Journey: a single-line horizontal progress strip
+        (Your case -> Earlier reflections -> Professional reflection) so
+        the practitioner always knows where they are. `active_step` is
+        1-3; earlier steps show as done, later ones as upcoming. One flex
+        row with nowrap so the names stay on one line (scrolls sideways
+        on a very narrow phone instead of wrapping).
         """
         parts = []
         for i, key in enumerate(JOURNEY_STEPS, start=1):
@@ -307,82 +194,59 @@ with error_boundary(
         st.divider()
 
 
-    def _render_historical_timeline(ctx, current_text):
-        """
-        UX Priority 5 & 6 -- Historical Timeline + Better Historical
-        Document Cards.
+    def _render_identity_caption(code, tags, note_type=""):
+        """Code + tags line shown at the top of stages 2 and 3, so the
+        practitioner always sees what this reflection will be saved as."""
+        st.caption(f"{T['reflection_active_case_prefix']} **{code}**")
+        details = _tags_line(tags)
+        if note_type:
+            details = f"{note_type} · {details}"
+        st.caption(f"{T['rs_tags_short_label']}: {details}")
 
-        Same underlying data as before (ctx.historical, already retrieved
-        by rdi.context_engine.get_historical_context() -- nothing about
-        retrieval, ranking, or the documents returned changes here). This
-        only changes how it's laid out: chronologically, grouped by
-        month/year, as visually distinct cards with badges and the
-        existing "Why was this included?" panel inside each card, ending
-        with a "Today's Documentation" marker.
 
-        Selection state (which historical documents stay included in the
-        reflection) is still driven by the exact same checkboxes as before
-        -- this function only changes their visual grouping/container, not
-        their behavior or session storage. The checkbox keys themselves are
-        reset to a clean slate whenever a NEW reflection context begins
-        (see _reset_ephemeral_widget_state(), called from the "Begin
-        Reflection" button handler below), so a document's checkbox here
-        always starts from ctx.selected_hist_ids (i.e. "included") rather
-        than a leftover value from a previous, unrelated reflection.
-        """
-        st.markdown(f"**{T['historical_timeline_header']}**")
-        st.caption(T["historical_timeline_intro"])
-
-        # Oldest first, so the timeline reads top-to-bottom as a real
-        # chronology ending at "today".
-        ordered = sorted(
-            ctx.historical,
-            key=lambda h: h.get("completed_at") or h.get("created_at") or "",
-        )
-
-        last_month_label = None
-        for h in ordered:
-            month_label = _month_year_label(h.get("completed_at") or h.get("created_at"))
-            if month_label != last_month_label:
-                st.markdown(f"##### 🗓️ {month_label}")
-                last_month_label = month_label
-
-            with st.container(border=True):
-                badges = _historical_badges(h)
-                badge_row = "  ".join(f"{MATCH_REASON_BADGES[r]}" for r in badges)
-                date_part = _date_only(h.get("completed_at") or h.get("created_at"))
-                edited_suffix = f" · {T['case_history_completed_label']}" if h.get("was_edited") else ""
-
-                top_col1, top_col2 = st.columns([4, 1])
-                with top_col1:
-                    st.markdown(f"**{h['doc_type']}**")
-                    st.caption(f"{date_part}{edited_suffix}")
-                with top_col2:
-                    st.markdown(badge_row)
-
-                hist_key = f"ctx_hist_{h['id']}"
-                checked = st.checkbox(
-                    _format_historical_option(h),
-                    value=(h["id"] in ctx.selected_hist_ids),
-                    key=hist_key,
-                    label_visibility="collapsed",
-                )
-                ctx.set_historical_included(h["id"], checked)
-                _render_why_included(h, current_text)
-
-            st.markdown("<div style='text-align:center; opacity:0.5;'>↓</div>", unsafe_allow_html=True)
-
-        # The chronology always ends at today's documentation, so the
-        # practitioner can see where today's note sits relative to the
-        # case's history.
+    def _render_similar_card(ctx, record):
+        """One earlier reflection on the context screen: code, date, why
+        it is offered, an include checkbox and (collapsed) its
+        observations. Never shows quotes or notes -- only observations."""
         with st.container(border=True):
-            st.markdown(f"**{T['timeline_today_label']}**")
-            for d in ctx.selected:
-                st.caption(f"{d[2]}")
+            reasons = record.get("match_reasons") or []
+            badges = " ".join(SIMILAR_REASON_BADGES[r] for r in reasons if r in SIMILAR_REASON_BADGES)
+            top_col1, top_col2 = st.columns([4, 1])
+            with top_col1:
+                st.markdown(f"**{record['code']}**")
+                caption = _date_only(record.get("created_at"))
+                if record.get("note_type"):
+                    caption = f"{caption} · {record['note_type']}"
+                st.caption(caption)
+            with top_col2:
+                st.markdown(badges)
+
+            if "linked" in reasons:
+                st.caption(f"🔗 {T['rs_similar_reason_linked']}")
+            if record.get("shared_tags"):
+                st.caption(f"🏷️ {T['rs_similar_reason_tags']}: {_tags_line(record['shared_tags'])}")
+
+            checked = st.checkbox(
+                T["rs_similar_include_label"],
+                value=(record["run_id"] in ctx.included_ids),
+                key=f"ctx_sim_{record['run_id']}",
+            )
+            ctx.set_similar_included(record["run_id"], checked)
+
+            with st.expander(T["rs_similar_observations_label"], expanded=False):
+                for obs in record.get("observations") or []:
+                    label = T["section_labels"].get(obs["module"], obs["module"].replace("_", " ").title())
+                    icon = TRIGGER_ICONS.get(obs["module"], "•")
+                    st.markdown(f"**{icon} {label}**")
+                    st.write(obs["observation"])
 
 
     # ---------------------------------------------------------------------
-
+    # Reflection workspace (unchanged by the redesign)
+    # ---------------------------------------------------------------------
+    # Everything from here to the stage logic renders the eight reflective
+    # dimensions, the follow-up conversations and the professional's own
+    # notes exactly as before.
 
     def _feedback_for(session, opportunity):
         """This professional's saved notes for one observation. Loaded
@@ -566,88 +430,54 @@ with error_boundary(
                 )
 
 
-    # ---------------------------------------------------------------------
-    # Ownership isolation
-    # ---------------------------------------------------------------------
-    # Pending drafts (status='draft') are a professional's own private,
-    # in-progress work. get_drafts() now REQUIRES the logged-in user's
-    # name and filters strictly by created_by in SQL (see
-    # services/draft_storage.py) -- so this page can never show, and this
-    # person can never begin a reflection on, another professional's
-    # still-pending draft, regardless of role (Supervisor, Programme
-    # Manager, and System Administrator included). Completed/submitted
-    # documents remain visible to Managers via the separate, existing Case
-    # History page -- that is unaffected by this change.
-    drafts = get_drafts(user_name)
 
+    # =====================================================================
+    # Which stage are we in?
+    # =====================================================================
     active_context = ReflectionContext.get_active()
     active_session = ReflectionSession.get_active()
 
-    if not drafts and active_session is None and active_context is None:
-        st.info(T["no_drafts"])
-        st.stop()
 
-
-    # --- Reflection Context step: shown after the practitioner picks
-    # document(s) to reflect on, before the reflection is generated. Surfaces
-    # relevant prior documentation for this case so it can be reviewed and
-    # deselected, per the Reflection Context Engine (rdi/context_engine.py). ---
-    if active_context is not None:
+    # ---------------------------------------------------------------------
+    # Stage 2 -- Earlier reflections (context), then generate
+    # ---------------------------------------------------------------------
+    if active_context is not None and active_session is None:
         ctx = active_context
 
         _render_journey(active_step=2)
-
-        if ctx.case_ref:
-            st.caption(f"{T['reflection_active_case_prefix']} {ctx.case_ref}")
+        _render_identity_caption(ctx.reflection_code, ctx.case_tags, ctx.note_type)
 
         st.subheader(T["reflection_context_title"])
 
-        st.markdown(f"**{T['reflection_context_current_label']}**")
-        for d in ctx.selected:
-            st.checkbox(_format_draft_option(d), value=True, disabled=True, key=f"ctx_current_{d[0]}")
+        with st.expander(T["rs_case_text_review_label"], expanded=False):
+            st.caption(T["rs_case_text_not_saved_note"])
+            st.write(ctx.case_text)
 
-        if ctx.historical:
-            # Sprint 11: today's selected document text, used only locally
-            # by services.explanation_builder to find shared keywords with
-            # each historical document for the "Why was this included?"
-            # panel -- never sent anywhere, never logged.
-            current_text = "\n\n".join(d[3] for d in ctx.selected)
-
-            st.divider()
-            # UX Priority 5 & 6: chronological timeline of cards, replacing
-            # the flat checkbox list. Same documents, same checkboxes, same
-            # "Why was this included?" panels -- just organised as a
-            # timeline instead of a plain list.
-            _render_historical_timeline(ctx, current_text)
+        st.divider()
+        st.markdown(f"**{T['rs_similar_header']}**")
+        if st.session_state.pop("_rs_similar_failed", False):
+            st.warning(T["rs_similar_failed"])
+        if ctx.similar:
+            st.caption(T["rs_similar_intro"])
+            for record in ctx.similar:
+                _render_similar_card(ctx, record)
+        else:
+            st.info(T["rs_similar_none"])
 
         summary = ctx.strength_summary(T)
         st.divider()
         st.info(summary)
-        # UX Priority 3: explicit count of historical documents currently
-        # included, alongside the existing Context Confidence sentence.
-        st.caption(f"{T['historical_docs_used_label']}: {len(ctx.included_historical())}")
+        st.caption(f"{T['rs_similar_used_label']}: {len(ctx.included_similar())}")
 
         # ---------------------------------------------------------------
-        # Cost-safety guard (added after project risk review)
+        # Cost-safety guard (unchanged)
         # ---------------------------------------------------------------
         # Generating a reflection triggers 8 parallel Claude API calls
-        # (see rdi/orchestrator.py) plus automatic retries on failure.
-        # Two independent protections here, neither of which changes what
-        # a normal practitioner experiences:
-        #
-        # 1. "_generating_reflection" is a plain session flag (not a
-        #    widget) that is set the instant the button below is clicked
-        #    and cleared once generation finishes. While it's set, the
-        #    button renders disabled, so a second click during the same
-        #    brief window (before Streamlit's rerun completes) can't start
-        #    a second, overlapping generation for this person.
+        # (rdi/orchestrator.py) plus automatic retries. Two protections:
+        # 1. "_generating_reflection" disables the button while a
+        #    generation is running, so a double click can't start a second.
         # 2. services.rate_limiter.check_and_record() enforces a generous
-        #    per-person hourly cap (DEFAULT_MAX_PER_HOUR, currently well
-        #    above any realistic legitimate use) as a backstop against a
-        #    bug or an unusual usage pattern quietly running up API cost.
-        #    It fails open (never blocks) if the database itself is
-        #    unreachable, so this can never be the reason someone can't
-        #    work.
+        #    per-person hourly cap (fails open if the database is down).
         is_generating = st.session_state.get("_generating_reflection", False)
 
         col1, col2 = st.columns(2)
@@ -675,14 +505,8 @@ with error_boundary(
 
                     combined_text = ctx.combined_text()
 
-                    # Backend-level duplicate protection (see
-                    # services/request_dedup.py). The button-disable above
-                    # is the primary defence against a double click; this
-                    # is the backstop for what that can't see on its own
-                    # (e.g. two browser tabs open on the same case). The
-                    # fingerprint is exactly what makes two attempts "the
-                    # same reflection request": this person, this case,
-                    # this exact document content.
+                    # Backend duplicate protection (services/request_dedup.py):
+                    # this person, this reflection code, this exact text.
                     reflection_request_id = request_dedup.fingerprint(
                         "reflection", user_name, getattr(ctx, "case_ref", ""), combined_text,
                     )
@@ -690,36 +514,19 @@ with error_boundary(
                         reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
                     )
                     if claim_status != "claimed":
-                        # This exact reflection is already being generated
-                        # (or was just generated) elsewhere -- do not
-                        # trigger a second set of 8 Claude calls.
                         st.session_state["_generating_reflection"] = False
                         st.session_state["_reflection_duplicate_hit"] = True
                         st.rerun()
 
-                    # Development logging: capture exactly what is about to be
-                    # sent into the Reflection Orchestrator -- current
-                    # document(s), every included historical document with its
-                    # retrieval reason(s) and semantic score, and the resulting
-                    # Context Confidence sentence. See
-                    # rdi.reflection_context.ReflectionContext.log_pre_orchestrator_summary.
                     ctx.log_pre_orchestrator_summary(T)
 
-                    # UX Priority 1: Step 3 of the Reflection Journey, shown for
-                    # the duration of the (unchanged) orchestrator call.
                     reflection_succeeded = False
                     try:
                         with st.spinner(f"{T['journey_step3']}..."):
-                            # Same underlying companion calls as before (see
-                            # rdi/orchestrator.py) -- this just also reshapes the
-                            # result into a ReflectionSession for display and
-                            # tracking.
                             result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
                         reflection_succeeded = True
                     finally:
-                        # Always resolve the claim -- a failed/aborted
-                        # attempt must not permanently block a genuine
-                        # retry of the same reflection.
+                        # A failed/aborted attempt must not block a retry.
                         if reflection_succeeded:
                             request_dedup.complete(reflection_request_id)
                         else:
@@ -732,28 +539,26 @@ with error_boundary(
 
                     session = ReflectionSession(
                         result,
-                        reflected_drafts=ctx.selected,
+                        reflected_drafts=[],
                         case_ref=ctx.case_ref,
                         context_summary=summary,
+                        case_text=ctx.case_text,
+                        case_tags=ctx.case_tags,
+                        note_type=ctx.note_type,
+                        previous_code=ctx.previous_code,
                     )
 
-                    # Saved-findings Stage 1: keep what the AI found (with
-                    # its verified exact passages) so it can be reopened,
-                    # and so the professional's notes have somewhere to
-                    # attach. Saving is best-effort: if it fails, the
-                    # reflection still works exactly as before -- the
-                    # practitioner is simply told notes can't be saved for
-                    # this one. Every document that fed the reflection is
-                    # recorded, so permanently deleting any of them also
-                    # erases these findings.
+                    # The REFLECTION is the record: save what the AI found
+                    # (with its verified anonymised passages), identified by
+                    # the neutral code and case tags. The case text itself
+                    # is NOT saved. Best-effort: if saving fails the
+                    # reflection still works, the practitioner is told notes
+                    # can't be kept for this one.
                     if "error" not in result:
                         try:
                             saved = save_reflection_run(
                                 case_ref=ctx.case_ref,
-                                source_draft_ids=(
-                                    [d[0] for d in ctx.selected]
-                                    + [h["id"] for h in ctx.included_historical()]
-                                ),
+                                source_draft_ids=[],
                                 language=st.session_state.lang,
                                 prompt_version=result.get("prompt_version", ""),
                                 model=result.get("model", ""),
@@ -761,6 +566,10 @@ with error_boundary(
                                 findings=result.get("findings", []),
                                 created_by=user_name,
                                 created_by_role=user_role,
+                                reflection_code=ctx.reflection_code,
+                                case_tags=ctx.case_tags,
+                                note_type=ctx.note_type,
+                                previous_code=ctx.previous_code,
                             )
                             session.attach_saved_findings(
                                 saved["run_id"], saved["finding_ids"], user_name,
@@ -771,75 +580,57 @@ with error_boundary(
                     ReflectionContext.clear()
                     session.save()
 
-                    # Ensure the brand-new Reflection Workspace always opens with
-                    # every Professional Reflection tab collapsed, and with no
-                    # leftover conversation-input or error state -- even if this
-                    # case happens to raise the same dimension(s) a previous,
-                    # unrelated reflection had left open/explored.
+                    # A brand-new workspace always opens with every tab
+                    # collapsed and no leftover input or error state.
                     _reset_ephemeral_widget_state([
                         "workspace_open_", "convo_input_", "convo_error_",
                     ])
 
                     st.rerun()
         with col2:
-            if st.button(T["reflection_context_back"], disabled=is_generating):
+            if st.button(T["rs_back_to_case_button"], disabled=is_generating):
+                # Put the case back into the form so nothing has to be
+                # retyped.
+                st.session_state[PREFILL_KEY] = {
+                    "text": ctx.case_text,
+                    "tags": list(ctx.case_tags),
+                    "note_type": ctx.note_type,
+                    "previous_code": ctx.previous_code,
+                }
                 ReflectionContext.clear()
                 st.rerun()
 
         if st.session_state.pop("_rate_limit_hit", False):
-            st.error(
-                T.get(
-                    "rate_limit_exceeded_message",
-                    "You've reached the limit of {max} reflections in the last hour on this "
-                    "account. This is a safety limit to prevent accidental repeated requests, "
-                    "not a restriction on your normal work -- please wait a little and try "
-                    "again, or contact your System Administrator if you believe this is a "
-                    "mistake.",
-                ).format(max=DEFAULT_MAX_PER_HOUR)
-            )
+            st.error(T["rate_limit_exceeded_message"].format(max=DEFAULT_MAX_PER_HOUR))
 
         if st.session_state.pop("_reflection_duplicate_hit", False):
-            st.info(
-                T.get(
-                    "reflection_duplicate_message",
-                    "This reflection is already being generated. Please wait a moment for it "
-                    "to finish before trying again.",
-                )
-            )
+            st.info(T["reflection_duplicate_message"])
 
         st.stop()
 
 
-    # --- A reflection session is already in progress for one client: show
-    # the Reflection Workspace instead of the folder browser, so work stays
-    # scoped to one client at a time. ---
+    # ---------------------------------------------------------------------
+    # Stage 3 -- Professional reflection (the workspace)
+    # ---------------------------------------------------------------------
     if active_session is not None:
         session = active_session
 
         if session.has_error():
             _render_journey(active_step=3)
-            # Phase 3 (Reflection Generation): Complete Failure now
-            # shows the SAME numbered "Something went wrong" screen as
-            # any other unexpected error in the app, instead of a
-            # generic message with no reference number -- the
-            # underlying failure was already logged, once, by
-            # rdi/orchestrator.py:run_reflection with full evidence
-            # (root cause, a representative traceback, every failed
-            # companion's raw response) before this page ever saw it.
+            # Complete Failure: the same numbered "Something went wrong"
+            # screen as any other unexpected error (already logged once
+            # by rdi/orchestrator.py:run_reflection).
             render_application_error_screen(
                 T, session.issue_id, session.error_id,
                 friendly_message=session.friendly_message,
             )
+            if st.button(T["rs_start_over_button"], key="rs_start_over_after_error"):
+                _start_fresh()
+                st.rerun()
             st.stop()
 
-        # Professional Reflection is the third and final stage of the
-        # (now three-stage) journey -- exploring the generated opportunities
-        # and answering their reflective questions all happens within this
-        # one stage, so it stays on step 3 throughout the workspace.
         _render_journey(active_step=3)
-
-        if session.case_ref:
-            st.caption(f"{T['reflection_active_case_prefix']} {session.case_ref}")
+        _render_identity_caption(session.case_ref, session.case_tags, session.note_type)
 
         if session.failed_count > 0:
             st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
@@ -847,12 +638,11 @@ with error_boundary(
         if session.findings_save_failed:
             st.info(T["findings_not_saved_notice"])
 
-        # --- Workspace header: document + context summary, so the
-        # practitioner always sees what this reflection is grounded in. ---
+        # What this reflection is grounded in. The case text is only held
+        # in this browser session and is never saved.
         with st.expander(T["workspace_document_header"], expanded=False):
-            for d in session.reflected_drafts:
-                st.markdown(f"**{d[1]} - {d[2]}**")
-                st.write(d[3])
+            st.caption(T["rs_case_text_not_saved_note"])
+            st.write(session.case_text)
 
         if session.context_summary:
             st.caption(f"{T['workspace_context_header']}: {session.context_summary}")
@@ -864,11 +654,7 @@ with error_boundary(
                 explored=session.explored_count(), total=total_opportunities
             ))
 
-        # UX Priority 2 & 4: Reflection Dashboard + Navigator. Each
-        # reflective dimension becomes its own tab -- same content as
-        # before (observation, questions, Explore, conversation), just
-        # organised into clearly separated, directly-jumpable sections
-        # instead of a long vertical stack of expanders.
+        # Reflection Dashboard + Navigator: one tab per dimension.
         st.subheader(T["workspace_opportunities_header"])
         ordered_opportunities = build_conversation(session.opportunities)
 
@@ -887,49 +673,19 @@ with error_boundary(
                     _render_opportunity_tab_body(session, opportunity)
 
         st.divider()
-        st.subheader(T["update_document"])
 
         if not session.awaiting_feedback:
-            for draft in session.reflected_drafts:
-                draft_id, case_ref, doc_type, draft_content = draft[0], draft[1], draft[2], draft[3]
-
-                if session.is_submitted(draft_id):
-                    st.success(f"{case_ref} - {doc_type}: {T['submitted']}")
-                    continue
-
-                st.markdown(f"**{case_ref} - {doc_type}**")
-                edited_text = st.text_area(
-                    T["edit_document_label"],
-                    value=draft_content,
-                    height=200,
-                    key=f"edit_{draft_id}",
-                )
-                if st.button(T["submit_draft"], key=f"submit_{draft_id}"):
-                    # Ownership is re-verified inside finalize_draft() itself
-                    # (created_by must equal user_name) -- this is defense
-                    # in depth on top of the fact that `session.reflected_drafts`
-                    # can only ever contain this user's own drafts to begin
-                    # with, since they were selected from get_drafts(user_name)
-                    # above.
-                    if finalize_draft(draft_id, edited_text, user_name):
-                        session.mark_submitted(draft_id)
-
-                        if session.all_batch_submitted():
-                            remaining = get_drafts(user_name)
-                            if not remaining:
-                                session.awaiting_feedback = True
-                                session.save()
-                            else:
-                                _clear_all()
-                        else:
-                            session.save()
-                    else:
-                        st.error(T["submit_draft_failed"])
-
-                    st.rerun()
+            st.subheader(T["rs_finish_header"])
+            if session.run_id:
+                st.caption(T["rs_finish_caption"].format(code=session.case_ref))
+            else:
+                st.caption(T["rs_finish_caption_unsaved"])
+            if st.button(T["rs_finish_button"], type="primary", key="rs_finish_btn"):
+                session.awaiting_feedback = True
+                session.save()
+                st.rerun()
 
         if session.awaiting_feedback:
-            st.divider()
             st.subheader(T["feedback_prompt_title"])
 
             rating = st.slider(T["feedback_rating_label"], min_value=1, max_value=5, value=3)
@@ -938,140 +694,150 @@ with error_boundary(
             col1, col2 = st.columns(2)
             with col1:
                 if st.button(T["feedback_submit_button"]):
-                    save_feedback(session.draft_ids(), rating, comment, user_name, user_role)
-                    _clear_all()
-                    st.success(T["feedback_thanks"])
+                    # The feedback row records the reflection code(s) it
+                    # is about (the column kept its historical name).
+                    save_feedback([session.case_ref], rating, comment, user_name, user_role)
+                    _start_fresh(flash=T["feedback_thanks"])
                     st.rerun()
             with col2:
                 if st.button(T["feedback_skip_button"]):
-                    _clear_all()
+                    _start_fresh(flash=T["rs_finished_success"])
                     st.rerun()
 
         st.stop()
 
 
-    # --- No reflection in progress: browse pending drafts as per-client
-    # folders. Same-day multiples are shown grouped under a date heading
-    # within the folder, but each document is still picked individually.
-    # Every draft here already belongs exclusively to `user_name` (see
-    # get_drafts(user_name) above), so this folder browser can only ever
-    # show this practitioner's own pending work. ---
+    # ---------------------------------------------------------------------
+    # Stage 1 -- Your case: write, paste or upload, then continue
+    # ---------------------------------------------------------------------
     _render_journey(active_step=1)
 
-    st.caption(T["reflection_folders_intro"])
+    flash = st.session_state.pop(FLASH_KEY, None)
+    if flash:
+        st.success(flash)
 
-    by_case = defaultdict(list)
-    for d in drafts:
-        key = d[1] or T["reflection_no_case_ref"]
-        by_case[key].append(d)
+    st.caption(T["rs_intro"])
 
-    for case_ref in sorted(by_case.keys(), key=lambda s: s.lower()):
-        case_drafts = sorted(by_case[case_ref], key=lambda d: d[4] or "")
+    # Coming back from stage 2: refill the form before its widgets exist
+    # (Streamlit does not allow writing a widget's value after it has
+    # been created in the same run).
+    prefill = st.session_state.pop(PREFILL_KEY, None)
+    if prefill:
+        st.session_state[_form_key("text")] = prefill.get("text", "")
+        st.session_state[_form_key("tags")] = reflection_records.clean_tags(prefill.get("tags"))
+        st.session_state[_form_key("previous_code")] = prefill.get("previous_code", "")
+        if prefill.get("note_type") in T["doc_types"]:
+            st.session_state[_form_key("note_type") + f"_{st.session_state.lang}"] = prefill["note_type"]
 
-        by_date = defaultdict(list)
-        for d in case_drafts:
-            by_date[_date_only(d[4])].append(d)
-        same_day_flag = any(len(v) > 1 for v in by_date.values())
+    if NEW_CODE_KEY not in st.session_state:
+        st.session_state[NEW_CODE_KEY] = reflection_records.new_reflection_code()
+    reflection_code = st.session_state[NEW_CODE_KEY]
 
-        folder_icon = "📂" if same_day_flag else "📁"
-        with st.expander(f"{folder_icon} {case_ref} — {len(case_drafts)}"):
-            if same_day_flag:
-                st.caption(T["reflection_same_day_notice"])
+    st.markdown(f"**{T['rs_code_label']}** `{reflection_code}`")
+    st.caption(T["rs_code_help"])
 
-            for day in sorted(by_date.keys(), reverse=True):
-                st.markdown(f"**{day}**")
-                for d in by_date[day]:
-                    draft_id, creator = d[0], d[5] or ""
-                    chk_key = f"chk_{draft_id}"
+    note_type = st.selectbox(
+        T["rs_note_type_label"],
+        T["doc_types"],
+        key=_form_key("note_type") + f"_{st.session_state.lang}",
+    )
 
-                    # Ownership isolation: every draft returned by
-                    # get_drafts(user_name) already belongs to user_name, so
-                    # `can_delete` here is simply "this is my own draft" --
-                    # there is no role-based bypass any more. A Supervisor,
-                    # Programme Manager, or System Administrator working in
-                    # Practitioner mode can delete their OWN pending drafts,
-                    # exactly like a Social Worker, but can never see or
-                    # delete anyone else's pending draft from this page.
-                    can_delete = bool(user_name) and user_name == creator
+    case_tags = st.multiselect(
+        T["rs_tags_label"],
+        list(reflection_records.CASE_TAGS),
+        format_func=_tag_label,
+        max_selections=reflection_records.MAX_TAGS,
+        placeholder=T["rs_tags_placeholder"],
+        help=T["rs_tags_help"].format(max=reflection_records.MAX_TAGS),
+        key=_form_key("tags"),
+    )
 
-                    confirm_key = f"confirm_delete_pending_{draft_id}"
-                    if can_delete and is_confirming(confirm_key):
-                        st.checkbox(_format_draft_option(d), key=chk_key, disabled=True)
-                        st.warning(T["reflection_delete_confirm"])
-                        cc1, cc2 = st.columns(2)
-                        with cc1:
-                            if st.button(T["case_history_delete_yes"], key=f"yes_delete_pending_{draft_id}"):
-                                if delete_pending_draft(draft_id, user_name, user_role):
-                                    clear_confirming(confirm_key)
-                                    st.session_state.pop(chk_key, None)
-                                    st.success(T["reflection_deleted_success"])
-                                else:
-                                    clear_confirming(confirm_key)
-                                    st.error(T["delete_draft_failed"])
-                                st.rerun()
-                        with cc2:
-                            if st.button(T["case_history_delete_cancel"], key=f"cancel_delete_pending_{draft_id}"):
-                                clear_confirming(confirm_key)
-                                st.rerun()
-                    elif can_delete:
-                        chk_col, btn_col = st.columns([6, 1])
-                        with chk_col:
-                            st.checkbox(_format_draft_option(d), key=chk_key)
-                        with btn_col:
-                            if st.button("🗑️", key=f"delete_pending_{draft_id}", help=T["reflection_delete_button"]):
-                                start_confirming(confirm_key)
-                                st.rerun()
-                    else:
-                        st.checkbox(_format_draft_option(d), key=chk_key)
+    previous_code_raw = st.text_input(
+        T["rs_previous_code_label"],
+        placeholder=T["rs_previous_code_placeholder"],
+        help=T["rs_previous_code_help"],
+        key=_form_key("previous_code"),
+    )
 
-            selected = [d for d in case_drafts if st.session_state.get(f"chk_{d[0]}", False)]
+    # Optional: bring in an existing document. Only the TEXT is read (the
+    # file itself is never stored -- services/document_import.py) and it is
+    # placed in the box below so the professional can check and edit it.
+    text_key = _form_key("text")
+    imported_key = _form_key("imported")
+    import_limits = dict(
+        max_mb=document_import.MAX_FILE_BYTES // (1024 * 1024),
+        max_pages=document_import.MAX_PDF_PAGES,
+        max_chars=document_import.MAX_CHARS,
+    )
+    uploaded = st.file_uploader(
+        T["doc_import_label"],
+        type=list(document_import.ALLOWED_EXTENSIONS),
+        key=_form_key("upload"),
+        help=T["doc_import_help"].format(**import_limits),
+    )
+    if uploaded is None:
+        st.session_state.pop(imported_key, None)
+    elif st.session_state.get(imported_key, {}).get("file_id") != uploaded.file_id:
+        try:
+            extracted = document_import.extract_text(uploaded.name, uploaded.getvalue())
+            current = st.session_state.get(text_key, "")
+            st.session_state[text_key] = (current.rstrip() + "\n\n" + extracted) if current.strip() else extracted
+            st.session_state[imported_key] = {"file_id": uploaded.file_id, "error": None}
+        except document_import.DocumentImportError as exc:
+            st.session_state[imported_key] = {"file_id": uploaded.file_id, "error": exc.reason}
+    outcome = st.session_state.get(imported_key)
+    if outcome:
+        if outcome["error"]:
+            st.error(T["doc_import_errors"].get(outcome["error"], T["doc_import_errors"]["unreadable"]).format(**import_limits))
+        else:
+            st.success(T["doc_import_loaded"])
 
-            if st.button(T["begin_reflection"], key=f"begin_{case_ref}", disabled=not selected):
-                selected_ids = {d[0] for d in selected}
+    case_text = st.text_area(
+        T["rs_case_text_label"],
+        key=text_key,
+        height=260,
+        placeholder=T["rs_case_text_placeholder"],
+    )
+    st.caption(T["rs_case_text_not_saved_note"])
 
-                # Development logging: mark the moment the practitioner
-                # actually enters the Reflection workflow for this case,
-                # before historical context retrieval or any companion
-                # calls happen. See services/rag_logging.py.
-                rag_log(f"[RAG] Reflection started for case_ref={case_ref!r}")
+    if st.button(T["rs_continue_button"], type="primary", key="rs_continue_btn"):
+        problem = None
+        previous_code = ""
+        if not (case_text or "").strip():
+            problem = T["empty"]
+        elif (previous_code_raw or "").strip():
+            previous_code = reflection_records.normalize_code(previous_code_raw)
+            if not previous_code:
+                problem = T["rs_previous_code_invalid"]
+            else:
+                try:
+                    if reflection_records.get_own_reflection(previous_code, user_name) is None:
+                        problem = T["rs_previous_code_not_found"].format(code=previous_code)
+                except Exception:
+                    problem = T["rs_previous_code_check_failed"]
 
-                # Hybrid RAG: use the selected document(s)' own text as the
-                # semantic query, so historical retrieval finds documents
-                # that are actually related to what's being reflected on
-                # today -- not just whatever is most recent for this case.
-                #
-                # Note: historical context here still draws on this case's
-                # completed/submitted documents across the case (via
-                # rdi/context_engine.py -> get_completed_drafts()), which is
-                # unrelated to pending-draft ownership -- those documents
-                # are already finished and part of the shared case record,
-                # not anyone's private in-progress draft.
-                selected_text = "\n\n".join(d[3] for d in selected)
-
-                # Live retrieval: a Qdrant + Postgres round trip (measured
-                # at roughly 1 second), run every time "Begin Reflection"
-                # is clicked. A prior version of this app precomputed this
-                # in the background right after a draft was saved, but
-                # that background prefetching was removed after load
-                # testing showed its unbounded background workers
-                # contributed to database connection-pool exhaustion under
-                # concurrent use -- see config.py.
-                historical = get_historical_context(
-                    case_ref, exclude_ids=selected_ids, query_text=selected_text,
+        if problem:
+            st.warning(problem)
+        else:
+            rag_log(f"[RAG] Reflection started for code={reflection_code!r}")
+            clean = reflection_records.clean_tags(case_tags)
+            try:
+                similar = reflection_records.find_similar_reflections(
+                    user_name, clean, previous_code=previous_code, exclude_code=reflection_code,
                 )
+            except Exception:
+                # Never block a reflection because the lookup failed --
+                # it simply goes ahead without earlier context.
+                similar = []
+                st.session_state["_rs_similar_failed"] = True
 
-                # Reset any leftover historical-document checkbox state from
-                # a previous reflection context before this new one is
-                # created. Checkbox keys are scoped only by document id
-                # (ctx_hist_<id>), and the same historical document can
-                # legitimately be offered again in a later, unrelated
-                # reflection -- without this reset its previous
-                # checked/unchecked state would silently carry over instead
-                # of defaulting back to "included".
-                _reset_ephemeral_widget_state(["ctx_hist_"])
-
-                ReflectionContext(case_ref=case_ref, selected=selected, historical=historical).save()
-                # Reset this folder's checkboxes so a future visit starts clean.
-                for d in case_drafts:
-                    st.session_state.pop(f"chk_{d[0]}", None)
-                st.rerun()
+            _reset_ephemeral_widget_state(["ctx_sim_"])
+            ReflectionContext(
+                reflection_code=reflection_code,
+                case_text=case_text.strip(),
+                case_tags=clean,
+                note_type=note_type,
+                previous_code=previous_code,
+                similar=similar,
+            ).save()
+            st.rerun()

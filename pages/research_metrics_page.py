@@ -52,7 +52,7 @@ with error_boundary(
     with col1:
         st.metric(T["research_sessions_label"], summary["total_reflection_sessions"])
     with col2:
-        st.metric(T["research_documents_label"], summary["total_documents_completed"])
+        st.metric(T["research_observations_label"], summary["total_observations_saved"])
 
     st.divider()
 

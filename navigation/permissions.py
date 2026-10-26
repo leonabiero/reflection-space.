@@ -20,14 +20,17 @@ from typing import Dict
 # "System Administration") so nothing else has to be renamed.
 # ---------------------------------------------------------------------
 
-PRACTITIONER_PAGES = {"Documentation", "Reflection Space", "My Reflection"}
+# Reflection-only redesign (REFLECTIONS.md): the separate Documentation
+# screen was merged into Reflection Space, so Practitioner mode now has
+# two pages and lands on Reflection Space.
+PRACTITIONER_PAGES = {"Reflection Space", "My Reflection"}
 MANAGER_PAGES = {"Learning", "Case History", "Research Metrics", "Pattern Review", "Text Analysis"}
 
 WORKSPACE_ORDER = ["Practitioner", "Manager", "System Administration"]
 
 # Where switching INTO a work mode should land the user.
 WORKSPACE_LANDING_PAGE = {
-    "Practitioner": "pages/documentation.py",
+    "Practitioner": "pages/reflection_space.py",
     "Manager": "pages/learning.py",
     "System Administration": "pages/system_administration.py",
 }
@@ -68,7 +71,7 @@ def default_workspace_for_role(role):
 
 
 def landing_page_for_workspace(workspace):
-    return WORKSPACE_LANDING_PAGE.get(workspace, "pages/documentation.py")
+    return WORKSPACE_LANDING_PAGE.get(workspace, "pages/reflection_space.py")
 
 
 def can_switch_work_mode(role):

@@ -142,12 +142,20 @@ class _RetryInvitation:
 
 class ReflectionSession:
     """A single reflection session for one case: what came back from the
-    orchestrator, which draft(s) it's for, and how far through
-    editing/feedback the practitioner has gotten."""
+    orchestrator, what it was about, and whether the practitioner has
+    reached the optional feedback step.
+
+    Reflection-only redesign (see REFLECTIONS.md): `case_text` is the
+    text written, pasted or uploaded on the spot. It is kept ONLY here,
+    in the browser session, so the practitioner can look back at it while
+    reflecting -- it is never stored and disappears when the session is
+    cleared. `reflected_drafts` remains for backward compatibility (an
+    empty list in the new flow); `case_ref` holds the reflection code."""
 
     _SESSION_KEY = "reflection_session"
 
-    def __init__(self, result, reflected_drafts, case_ref, context_summary=""):
+    def __init__(self, result, reflected_drafts, case_ref, context_summary="",
+                 case_text="", case_tags=None, note_type="", previous_code=""):
         self.error = result.get("error")
         self.error_raw = result.get("raw") if self.error else None
         self.issue_id = result.get("issue_id") if self.error else None
@@ -199,8 +207,12 @@ class ReflectionSession:
             ordered_opportunities.append(placeholder)
 
         self.opportunities = ordered_opportunities
-        self.reflected_drafts = reflected_drafts
+        self.reflected_drafts = reflected_drafts or []
         self.case_ref = case_ref
+        self.case_text = case_text or ""
+        self.case_tags = list(case_tags or [])
+        self.note_type = note_type or ""
+        self.previous_code = previous_code or ""
         self.context_summary = context_summary
         self.submitted_ids = set()
         self.awaiting_feedback = False

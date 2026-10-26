@@ -7,6 +7,7 @@ from services.error_log import error_boundary
 
 from pages.admin_sections import (
     user_management,
+    legacy_documents,
     document_indexing,
     retrieval_test,
     rag_status,
@@ -73,6 +74,10 @@ with error_boundary(
 
     # 1. User Management
     user_management.render(T)
+
+    # 1b. Erase old stored documents (reflection-only redesign,
+    # REFLECTIONS.md) -- only shown while old documents remain.
+    legacy_documents.render(T)
 
     # 2. Document Indexing (backfill utility)
     document_indexing.render(T)

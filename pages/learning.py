@@ -250,7 +250,7 @@ with error_boundary(
                         relevance = item.get("relevance")
                         relevance_display = f"{relevance:.2f}" if relevance is not None else "—"
                         st.write(
-                            f"**{item.get('doc_type', '')}** — "
+                            f"**{T['section_labels'].get(item.get('doc_type', ''), item.get('doc_type', ''))}** — "
                             f"{T['ka_evidence_date_col']}: {item.get('date', '') or '—'} — "
                             f"{T['ka_evidence_case_col']}: {item.get('case_ref', '') or '—'} — "
                             f"{T['ka_evidence_relevance_col']}: {relevance_display}"

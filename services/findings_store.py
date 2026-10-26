@@ -121,7 +121,9 @@ def _clean_finding(finding):
 
 def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                         model, module_status, findings,
-                        created_by, created_by_role=""):
+                        created_by, created_by_role="",
+                        reflection_code=None, case_tags=None,
+                        note_type="", previous_code=""):
     """
     Save one generated reflection: the run, the documents it used, and
     every finding -- all in ONE transaction, so either everything is
@@ -131,6 +133,14 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
     `module_status` is {module: "finding" | "no_finding" | "failed"},
     an honest record of what happened for each of the eight dimensions,
     including the ones that produced nothing.
+
+    Reflection-only redesign (see REFLECTIONS.md): the case text is
+    never stored. A reflection is identified by `reflection_code` (a
+    neutral app-generated code), `case_tags` (non-personal theme keys),
+    `note_type` and an optional `previous_code`. When a reflection_code
+    is given it is also used as `case_ref`, so every existing log that
+    groups by case_ref keeps working. All four are optional, so older
+    callers (and older rows) are unaffected.
 
     Returns {"run_id": int, "finding_ids": {module: finding_id}}.
     Raises on database failure (callers decide how to degrade).
@@ -144,6 +154,12 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
         k: v for k, v in (module_status or {}).items()
         if k in FINDING_MODULES and v in ("finding", "no_finding", "failed")
     }
+    if reflection_code:
+        case_ref = reflection_code
+    tags_json = (
+        json.dumps(sorted({str(t) for t in case_tags}), ensure_ascii=False)
+        if case_tags else None
+    )
 
     conn = _get_conn()
     try:
@@ -152,13 +168,16 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                 """
                 INSERT INTO reflection_runs
                     (case_ref, language, prompt_version, model, module_status,
-                     created_by, created_by_role, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                     created_by, created_by_role, created_at,
+                     reflection_code, case_tags, note_type, previous_code)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (case_ref, language, prompt_version, model,
                  json.dumps(status, ensure_ascii=False),
-                 created_by, created_by_role, now_utc()),
+                 created_by, created_by_role, now_utc(),
+                 reflection_code or None, tags_json,
+                 note_type or None, previous_code or None),
             )
             run_id = c.fetchone()[0]
 

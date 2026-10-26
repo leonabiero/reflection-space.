@@ -10,11 +10,16 @@ It is not a case-management system and it does not evaluate or score
 practitioners. It is a private reflective space that sits alongside their
 existing work.
 
+Since October 2026 it is also **not a document store**: a professional
+writes, pastes or uploads a case and reflects on it on the spot, and only the
+reflection is kept — identified by a neutral code and non-personal case
+themes, never by the case text. See `REFLECTIONS.md`.
+
 ## Who uses it
 
 Four roles, each with different screens available to them:
 
-- **Social Worker** — writes reflections, uses the AI reflection companion
+- **Social Worker** — reflects on cases on the spot, uses the AI reflection companion
 - **Supervisor** — same as Social Worker, plus visibility into their team
 - **Programme Manager** — organisation-wide activity views, no individual
   case content
@@ -30,15 +35,18 @@ mistake in one place doesn't expose data it shouldn't.
 |---|---|---|
 | Streamlit | The web app itself (all the screens) | `app.py`, `pages/` |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
-| Qdrant | Vector search — finds similar past reflections/cases | `services/qdrant_service.py` |
+| Qdrant | Vector search over documents stored before Oct 2026 (new reflections are matched by code and case themes in Postgres) | `services/qdrant_service.py` |
 | Google Gemini | Turns text into the numbers Qdrant searches on | `services/embedding_service.py` |
 | Claude (Anthropic) | Powers the reflection companion and the Knowledge Assistant | `rdi/`, `services/knowledge_assistant.py` |
 
-**Data flow, in short:** a social worker writes a reflection → it's saved to
-Postgres → a copy is turned into a search-friendly format by Gemini and
-stored in Qdrant → the RDI ("Reflective Decision Intelligence") layer in
-`rdi/` uses that context plus Claude to generate reflective prompts, never
-directive advice.
+**Data flow, in short:** a social worker writes, pastes or uploads a case on
+the Reflection Space screen → the text is anonymised and the RDI ("Reflective
+Decision Intelligence") layer in `rdi/` uses it, plus the worker's own linked
+or similar earlier reflections, with Claude to generate reflective prompts
+(never directive advice) → only the **reflection** is saved to Postgres, with
+a neutral code and case themes; the case text is discarded when the worker
+finishes. Qdrant/Gemini indexing remains in the code for documents stored
+before October 2026 (see `REFLECTIONS.md`).
 
 ## Where things live
 
@@ -62,7 +70,8 @@ directive advice.
 
 ## Translations
 
-All user-visible text goes through `services/language.py`. Spanish is the
+All user-visible text goes through `services/language.py` (the texts
+themselves live in `services/locales/es.py`, `eu.py` and `en.py`). Spanish is the
 default and master language; Basque and English are also supported. If a
 translation is missing for a given key, the app falls back to Spanish so it
 never shows a broken or empty label. New screens or messages must add their
@@ -92,6 +101,11 @@ Tests are organised by what they guard:
   (Phase 2)
 - `test_scalability_*.py` — pagination, caching, load behaviour under many
   concurrent users (Phase 3)
+- `test_reflection_records_*.py` — the reflection-only design: neutral codes,
+  case themes, "case text is never stored", similar-reflection matching
+
+Tests named `*_postgres.py` need a throwaway PostgreSQL database and are
+skipped unless `TEST_DATABASE_URL` is set.
 
 All tests must stay green. If a change breaks one of these, the change is
 wrong, not the test.
@@ -104,8 +118,9 @@ must pass before a change is considered safe to keep.
 
 ## Contributing safely
 
-- Never hardcode user-facing text — add it to `services/language.py` in all
-  three languages.
+- Never hardcode user-facing text — add it to the translation files in
+  `services/locales/` in all three languages.
+- Never store case text. Only the reflection is kept (see `REFLECTIONS.md`).
 - Never bypass the database connection pool (`services/db_pool.py`) for
   application queries — it exists to keep the app stable under load.
 - Keep business logic out of `pages/` files where possible — pages should

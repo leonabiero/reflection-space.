@@ -697,6 +697,32 @@ def ensure_schema():
                     CREATE INDEX IF NOT EXISTS idx_reflection_runs_case_ref
                     ON reflection_runs (case_ref)
                 """)
+                # --- Reflection-only redesign (October 2026, agreed with
+                # the EDE team; see REFLECTIONS.md) ---
+                # The case text itself is never stored any more: the
+                # reflection IS the record. Each reflection gets
+                #   reflection_code  a neutral, app-generated identifier
+                #                    (e.g. RS-7F3K2Q) -- never a name or a
+                #                    real file number;
+                #   case_tags        non-personal case themes the worker
+                #                    ticked (JSON list of keys from
+                #                    services/reflection_records.CASE_TAGS);
+                #   note_type        the kind of text reflected on;
+                #   previous_code    optional link to an earlier reflection
+                #                    on the same situation (continuity).
+                # Rows from before this change keep these NULL.
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS reflection_code TEXT")
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS case_tags TEXT")
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS note_type TEXT")
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS previous_code TEXT")
+                c.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_reflection_runs_reflection_code
+                    ON reflection_runs (reflection_code)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_runs_created_at
+                    ON reflection_runs (created_at DESC)
+                """)
                 # reflection_run_sources: which documents fed a run, so a
                 # permanent document deletion can find every run that used it.
                 c.execute("""
