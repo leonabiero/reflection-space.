@@ -712,30 +712,32 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                         'reflexión.',
           'guardrail_note': 'La herramienta nunca califica, puntúa ni decide nada por ti. Tú '
                             'decides qué hacer, si acaso, con lo que te haya hecho pensar.',
-          'journey_title': 'El recorrido de reflexión en tres pasos',
-          'journey_steps': ['1. Tu caso -- escribe, pega o sube el caso, elige el tipo de texto, '
-                            'marca algunos temas sin datos personales y, si quieres, enlaza una '
-                            'reflexión anterior con su código.',
-                            '2. Reflexiones anteriores -- revisa tus reflexiones anteriores '
-                            'enlazadas o con temas en común, e incluye o excluye las que quieras.',
-                            '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, '
-                            'conversa brevemente sobre alguna si quieres, añade tus notas y '
-                            'termina. El texto del caso se descarta al terminar.'],
+          'journey_title': 'Cómo funciona',
+          'journey_steps': ['1. Reflexionemos -- escribe o pega tu texto, o sube un documento (Word, PDF o '
+                            'texto). No hace falta ninguna referencia, tipo de texto ni tema.',
+                            '2. Elige el idioma de la reflexión (Español, Euskara o English) y pulsa '
+                            'Reflexionar. El texto se anonimiza automáticamente antes de que lo reciba la '
+                            'IA.',
+                            '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, conversa '
+                            'brevemente sobre alguna si quieres, añade tus notas y termina. El texto del '
+                            'caso se descarta al terminar.'],
           'practitioner_title': 'Espacio del profesional',
           'doc_section_title': '📝 Tu caso -- escribir, pegar o subir',
-          'doc_section_body': 'Ya no hay una página de Documentación aparte. En Reflection Space '
-                              'escribes o pegas el caso (o subes un Word, PDF o texto: solo se lee '
-                              'el texto). Cada reflexión recibe un código neutro (por ejemplo '
-                              'RS-7F3K2Q) y los temas que marques; nada de eso identifica a la '
-                              'persona. El texto del caso nunca se guarda.',
+          'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un '
+                              'Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si '
+                              'escribes un texto y además subes un documento, se te preguntará sobre cuál '
+                              'quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: '
+                              'la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no '
+                              'identifica a nadie. El texto del caso nunca se guarda.',
           'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
-          'reflection_section_body': 'Después de continuar, verás tus reflexiones anteriores '
-                                     'enlazadas o con temas en común (puedes desmarcar las que no '
-                                     'quieras tener en cuenta) y generarás tu reflexión. Explora '
-                                     'cualquiera de las ocho dimensiones, abre una breve '
-                                     'conversación sobre alguna si quieres, añade tus notas y '
-                                     'pulsa Terminar reflexión. Después puedes valorar la utilidad '
-                                     'de la sesión -- totalmente opcional.',
+          'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se '
+                                     'quitan nombres y otros datos personales) y solo esa versión protegida '
+                                     'se envía a la IA. Si la anonimización fallara, no se envía nada. En '
+                                     'los resultados, «Ver texto anonimizado» te muestra exactamente lo que '
+                                     'recibió la IA. Explora cualquiera de las ocho dimensiones, abre una '
+                                     'breve conversación sobre alguna si quieres, añade tus notas y pulsa '
+                                     'Terminar reflexión. Después puedes valorar la utilidad de la sesión '
+                                     '-- totalmente opcional.',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '
@@ -1481,4 +1483,33 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                      'gender_violence': 'Violencia de género',
                      'social_isolation': 'Soledad / aislamiento social',
                      'migration_integration': 'Migración e integración',
-                     'legal_administrative': 'Trámites legales y administrativos'}}
+                     'legal_administrative': 'Trámites legales y administrativos'},
+ 'rs_heading': 'Reflexionemos.',
+ 'rs_subheading': 'Tómate un momento para explorar una situación de tu práctica profesional.',
+ 'rs_material_label': 'Tu material de reflexión',
+ 'rs_material_placeholder': 'Escribe o pega aquí tu texto. Puedes compartir una situación de un '
+                            'caso, una observación, una experiencia profesional o algo que quieras '
+                            'explorar...',
+ 'rs_file_loaded': 'Documento leído: **{name}**. Para cambiarlo, quítalo con la ✕ o sube otro.',
+ 'rs_both_inputs_notice': 'Has escrito un texto y también has subido un documento. ¿Sobre cuál '
+                          'quieres reflexionar?',
+ 'rs_source_label': 'Reflexionar sobre',
+ 'rs_source_options': {'text': 'Mi texto escrito',
+                       'file': 'El documento subido',
+                       'both': 'Ambos juntos'},
+ 'rs_choose_source_warning': 'Elige primero sobre qué texto quieres reflexionar.',
+ 'rs_need_material': 'Escribe, pega o sube un texto antes de pulsar Reflexionar.',
+ 'rs_language_label': 'Idioma de la reflexión',
+ 'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
+ 'rs_privacy_note': '🛡️ Antes de enviar nada a la IA, se quitan automáticamente los nombres y '
+                    'otros datos personales.',
+ 'rs_reflect_button': 'Reflexionar',
+ 'rs_anonymised_status': 'Tu texto ha sido anonimizado.',
+ 'rs_preparing_status': 'Preparando tu reflexión...',
+ 'rs_anonymise_failed': 'No hemos podido proteger tu texto, así que no se ha enviado nada a la IA. '
+                        'Tu texto sigue aquí. Inténtalo de nuevo; si el problema continúa, avisa '
+                        'al equipo de soporte.',
+ 'rs_anonymised_preview_label': 'Ver texto anonimizado',
+ 'rs_anonymised_preview_help': 'Comprueba la versión protegida de tu material. Es exactamente lo '
+                               'que ha recibido la IA.',
+ 'rs_try_again_button': 'Volver a intentarlo con el mismo texto'}

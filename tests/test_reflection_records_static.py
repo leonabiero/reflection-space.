@@ -66,9 +66,11 @@ class CaseTextNeverStoredTests(unittest.TestCase):
         for forbidden in ("draft_storage", "save_draft", "finalize_draft", "get_drafts"):
             self.assertNotIn(forbidden, page, forbidden)
         # The saved reflection carries the neutral identifiers and no sources.
+        # Since the simplified screen (November 2026) the code is created
+        # automatically and practitioners give no case themes.
         self.assertIn("source_draft_ids=[]", page)
-        self.assertIn("reflection_code=ctx.reflection_code", page)
-        self.assertIn("case_tags=ctx.case_tags", page)
+        self.assertIn("reflection_code=reflection_code", page)
+        self.assertIn("case_tags=[]", page)
 
     def test_case_text_is_not_a_database_column(self):
         schema = _read("services", "db_schema.py")

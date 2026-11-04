@@ -12,8 +12,9 @@ existing work.
 
 Since October 2026 it is also **not a document store**: a professional
 writes, pastes or uploads a case and reflects on it on the spot, and only the
-reflection is kept — identified by a neutral code and non-personal case
-themes, never by the case text. See `REFLECTIONS.md`.
+reflection is kept — identified by a neutral code, never by the case text.
+Since November 2026 the screen asks for nothing else: write or upload, choose
+the language of the reflection, press **Reflect**. See `REFLECTIONS.md`.
 
 ## Who uses it
 
@@ -40,12 +41,13 @@ mistake in one place doesn't expose data it shouldn't.
 | Claude (Anthropic) | Powers the reflection companion and the Knowledge Assistant | `rdi/`, `services/knowledge_assistant.py` |
 
 **Data flow, in short:** a social worker writes, pastes or uploads a case on
-the Reflection Space screen → the text is anonymised and the RDI ("Reflective
-Decision Intelligence") layer in `rdi/` uses it, plus the worker's own linked
-or similar earlier reflections, with Claude to generate reflective prompts
-(never directive advice) → only the **reflection** is saved to Postgres, with
-a neutral code and case themes; the case text is discarded when the worker
-finishes. Qdrant/Gemini indexing remains in the code for documents stored
+the Reflection Space screen and presses **Reflect** → the text is anonymised
+first (if that fails, nothing is sent anywhere) → only the anonymised text
+goes to the RDI ("Reflective Decision Intelligence") layer in `rdi/`, which
+uses Claude to generate reflective prompts (never directive advice) in the
+language the worker chose → only the **reflection** is saved to Postgres,
+with a neutral, automatically created code; the case text is discarded when
+the worker finishes. Qdrant/Gemini indexing remains in the code for documents stored
 before October 2026 (see `REFLECTIONS.md`).
 
 ## Where things live
@@ -103,6 +105,9 @@ Tests are organised by what they guard:
   concurrent users (Phase 3)
 - `test_reflection_records_*.py` — the reflection-only design: neutral codes,
   case themes, "case text is never stored", similar-reflection matching
+- `test_simple_reflection_screen.py` — the simplified screen: typed text vs
+  uploaded document, the AI only ever receiving anonymised text, no fallback
+  when anonymisation fails, the chosen language reaching every AI call
 
 Tests named `*_postgres.py` need a throwaway PostgreSQL database and are
 skipped unless `TEST_DATABASE_URL` is set.

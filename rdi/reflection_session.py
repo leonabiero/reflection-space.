@@ -81,7 +81,7 @@ class _RetryInvitation:
                 result = retry_companion_once(
                     self.trigger,
                     self.session.safe_text,
-                    lang,
+                    getattr(self.session, "reflection_lang", None) or lang,
                 )
 
             if result.get("success"):
@@ -155,7 +155,8 @@ class ReflectionSession:
     _SESSION_KEY = "reflection_session"
 
     def __init__(self, result, reflected_drafts, case_ref, context_summary="",
-                 case_text="", case_tags=None, note_type="", previous_code=""):
+                 case_text="", case_tags=None, note_type="", previous_code="",
+                 reflection_lang=None):
         self.error = result.get("error")
         self.error_raw = result.get("raw") if self.error else None
         self.issue_id = result.get("issue_id") if self.error else None
@@ -213,6 +214,12 @@ class ReflectionSession:
         self.case_tags = list(case_tags or [])
         self.note_type = note_type or ""
         self.previous_code = previous_code or ""
+        # November 2026 simplified screen: the practitioner chooses the
+        # language of the REFLECTION on the screen itself, independently
+        # of the menus' language. Follow-up conversations and the manual
+        # companion retry use this same language. Falls back to the app
+        # language for sessions created without one.
+        self.reflection_lang = reflection_lang or st.session_state.get("lang", "Español")
         self.context_summary = context_summary
         self.submitted_ids = set()
         self.awaiting_feedback = False

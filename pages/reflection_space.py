@@ -5,7 +5,7 @@ from services.findings_ui import render_evidence, render_notes_form
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
-from services.language import init_language
+from services.language import init_language, LANGUAGE_ORDER
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.rag_logging import rag_log
@@ -15,34 +15,45 @@ from services import document_import
 from services import reflection_records
 from config import REQUEST_DEDUP_TTL_MINUTES
 from rdi.orchestrator import run_reflection
-from services.error_log import error_boundary, render_application_error_screen
+from services.anonymizer import anonymize
+from services.error_log import error_boundary, render_application_error_screen, log_error
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
 from rdi.companions import COMPANIONS
 
 # =====================================================================
-# Reflection Space -- ONE screen, reflection on the spot
+# Reflection Space -- write, choose a language, press Reflect
 # =====================================================================
 #
-# Reflection-only redesign (October 2026, agreed with the EDE team --
-# see REFLECTIONS.md). There is no separate Documentation screen any
-# more and no documents are stored:
+# Simplified practitioner screen (November 2026, agreed with the EDE
+# team -- see REFLECTIONS.md). Practitioners give NO metadata: no
+# reference, no type of text, no case themes, no earlier-reflection code.
 #
-#   1. Your case        -- write, paste or upload the case text, tick a
-#                          few non-personal case tags, optionally link an
-#                          earlier reflection by its code.
-#   2. Earlier          -- the professional's OWN linked / similar
-#      reflections         earlier reflections are offered as context
-#                          (each can be left out).
-#   3. Professional     -- the eight reflective dimensions, exactly as
-#      reflection          before (tabs, conversations, private notes).
+#   1. Let's reflect   -- write, paste and/or upload the text, choose the
+#                         language of the reflection, press Reflect.
+#                         (If there is typed text AND a document, the
+#                         practitioner is asked which one to use.)
+#   2. Automatically   -- the text is anonymised HERE, before anything
+#                         else happens. If that fails, nothing is sent to
+#                         any AI and the text stays on screen. Only the
+#                         anonymised text is passed to the existing
+#                         8-companion reflection (rdi/orchestrator.py).
+#   3. Professional    -- the eight reflective dimensions, exactly as
+#      reflection         before (tabs, conversations, private notes),
+#                         plus a collapsed "View anonymised text" preview
+#                         showing exactly what the AI received.
 #
 # Only the REFLECTION is saved (services/findings_store.py), identified
-# by a neutral app-generated code plus the case tags
+# by a neutral app-generated code that is created silently
 # (services/reflection_records.py). The case text exists only in this
-# browser session (ReflectionContext / ReflectionSession) and is
-# discarded when the professional finishes, starts again or logs out.
+# browser session (ReflectionSession) and is discarded when the
+# professional finishes, starts again or logs out.
+#
+# The earlier-reflections step (rdi/reflection_context.py,
+# reflection_records.find_similar_reflections) is no longer shown: it
+# matched on case themes / earlier codes, which practitioners no longer
+# give. The services are kept intact so it can be brought back.
 # =====================================================================
 
 T = init_language()
@@ -76,24 +87,22 @@ with error_boundary(
         "continuity": "🔗",
     }
 
-    # Why an earlier reflection is being offered (badge per reason).
-    SIMILAR_REASON_BADGES = {"linked": "🔗", "tags": "🏷️"}
-
     # Widget keys of the "Your case" form. They carry a nonce so the whole
     # form can be emptied in one go after a reflection is finished.
     FORM_NONCE_KEY = "rs_form_nonce"
     NEW_CODE_KEY = "rs_new_code"
     PREFILL_KEY = "rs_prefill"
     FLASH_KEY = "rs_flash"
+    GENERATING_KEY = "_generating_reflection"
 
     def _form_key(name):
         return f"rs_{name}_{st.session_state.get(FORM_NONCE_KEY, 0)}"
 
-    def _tag_label(key):
-        return T["case_tag_labels"].get(key, key.replace("_", " ").title())
-
-    def _tags_line(tags):
-        return ", ".join(_tag_label(t) for t in tags) if tags else T["rs_no_tags"]
+    def _language_name(lang_key):
+        """Display name of a reflection language (Español / Euskara /
+        English). The internal keys are the app's existing language keys
+        (services/language.py: LANGUAGE_ORDER)."""
+        return T["rs_language_names"].get(lang_key, lang_key)
 
 
     # ---------------------------------------------------------------------
@@ -154,91 +163,11 @@ with error_boundary(
             st.session_state[FLASH_KEY] = flash
 
 
-    def _date_only(iso_str):
-        return (iso_str or "")[:10]
-
-
-    JOURNEY_STEPS = ["journey_step1", "journey_step2", "journey_step3"]
-
-
-    def _render_journey(active_step):
-        """
-        Reflection Journey: a single-line horizontal progress strip
-        (Your case -> Earlier reflections -> Professional reflection) so
-        the practitioner always knows where they are. `active_step` is
-        1-3; earlier steps show as done, later ones as upcoming. One flex
-        row with nowrap so the names stay on one line (scrolls sideways
-        on a very narrow phone instead of wrapping).
-        """
-        parts = []
-        for i, key in enumerate(JOURNEY_STEPS, start=1):
-            label = T[key]
-            if i < active_step:
-                parts.append(f'<span style="white-space:nowrap;">✅ <b>{label}</b></span>')
-            elif i == active_step:
-                parts.append(
-                    f'<span style="white-space:nowrap; color:#1c83e1;">🟢 <b>{label}</b></span>'
-                )
-            else:
-                parts.append(f'<span style="white-space:nowrap; opacity:0.5;">⚪ {label}</span>')
-
-            if i < len(JOURNEY_STEPS):
-                parts.append('<span style="opacity:0.35; padding:0 0.5rem;">→</span>')
-
-        st.markdown(
-            '<div style="display:flex; align-items:center; justify-content:space-between; '
-            'flex-wrap:nowrap; overflow-x:auto; font-size:0.95rem; padding-bottom:0.35rem;">'
-            + "".join(parts) + "</div>",
-            unsafe_allow_html=True,
-        )
-        st.divider()
-
-
-    def _render_identity_caption(code, tags, note_type=""):
-        """Code + tags line shown at the top of stages 2 and 3, so the
-        practitioner always sees what this reflection will be saved as."""
+    def _render_identity_caption(code):
+        """Small line at the top of the results with the neutral
+        reflection code (created automatically -- the practitioner never
+        has to type or choose it)."""
         st.caption(f"{T['reflection_active_case_prefix']} **{code}**")
-        details = _tags_line(tags)
-        if note_type:
-            details = f"{note_type} · {details}"
-        st.caption(f"{T['rs_tags_short_label']}: {details}")
-
-
-    def _render_similar_card(ctx, record):
-        """One earlier reflection on the context screen: code, date, why
-        it is offered, an include checkbox and (collapsed) its
-        observations. Never shows quotes or notes -- only observations."""
-        with st.container(border=True):
-            reasons = record.get("match_reasons") or []
-            badges = " ".join(SIMILAR_REASON_BADGES[r] for r in reasons if r in SIMILAR_REASON_BADGES)
-            top_col1, top_col2 = st.columns([4, 1])
-            with top_col1:
-                st.markdown(f"**{record['code']}**")
-                caption = _date_only(record.get("created_at"))
-                if record.get("note_type"):
-                    caption = f"{caption} · {record['note_type']}"
-                st.caption(caption)
-            with top_col2:
-                st.markdown(badges)
-
-            if "linked" in reasons:
-                st.caption(f"🔗 {T['rs_similar_reason_linked']}")
-            if record.get("shared_tags"):
-                st.caption(f"🏷️ {T['rs_similar_reason_tags']}: {_tags_line(record['shared_tags'])}")
-
-            checked = st.checkbox(
-                T["rs_similar_include_label"],
-                value=(record["run_id"] in ctx.included_ids),
-                key=f"ctx_sim_{record['run_id']}",
-            )
-            ctx.set_similar_included(record["run_id"], checked)
-
-            with st.expander(T["rs_similar_observations_label"], expanded=False):
-                for obs in record.get("observations") or []:
-                    label = T["section_labels"].get(obs["module"], obs["module"].replace("_", " ").title())
-                    icon = TRIGGER_ICONS.get(obs["module"], "•")
-                    st.markdown(f"**{icon} {label}**")
-                    st.write(obs["observation"])
 
 
     # ---------------------------------------------------------------------
@@ -378,7 +307,7 @@ with error_boundary(
                                     initial_questions=opportunity.invitation,
                                     conversation_history=history_before,
                                     professional_message=sent_message,
-                                    lang=st.session_state.lang,
+                                    lang=getattr(session, "reflection_lang", None) or st.session_state.lang,
                                     requested_by=user_name,
                                 )
                         finally:
@@ -434,189 +363,27 @@ with error_boundary(
     # =====================================================================
     # Which stage are we in?
     # =====================================================================
-    active_context = ReflectionContext.get_active()
     active_session = ReflectionSession.get_active()
 
-
-    # ---------------------------------------------------------------------
-    # Stage 2 -- Earlier reflections (context), then generate
-    # ---------------------------------------------------------------------
-    if active_context is not None and active_session is None:
-        ctx = active_context
-
-        _render_journey(active_step=2)
-        _render_identity_caption(ctx.reflection_code, ctx.case_tags, ctx.note_type)
-
-        st.subheader(T["reflection_context_title"])
-
-        with st.expander(T["rs_case_text_review_label"], expanded=False):
-            st.caption(T["rs_case_text_not_saved_note"])
-            st.write(ctx.case_text)
-
-        st.divider()
-        st.markdown(f"**{T['rs_similar_header']}**")
-        if st.session_state.pop("_rs_similar_failed", False):
-            st.warning(T["rs_similar_failed"])
-        if ctx.similar:
-            st.caption(T["rs_similar_intro"])
-            for record in ctx.similar:
-                _render_similar_card(ctx, record)
-        else:
-            st.info(T["rs_similar_none"])
-
-        summary = ctx.strength_summary(T)
-        st.divider()
-        st.info(summary)
-        st.caption(f"{T['rs_similar_used_label']}: {len(ctx.included_similar())}")
-
-        # ---------------------------------------------------------------
-        # Cost-safety guard (unchanged)
-        # ---------------------------------------------------------------
-        # Generating a reflection triggers 8 parallel Claude API calls
-        # (rdi/orchestrator.py) plus automatic retries. Two protections:
-        # 1. "_generating_reflection" disables the button while a
-        #    generation is running, so a double click can't start a second.
-        # 2. services.rate_limiter.check_and_record() enforces a generous
-        #    per-person hourly cap (fails open if the database is down).
-        is_generating = st.session_state.get("_generating_reflection", False)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(
-                T["reflection_context_continue"],
-                type="primary",
-                disabled=is_generating,
-            ):
-                with error_boundary(
-                    "reflection_space (generate reflection)",
-                    T=T,
-                    user_name=user_name,
-                    user_role=user_role,
-                    context={"case_ref": getattr(ctx, "case_ref", "")},
-                    reset_flags=["_generating_reflection"],
-                ):
-                    allowed, _count = check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR)
-
-                    if not allowed:
-                        st.session_state["_rate_limit_hit"] = True
-                        st.rerun()
-
-                    st.session_state["_generating_reflection"] = True
-
-                    combined_text = ctx.combined_text()
-
-                    # Backend duplicate protection (services/request_dedup.py):
-                    # this person, this reflection code, this exact text.
-                    reflection_request_id = request_dedup.fingerprint(
-                        "reflection", user_name, getattr(ctx, "case_ref", ""), combined_text,
-                    )
-                    claim_status = request_dedup.claim(
-                        reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
-                    )
-                    if claim_status != "claimed":
-                        st.session_state["_generating_reflection"] = False
-                        st.session_state["_reflection_duplicate_hit"] = True
-                        st.rerun()
-
-                    ctx.log_pre_orchestrator_summary(T)
-
-                    reflection_succeeded = False
-                    try:
-                        with st.spinner(f"{T['journey_step3']}..."):
-                            result = run_reflection(combined_text, st.session_state.lang, context_description=summary)
-                        reflection_succeeded = True
-                    finally:
-                        # A failed/aborted attempt must not block a retry.
-                        if reflection_succeeded:
-                            request_dedup.complete(reflection_request_id)
-                        else:
-                            request_dedup.release(reflection_request_id)
-
-                    st.session_state["_generating_reflection"] = False
-
-                    if "error" not in result:
-                        log_reflection(ctx.case_ref, result["raw"], user_name, user_role)
-
-                    session = ReflectionSession(
-                        result,
-                        reflected_drafts=[],
-                        case_ref=ctx.case_ref,
-                        context_summary=summary,
-                        case_text=ctx.case_text,
-                        case_tags=ctx.case_tags,
-                        note_type=ctx.note_type,
-                        previous_code=ctx.previous_code,
-                    )
-
-                    # The REFLECTION is the record: save what the AI found
-                    # (with its verified anonymised passages), identified by
-                    # the neutral code and case tags. The case text itself
-                    # is NOT saved. Best-effort: if saving fails the
-                    # reflection still works, the practitioner is told notes
-                    # can't be kept for this one.
-                    if "error" not in result:
-                        try:
-                            saved = save_reflection_run(
-                                case_ref=ctx.case_ref,
-                                source_draft_ids=[],
-                                language=st.session_state.lang,
-                                prompt_version=result.get("prompt_version", ""),
-                                model=result.get("model", ""),
-                                module_status=result.get("module_status", {}),
-                                findings=result.get("findings", []),
-                                created_by=user_name,
-                                created_by_role=user_role,
-                                reflection_code=ctx.reflection_code,
-                                case_tags=ctx.case_tags,
-                                note_type=ctx.note_type,
-                                previous_code=ctx.previous_code,
-                            )
-                            session.attach_saved_findings(
-                                saved["run_id"], saved["finding_ids"], user_name,
-                            )
-                        except Exception:
-                            session.findings_save_failed = True
-
-                    ReflectionContext.clear()
-                    session.save()
-
-                    # A brand-new workspace always opens with every tab
-                    # collapsed and no leftover input or error state.
-                    _reset_ephemeral_widget_state([
-                        "workspace_open_", "convo_input_", "convo_error_",
-                    ])
-
-                    st.rerun()
-        with col2:
-            if st.button(T["rs_back_to_case_button"], disabled=is_generating):
-                # Put the case back into the form so nothing has to be
-                # retyped.
-                st.session_state[PREFILL_KEY] = {
-                    "text": ctx.case_text,
-                    "tags": list(ctx.case_tags),
-                    "note_type": ctx.note_type,
-                    "previous_code": ctx.previous_code,
-                }
-                ReflectionContext.clear()
-                st.rerun()
-
-        if st.session_state.pop("_rate_limit_hit", False):
-            st.error(T["rate_limit_exceeded_message"].format(max=DEFAULT_MAX_PER_HOUR))
-
-        if st.session_state.pop("_reflection_duplicate_hit", False):
-            st.info(T["reflection_duplicate_message"])
-
-        st.stop()
+    # A context left over from the retired "earlier reflections" step
+    # (e.g. someone mid-way when this version was deployed): bring the
+    # text back into the form so nothing has to be retyped.
+    leftover_context = ReflectionContext.get_active()
+    if leftover_context is not None:
+        if active_session is None:
+            st.session_state[PREFILL_KEY] = {"text": leftover_context.case_text}
+        ReflectionContext.clear()
 
 
     # ---------------------------------------------------------------------
-    # Stage 3 -- Professional reflection (the workspace)
+    # Results -- Professional reflection (the workspace)
     # ---------------------------------------------------------------------
     if active_session is not None:
         session = active_session
 
+        st.title(T["nav_reflection"])
+
         if session.has_error():
-            _render_journey(active_step=3)
             # Complete Failure: the same numbered "Something went wrong"
             # screen as any other unexpected error (already logged once
             # by rdi/orchestrator.py:run_reflection).
@@ -624,19 +391,43 @@ with error_boundary(
                 T, session.issue_id, session.error_id,
                 friendly_message=session.friendly_message,
             )
-            if st.button(T["rs_start_over_button"], key="rs_start_over_after_error"):
-                _start_fresh()
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(T["rs_try_again_button"], type="primary", key="rs_try_again_after_error"):
+                    # Put the same text and language back into the form,
+                    # so trying again is one click on Reflect.
+                    prefill = {
+                        "text": session.case_text,
+                        "lang": getattr(session, "reflection_lang", None),
+                    }
+                    _start_fresh()
+                    st.session_state[PREFILL_KEY] = prefill
+                    st.rerun()
+            with col2:
+                if st.button(T["rs_start_over_button"], key="rs_start_over_after_error"):
+                    _start_fresh()
+                    st.rerun()
             st.stop()
 
-        _render_journey(active_step=3)
-        _render_identity_caption(session.case_ref, session.case_tags, session.note_type)
+        _render_identity_caption(session.case_ref)
+        st.caption(
+            f"{T['rs_language_label']}: "
+            f"{_language_name(getattr(session, 'reflection_lang', st.session_state.lang))}"
+        )
 
         if session.failed_count > 0:
             st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
 
         if session.findings_save_failed:
             st.info(T["findings_not_saved_notice"])
+
+        # Transparency: exactly the protected text the AI received
+        # (the orchestrator returns it as "safe_text"). Collapsed by
+        # default; never shows the original text.
+        if session.safe_text:
+            with st.expander(T["rs_anonymised_preview_label"], expanded=False):
+                st.caption(T["rs_anonymised_preview_help"])
+                st.write(session.safe_text)
 
         # What this reflection is grounded in. The case text is only held
         # in this browser session and is never saved.
@@ -708,62 +499,47 @@ with error_boundary(
 
 
     # ---------------------------------------------------------------------
-    # Stage 1 -- Your case: write, paste or upload, then continue
+    # Let's reflect -- write, paste or upload, choose a language, Reflect
     # ---------------------------------------------------------------------
-    _render_journey(active_step=1)
+    st.title(T["rs_heading"])
+    st.markdown(T["rs_subheading"])
 
     flash = st.session_state.pop(FLASH_KEY, None)
     if flash:
         st.success(flash)
 
-    st.caption(T["rs_intro"])
+    text_key = _form_key("text")
+    imported_key = _form_key("imported")
+    lang_key = _form_key("lang")
+    source_key = _form_key("source")
 
-    # Coming back from stage 2: refill the form before its widgets exist
-    # (Streamlit does not allow writing a widget's value after it has
-    # been created in the same run).
+    # Coming back after a failed reflection ("Try again"): refill the
+    # form before its widgets exist (Streamlit does not allow writing a
+    # widget's value after it has been created in the same run).
     prefill = st.session_state.pop(PREFILL_KEY, None)
     if prefill:
-        st.session_state[_form_key("text")] = prefill.get("text", "")
-        st.session_state[_form_key("tags")] = reflection_records.clean_tags(prefill.get("tags"))
-        st.session_state[_form_key("previous_code")] = prefill.get("previous_code", "")
-        if prefill.get("note_type") in T["doc_types"]:
-            st.session_state[_form_key("note_type") + f"_{st.session_state.lang}"] = prefill["note_type"]
+        st.session_state[text_key] = prefill.get("text", "")
+        if prefill.get("lang") in LANGUAGE_ORDER:
+            st.session_state[lang_key] = prefill["lang"]
 
+    # The neutral reflection code is created silently -- practitioners
+    # never type or choose anything to identify the case.
     if NEW_CODE_KEY not in st.session_state:
         st.session_state[NEW_CODE_KEY] = reflection_records.new_reflection_code()
     reflection_code = st.session_state[NEW_CODE_KEY]
 
-    st.markdown(f"**{T['rs_code_label']}** `{reflection_code}`")
-    st.caption(T["rs_code_help"])
-
-    note_type = st.selectbox(
-        T["rs_note_type_label"],
-        T["doc_types"],
-        key=_form_key("note_type") + f"_{st.session_state.lang}",
+    case_text = st.text_area(
+        T["rs_material_label"],
+        key=text_key,
+        height=320,
+        placeholder=T["rs_material_placeholder"],
     )
 
-    case_tags = st.multiselect(
-        T["rs_tags_label"],
-        list(reflection_records.CASE_TAGS),
-        format_func=_tag_label,
-        max_selections=reflection_records.MAX_TAGS,
-        placeholder=T["rs_tags_placeholder"],
-        help=T["rs_tags_help"].format(max=reflection_records.MAX_TAGS),
-        key=_form_key("tags"),
-    )
-
-    previous_code_raw = st.text_input(
-        T["rs_previous_code_label"],
-        placeholder=T["rs_previous_code_placeholder"],
-        help=T["rs_previous_code_help"],
-        key=_form_key("previous_code"),
-    )
-
-    # Optional: bring in an existing document. Only the TEXT is read (the
-    # file itself is never stored -- services/document_import.py) and it is
-    # placed in the box below so the professional can check and edit it.
-    text_key = _form_key("text")
-    imported_key = _form_key("imported")
+    # Optional: bring in an existing document instead. Only the TEXT is
+    # read (the file itself is never stored -- services/document_import.py).
+    # Its text is kept SEPARATE from the box above; nothing is overwritten.
+    # Streamlit's uploader shows the file name and a ✕ to remove it;
+    # uploading another file replaces it.
     import_limits = dict(
         max_mb=document_import.MAX_FILE_BYTES // (1024 * 1024),
         max_pages=document_import.MAX_PDF_PAGES,
@@ -780,64 +556,220 @@ with error_boundary(
     elif st.session_state.get(imported_key, {}).get("file_id") != uploaded.file_id:
         try:
             extracted = document_import.extract_text(uploaded.name, uploaded.getvalue())
-            current = st.session_state.get(text_key, "")
-            st.session_state[text_key] = (current.rstrip() + "\n\n" + extracted) if current.strip() else extracted
-            st.session_state[imported_key] = {"file_id": uploaded.file_id, "error": None}
+            st.session_state[imported_key] = {
+                "file_id": uploaded.file_id, "name": uploaded.name,
+                "text": extracted, "error": None,
+            }
         except document_import.DocumentImportError as exc:
-            st.session_state[imported_key] = {"file_id": uploaded.file_id, "error": exc.reason}
+            st.session_state[imported_key] = {
+                "file_id": uploaded.file_id, "name": uploaded.name,
+                "text": "", "error": exc.reason,
+            }
+
+    file_text = ""
     outcome = st.session_state.get(imported_key)
     if outcome:
         if outcome["error"]:
             st.error(T["doc_import_errors"].get(outcome["error"], T["doc_import_errors"]["unreadable"]).format(**import_limits))
         else:
-            st.success(T["doc_import_loaded"])
+            file_text = outcome["text"]
+            st.success(T["rs_file_loaded"].format(name=outcome["name"]))
 
-    case_text = st.text_area(
-        T["rs_case_text_label"],
-        key=text_key,
-        height=260,
-        placeholder=T["rs_case_text_placeholder"],
+    # Typed text AND a document: ask, never combine or overwrite silently.
+    source_choice = None
+    if document_import.has_both(case_text, file_text):
+        st.info(T["rs_both_inputs_notice"])
+        source_choice = st.radio(
+            T["rs_source_label"],
+            list(document_import.SOURCE_CHOICES),
+            format_func=lambda key: T["rs_source_options"].get(key, key),
+            index=None,
+            key=source_key,
+        )
+
+    # Language of the REFLECTION (not of the menus). Starts on the app's
+    # current language.
+    # (The starting value is put in session state rather than passed as
+    # `index`, so "Try again" can restore the earlier choice without
+    # Streamlit warning about two competing defaults.)
+    if st.session_state.get(lang_key) not in LANGUAGE_ORDER:
+        current_lang = st.session_state.get("lang", "Español")
+        st.session_state[lang_key] = current_lang if current_lang in LANGUAGE_ORDER else LANGUAGE_ORDER[0]
+    reflect_lang = st.radio(
+        T["rs_language_label"],
+        LANGUAGE_ORDER,
+        format_func=_language_name,
+        horizontal=True,
+        key=lang_key,
     )
-    st.caption(T["rs_case_text_not_saved_note"])
 
-    if st.button(T["rs_continue_button"], type="primary", key="rs_continue_btn"):
-        problem = None
-        previous_code = ""
-        if not (case_text or "").strip():
-            problem = T["empty"]
-        elif (previous_code_raw or "").strip():
-            previous_code = reflection_records.normalize_code(previous_code_raw)
-            if not previous_code:
-                problem = T["rs_previous_code_invalid"]
-            else:
-                try:
-                    if reflection_records.get_own_reflection(previous_code, user_name) is None:
-                        problem = T["rs_previous_code_not_found"].format(code=previous_code)
-                except Exception:
-                    problem = T["rs_previous_code_check_failed"]
+    st.caption(f"{T['rs_privacy_note']} {T['rs_case_text_not_saved_note']}")
 
-        if problem:
-            st.warning(problem)
+    # -------------------------------------------------------------------
+    # Cost-safety guard (unchanged)
+    # -------------------------------------------------------------------
+    # Generating a reflection triggers 8 parallel Claude API calls
+    # (rdi/orchestrator.py) plus automatic retries. Protections:
+    # 1. GENERATING_KEY disables the button while a generation is
+    #    running, so a double click can't start a second.
+    # 2. services.rate_limiter.check_and_record() enforces a generous
+    #    per-person hourly cap (fails open if the database is down).
+    # 3. services.request_dedup blocks the exact same request arriving
+    #    twice (e.g. from two browser tabs).
+    is_generating = st.session_state.get(GENERATING_KEY, False)
+
+    reflect_clicked = st.button(
+        T["rs_reflect_button"],
+        type="primary",
+        disabled=is_generating,
+        use_container_width=True,
+        key="rs_reflect_btn",
+    )
+
+    if reflect_clicked:
+        material, problem = document_import.pick_material(case_text, file_text, source_choice)
+        if problem == document_import.MATERIAL_CHOOSE:
+            st.warning(T["rs_choose_source_warning"])
+        elif problem:
+            st.warning(T["rs_need_material"])
         else:
-            rag_log(f"[RAG] Reflection started for code={reflection_code!r}")
-            clean = reflection_records.clean_tags(case_tags)
-            try:
-                similar = reflection_records.find_similar_reflections(
-                    user_name, clean, previous_code=previous_code, exclude_code=reflection_code,
-                )
-            except Exception:
-                # Never block a reflection because the lookup failed --
-                # it simply goes ahead without earlier context.
-                similar = []
-                st.session_state["_rs_similar_failed"] = True
+            with error_boundary(
+                "reflection_space (generate reflection)",
+                T=T,
+                user_name=user_name,
+                user_role=user_role,
+                context={"case_ref": reflection_code},
+                reset_flags=[GENERATING_KEY],
+            ):
+                # ---------------------------------------------------------
+                # PRIVACY BOUNDARY: anonymise first, before ANYTHING else.
+                # From here on only `safe_text` is used for the AI. If this
+                # fails, stop: nothing is sent anywhere and there is no
+                # fallback to the original text. The error record carries
+                # no text at all -- only the kind of failure.
+                # ---------------------------------------------------------
+                safe_text = None
+                try:
+                    safe_text = anonymize(material)
+                except Exception as exc:
+                    safe_text = None
+                    log_error(
+                        page="reflection_space (anonymise)",
+                        error_type="AnonymisationFailed",
+                        message=(
+                            f"Anonymisation raised {type(exc).__name__}. The reflection "
+                            "was stopped and nothing was sent to any AI provider."
+                        ),
+                        traceback_text=None,
+                        traceback_unavailable_reason=(
+                            "Deliberately not recorded: a traceback could contain "
+                            "parts of the practitioner's original text."
+                        ),
+                        user_name=user_name,
+                        user_role=user_role,
+                        context={"case_ref": reflection_code, "chars": len(material)},
+                    )
 
-            _reset_ephemeral_widget_state(["ctx_sim_"])
-            ReflectionContext(
-                reflection_code=reflection_code,
-                case_text=case_text.strip(),
-                case_tags=clean,
-                note_type=note_type,
-                previous_code=previous_code,
-                similar=similar,
-            ).save()
-            st.rerun()
+                if not (safe_text or "").strip():
+                    st.error(T["rs_anonymise_failed"])
+                else:
+                    allowed, _count = check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR)
+                    if not allowed:
+                        st.session_state["_rate_limit_hit"] = True
+                        st.rerun()
+
+                    st.success(T["rs_anonymised_status"])
+                    st.session_state[GENERATING_KEY] = True
+
+                    # Backend duplicate protection: this person, this
+                    # reflection code, this exact (anonymised) text and
+                    # language. Only a one-way fingerprint is stored.
+                    reflection_request_id = request_dedup.fingerprint(
+                        "reflection", user_name, reflection_code, safe_text, reflect_lang,
+                    )
+                    claim_status = request_dedup.claim(
+                        reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
+                    )
+                    if claim_status != "claimed":
+                        st.session_state[GENERATING_KEY] = False
+                        st.session_state["_reflection_duplicate_hit"] = True
+                        st.rerun()
+
+                    # Codes and counts only -- never any text.
+                    rag_log(
+                        f"[RAG] Reflection started for code={reflection_code!r} "
+                        f"| lang={reflect_lang!r} | chars={len(safe_text)}"
+                    )
+
+                    reflection_succeeded = False
+                    try:
+                        with st.spinner(T["rs_preparing_status"]):
+                            # Only the ANONYMISED text goes in. (The
+                            # orchestrator anonymises again; that is
+                            # harmless because anonymize() is idempotent.)
+                            result = run_reflection(safe_text, reflect_lang, context_description="")
+                        reflection_succeeded = True
+                    finally:
+                        # A failed/aborted attempt must not block a retry.
+                        if reflection_succeeded:
+                            request_dedup.complete(reflection_request_id)
+                        else:
+                            request_dedup.release(reflection_request_id)
+
+                    st.session_state[GENERATING_KEY] = False
+
+                    if "error" not in result:
+                        log_reflection(reflection_code, result["raw"], user_name, user_role)
+
+                    session = ReflectionSession(
+                        result,
+                        reflected_drafts=[],
+                        case_ref=reflection_code,
+                        context_summary="",
+                        case_text=material,
+                        reflection_lang=reflect_lang,
+                    )
+
+                    # The REFLECTION is the record: save what the AI found
+                    # (with its verified anonymised passages), identified by
+                    # the neutral code. The case text itself is NOT saved.
+                    # Best-effort: if saving fails the reflection still
+                    # works, the practitioner is told notes can't be kept.
+                    if "error" not in result:
+                        try:
+                            saved = save_reflection_run(
+                                case_ref=reflection_code,
+                                source_draft_ids=[],
+                                language=reflect_lang,
+                                prompt_version=result.get("prompt_version", ""),
+                                model=result.get("model", ""),
+                                module_status=result.get("module_status", {}),
+                                findings=result.get("findings", []),
+                                created_by=user_name,
+                                created_by_role=user_role,
+                                reflection_code=reflection_code,
+                                case_tags=[],
+                                note_type="",
+                                previous_code="",
+                            )
+                            session.attach_saved_findings(
+                                saved["run_id"], saved["finding_ids"], user_name,
+                            )
+                        except Exception:
+                            session.findings_save_failed = True
+
+                    session.save()
+
+                    # A brand-new workspace always opens with every tab
+                    # collapsed and no leftover input or error state.
+                    _reset_ephemeral_widget_state([
+                        "workspace_open_", "convo_input_", "convo_error_",
+                    ])
+
+                    st.rerun()
+
+    if st.session_state.pop("_rate_limit_hit", False):
+        st.error(T["rate_limit_exceeded_message"].format(max=DEFAULT_MAX_PER_HOUR))
+
+    if st.session_state.pop("_reflection_duplicate_hit", False):
+        st.info(T["reflection_duplicate_message"])

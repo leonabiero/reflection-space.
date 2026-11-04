@@ -710,32 +710,32 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'guardrail_note': 'Tresnak ez du inoiz ezer kalifikatzen, puntuatzen edo zure ordez '
                             'erabakitzen. Zuk erabakitzen duzu zer egin, ezer egitekotan, '
                             'pentsarazi dizunarekin.',
-          'journey_title': 'Hiru urratseko gogoeta-bidea',
-          'journey_steps': ['1. Zure kasua -- idatzi, itsatsi edo igo kasua, aukeratu testu mota, '
-                            'markatu datu pertsonalik gabeko gai batzuk eta, nahi baduzu, lotu '
-                            'aurreko hausnarketa bat bere kodearekin.',
-                            '2. Aurreko hausnarketak -- berrikusi lotutako edo gai komunak '
-                            'dituzten zure aurreko hausnarketak, eta sartu edo kendu nahi '
-                            'dituzunak.',
-                            '3. Hausnarketa profesionala -- arakatu zortzi dimentsio '
-                            'erreflexiboak, hitz egin labur haietako bati buruz nahi baduzu, '
-                            'gehitu zure oharrak eta amaitu. Kasuaren testua baztertu egiten da '
-                            'amaitzean.'],
+          'journey_title': 'Nola dabilen',
+          'journey_steps': ['1. Hausnar dezagun -- idatzi edo itsatsi zure testua, edo igo dokumentu bat '
+                            '(Word, PDF edo testua). Ez da erreferentziarik, testu motarik edo gairik '
+                            'behar.',
+                            '2. Aukeratu hausnarketaren hizkuntza (Español, Euskara edo English) eta sakatu '
+                            'Hausnartu. Testua automatikoki anonimizatzen da AAk jaso aurretik.',
+                            '3. Hausnarketa profesionala -- arakatu zortzi dimentsio erreflexiboak, hitz '
+                            'egin labur haietako bati buruz nahi baduzu, gehitu zure oharrak eta amaitu. '
+                            'Kasuaren testua baztertu egiten da amaitzean.'],
           'practitioner_title': 'Profesionalaren area',
           'doc_section_title': '📝 Zure kasua -- idatzi, itsatsi edo igo',
-          'doc_section_body': 'Jada ez dago Dokumentazio orri bereizirik. Reflection Spacen kasua '
-                              'idatzi edo itsasten duzu (edo Word, PDF edo testu bat igo: testua '
-                              'bakarrik irakurtzen da). Hausnarketa bakoitzak kode neutro bat '
-                              'jasotzen du (adibidez RS-7F3K2Q) eta markatzen dituzun gaiak; '
-                              'horietako ezerk ez du pertsona identifikatzen. Kasuaren testua ez '
-                              'da inoiz gordetzen.',
+          'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, '
+                              'edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; '
+                              'fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen '
+                              'baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren '
+                              'erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode '
+                              'neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Kasuaren '
+                              'testua ez da inoiz gordetzen.',
           'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
-          'reflection_section_body': 'Jarraitu ondoren, lotutako edo gai komunak dituzten zure '
-                                     'aurreko hausnarketak ikusiko dituzu (kontuan hartu nahi ez '
-                                     'dituzunei marka ken diezaiekezu) eta zure hausnarketa '
-                                     'sortuko duzu. Arakatu zortzi dimentsioetako edozein, ireki '
-                                     'elkarrizketa labur bat nahi baduzu, gehitu zure oharrak eta '
-                                     'sakatu Amaitu hausnarketa. Ondoren saioaren '
+          'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da '
+                                     '(izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio '
+                                     'babestu hori bakarrik bidaltzen zaio AAri. Anonimizazioak huts egingo '
+                                     'balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» '
+                                     'aukerak AAk jaso zuena erakusten dizu. Arakatu zortzi dimentsioetako '
+                                     'edozein, ireki elkarrizketa labur bat nahi baduzu, gehitu zure '
+                                     'oharrak eta sakatu Amaitu hausnarketa. Ondoren saioaren '
                                      'erabilgarritasuna balora dezakezu -- guztiz aukerakoa.',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
@@ -1487,4 +1487,34 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                      'gender_violence': 'Genero-indarkeria',
                      'social_isolation': 'Bakardadea / isolamendu soziala',
                      'migration_integration': 'Migrazioa eta integrazioa',
-                     'legal_administrative': 'Lege- eta administrazio-izapideak'}}
+                     'legal_administrative': 'Lege- eta administrazio-izapideak'},
+ 'rs_heading': 'Hausnar dezagun.',
+ 'rs_subheading': 'Hartu une bat zure lanbide-praktikako egoera bat aztertzeko.',
+ 'rs_material_label': 'Zure hausnarketarako materiala',
+ 'rs_material_placeholder': 'Idatzi edo itsatsi zure testua hemen. Kasu-egoera bat, behaketa bat, '
+                            'lanbide-esperientzia bat edo aztertu nahi duzun zerbait parteka '
+                            'dezakezu...',
+ 'rs_file_loaded': 'Dokumentua irakurrita: **{name}**. Aldatzeko, kendu ✕ botoiarekin edo igo '
+                   'beste bat.',
+ 'rs_both_inputs_notice': 'Testu bat idatzi duzu eta dokumentu bat ere igo duzu. Zeri buruz '
+                          'hausnartu nahi duzu?',
+ 'rs_source_label': 'Zeri buruz hausnartu',
+ 'rs_source_options': {'text': 'Nik idatzitako testua',
+                       'file': 'Igotako dokumentua',
+                       'both': 'Biak batera'},
+ 'rs_choose_source_warning': 'Aukeratu lehenik zein testuri buruz hausnartu nahi duzun.',
+ 'rs_need_material': 'Idatzi, itsatsi edo igo testu bat Hausnartu sakatu aurretik.',
+ 'rs_language_label': 'Hausnarketaren hizkuntza',
+ 'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
+ 'rs_privacy_note': '🛡️ AAri ezer bidali aurretik, izenak eta beste datu pertsonal batzuk '
+                    'automatikoki kentzen dira.',
+ 'rs_reflect_button': 'Hausnartu',
+ 'rs_anonymised_status': 'Zure testua anonimizatu da.',
+ 'rs_preparing_status': 'Zure hausnarketa prestatzen...',
+ 'rs_anonymise_failed': 'Ezin izan dugu zure testua babestu, beraz ez da ezer bidali AAra. Zure '
+                        'testua hemen dago oraindik. Saiatu berriro; arazoak jarraitzen badu, '
+                        'jakinarazi laguntza-taldeari.',
+ 'rs_anonymised_preview_label': 'Ikusi testu anonimizatua',
+ 'rs_anonymised_preview_help': 'Egiaztatu zure materialaren bertsio babestua. Hau da, hain zuzen '
+                               'ere, AAk jaso duena.',
+ 'rs_try_again_button': 'Saiatu berriro testu berarekin'}

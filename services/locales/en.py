@@ -692,31 +692,31 @@ LANG_EN = {'title': '🧠 Reflection Space',
                         'is saved.',
           'guardrail_note': 'The tool never grades, scores, or decides anything for you. You '
                             'decide what, if anything, to do with what it made you think about.',
-          'journey_title': 'The three-step reflection journey',
-          'journey_steps': ['1. Your Case -- write, paste or upload the case, choose the type of '
-                            'text, tick a few themes with no personal details and, if you like, '
-                            'link an earlier reflection by its code.',
-                            '2. Earlier Reflections -- review your earlier reflections that are '
-                            'linked or share themes, and include or exclude any of them.',
-                            '3. Professional Reflection -- explore the eight reflective '
-                            'dimensions, optionally have a short conversation about any of them, '
-                            'add your notes and finish. The case text is discarded when you '
-                            'finish.'],
+          'journey_title': 'How it works',
+          'journey_steps': ["1. Let's reflect -- write or paste your text, or upload a document (Word, PDF "
+                            'or text). No reference, type of text or theme is needed.',
+                            '2. Choose the reflection language (Español, Euskara or English) and press '
+                            'Reflect. The text is anonymised automatically before the AI receives it.',
+                            '3. Professional Reflection -- explore the eight reflective dimensions, '
+                            'optionally have a short conversation about any of them, add your notes and '
+                            'finish. The case text is discarded when you finish.'],
           'practitioner_title': 'Practitioner workspace',
           'doc_section_title': '📝 Your case -- write, paste or upload',
-          'doc_section_body': 'There is no separate Documentation page any more. On Reflection '
-                              'Space you write or paste the case (or upload a Word, PDF or text '
-                              'file: only the text is read). Each reflection gets a neutral code '
-                              '(for example RS-7F3K2Q) and the themes you tick; none of that '
-                              'identifies the person. The case text is never saved.',
+          'doc_section_body': 'On Reflection Space you write or paste your text into a single box, or '
+                              'upload a Word, PDF or text file (only the text is read; the file is never '
+                              "kept). If you both write text and upload a document, you'll be asked which "
+                              "one to reflect on. You don't have to give any case reference or details: the "
+                              'app creates a neutral code by itself (for example RS-7F3K2Q) that identifies '
+                              'no one. The case text is never saved.',
           'reflection_section_title': '🪞 Reflection Space -- reflecting on the spot',
-          'reflection_section_body': "After you continue, you'll see your earlier reflections that "
-                                     "are linked or share themes (untick any you don't want "
-                                     'considered) and generate your reflection. Explore any of the '
-                                     'eight dimensions, optionally open a short conversation about '
-                                     'one, add your notes and select Finish reflection. Afterwards '
-                                     'you can rate how useful the session was -- entirely '
-                                     'optional.',
+          'reflection_section_body': 'When you press Reflect, your text is anonymised automatically (names '
+                                     'and other personal details are removed) and only that protected '
+                                     'version is sent to the AI. If anonymisation fails, nothing is sent. '
+                                     'On the results, "View anonymised text" shows you exactly what the AI '
+                                     'received. Explore any of the eight dimensions, optionally open a '
+                                     'short conversation about one, add your notes and select Finish '
+                                     'reflection. Afterwards you can rate how useful the session was -- '
+                                     'entirely optional.',
           'dimensions_title': 'The eight reflective dimensions',
           'dimensions': [{'label': "Client's Voice",
                           'desc': "Is the person's own voice, goals, and preferences reflected, or "
@@ -1441,4 +1441,34 @@ LANG_EN = {'title': '🧠 Reflection Space',
                      'gender_violence': 'Gender-based violence',
                      'social_isolation': 'Loneliness / social isolation',
                      'migration_integration': 'Migration and integration',
-                     'legal_administrative': 'Legal and administrative matters'}}
+                     'legal_administrative': 'Legal and administrative matters'},
+ 'rs_heading': "Let's reflect.",
+ 'rs_subheading': 'Take a moment to explore a situation from your professional practice.',
+ 'rs_material_label': 'Your reflection material',
+ 'rs_material_placeholder': 'Write or paste your text here. You can share a case situation, an '
+                            'observation, a professional experience or something you would like to '
+                            'explore...',
+ 'rs_file_loaded': 'Document read: **{name}**. To change it, remove it with the ✕ or upload '
+                   'another.',
+ 'rs_both_inputs_notice': 'You have written some text and also uploaded a document. Which would '
+                          'you like to reflect on?',
+ 'rs_source_label': 'Reflect on',
+ 'rs_source_options': {'text': 'My written text',
+                       'file': 'The uploaded document',
+                       'both': 'Both together'},
+ 'rs_choose_source_warning': 'Please choose which text you want to reflect on first.',
+ 'rs_need_material': 'Please write, paste or upload some text before pressing Reflect.',
+ 'rs_language_label': 'Reflection language',
+ 'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
+ 'rs_privacy_note': '🛡️ Before anything is sent to the AI, names and other personal details are '
+                    'removed automatically.',
+ 'rs_reflect_button': 'Reflect',
+ 'rs_anonymised_status': 'Your text has been anonymised.',
+ 'rs_preparing_status': 'Preparing your reflection...',
+ 'rs_anonymise_failed': "We couldn't protect your text, so nothing was sent to the AI. Your text "
+                        'is still here. Please try again; if the problem continues, let the '
+                        'support team know.',
+ 'rs_anonymised_preview_label': 'View anonymised text',
+ 'rs_anonymised_preview_help': 'Check the protected version of your material. This is exactly what '
+                               'the AI received.',
+ 'rs_try_again_button': 'Try again with the same text'}

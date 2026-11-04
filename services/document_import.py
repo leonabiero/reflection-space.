@@ -2,7 +2,7 @@
 Document import
 =================
 
-Lets a professional bring an existing document into the Documentation page
+Lets a professional bring an existing document into Reflection Space
 instead of retyping it: a plain text file (.txt), a Word file (.docx) or a
 PDF that contains real text.
 
@@ -193,3 +193,59 @@ def extract_text(filename, data):
     if len(text) > MAX_CHARS:
         raise DocumentImportError(TOO_LONG)
     return text
+
+
+# ---------------------------------------------------------------------------
+# Typed text and an uploaded document together (November 2026)
+# ---------------------------------------------------------------------------
+# The simplified Reflection Space screen keeps what the professional types
+# and what was read from an uploaded document SEPARATE -- the document's
+# text is no longer poured into the text box. When both are present the
+# professional is asked which one to reflect on; nothing is combined or
+# overwritten silently.
+
+SOURCE_TEXT = "text"    # only what was typed / pasted
+SOURCE_FILE = "file"    # only the uploaded document
+SOURCE_BOTH = "both"    # both, typed text first, clearly separated
+SOURCE_CHOICES = (SOURCE_TEXT, SOURCE_FILE, SOURCE_BOTH)
+
+# Problems pick_material() can report. The page maps each to a message.
+MATERIAL_EMPTY = "empty"     # nothing typed and no readable document
+MATERIAL_CHOOSE = "choose"   # both present, but no choice made yet
+
+BOTH_SEPARATOR = "\n\n---\n\n"
+
+
+def has_both(typed_text, file_text):
+    """True when there is typed text AND readable document text."""
+    return bool((typed_text or "").strip()) and bool((file_text or "").strip())
+
+
+def pick_material(typed_text, file_text, choice=None):
+    """
+    Decide what the reflection is about.
+
+    Returns (material, problem): exactly one of the two is empty.
+      - Only typed text      -> the typed text.
+      - Only a document      -> the document's text.
+      - Both                 -> follows `choice` (SOURCE_TEXT / SOURCE_FILE /
+                                SOURCE_BOTH); without a valid choice the
+                                problem is MATERIAL_CHOOSE.
+      - Neither              -> the problem is MATERIAL_EMPTY.
+    """
+    typed = (typed_text or "").strip()
+    from_file = (file_text or "").strip()
+
+    if typed and from_file:
+        if choice == SOURCE_TEXT:
+            return typed, ""
+        if choice == SOURCE_FILE:
+            return from_file, ""
+        if choice == SOURCE_BOTH:
+            return typed + BOTH_SEPARATOR + from_file, ""
+        return "", MATERIAL_CHOOSE
+    if typed:
+        return typed, ""
+    if from_file:
+        return from_file, ""
+    return "", MATERIAL_EMPTY

@@ -1,4 +1,52 @@
-# Reflection-only design (October 2026)
+# Reflection-only design (October 2026, simplified November 2026)
+
+## November 2026 update — "Let's reflect." (one simple screen)
+
+After a further meeting with the EDE team, the practitioner screen was cut
+down to one activity:
+
+**Write, paste or upload → choose the language → press Reflect → read the
+reflection.**
+
+- The practitioner gives **no metadata**: no reflection code to note, no type
+  of text, no case themes, no earlier-reflection code. The neutral reflection
+  code is still created **automatically** and saved with the reflection; it is
+  shown small at the top of the results.
+- **Typed text and an uploaded document are kept separate.** If both are
+  present, the practitioner is asked which to use: *my written text*, *the
+  uploaded document* or *both together* (`services/document_import.py:
+  pick_material`). Nothing is combined or overwritten silently.
+- **Language of the reflection** (Español / Euskara / English) is chosen on
+  the screen. It starts on the app's current language and only changes the
+  language of the reflection — not the menus. Follow-up conversations and the
+  manual "Retry" for a dimension use the same language.
+- **Anonymisation happens first, on the page**, before anything else. If it
+  fails, the practitioner sees a plain message, their text stays on screen and
+  **nothing is sent to any AI** — there is no fallback to the original text.
+  The error record contains no text and no traceback. Only the anonymised text
+  is passed to the orchestrator (which anonymises again; that is harmless
+  because `anonymize()` is idempotent).
+- The practitioner sees *"Your text has been anonymised."* then *"Preparing
+  your reflection..."*, and goes straight to the results.
+- On the results, a collapsed **"View anonymised text"** section shows exactly
+  what the AI received. It never shows the original text.
+- If the whole reflection fails, **"Try again with the same text"** puts the
+  text and the chosen language back into the form.
+
+**What stopped as a consequence (agreed with the product owner):**
+
+- The **Earlier reflections** step is no longer shown. It matched on case
+  themes and earlier codes, which practitioners no longer give. The code that
+  powers it (`rdi/reflection_context.py`,
+  `services/reflection_records.find_similar_reflections`) is kept unchanged so
+  it can be brought back.
+- New reflections are saved **without case themes or type of text**, so the
+  theme filter in managers' Reflection History only finds older reflections.
+  Nothing breaks.
+
+The rest of this document describes the October 2026 design; where it
+mentions case themes, the type of text or the earlier-reflections step, those
+now only apply to reflections made before November 2026.
 
 Agreed with the EDE Fundazioa team in October 2026. This replaces the earlier
 "save a document first, reflect later" design.
@@ -91,3 +139,6 @@ the branch **`master-version`**.
   "case text is never stored", navigation.
 - `tests/test_reflection_records_postgres.py` — real-database checks (skipped
   unless `TEST_DATABASE_URL` is set).
+- `tests/test_simple_reflection_screen.py` — the November 2026 simplified
+  screen: input rules, privacy (the AI only receives anonymised text, failure
+  stops everything), reflection language, translations.
