@@ -153,6 +153,9 @@ patricia paula pilar raquel rocío rocio rosa sandra sara silvia sofía sofia
 susana teresa irene alba alicia inés ines julia lorena marina noelia
 mónica monica verónica veronica yolanda concepción concepcion dolores
 fatima fátima aicha khadija
+john mary james michael sarah emma olivia william thomas george emily jessica
+jennifer robert richard christopher matthew joseph elizabeth peter paul kevin
+brian susan linda karen nancy lisa michelle mohammed muhammad omar amina
 """.split())
 
 _LOCATION_PREPOSITIONS = {"en", "desde", "hacia", "in", "at", "from", "near", "to"}
@@ -332,7 +335,20 @@ def _replace_single_names(text: str, known_names: set) -> str:
 
 
 def anonymize(text: str) -> str:
-    """Return a privacy-hardened representation suitable for external AI."""
+    """Return a privacy-hardened representation suitable for external AI.
+
+    Two passes: the original rules on the text as written, then the same
+    rules again on a copy where words written in CAPITAL LETTERS have been
+    given ordinary capitalisation (see _anonymize_capitals). The second pass
+    can only ADD redactions; anything the first pass removed stays removed.
+    """
+    if not text:
+        return text
+    return _anonymize_capitals(_anonymize_core(text))
+
+
+def _anonymize_core(text: str) -> str:
+    """The original rule set (unchanged)."""
     if not text:
         return text
 
@@ -376,3 +392,175 @@ def anonymize(text: str) -> str:
 
     safe = _replace_proper_names(safe, known_names)
     return _replace_single_names(safe, known_names)
+
+
+# ---------------------------------------------------------------------------
+# Text written in CAPITAL LETTERS (November 2026)
+# ---------------------------------------------------------------------------
+# Most of the rules above recognise a name by its SHAPE: a capital letter
+# followed by small letters ("John", "Lucía"). Notes typed with caps lock on
+# ("HELLO, JOHN IS A HAPPY CLIENT", "Visita a NEREA AGIRRE") defeat that:
+# every word has the same shape, so the name was left in the pilot. (Rules
+# with a clear cue -- "LA MADRE, LUCÍA", "VIVE EN BARAKALDO", e-mails, phone
+# numbers, DNI -- already worked, because they do not depend on shape.)
+#
+# This pass builds a copy of the text in which words written in capitals are
+# given ordinary capitalisation: known first names and courtesy titles get a
+# capital letter, the (up to three) capitalised words that directly follow
+# them get one too (surnames), and every other word is put in lower case.
+# The original rules then run on that copy, and every word they did NOT
+# replace is put back exactly as the practitioner wrote it.
+#
+# Words in capitals are only touched when they look like shouting: two or
+# more of them next to each other, or a single one that is a known first
+# name or title. Lone acronyms in normal text (DNI, EDE, NIE) are left alone,
+# so ordinary notes behave exactly as before.
+
+_TOKEN_RE = re.compile(r"\w+|[^\w]", re.UNICODE)
+# Courtesy titles written in capitals. "DON" and "AND" are left out on
+# purpose: in capitals they are far more often English words ("DON'T",
+# "JOHN AND MARY") than titles.
+_TITLE_WORDS = {"mr", "mrs", "ms", "miss", "dr", "dra", "sr", "sra", "srta",
+                "doña", "dña", "jn", "andre", "jaun"}
+_MAX_SURNAMES = 3
+
+# Very common words that follow a name in a sentence ("JOHN IS", "MIKEL
+# DICE", "NEREA ESAN DU") and so must never be mistaken for a surname.
+_NOT_SURNAMES = set("""
+is are was were be been has have had will would can could should may might
+does did do not very said says told went came lives feels seems wants needs
+arrived attended agreed refused called asked explained mentioned reported
+also again still always never often now here there who which what why how
+dice dijo decía es está estaba era fue ha había han tiene tenía va iba vive
+viene vino quiere quería puede podía comenta comentó refiere refirió
+manifiesta manifestó explica explicó acude acudió llega llegó trabaja
+estudia siente parece necesita pide pidió muy siempre nunca todavía ahora
+aquí allí quien quién cual cuál qué cómo cuándo
+da dago zen zegoen du zuen dio esan dauka zeukan nahi oso beti inoiz orain
+hemen han nor zer nola noiz
+""".split())
+
+
+def _is_caps_word(token: str) -> bool:
+    return len(token) >= 2 and token.isalpha() and token.isupper()
+
+
+def _normalise_capitals(tokens):
+    """Same-length list of tokens with shouted words re-cased (see above)."""
+    word_positions = [i for i, t in enumerate(tokens) if t.isalpha()]
+    shouted = set()
+    for n, i in enumerate(word_positions):
+        token = tokens[i]
+        if not token.isupper() or (i > 0 and tokens[i - 1] == "["):
+            continue
+        low = token.lower()
+        prev_caps = n > 0 and _is_caps_word(tokens[word_positions[n - 1]])
+        next_caps = n + 1 < len(word_positions) and _is_caps_word(tokens[word_positions[n + 1]])
+        if len(token) == 1:
+            # "Y", "A", "O" between shouted words: an ordinary short word.
+            if prev_caps and next_caps:
+                shouted.add(i)
+            continue
+        if prev_caps or next_caps or low in _COMMON_FIRST_NAMES or low in _TITLE_WORDS:
+            shouted.add(i)
+
+    if not shouted:
+        return tokens
+
+    result = list(tokens)
+    surnames_left = 0
+    for i in word_positions:
+        if i not in shouted:
+            surnames_left = 0
+            continue
+        low = tokens[i].lower()
+        if len(low) == 1:
+            result[i] = low
+            surnames_left = 0
+        elif low in _COMMON_FIRST_NAMES or low in _TITLE_WORDS:
+            result[i] = low.capitalize()
+            surnames_left = _MAX_SURNAMES
+        elif surnames_left and not _is_safe_word(low) and low not in _NOT_SURNAMES:
+            result[i] = low.capitalize()
+            surnames_left -= 1
+        else:
+            result[i] = low
+            surnames_left = 0
+    return result
+
+
+def _anonymize_capitals(text: str) -> str:
+    tokens = _TOKEN_RE.findall(text)
+    if "".join(tokens) != text:      # defensive: never risk losing text
+        return text
+    shadow = _normalise_capitals(tokens)
+    if shadow == tokens:
+        return text
+
+    redacted = _TOKEN_RE.findall(_anonymize_core("".join(shadow)))
+    restored = _restore_original_case(tokens, shadow, redacted)
+    # If the two versions cannot be lined up with certainty, keep the
+    # protected copy (in lower case) rather than risk putting a name back.
+    return restored if restored is not None else "".join(redacted)
+
+
+_RESYNC_WINDOW = 400   # tokens one replacement may cover (addresses are long)
+_RESYNC_LENGTH = 4     # tokens that must match again after a replacement
+
+
+def _restore_original_case(original, shadow, redacted):
+    """Walk the copy and its redacted version side by side (one pass, so
+    even a very long note is quick). Identical tokens are taken from the
+    ORIGINAL (capitals as written); each replacement made by the rules is a
+    bracketed tag such as [PERSON], taken from the redacted version, after
+    which the two are lined up again. Returns None if they cannot be."""
+    pieces = []
+    i = j = 0
+    n_shadow, n_redacted = len(shadow), len(redacted)
+    while i < n_shadow and j < n_redacted:
+        if shadow[i] == redacted[j]:
+            pieces.append(original[i])
+            i += 1
+            j += 1
+            continue
+        # A replacement starts here: copy the tag from the redacted text.
+        if redacted[j] != "[":
+            return None
+        close = _find_tag_end(redacted, j)
+        if close is None:
+            return None
+        pieces.extend(redacted[j:close + 1])
+        j = close + 1
+        # The few tokens after the tag, up to the next tag, show where the
+        # copy picks up again. A replacement always covers at least one
+        # token, so the search starts one token further on.
+        tail = []
+        k = j
+        while k < n_redacted and len(tail) < _RESYNC_LENGTH and redacted[k] != "[":
+            tail.append(redacted[k])
+            k += 1
+        if not tail:
+            if j >= n_redacted:
+                i = n_shadow
+                break
+            continue          # another tag follows straight away
+        for ii in range(i + 1, min(n_shadow, i + _RESYNC_WINDOW) + 1):
+            if shadow[ii:ii + len(tail)] == tail:
+                i = ii
+                break
+        else:
+            return None
+    if j < n_redacted:
+        pieces.extend(redacted[j:])
+    elif i < n_shadow:
+        pieces.extend(original[i:])
+    return "".join(pieces)
+
+
+def _find_tag_end(tokens, start):
+    """Index of the "]" closing the tag that starts at tokens[start]."""
+    for k in range(start + 1, min(len(tokens), start + 4)):
+        if tokens[k] == "]":
+            return k
+    return None
+

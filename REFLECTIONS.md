@@ -32,6 +32,16 @@ reflection.**
   what the AI received. It never shows the original text.
 - If the whole reflection fails, **"Try again with the same text"** puts the
   text and the chosen language back into the form.
+- After **Finish reflection** the screen is immediately empty and ready for
+  the next reflection; the thank-you is a small pop-up that disappears.
+- **Text written in CAPITAL LETTERS** is now anonymised too
+  (`services/anonymizer.py`, second pass). The rules recognise names by their
+  shape ("John"), so "HELLO, JOHN IS A HAPPY CLIENT" used to reach the AI
+  unchanged. The extra pass can only add protection; normal text is handled
+  exactly as before. Known limits: in capitals, a word straight after a name
+  may be hidden as if it were a surname ("UNAI ESTABAN"), place names without
+  a cue ("…, BILBAO.") are kept, and names written all in lower case
+  ("john") are still not recognised.
 
 **What stopped as a consequence (agreed with the product owner):**
 

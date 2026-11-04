@@ -146,5 +146,64 @@ class AnonymizerSecurityTests(unittest.TestCase):
         self.assertEqual(anonymize(once), once)
 
 
+class CapitalLettersTests(unittest.TestCase):
+    """November 2026: notes typed with caps lock on. In the pilot,
+    "HELLO, JOHN IS A HAPPY CLIENT" reached the AI unchanged."""
+
+    CASES = [
+        ("HELLO, JOHN IS A HAPPY CLIENT", ["JOHN"], "HELLO, [PERSON] IS A HAPPY CLIENT"),
+        ("Visita a NEREA AGIRRE LASA en su casa.", ["NEREA", "AGIRRE", "LASA"], None),
+        ("MIKEL DICE QUE NO.", ["MIKEL"], "[PERSON] DICE QUE NO."),
+        ("SR. AGIRRE NO ACUDIÓ A LA CITA CON EDE.", ["AGIRRE"], None),
+        ("ME REUNÍ CON DOÑA CARMEN GARCÍA Y SU HIJO.", ["CARMEN", "GARCÍA"], None),
+        ("VISITA DOMICILIARIA. SE LLAMA KATTALIN LA HIJA. VIVE EN BASAURI.", ["KATTALIN", "BASAURI"], None),
+        ("NEREA, ANE, UNAI Y JON VINIERON. DNI 45781236K.", ["NEREA", "ANE", "UNAI", "JON", "45781236K"], None),
+        ("NEREA ESAN DU UNAI ETXEAN DAGOELA.", ["NEREA", "UNAI"], None),
+    ]
+
+    def test_names_written_in_capitals_are_removed(self):
+        for text, names, expected in self.CASES:
+            safe = anonymize(text)
+            for name in names:
+                self.assertNotIn(name, safe, f"{name!r} left in {safe!r}")
+            if expected is not None:
+                self.assertEqual(safe, expected)
+            self.assertEqual(anonymize(safe), safe, "must stay idempotent")
+
+    def test_ordinary_words_keep_their_capitals(self):
+        safe = anonymize("VISITA EN LA CALLE ZABALBIDE 52. NEREA Y UNAI ESTABAN.")
+        self.assertTrue(safe.startswith("VISITA EN LA [ADDRESS]."), safe)
+        self.assertIn(" Y ", safe)
+
+    def test_normal_text_with_acronyms_is_unchanged_by_the_new_pass(self):
+        from services import anonymizer
+        for text in ("Reunión con EDE y Lanbide el lunes.",
+                     "The client attended the EDE workshop.",
+                     "Hello, John is a happy client"):
+            self.assertEqual(anonymize(text), anonymizer._anonymize_core(text))
+
+    def test_shouted_text_without_names_is_left_as_written(self):
+        text = "ATTENTION: NO RISK DETECTED IN THIS VISIT."
+        self.assertEqual(anonymize(text), text)
+
+    def test_long_note_in_capitals_is_quick_and_complete(self):
+        import time
+        note = "VISITA A NEREA AGIRRE EN SU CASA. LA SITUACIÓN ES ESTABLE Y JOHN COLABORA. " * 400
+        started = time.monotonic()
+        safe = anonymize(note)
+        self.assertLess(time.monotonic() - started, 5)
+        for name in ("NEREA", "AGIRRE", "JOHN"):
+            self.assertNotIn(name, safe)
+
+    def test_restoring_capitals_never_brings_a_name_back(self):
+        # Every word put back in its original capitals is a word the rules
+        # kept; a name the rules replaced cannot reappear.
+        from services import anonymizer
+        text = "NEREA Y NEREA. JOHN, JOHN AND JOHN CAME TO SEE NEREA AGIRRE."
+        safe = anonymizer.anonymize(text)
+        for name in ("NEREA", "JOHN", "AGIRRE"):
+            self.assertNotIn(name, safe)
+
+
 if __name__ == "__main__":
     unittest.main()

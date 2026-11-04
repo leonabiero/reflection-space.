@@ -66,7 +66,9 @@ with error_boundary(
     "reflection_space", T=T, user_name=user_name, user_role=user_role,
 ):
 
-    st.title(T["nav_reflection"])
+    # (Each stage below sets its own heading -- "Let's reflect." on the
+    # form, "Reflection Space" on the results -- so there is no shared
+    # page title here; it used to appear twice on the results.)
 
     # trigger -> companion dict, so the workspace can look up label/focus
     # when continuing a conversation, without re-deriving it from the
@@ -504,9 +506,12 @@ with error_boundary(
     st.title(T["rs_heading"])
     st.markdown(T["rs_subheading"])
 
+    # After "Finish reflection" the form is already empty and ready; the
+    # thank-you is a small pop-up that disappears on its own, so nothing
+    # from the previous reflection stays on the screen.
     flash = st.session_state.pop(FLASH_KEY, None)
     if flash:
-        st.success(flash)
+        st.toast(flash)
 
     text_key = _form_key("text")
     imported_key = _form_key("imported")
