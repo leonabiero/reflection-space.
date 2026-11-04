@@ -125,7 +125,9 @@ must pass before a change is considered safe to keep.
 
 - Never hardcode user-facing text — add it to the translation files in
   `services/locales/` in all three languages.
-- Never store case text. Only the reflection is kept (see `REFLECTIONS.md`).
+- Never store the original case text. Only the reflection and, since
+  November 2026, its **anonymised** text (time-limited) are kept (see
+  `REFLECTIONS.md`).
 - Never bypass the database connection pool (`services/db_pool.py`) for
   application queries — it exists to keep the app stable under load.
 - Keep business logic out of `pages/` files where possible — pages should

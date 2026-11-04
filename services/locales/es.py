@@ -729,6 +729,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                               'quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: '
                               'la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no '
                               'identifica a nadie. El texto del caso nunca se guarda.',
+          'anonymised_saved_note': 'Solo se guarda la versión anonimizada del texto (nunca el original), '
+                                    'durante {months} meses, para ayudar a detectar patrones en la práctica. '
+                                    'Pueden verla la persona que hizo la reflexión (en Mi reflexión) y los '
+                                    'responsables que ya ven las reflexiones guardadas. Pasado ese tiempo se '
+                                    'borra sola; la reflexión se mantiene.',
           'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
           'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se '
                                      'quitan nombres y otros datos personales) y solo esa versión protegida '
@@ -1512,4 +1517,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_anonymised_preview_label': 'Ver texto anonimizado',
  'rs_anonymised_preview_help': 'Comprueba la versión protegida de tu material. Es exactamente lo '
                                'que ha recibido la IA.',
- 'rs_try_again_button': 'Volver a intentarlo con el mismo texto'}
+ 'rs_try_again_button': 'Volver a intentarlo con el mismo texto',
+ 'rs_saved_anonymised_note': '📁 Se guarda la versión anonimizada durante {months} meses para '
+                             'ayudar a detectar patrones en la práctica. El texto original nunca '
+                             'se guarda.',
+ 'ch_show_anonymised_text': 'Ver el texto anonimizado guardado',
+ 'ch_anonymised_text_caption': 'Versión protegida que recibió la IA (nunca el texto original). Se '
+                               'borra automáticamente a los {months} meses.',
+ 'ch_anonymised_text_unavailable': 'El texto anonimizado de esta reflexión ya no está disponible.'}

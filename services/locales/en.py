@@ -708,6 +708,11 @@ LANG_EN = {'title': '🧠 Reflection Space',
                               "one to reflect on. You don't have to give any case reference or details: the "
                               'app creates a neutral code by itself (for example RS-7F3K2Q) that identifies '
                               'no one. The case text is never saved.',
+          'anonymised_saved_note': 'Only the anonymised version of the text is kept (never the original), '
+                                    'for {months} months, to help identify patterns in practice. It can be '
+                                    'seen by the person who made the reflection (in My Reflection) and by '
+                                    'managers who can already see saved reflections. After that time it is '
+                                    'deleted automatically; the reflection itself stays.',
           'reflection_section_title': '🪞 Reflection Space -- reflecting on the spot',
           'reflection_section_body': 'When you press Reflect, your text is anonymised automatically (names '
                                      'and other personal details are removed) and only that protected '
@@ -1471,4 +1476,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_anonymised_preview_label': 'View anonymised text',
  'rs_anonymised_preview_help': 'Check the protected version of your material. This is exactly what '
                                'the AI received.',
- 'rs_try_again_button': 'Try again with the same text'}
+ 'rs_try_again_button': 'Try again with the same text',
+ 'rs_saved_anonymised_note': '📁 The anonymised version is kept for {months} months to help '
+                             'identify patterns in practice. The original text is never saved.',
+ 'ch_show_anonymised_text': 'Show the saved anonymised text',
+ 'ch_anonymised_text_caption': 'The protected version the AI received (never the original text). '
+                               'Deleted automatically after {months} months.',
+ 'ch_anonymised_text_unavailable': 'The anonymised text of this reflection is no longer available.'}

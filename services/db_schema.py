@@ -715,6 +715,14 @@ def ensure_schema():
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS case_tags TEXT")
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS note_type TEXT")
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS previous_code TEXT")
+                # November 2026 (see REFLECTIONS.md): the ANONYMISED text
+                # the AI received -- never the original -- kept for later
+                # pattern analysis. Readable only by the author and
+                # management roles (services/reflection_records.py:
+                # get_anonymised_text) and cleared automatically after
+                # config.ANONYMISED_TEXT_RETENTION_MONTHS. NULL for older
+                # rows, expired rows, or when saving is switched off.
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS anonymised_text TEXT")
                 c.execute("""
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_reflection_runs_reflection_code
                     ON reflection_runs (reflection_code)

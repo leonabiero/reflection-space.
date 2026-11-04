@@ -7,6 +7,8 @@ from services.exploration_log import get_personal_exploration_history
 from services.reflection_log import THEME_KEYS
 from services.findings_store import get_my_findings, count_my_findings
 from services.findings_ui import render_evidence, render_notes_form
+from services.reflection_records import get_anonymised_text
+from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS
 
 # Professional Growth Dashboard
 # ================================
@@ -133,6 +135,21 @@ with error_boundary(
                 render_evidence(T, f["evidence"], f["unverified_quote_count"])
                 for q in f["questions"]:
                     st.markdown(f"- {q}")
+                # The saved ANONYMISED text of this reflection (never the
+                # original). Only the author can load it here.
+                if SAVE_ANONYMISED_TEXT and f.get("run_id") and st.toggle(
+                    T["ch_show_anonymised_text"], key=f"jr_anon_text_{f['id']}",
+                ):
+                    try:
+                        saved_text = get_anonymised_text(f["run_id"], user_name, user_role)
+                    except Exception:
+                        saved_text = None
+                    with st.container(border=True):
+                        st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                        if saved_text:
+                            st.write(saved_text)
+                        else:
+                            st.info(T["ch_anonymised_text_unavailable"])
                 st.divider()
                 render_notes_form(
                     T, f["id"], user_name, f["feedback"], key_prefix="jr",

@@ -453,3 +453,20 @@ QDRANT_CAPACITY_VECTORS = int(os.getenv("QDRANT_CAPACITY_VECTORS", "0"))
 # which measured at roughly 1 second -- an acceptable, and much safer,
 # trade-off. If prefetching is ever revisited, it must run with a
 # bounded number of concurrent workers, not an unlimited one.
+# ---------------------------------------------------------------------
+# Saved anonymised text (November 2026 -- see REFLECTIONS.md)
+# ---------------------------------------------------------------------
+# Each reflection also keeps the ANONYMISED version of the text it was
+# made from (exactly what the AI received -- never the original), so
+# that patterns across reflections can be studied later. Only the
+# author and management roles can read it, and it is removed
+# automatically after ANONYMISED_TEXT_RETENTION_MONTHS (the reflection
+# itself stays). Set SAVE_ANONYMISED_TEXT to "false" to stop saving it
+# (for example if EDE's data-protection officer decides against it);
+# already-saved text then simply ages out.
+#
+# NEEDS EDE CONFIRMATION: the 12-month period is a starting proposal.
+SAVE_ANONYMISED_TEXT = os.getenv("SAVE_ANONYMISED_TEXT", "true").strip().lower() not in (
+    "0", "false", "no", "off",
+)
+ANONYMISED_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ANONYMISED_TEXT_RETENTION_MONTHS", "12")))

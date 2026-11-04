@@ -54,6 +54,33 @@ reflection.**
   theme filter in managers' Reflection History only finds older reflections.
   Nothing breaks.
 
+### Saved anonymised text (November 2026, product owner decision)
+
+To make it possible to study patterns across reflections later, each new
+reflection also keeps the **anonymised** text the AI received — exactly what
+"View anonymised text" shows. **The original text is still never saved.**
+
+- Column `reflection_runs.anonymised_text` (`services/db_schema.py`), written
+  by `services/findings_store.save_reflection_run(anonymised_text=...)` from
+  `session.safe_text` only.
+- **Who can read it:** the author (My Reflection → "Show the saved anonymised
+  text") and management roles (Reflection History, same switch). Enforced in
+  `services/reflection_records.get_anonymised_text` — the database query
+  itself only returns the text to the author or a management role.
+- **How long:** `config.ANONYMISED_TEXT_RETENTION_MONTHS` (default **12**).
+  Expired text is never shown, and `purge_expired_anonymised_text()` clears it
+  (after each new reflection and when Reflection History is opened). The
+  reflection itself is kept. Deleting a reflection deletes its text.
+- **On/off:** `SAVE_ANONYMISED_TEXT` (default on). Turning it off stops saving;
+  text already saved ages out.
+- Practitioners are told on the screen and in Help.
+- Never logged.
+
+**To confirm with EDE (data protection):** that keeping the anonymised text is
+acceptable, the 12-month period, and who may read it. Anonymisation reduces
+risk but is not a guarantee: a unique combination of details can still point
+to a person, so the saved text must be treated as sensitive.
+
 The rest of this document describes the October 2026 design; where it
 mentions case themes, the type of text or the earlier-reflections step, those
 now only apply to reflections made before November 2026.
@@ -97,6 +124,7 @@ is discarded. It only ever lived in the browser session.
 | The AI's observations and questions for each dimension | Uploaded files |
 | Short verified passages the AI quoted (taken from the **anonymised** text) | Conversation text with the companion |
 | The professional's own private notes on observations | Names or real file numbers (codes are random) |
+| **Since November 2026:** the **anonymised** text the AI received, for up to 12 months (see below) | The **original** text as written |
 
 Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
 `note_type`, `previous_code`), `reflection_findings`, `finding_feedback`

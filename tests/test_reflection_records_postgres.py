@@ -77,6 +77,69 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
         )
         return code, saved["run_id"]
 
+    # --- saved anonymised text (November 2026) ----------------------
+    def _save_with_text(self, owner, text):
+        code = self.rr.generate_code()
+        saved = self.fs.save_reflection_run(
+            case_ref=code, source_draft_ids=[], language="English",
+            prompt_version="v", model="m", module_status={},
+            findings=[_finding("client_voice", "obs")],
+            created_by=owner, created_by_role="Social Worker",
+            reflection_code=code, anonymised_text=text,
+        )
+        return saved["run_id"]
+
+    def _age(self, run_id, months):
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    "UPDATE reflection_runs SET created_at = now() - make_interval(months => %s) WHERE id = %s",
+                    (months, run_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_anonymised_text_is_readable_by_author_and_managers_only(self):
+        run_id = self._save_with_text("test_alice", "HELLO, [PERSON] IS A HAPPY CLIENT")
+        self.assertEqual(self.rr.get_anonymised_text(run_id, "test_alice", "Social Worker"),
+                         "HELLO, [PERSON] IS A HAPPY CLIENT")
+        self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_bob", "Social Worker"))
+        for role in ("Supervisor", "Programme Manager", "System Administrator"):
+            self.assertIsNotNone(self.rr.get_anonymised_text(run_id, "test_boss", role), role)
+        listed = [r for r in self.rr.list_reflections("Supervisor", limit=500) if r["run_id"] == run_id]
+        self.assertTrue(listed and listed[0]["has_anonymised_text"])
+
+    def test_no_text_when_not_given(self):
+        run_id = self._save_with_text("test_alice", None)
+        self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_alice", "Social Worker"))
+        listed = [r for r in self.rr.list_reflections("Supervisor", limit=500) if r["run_id"] == run_id]
+        self.assertFalse(listed[0]["has_anonymised_text"])
+
+    def test_expired_text_is_hidden_then_cleared_but_reflection_stays(self):
+        from config import ANONYMISED_TEXT_RETENTION_MONTHS as months
+        fresh = self._save_with_text("test_alice", "fresh [PERSON]")
+        old = self._save_with_text("test_alice", "old [PERSON]")
+        self._age(old, months + 1)
+        self.assertIsNone(self.rr.get_anonymised_text(old, "test_alice", "Social Worker"))
+        self.assertGreaterEqual(self.rr.purge_expired_anonymised_text(), 1)
+        self.assertEqual(self.rr.get_anonymised_text(fresh, "test_alice", "Social Worker"), "fresh [PERSON]")
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute("SELECT anonymised_text, reflection_code FROM reflection_runs WHERE id = %s", (old,))
+                text, code = c.fetchone()
+        finally:
+            conn.close()
+        self.assertIsNone(text)
+        self.assertTrue(code)          # the reflection itself is kept
+
+    def test_deleting_a_reflection_removes_its_text(self):
+        run_id = self._save_with_text("test_alice", "to be deleted")
+        self.assertTrue(self.rr.delete_reflection(run_id, "test_admin", "System Administrator"))
+        self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_admin", "System Administrator"))
+
     # --- saving -----------------------------------------------------
     def test_identifiers_are_saved_and_codes_are_unique(self):
         code, run_id = self._save(tags=["housing", "mental_health"])

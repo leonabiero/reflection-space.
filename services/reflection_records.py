@@ -409,13 +409,14 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
                 SELECT r.id, COALESCE(r.reflection_code, r.case_ref), r.case_tags,
                        r.note_type, r.created_by, r.created_by_role, r.created_at,
                        (SELECT COUNT(*) FROM reflection_findings f WHERE f.run_id = r.id),
-                       r.previous_code
+                       r.previous_code,
+                       (r.anonymised_text IS NOT NULL AND {_TEXT_NOT_EXPIRED})
                 FROM reflection_runs r
                 WHERE {where}
                 ORDER BY r.created_at DESC, r.id DESC
                 LIMIT %s OFFSET %s
                 """,
-                (*params, limit, offset),
+                (_retention_months(), *params, limit, offset),
             )
             rows = c.fetchall()
     finally:
@@ -431,6 +432,7 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
             "created_at": iso(r[6]),
             "finding_count": r[7] or 0,
             "previous_code": r[8] or "",
+            "has_anonymised_text": bool(r[9]),
         }
         for r in rows
     ]
@@ -510,6 +512,77 @@ def get_findings_for_reflections(actor_role, run_ids):
             "unverified_quote_count": r[6] or 0,
         })
     return results
+
+
+# ---------------------------------------------------------------------
+# Saved anonymised text (November 2026 -- see REFLECTIONS.md)
+# ---------------------------------------------------------------------
+# Only the ANONYMISED text is ever stored (never the original). It can be
+# read by the reflection's author and by management roles, and only while
+# it is younger than config.ANONYMISED_TEXT_RETENTION_MONTHS -- expired
+# text is never returned, even before purge_expired_anonymised_text() has
+# physically cleared it. Never logged.
+
+_TEXT_NOT_EXPIRED = "r.created_at >= now() - make_interval(months => %s)"
+
+
+def _retention_months():
+    from config import ANONYMISED_TEXT_RETENTION_MONTHS
+    return int(ANONYMISED_TEXT_RETENTION_MONTHS)
+
+
+def get_anonymised_text(run_id, actor_name, actor_role):
+    """The saved anonymised text of one reflection, or None (not saved,
+    expired, unknown, or the person may not read it)."""
+    if not run_id or not actor_name:
+        return None
+    is_manager = bool(require_management_role(actor_role))
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT r.anonymised_text
+                FROM reflection_runs r
+                WHERE r.id = %s
+                  AND r.anonymised_text IS NOT NULL
+                  AND {_TEXT_NOT_EXPIRED}
+                  AND (%s OR r.created_by = %s)
+                """,
+                (int(run_id), _retention_months(), is_manager, actor_name),
+            )
+            row = c.fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def purge_expired_anonymised_text():
+    """Clear saved anonymised text older than the retention period. The
+    reflection itself (code, observations, notes) is kept. Returns how
+    many reflections were cleared."""
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                UPDATE reflection_runs
+                SET anonymised_text = NULL
+                WHERE anonymised_text IS NOT NULL
+                  AND created_at < now() - make_interval(months => %s)
+                """,
+                (_retention_months(),),
+            )
+            cleared = c.rowcount or 0
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    if cleared:
+        logger.info("Expired anonymised text cleared from %d reflection(s)", cleared)
+    return cleared
 
 
 def get_reflection_findings(actor_role, run_id):

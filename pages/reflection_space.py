@@ -13,7 +13,9 @@ from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from services import request_dedup
 from services import document_import
 from services import reflection_records
-from config import REQUEST_DEDUP_TTL_MINUTES
+from config import (
+    REQUEST_DEDUP_TTL_MINUTES, SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS,
+)
 from rdi.orchestrator import run_reflection
 from services.anonymizer import anonymize
 from services.error_log import error_boundary, render_application_error_screen, log_error
@@ -429,6 +431,8 @@ with error_boundary(
         if session.safe_text:
             with st.expander(T["rs_anonymised_preview_label"], expanded=False):
                 st.caption(T["rs_anonymised_preview_help"])
+                if SAVE_ANONYMISED_TEXT and session.run_id:
+                    st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
                 st.write(session.safe_text)
 
         # What this reflection is grounded in. The case text is only held
@@ -609,6 +613,8 @@ with error_boundary(
     )
 
     st.caption(f"{T['rs_privacy_note']} {T['rs_case_text_not_saved_note']}")
+    if SAVE_ANONYMISED_TEXT:
+        st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
 
     # -------------------------------------------------------------------
     # Cost-safety guard (unchanged)
@@ -756,12 +762,26 @@ with error_boundary(
                                 case_tags=[],
                                 note_type="",
                                 previous_code="",
+                                # Only the ANONYMISED text the AI received is
+                                # ever kept (never `material`), for later
+                                # pattern analysis -- see REFLECTIONS.md.
+                                anonymised_text=(
+                                    session.safe_text if SAVE_ANONYMISED_TEXT else None
+                                ),
                             )
                             session.attach_saved_findings(
                                 saved["run_id"], saved["finding_ids"], user_name,
                             )
                         except Exception:
                             session.findings_save_failed = True
+
+                        # Retention: clear saved anonymised text that has
+                        # passed its time limit. Best effort -- never
+                        # blocks the reflection.
+                        try:
+                            reflection_records.purge_expired_anonymised_text()
+                        except Exception:
+                            pass
 
                     session.save()
 

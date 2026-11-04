@@ -10,7 +10,7 @@ from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 from services.error_log import error_boundary
 from services.confirm_state import is_confirming, start_confirming, clear_confirming
-from config import CASE_HISTORY_MAX_RESULTS, CASE_HISTORY_FEEDBACK_MAX_RESULTS
+from config import CASE_HISTORY_MAX_RESULTS, CASE_HISTORY_FEEDBACK_MAX_RESULTS, ANONYMISED_TEXT_RETENTION_MONTHS
 
 # =====================================================================
 # Case History -- now a history of REFLECTIONS
@@ -46,6 +46,13 @@ with error_boundary(
     # Documents stored before the redesign may still be inside their
     # 48-hour deletion window; this finishes their erasure on time.
     purge_expired_deletions()
+
+    # Saved anonymised text past its retention period is cleared here too
+    # (best effort; expired text is never shown either way).
+    try:
+        reflection_records.purge_expired_anonymised_text()
+    except Exception:
+        pass
 
     is_admin = user_role == "System Administrator"
 
@@ -167,6 +174,21 @@ with error_boundary(
                 st.caption(f"{T['rs_note_type_label']}: {record['note_type']}")
             if record["previous_code"]:
                 st.caption(f"🔗 {T['ch_linked_label']}: {record['previous_code']}")
+
+            # The saved ANONYMISED text (never the original), loaded only
+            # when asked for. Management roles only on this page.
+            if record.get("has_anonymised_text") and st.toggle(
+                T["ch_show_anonymised_text"], key=f"show_anon_text_{record['run_id']}",
+            ):
+                saved_text = reflection_records.get_anonymised_text(
+                    record["run_id"], user_name, user_role,
+                )
+                with st.container(border=True):
+                    st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                    if saved_text:
+                        st.write(saved_text)
+                    else:
+                        st.info(T["ch_anonymised_text_unavailable"])
 
             findings = findings_by_run.get(record["run_id"], [])
             if not findings:

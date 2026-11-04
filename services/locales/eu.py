@@ -728,6 +728,11 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                               'erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode '
                               'neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Kasuaren '
                               'testua ez da inoiz gordetzen.',
+          'anonymised_saved_note': 'Testuaren bertsio anonimizatua bakarrik gordetzen da (inoiz ez '
+                                    'jatorrizkoa), {months} hilabetez, praktikako ereduak antzemateko. '
+                                    'Hausnarketa egin zuen pertsonak eta gordetako hausnarketak ikus '
+                                    'ditzaketen arduradunek ikus dezakete. Epe hori igarotakoan bera '
+                                    'bakarrik ezabatzen da; hausnarketa mantentzen da.',
           'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
           'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da '
                                      '(izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio '
@@ -1517,4 +1522,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_anonymised_preview_label': 'Ikusi testu anonimizatua',
  'rs_anonymised_preview_help': 'Egiaztatu zure materialaren bertsio babestua. Hau da, hain zuzen '
                                'ere, AAk jaso duena.',
- 'rs_try_again_button': 'Saiatu berriro testu berarekin'}
+ 'rs_try_again_button': 'Saiatu berriro testu berarekin',
+ 'rs_saved_anonymised_note': '📁 Bertsio anonimizatua {months} hilabetez gordetzen da praktikako '
+                             'ereduak antzemateko. Jatorrizko testua ez da inoiz gordetzen.',
+ 'ch_show_anonymised_text': 'Ikusi gordetako testu anonimizatua',
+ 'ch_anonymised_text_caption': 'AAk jaso zuen bertsio babestua (inoiz ez jatorrizko testua). '
+                               '{months} hilabete igarotakoan automatikoki ezabatzen da.',
+ 'ch_anonymised_text_unavailable': 'Hausnarketa honen testu anonimizatua ez dago erabilgarri jada.'}

@@ -4,6 +4,7 @@ from navigation.router import render_nav
 from navigation.permissions import can_access_workspace
 from services.identity import init_identity, render_identity_footer
 from services.error_log import error_boundary
+from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS
 
 # In-app Help / Quick Guide
 # ============================
@@ -60,6 +61,8 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
 
         with st.expander(H["doc_section_title"], expanded=False):
             st.write(H["doc_section_body"])
+            if SAVE_ANONYMISED_TEXT:
+                st.write(H["anonymised_saved_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
 
         with st.expander(H["reflection_section_title"], expanded=False):
             st.write(H["reflection_section_body"])
