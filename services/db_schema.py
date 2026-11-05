@@ -723,6 +723,13 @@ def ensure_schema():
                 # config.ANONYMISED_TEXT_RETENTION_MONTHS. NULL for older
                 # rows, expired rows, or when saving is switched off.
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS anonymised_text TEXT")
+                # November 2026: a practitioner can delete their own
+                # reflection. It is hidden everywhere at once (deleted_at
+                # set), can be restored for DELETION_WINDOW_HOURS, and is
+                # then erased for good (services/reflection_records.py:
+                # purge_expired_reflection_deletions).
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS deleted_by TEXT")
                 c.execute("""
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_reflection_runs_reflection_code
                     ON reflection_runs (reflection_code)

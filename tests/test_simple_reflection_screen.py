@@ -393,3 +393,28 @@ class OpportunityCardsTests(unittest.TestCase):
                 self.assertTrue(lang[key], key)
             self.assertEqual(set(lang["rs_card_status"]), {"finding", "none", "unavailable"})
             self.assertTrue(lang["help"]["cards_note"])
+
+
+class OwnDeletionStaticTests(unittest.TestCase):
+    def test_hidden_rule_covers_deleted_reflections(self):
+        from services.findings_store import NOT_IN_DELETION_WINDOW
+        self.assertIn("r.deleted_at IS NULL", NOT_IN_DELETION_WINDOW)
+
+    def test_my_reflection_page_offers_delete_with_confirmation_and_restore(self):
+        page = _read("pages", "growth_dashboard.py")
+        for needed in ("delete_own_reflection(", "restore_own_reflection(", "is_confirming(confirm_key)",
+                       "purge_expired_reflection_deletions()", "list_own_deleted_reflections("):
+            self.assertIn(needed, page, needed)
+
+    def test_texts_exist_and_no_false_privacy_promise(self):
+        from services.locales.es import LANG_ES
+        from services.locales.eu import LANG_EU
+        from services.locales.en import LANG_EN
+        keys = [k for k in LANG_EN if k.startswith("my_reflections_")]
+        self.assertGreaterEqual(len(keys), 15)
+        for lang in (LANG_ES, LANG_EU, LANG_EN):
+            for key in keys:
+                self.assertTrue(lang.get(key), key)
+            self.assertTrue(lang["help"]["delete_note"])
+        self.assertNotIn("not visible to supervisors", LANG_EN["growth_intro"])
+        self.assertNotIn("visible to no one but you", LANG_EN["help"]["growth_section_body"])

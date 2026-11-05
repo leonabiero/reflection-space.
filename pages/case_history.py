@@ -53,6 +53,10 @@ with error_boundary(
         reflection_records.purge_expired_anonymised_text()
     except Exception:
         pass
+    try:
+        reflection_records.purge_expired_reflection_deletions()
+    except Exception:
+        pass
 
     is_admin = user_role == "System Administrator"
 

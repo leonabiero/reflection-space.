@@ -198,9 +198,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                        'araberakoa da.',
  'nav_growth': '🌱 Nire Hausnarketa',
  'growth_title': '🌱 Zure Hausnarketa Bidea',
- 'growth_intro': 'Hau zure gune pertsonala da. Zuk zeuk aztertutakoa bakarrik erakusten du — ez da '
-                 'zure jardunaren ebaluazioa, ez da beste profesional batzuekin konparatzen eta ez '
-                 'da gainbegiraleentzat ikusgai.',
+ 'growth_intro': 'Hau zure gune pertsonala da. Ez da zure jardunaren ebaluazioa eta ez da inoiz '
+                 'beste profesional batzuekin konparatzen. Elkarrizketetan aztertzen duzuna eta '
+                 'zure oharrak zureak bakarrik dira. Zure hausnarketen gordetako behaketak (eta '
+                 'haien testu anonimizatua) arduradunek ere ikus ditzakete Hausnarketen historian.',
  'growth_no_data': 'Oraindik ez duzu hausnarketarik aztertu. Hausnarketa Gunean «Aztertu» botoia '
                    'erabili ahala, zure bidea hemen agertuko da.',
  'growth_themes_header': 'Gehien aztertu dituzun arloak',
@@ -773,10 +774,16 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                          {'label': 'Jarraitutasuna',
                           'desc': 'Badira kontraesan edo aldaketa nabarmenik dokumentu honen eta '
                                   'aurrekoen artean?'}],
+          'delete_note': 'Zure hausnarketetako edozein ezaba dezakezu «Zure gordetako hausnarketak» '
+                          'ataletik, Nire hausnarketa orriaren amaieran. Berehala desagertzen da leku '
+                          'guztietatik; {hours} orduz berreskura dezakezu eta ondoren behin betiko ezabatzen '
+                          'da.',
           'growth_section_title': '🌱 Nire Gogoeta -- zure egunkari pertsonala',
-          'growth_section_body': 'Nire Gogoeta zure espazio pertsonala da: zein gai landu dituzun '
-                                 'gehien eta zure azken gogoeta-uneen denbora-lerroa. Puntuaziorik '
-                                 'gabe, beste inorekiko konparaziorik gabe, zuk bakarrik ikusgai.',
+          'growth_section_body': 'Nire hausnarketa zure gune propioa da: gehien aztertu dituzun gaiak, zure '
+                                  'hausnarketa-uneen denbora-lerroa, gordetako behaketak zure oharrekin eta '
+                                  'zure hausnarketen zerrenda (ezaba ditzakezunak). Puntuaziorik eta '
+                                  'inorekiko konparaziorik gabe. Zure oharrak eta aztertzen duzuna zureak '
+                                  'bakarrik dira; gordetako behaketak arduradunek ere ikus ditzakete.',
           'manager_title': 'Zuzendaritza-taldearen area',
           'learning_section_title': '📚 Ikaskuntza',
           'learning_section_body': 'Ikaskuntzak lau fitxa ditu: Taldearen presentzia (nor dagoen '
@@ -1538,4 +1545,23 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_card_explored': '✓ Arakatua',
  'rs_card_status': {'finding': 'Badago zer hausnartu',
                     'none': 'Ez da ezer nabarmenik aurkitu',
-                    'unavailable': 'Orain ez dago erabilgarri, berriro saia zaitezke'}}
+                    'unavailable': 'Orain ez dago erabilgarri, berriro saia zaitezke'},
+ 'my_reflections_header': 'Zure gordetako hausnarketak',
+ 'my_reflections_intro': 'Zure hausnarketetako edozein ezaba dezakezu. Leku guztietatik '
+                         'desagertzen da (arduradunentzat eta ereduen analisitik ere), bere '
+                         'behaketekin, zure oharrekin eta bere testu anonimizatuarekin. {hours} '
+                         'orduz berreskura dezakezu; ondoren behin betiko ezabatzen da.',
+ 'my_reflections_empty': 'Oraindik ez duzu gordetako hausnarketarik.',
+ 'my_reflections_showing': '{total}etik azken {shown}ak erakusten dira.',
+ 'my_reflections_line': '{date} · {count} behaketa',
+ 'my_reflections_delete': 'Ezabatu',
+ 'my_reflections_confirm': '{code} hausnarketa ezabatu? Leku guztietatik desagertuko da. {hours} '
+                           'orduz berreskuratu ahal izango duzu.',
+ 'my_reflections_confirm_yes': 'Bai, ezabatu',
+ 'my_reflections_confirm_cancel': 'Utzi',
+ 'my_reflections_deleted': '{code} hausnarketa ezabatu da. {hours} orduz berreskura dezakezu.',
+ 'my_reflections_restored': '{code} hausnarketa berreskuratu da.',
+ 'my_reflections_failed': 'Ezin izan da osatu. Saiatu berriro.',
+ 'my_reflections_deleted_header': 'Duela gutxi ezabatuak',
+ 'my_reflections_restore': 'Berreskuratu',
+ 'my_reflections_erase_on': 'Behin betiko ezabatuko da: {date} (UTC).'}

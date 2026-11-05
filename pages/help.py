@@ -4,7 +4,7 @@ from navigation.router import render_nav
 from navigation.permissions import can_access_workspace
 from services.identity import init_identity, render_identity_footer
 from services.error_log import error_boundary
-from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS
+from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
 
 # In-app Help / Quick Guide
 # ============================
@@ -73,6 +73,7 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
 
         with st.expander(H["growth_section_title"], expanded=False):
             st.write(H["growth_section_body"])
+            st.write(H["delete_note"].format(hours=DELETION_WINDOW_HOURS))
 
         st.divider()
 

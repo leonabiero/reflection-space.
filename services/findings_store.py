@@ -431,8 +431,14 @@ def get_feedback_for_findings(user_name, finding_ids):
 # the 48-hour GDPR deletion window (status='deleted'), and reappears if
 # the document is restored. After the window the run is permanently
 # deleted (delete_runs_for_drafts).
+#
+# November 2026: a reflection its author has deleted (deleted_at set) is
+# hidden by the same rule, everywhere it is used -- the author's journal,
+# managers' Reflection History, pattern analysis, the Knowledge Assistant
+# and the counts -- until it is restored or erased.
 NOT_IN_DELETION_WINDOW = """
-    NOT EXISTS (
+    r.deleted_at IS NULL
+    AND NOT EXISTS (
         SELECT 1
         FROM reflection_run_sources s
         JOIN drafts d ON d.id = s.draft_id

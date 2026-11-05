@@ -152,8 +152,12 @@ def get_personal_exploration_history(professional_name, limit=50):
         with conn.cursor() as c:
             c.execute("""
                 SELECT case_ref, trigger, turn_count, explored_at
-                FROM reflection_explorations
+                FROM reflection_explorations e
                 WHERE explored_by = %s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM reflection_runs r
+                      WHERE r.reflection_code = e.case_ref AND r.deleted_at IS NOT NULL
+                  )
                 ORDER BY explored_at DESC
                 LIMIT %s
             """, (professional_name, limit))
@@ -183,13 +187,21 @@ def get_aggregated_theme_counts(since_iso=None):
         with conn.cursor() as c:
             if since_iso:
                 c.execute("""
-                    SELECT trigger, COUNT(*) FROM reflection_explorations
+                    SELECT trigger, COUNT(*) FROM reflection_explorations e
                     WHERE explored_at >= %s
+                      AND NOT EXISTS (
+                          SELECT 1 FROM reflection_runs r
+                          WHERE r.reflection_code = e.case_ref AND r.deleted_at IS NOT NULL
+                      )
                     GROUP BY trigger
                 """, (since_iso,))
             else:
                 c.execute("""
-                    SELECT trigger, COUNT(*) FROM reflection_explorations
+                    SELECT trigger, COUNT(*) FROM reflection_explorations e
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM reflection_runs r
+                        WHERE r.reflection_code = e.case_ref AND r.deleted_at IS NOT NULL
+                    )
                     GROUP BY trigger
                 """)
             rows = c.fetchall()

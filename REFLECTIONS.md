@@ -66,6 +66,25 @@ temporarily unavailable (Retry inside). The same meaning is given in words
 (tooltip and a key under the cards), so it never relies on colour alone.
 Status comes from `ReflectionSession.status_of()`.
 
+### Practitioners can delete their own reflections (November 2026)
+
+On **My Reflection → Your saved reflections**, each reflection has a
+**Delete** button (with an "are you sure?" step). Deleting hides it
+**everywhere at once** — the author's journal and timeline, managers'
+Reflection History, pattern analysis, the Knowledge Assistant and the counts
+— through the shared rule `findings_store.NOT_IN_DELETION_WINDOW`
+(`reflection_runs.deleted_at`). For `DELETION_WINDOW_HOURS` (48) it is listed
+under **Recently deleted** with **Restore**; after that
+`reflection_records.purge_expired_reflection_deletions()` erases it for good:
+the run, its observations, the author's notes, its anonymised text and its
+journey entries (run when My Reflection or Reflection History is opened).
+Only the author can delete or restore their own reflection; every step is
+written to the audit log. Usefulness ratings (1–5 stars) are kept.
+
+The privacy wording on My Reflection and in Help was corrected: notes and
+explorations are private, but saved observations (and their anonymised text)
+are also visible to managers in Reflection History.
+
 ### Saved anonymised text (November 2026, product owner decision)
 
 To make it possible to study patterns across reflections later, each new

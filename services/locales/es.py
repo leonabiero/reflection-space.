@@ -198,9 +198,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                        'profesional.',
  'nav_growth': '🌱 Mi Reflexión',
  'growth_title': '🌱 Tu Trayectoria Reflexiva',
- 'growth_intro': 'Este es tu espacio personal. Muestra únicamente lo que tú has explorado — no es '
-                 'una evaluación de tu desempeño, no se compara con otros profesionales y no es '
-                 'visible para supervisores.',
+ 'growth_intro': 'Este es tu espacio personal. No es una evaluación de tu desempeño y nunca se '
+                 'compara con otros profesionales. Lo que exploras en las conversaciones y tus '
+                 'notas son solo tuyos. Las observaciones guardadas de tus reflexiones (y su texto '
+                 'anonimizado) también las pueden ver los responsables en el Historial de '
+                 'reflexiones.',
  'growth_no_data': 'Aún no has explorado ninguna reflexión. A medida que uses el botón «Explorar» '
                    'en el Espacio de Reflexión, tu trayectoria aparecerá aquí.',
  'growth_themes_header': 'Áreas que más has explorado',
@@ -773,11 +775,16 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                          {'label': 'Continuidad',
                           'desc': '¿Hay contradicciones o cambios notables entre este documento y '
                                   'los anteriores?'}],
+          'delete_note': 'Puedes borrar cualquiera de tus reflexiones desde «Tus reflexiones guardadas», al '
+                          'final de Mi reflexión. Desaparece en todas partes al momento; durante {hours} '
+                          'horas puedes recuperarla y después se borra definitivamente.',
           'growth_section_title': '🌱 Mi Reflexión -- tu diario personal',
-          'growth_section_body': 'Mi Reflexión es tu espacio personal: qué temas has explorado más '
-                                 'y una línea de tiempo de tus momentos reflexivos recientes. Sin '
-                                 'puntuaciones, sin comparación con nadie más, visible solo para '
-                                 'ti.',
+          'growth_section_body': 'Mi reflexión es tu propio espacio: los temas que más has explorado, una '
+                                  'línea de tiempo de tus momentos de reflexión, las observaciones guardadas '
+                                  'con tus notas y la lista de tus reflexiones (que puedes borrar). Sin '
+                                  'puntuaciones ni comparaciones con nadie. Tus notas y lo que exploras son '
+                                  'solo tuyos; las observaciones guardadas también las pueden ver los '
+                                  'responsables.',
           'manager_title': 'Espacio del equipo directivo',
           'learning_section_title': '📚 Aprendizaje',
           'learning_section_body': 'Aprendizaje tiene cuatro pestañas: Presencia del equipo (quién '
@@ -1534,4 +1541,23 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_card_explored': '✓ Explorada',
  'rs_card_status': {'finding': 'Hay algo sobre lo que reflexionar',
                     'none': 'No se ha encontrado nada destacable',
-                    'unavailable': 'No disponible ahora, puedes reintentar'}}
+                    'unavailable': 'No disponible ahora, puedes reintentar'},
+ 'my_reflections_header': 'Tus reflexiones guardadas',
+ 'my_reflections_intro': 'Puedes borrar cualquiera de tus reflexiones. Desaparece en todas partes '
+                         '(también para los responsables y del análisis de patrones), con sus '
+                         'observaciones, tus notas y su texto anonimizado. Durante {hours} horas '
+                         'puedes recuperarla; después se borra definitivamente.',
+ 'my_reflections_empty': 'Todavía no tienes reflexiones guardadas.',
+ 'my_reflections_showing': 'Se muestran las {shown} más recientes de {total}.',
+ 'my_reflections_line': '{date} · {count} observación(es)',
+ 'my_reflections_delete': 'Borrar',
+ 'my_reflections_confirm': '¿Borrar la reflexión {code}? Desaparecerá en todas partes. Podrás '
+                           'recuperarla durante {hours} horas.',
+ 'my_reflections_confirm_yes': 'Sí, borrar',
+ 'my_reflections_confirm_cancel': 'Cancelar',
+ 'my_reflections_deleted': 'Reflexión {code} borrada. Puedes recuperarla durante {hours} horas.',
+ 'my_reflections_restored': 'Reflexión {code} recuperada.',
+ 'my_reflections_failed': 'No se ha podido completar. Inténtalo de nuevo.',
+ 'my_reflections_deleted_header': 'Borradas recientemente',
+ 'my_reflections_restore': 'Recuperar',
+ 'my_reflections_erase_on': 'Se borrará definitivamente el {date} (UTC).'}

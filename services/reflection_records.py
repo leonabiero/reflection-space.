@@ -546,6 +546,7 @@ def get_anonymised_text(run_id, actor_name, actor_role):
                 FROM reflection_runs r
                 WHERE r.id = %s
                   AND r.anonymised_text IS NOT NULL
+                  AND r.deleted_at IS NULL
                   AND {_TEXT_NOT_EXPIRED}
                   AND (%s OR r.created_by = %s)
                 """,
@@ -614,18 +615,7 @@ def delete_reflection(run_id, actor_name, actor_role):
                 conn.rollback()
                 return False
             code = row[0] or ""
-            c.execute("DELETE FROM reflection_runs WHERE id = %s", (run_id,))
-            # A pattern left with no observations at all loses its
-            # explanation too (same rule as findings_store.delete_runs_for_drafts).
-            c.execute("SELECT to_regclass('patterns')")
-            if c.fetchone()[0] is not None:
-                c.execute(
-                    """
-                    DELETE FROM patterns p
-                    WHERE p.original_member_count > 0
-                      AND NOT EXISTS (SELECT 1 FROM pattern_findings pf WHERE pf.pattern_id = p.id)
-                    """
-                )
+            _erase_runs(c, [run_id])
         conn.commit()
     except Exception:
         conn.rollback()
@@ -641,6 +631,219 @@ def delete_reflection(run_id, actor_name, actor_role):
     except Exception:
         logger.exception("delete_reflection: audit log failed for run_id=%r", run_id)
     return True
+
+
+def _erase_runs(cursor, run_ids):
+    """Erase reflections for good, inside the caller's transaction: the
+    run, its observations and the professional's notes on them (ON DELETE
+    CASCADE), its saved anonymised text, the journal entries recorded
+    under its code, and any pattern left with no observations at all.
+    Returns the codes erased."""
+    ids = [int(i) for i in run_ids if i]
+    if not ids:
+        return []
+    cursor.execute(
+        "SELECT COALESCE(reflection_code, case_ref) FROM reflection_runs WHERE id = ANY(%s)",
+        (ids,),
+    )
+    codes = [r[0] for r in cursor.fetchall() if r[0]]
+    if codes:
+        cursor.execute("SELECT to_regclass('reflection_explorations')")
+        if cursor.fetchone()[0] is not None:
+            cursor.execute("DELETE FROM reflection_explorations WHERE case_ref = ANY(%s)", (codes,))
+    cursor.execute("DELETE FROM reflection_runs WHERE id = ANY(%s)", (ids,))
+    # A pattern left with no observations at all loses its explanation
+    # too (same rule as findings_store.delete_runs_for_drafts).
+    cursor.execute("SELECT to_regclass('patterns')")
+    if cursor.fetchone()[0] is not None:
+        cursor.execute(
+            """
+            DELETE FROM patterns p
+            WHERE p.original_member_count > 0
+              AND NOT EXISTS (SELECT 1 FROM pattern_findings pf WHERE pf.pattern_id = p.id)
+            """
+        )
+    return codes
+
+
+# ---------------------------------------------------------------------
+# A practitioner deleting their OWN reflection (November 2026)
+# ---------------------------------------------------------------------
+# Deleting hides the reflection everywhere straight away (see
+# findings_store.NOT_IN_DELETION_WINDOW). For DELETION_WINDOW_HOURS the
+# author can restore it; after that purge_expired_reflection_deletions()
+# erases it for good. Only the author can delete or restore their own.
+
+def _window_hours():
+    from config import DELETION_WINDOW_HOURS
+    return int(DELETION_WINDOW_HOURS)
+
+
+def _audit(action, code, actor_name, actor_role, details):
+    try:
+        from services.audit_log import log_action
+        log_action(action, None, code, "reflection", actor_name, actor_role, details=details)
+    except Exception:
+        logger.exception("reflection deletion: audit log failed (action=%r)", action)
+
+
+def list_own_reflections(owner_name, limit=50, offset=0):
+    """The professional's own saved reflections (not deleted), newest
+    first: run_id, code, created_at, finding_count."""
+    if not owner_name:
+        return []
+    limit = max(1, min(int(limit), 200))
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT r.id, COALESCE(r.reflection_code, r.case_ref), r.created_at,
+                       (SELECT COUNT(*) FROM reflection_findings f WHERE f.run_id = r.id)
+                FROM reflection_runs r
+                WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (owner_name, limit, max(0, int(offset))),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"run_id": r[0], "code": r[1] or "", "created_at": iso(r[2]),
+             "finding_count": r[3] or 0} for r in rows]
+
+
+def count_own_reflections(owner_name):
+    if not owner_name:
+        return 0
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"SELECT COUNT(*) FROM reflection_runs r WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}",
+                (owner_name,),
+            )
+            return c.fetchone()[0] or 0
+    finally:
+        conn.close()
+
+
+def list_own_deleted_reflections(owner_name):
+    """The professional's own reflections that are deleted but can still
+    be restored: run_id, code, created_at, erase_at (ISO)."""
+    if not owner_name:
+        return []
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT r.id, COALESCE(r.reflection_code, r.case_ref), r.created_at,
+                       r.deleted_at + make_interval(hours => %s)
+                FROM reflection_runs r
+                WHERE r.created_by = %s AND r.deleted_at IS NOT NULL
+                  AND r.deleted_at >= now() - make_interval(hours => %s)
+                ORDER BY r.deleted_at DESC
+                """,
+                (_window_hours(), owner_name, _window_hours()),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [{"run_id": r[0], "code": r[1] or "", "created_at": iso(r[2]),
+             "erase_at": iso(r[3])} for r in rows]
+
+
+def delete_own_reflection(run_id, owner_name, owner_role=""):
+    """Hide one of the professional's OWN reflections everywhere; it can
+    be restored for DELETION_WINDOW_HOURS. Returns True if it was deleted."""
+    if not run_id or not owner_name:
+        return False
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                UPDATE reflection_runs
+                SET deleted_at = now(), deleted_by = %s
+                WHERE id = %s AND created_by = %s AND deleted_at IS NULL
+                RETURNING COALESCE(reflection_code, case_ref)
+                """,
+                (owner_name, int(run_id), owner_name),
+            )
+            row = c.fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("delete_own_reflection FAILED: run_id=%r", run_id)
+        raise
+    finally:
+        conn.close()
+    if not row:
+        return False
+    _audit("deleted", row[0], owner_name, owner_role,
+           f"deleted by its author; restorable for {_window_hours()} hours")
+    return True
+
+
+def restore_own_reflection(run_id, owner_name, owner_role=""):
+    """Undo delete_own_reflection() while still inside the window.
+    Returns True if it was restored."""
+    if not run_id or not owner_name:
+        return False
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                UPDATE reflection_runs
+                SET deleted_at = NULL, deleted_by = NULL
+                WHERE id = %s AND created_by = %s AND deleted_at IS NOT NULL
+                  AND deleted_at >= now() - make_interval(hours => %s)
+                RETURNING COALESCE(reflection_code, case_ref)
+                """,
+                (int(run_id), owner_name, _window_hours()),
+            )
+            row = c.fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("restore_own_reflection FAILED: run_id=%r", run_id)
+        raise
+    finally:
+        conn.close()
+    if not row:
+        return False
+    _audit("restored", row[0], owner_name, owner_role, "restored by its author")
+    return True
+
+
+def purge_expired_reflection_deletions():
+    """Erase for good every reflection deleted more than
+    DELETION_WINDOW_HOURS ago. Returns how many were erased."""
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                SELECT id FROM reflection_runs
+                WHERE deleted_at IS NOT NULL
+                  AND deleted_at < now() - make_interval(hours => %s)
+                """,
+                (_window_hours(),),
+            )
+            ids = [r[0] for r in c.fetchall()]
+            codes = _erase_runs(c, ids) if ids else []
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    for code in codes:
+        _audit("purged", code, "system", "", "deleted reflection erased after the restore window")
+    return len(ids)
 
 
 # ---------------------------------------------------------------------

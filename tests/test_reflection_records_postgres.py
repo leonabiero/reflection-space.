@@ -58,6 +58,7 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
         conn = self._connect()
         try:
             with conn.cursor() as c:
+                c.execute("DELETE FROM reflection_explorations WHERE explored_by LIKE 'test_%'")
                 c.execute("DELETE FROM reflection_runs WHERE created_by LIKE 'test_%'")
                 c.execute("DELETE FROM draft_history WHERE draft_id IN (SELECT id FROM drafts WHERE created_by LIKE 'test_%')")
                 c.execute("DELETE FROM drafts WHERE created_by LIKE 'test_%'")
@@ -139,6 +140,95 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
         run_id = self._save_with_text("test_alice", "to be deleted")
         self.assertTrue(self.rr.delete_reflection(run_id, "test_admin", "System Administrator"))
         self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_admin", "System Administrator"))
+
+    # --- a practitioner deleting their own reflection (November 2026) -
+    def _set_deleted_hours_ago(self, run_id, hours):
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    "UPDATE reflection_runs SET deleted_at = now() - make_interval(hours => %s) WHERE id = %s",
+                    (hours, run_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _add_exploration(self, code, owner="test_alice"):
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    "INSERT INTO reflection_explorations (case_ref, trigger, turn_count, explored_by, explored_at) "
+                    "VALUES (%s, 'client_voice', 2, %s, '2026-11-05T10:00:00')",
+                    (code, owner),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _row(self, run_id):
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute("SELECT deleted_at FROM reflection_runs WHERE id = %s", (run_id,))
+                return c.fetchone()
+        finally:
+            conn.close()
+
+    def test_only_the_author_can_delete_and_it_is_hidden_everywhere(self):
+        from services import exploration_log
+        code, run_id = self._save(tags=["housing"])
+        self._add_exploration(code)
+        with patch.object(exploration_log, "_get_conn", self._connect):
+            self.assertEqual(len(exploration_log.get_personal_exploration_history("test_alice")), 1)
+            self.assertFalse(self.rr.delete_own_reflection(run_id, "test_bob"))      # not the author
+            self.assertTrue(self.rr.delete_own_reflection(run_id, "test_alice"))
+            self.assertFalse(self.rr.delete_own_reflection(run_id, "test_alice"))    # already deleted
+            # Hidden from the author's journal, list and timeline ...
+            self.assertEqual(self.fs.count_my_findings("test_alice"), 0)
+            self.assertEqual(self.rr.list_own_reflections("test_alice"), [])
+            self.assertEqual(exploration_log.get_personal_exploration_history("test_alice"), [])
+            self.assertNotIn("client_voice", exploration_log.get_aggregated_theme_counts())
+        # ... from managers and from linking ...
+        self.assertNotIn(run_id, [r["run_id"] for r in self.rr.list_reflections("Supervisor", limit=500)])
+        self.assertIsNone(self.rr.get_own_reflection(code, "test_alice"))
+        self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_boss", "Supervisor"))
+        # ... but listed as restorable.
+        self.assertEqual([r["run_id"] for r in self.rr.list_own_deleted_reflections("test_alice")], [run_id])
+        self.assertEqual(self.rr.list_own_deleted_reflections("test_bob"), [])
+
+    def test_restore_within_the_window_brings_everything_back(self):
+        code, run_id = self._save()
+        self.rr.delete_own_reflection(run_id, "test_alice")
+        self.assertFalse(self.rr.restore_own_reflection(run_id, "test_bob"))
+        self.assertTrue(self.rr.restore_own_reflection(run_id, "test_alice"))
+        self.assertEqual(self.fs.count_my_findings("test_alice"), 1)
+        self.assertEqual([r["run_id"] for r in self.rr.list_own_reflections("test_alice")], [run_id])
+
+    def test_after_the_window_it_is_erased_for_good(self):
+        from config import DELETION_WINDOW_HOURS as hours
+        from services import exploration_log
+        code, run_id = self._save()
+        keep_code, keep_id = self._save()
+        self._add_exploration(code)
+        self._add_exploration(keep_code)
+        self.rr.delete_own_reflection(run_id, "test_alice")
+        self._set_deleted_hours_ago(run_id, hours + 1)
+        self.assertFalse(self.rr.restore_own_reflection(run_id, "test_alice"))   # too late
+        self.assertEqual(self.rr.list_own_deleted_reflections("test_alice"), [])
+        self.assertGreaterEqual(self.rr.purge_expired_reflection_deletions(), 1)
+        self.assertIsNone(self._row(run_id))                                   # erased
+        self.assertIsNotNone(self._row(keep_id))                               # others untouched
+        with patch.object(exploration_log, "_get_conn", self._connect):
+            codes = [r[0] for r in exploration_log.get_personal_exploration_history("test_alice")]
+        self.assertEqual(codes, [keep_code])
+
+    def test_a_recent_deletion_is_not_erased_yet(self):
+        _code, run_id = self._save()
+        self.rr.delete_own_reflection(run_id, "test_alice")
+        self.rr.purge_expired_reflection_deletions()
+        self.assertIsNotNone(self._row(run_id))
 
     # --- saving -----------------------------------------------------
     def test_identifiers_are_saved_and_codes_are_unique(self):

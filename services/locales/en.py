@@ -195,9 +195,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
                        'professional decision.',
  'nav_growth': '🌱 My Reflection',
  'growth_title': '🌱 Your Reflective Journey',
- 'growth_intro': "This is your personal space. It shows only what you've chosen to explore -- it "
-                 'is not an evaluation of your performance, it is never compared with other '
-                 'professionals, and it is not visible to supervisors.',
+ 'growth_intro': 'This is your personal space. It is not an evaluation of your performance and it '
+                 'is never compared with other professionals. What you explore in conversations '
+                 'and your notes are yours alone. The saved observations from your reflections '
+                 '(and their anonymised text) can also be seen by managers in Reflection History.',
  'growth_no_data': 'You haven\'t explored a reflection yet. As you use the "Explore" button in the '
                    'Reflection Space, your journey will appear here.',
  'growth_themes_header': "Areas you've explored most",
@@ -752,10 +753,15 @@ LANG_EN = {'title': '🧠 Reflection Space',
                          {'label': 'Continuity',
                           'desc': 'Are there contradictions or notable shifts across documents '
                                   'compared with what came before?'}],
+          'delete_note': 'You can delete any of your reflections from "Your saved reflections" at the '
+                          'bottom of My Reflection. It disappears everywhere at once; you can restore it for '
+                          '{hours} hours, after which it is erased for good.',
           'growth_section_title': '🌱 My Reflection -- your personal journal',
-          'growth_section_body': "My Reflection is your own space: which themes you've explored "
-                                 'most, and a timeline of your recent reflective moments. No '
-                                 'scores, no comparison to anyone else, visible to no one but you.',
+          'growth_section_body': "My Reflection is your own space: the themes you've explored most, a "
+                                  'timeline of your reflective moments, your saved observations with your '
+                                  'notes, and the list of your reflections (which you can delete). No '
+                                  'scores, no comparison to anyone else. Your notes and what you explore are '
+                                  'yours alone; the saved observations can also be seen by managers.',
           'manager_title': 'Manager workspace',
           'learning_section_title': '📚 Learning',
           'learning_section_body': "Learning has four tabs: Team Presence (who's active), "
@@ -1492,4 +1498,23 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_card_explored': '✓ Explored',
  'rs_card_status': {'finding': 'Something to reflect on',
                     'none': 'Nothing notable found',
-                    'unavailable': 'Not available right now, you can retry'}}
+                    'unavailable': 'Not available right now, you can retry'},
+ 'my_reflections_header': 'Your saved reflections',
+ 'my_reflections_intro': 'You can delete any of your reflections. It disappears everywhere (for '
+                         'managers and from pattern analysis too), with its observations, your '
+                         'notes and its anonymised text. You can restore it for {hours} hours; '
+                         'after that it is erased for good.',
+ 'my_reflections_empty': "You don't have any saved reflections yet.",
+ 'my_reflections_showing': 'Showing the {shown} most recent of {total}.',
+ 'my_reflections_line': '{date} · {count} observation(s)',
+ 'my_reflections_delete': 'Delete',
+ 'my_reflections_confirm': 'Delete reflection {code}? It will disappear everywhere. You can '
+                           'restore it for {hours} hours.',
+ 'my_reflections_confirm_yes': 'Yes, delete',
+ 'my_reflections_confirm_cancel': 'Cancel',
+ 'my_reflections_deleted': 'Reflection {code} deleted. You can restore it for {hours} hours.',
+ 'my_reflections_restored': 'Reflection {code} restored.',
+ 'my_reflections_failed': "That didn't work. Please try again.",
+ 'my_reflections_deleted_header': 'Recently deleted',
+ 'my_reflections_restore': 'Restore',
+ 'my_reflections_erase_on': 'Will be erased for good on {date} (UTC).'}

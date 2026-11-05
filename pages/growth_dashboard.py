@@ -8,7 +8,9 @@ from services.reflection_log import THEME_KEYS
 from services.findings_store import get_my_findings, count_my_findings
 from services.findings_ui import render_evidence, render_notes_form
 from services.reflection_records import get_anonymised_text
-from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS
+from services import reflection_records
+from services.confirm_state import is_confirming, start_confirming, clear_confirming
+from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
 
 # Professional Growth Dashboard
 # ================================
@@ -44,6 +46,17 @@ with error_boundary(
 
     st.title(T["growth_title"])
     st.caption(T["growth_intro"])
+
+    # Reflections deleted more than DELETION_WINDOW_HOURS ago are erased
+    # for good here (best effort -- never blocks the page).
+    try:
+        reflection_records.purge_expired_reflection_deletions()
+    except Exception:
+        pass
+
+    flash = st.session_state.pop("_my_reflections_flash", None)
+    if flash:
+        st.toast(flash)
 
     HISTORY_LIMIT = 50
     rows = get_personal_exploration_history(user_name, limit=HISTORY_LIMIT)
@@ -163,3 +176,87 @@ with error_boundary(
             if st.button(T["findings_journal_older"], key="findings_journal_older_btn"):
                 st.session_state["findings_journal_page"] = page + 1
                 st.rerun()
+
+    # ---------------------------------------------------------------
+    # Your saved reflections -- delete and restore (November 2026)
+    # ---------------------------------------------------------------
+    # A professional can delete their OWN reflection. It disappears at
+    # once everywhere (this page, managers' Reflection History, pattern
+    # analysis), can be restored for DELETION_WINDOW_HOURS, and is then
+    # erased for good (services/reflection_records.py).
+    st.divider()
+    st.subheader(T["my_reflections_header"])
+    st.caption(T["my_reflections_intro"].format(hours=DELETION_WINDOW_HOURS))
+
+    MY_REFLECTIONS_LIMIT = 50
+    own = reflection_records.list_own_reflections(user_name, limit=MY_REFLECTIONS_LIMIT)
+    total_own = reflection_records.count_own_reflections(user_name)
+
+    if not own:
+        st.info(T["my_reflections_empty"])
+    else:
+        if total_own > len(own):
+            st.caption(T["my_reflections_showing"].format(shown=len(own), total=total_own))
+        for record in own:
+            confirm_key = f"confirm_delete_own_{record['run_id']}"
+            with st.container(border=True):
+                info_col, action_col = st.columns([4, 1])
+                with info_col:
+                    st.markdown(f"**{record['code']}**")
+                    st.caption(T["my_reflections_line"].format(
+                        date=(record["created_at"] or "")[:16].replace("T", " "), count=record["finding_count"],
+                    ))
+                with action_col:
+                    if not is_confirming(confirm_key):
+                        if st.button(T["my_reflections_delete"], key=f"delete_own_{record['run_id']}"):
+                            start_confirming(confirm_key)
+                            st.rerun()
+                if is_confirming(confirm_key):
+                    st.warning(T["my_reflections_confirm"].format(
+                        code=record["code"], hours=DELETION_WINDOW_HOURS,
+                    ))
+                    yes_col, no_col = st.columns(2)
+                    with yes_col:
+                        if st.button(T["my_reflections_confirm_yes"], type="primary",
+                                     key=f"yes_delete_own_{record['run_id']}"):
+                            clear_confirming(confirm_key)
+                            try:
+                                done = reflection_records.delete_own_reflection(
+                                    record["run_id"], user_name, user_role,
+                                )
+                            except Exception:
+                                done = False
+                            st.session_state["_my_reflections_flash"] = (
+                                T["my_reflections_deleted"].format(code=record["code"], hours=DELETION_WINDOW_HOURS)
+                                if done else T["my_reflections_failed"]
+                            )
+                            st.session_state["findings_journal_page"] = 0
+                            st.rerun()
+                    with no_col:
+                        if st.button(T["my_reflections_confirm_cancel"],
+                                     key=f"cancel_delete_own_{record['run_id']}"):
+                            clear_confirming(confirm_key)
+                            st.rerun()
+
+    deleted = reflection_records.list_own_deleted_reflections(user_name)
+    if deleted:
+        st.markdown(f"**{T['my_reflections_deleted_header']}**")
+        for record in deleted:
+            with st.container(border=True):
+                info_col, action_col = st.columns([4, 1])
+                with info_col:
+                    st.markdown(f"~~{record['code']}~~")
+                    st.caption(T["my_reflections_erase_on"].format(date=(record["erase_at"] or "")[:16].replace("T", " ")))
+                with action_col:
+                    if st.button(T["my_reflections_restore"], key=f"restore_own_{record['run_id']}"):
+                        try:
+                            done = reflection_records.restore_own_reflection(
+                                record["run_id"], user_name, user_role,
+                            )
+                        except Exception:
+                            done = False
+                        st.session_state["_my_reflections_flash"] = (
+                            T["my_reflections_restored"].format(code=record["code"])
+                            if done else T["my_reflections_failed"]
+                        )
+                        st.rerun()
