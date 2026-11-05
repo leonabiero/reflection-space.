@@ -77,6 +77,19 @@ with error_boundary(
     # opportunity's stored observation text.
     COMPANIONS_BY_KEY = {c["key"]: c for c in COMPANIONS}
 
+    # Card dots (November 2026): what each companion produced. The same
+    # meaning is also given in words (tooltip and key under the cards).
+    CARD_DOT_COLOURS = {
+        ReflectionSession.STATUS_FINDING: "#639922",      # green
+        ReflectionSession.STATUS_NONE: "#B4B2A9",         # grey
+        ReflectionSession.STATUS_UNAVAILABLE: "#EF9F27",  # amber
+    }
+    CARD_DOT_SYMBOLS = {
+        ReflectionSession.STATUS_FINDING: "🟢",
+        ReflectionSession.STATUS_NONE: "⚪",
+        ReflectionSession.STATUS_UNAVAILABLE: "🟠",
+    }
+
     # Small emoji used purely to make each reflective dimension visually
     # distinct on the Reflection Dashboard tabs (UX Priority 2). Cosmetic
     # only -- does not affect which companions run or what they return.
@@ -175,7 +188,7 @@ with error_boundary(
 
 
     # ---------------------------------------------------------------------
-    # Reflection workspace (unchanged by the redesign)
+    # Reflection workspace (content of one opportunity card)
     # ---------------------------------------------------------------------
     # Everything from here to the stage logic renders the eight reflective
     # dimensions, the follow-up conversations and the professional's own
@@ -444,29 +457,100 @@ with error_boundary(
         if session.context_summary:
             st.caption(f"{T['workspace_context_header']}: {session.context_summary}")
 
-        total_opportunities = len(session.opportunities)
-        if total_opportunities:
-            st.progress(session.explored_count() / total_opportunities)
-            st.caption(T["workspace_progress_label"].format(
-                explored=session.explored_count(), total=total_opportunities
-            ))
-
-        # Reflection Dashboard + Navigator: one tab per dimension.
+        # -----------------------------------------------------------------
+        # Reflection opportunities -- all eight as cards in one view
+        # (November 2026, replaces the tabs). Each card is a button; the
+        # chosen one opens below the grid. A dot in the top-right corner
+        # shows what that companion produced:
+        #   green = something to reflect on, grey = nothing notable,
+        #   amber = temporarily unavailable (Retry inside).
+        # The order is fixed (rdi/conversation_builder.py) so practitioners
+        # learn where each one is. Nothing is open at first.
+        # -----------------------------------------------------------------
         st.subheader(T["workspace_opportunities_header"])
         ordered_opportunities = build_conversation(session.opportunities)
 
         if ordered_opportunities:
-            st.caption(T["dashboard_navigator_hint"])
-            tab_labels = []
-            for opportunity in ordered_opportunities:
-                label = T["section_labels"].get(opportunity.trigger, opportunity.trigger.replace("_", " ").title())
-                icon = TRIGGER_ICONS.get(opportunity.trigger, "•")
-                badge = f" {T['workspace_explored_badge']}" if opportunity.explored else ""
-                tab_labels.append(f"{icon} {label}{badge}")
+            total_opportunities = len(ordered_opportunities)
+            st.caption(
+                f"{T['rs_cards_hint']} "
+                + T["workspace_progress_label"].format(
+                    explored=session.explored_count(), total=total_opportunities
+                )
+            )
 
-            tabs = st.tabs(tab_labels)
-            for tab, opportunity in zip(tabs, ordered_opportunities):
-                with tab:
+            # Starts with "workspace_open_" so it is cleared together with
+            # the other per-reflection widget state.
+            selected_key = "workspace_open_card"
+            selected = st.session_state.get(selected_key)
+            if selected not in {o.trigger for o in ordered_opportunities}:
+                selected = None
+
+            css_rules = [
+                # Same height for every card; two per row on a phone
+                # (Streamlit would otherwise stack them one per row).
+                "@media (max-width: 640px) {div[data-testid='stHorizontalBlock']"
+                ":has(div[class*='st-key-rs_card_']) {flex-wrap:wrap !important; gap:0.6rem;}"
+                " div[data-testid='stHorizontalBlock']:has(div[class*='st-key-rs_card_'])"
+                " > div[data-testid='stColumn'] {flex:1 1 calc(50% - 0.6rem) !important;"
+                " min-width:calc(50% - 0.6rem) !important; width:calc(50% - 0.6rem) !important;}}",
+                "div[class*='st-key-rs_card_'] button {min-height:6.6rem; position:relative;"
+                " white-space:normal; text-align:left; justify-content:flex-start;"
+                " align-items:flex-start; padding:0.75rem 1.6rem 0.6rem 0.8rem;}",
+                "div[class*='st-key-rs_card_'] button::after {content:''; position:absolute;"
+                " top:0.55rem; right:0.55rem; width:0.7rem; height:0.7rem; border-radius:50%;}",
+            ]
+            for opportunity in ordered_opportunities:
+                status = session.status_of(opportunity.trigger)
+                css_rules.append(
+                    f"div.st-key-rs_card_{opportunity.trigger} button::after "
+                    f"{{background:{CARD_DOT_COLOURS[status]};}}"
+                )
+            st.markdown(f"<style>{' '.join(css_rules)}</style>", unsafe_allow_html=True)
+
+            per_row = 4
+            for start in range(0, total_opportunities, per_row):
+                row = ordered_opportunities[start:start + per_row]
+                columns = st.columns(per_row)
+                for column, opportunity in zip(columns, row):
+                    trigger = opportunity.trigger
+                    status = session.status_of(trigger)
+                    label = T["section_labels"].get(trigger, trigger.replace("_", " ").title())
+                    icon = TRIGGER_ICONS.get(trigger, "•")
+                    text = f"{icon} {label}"
+                    if opportunity.explored:
+                        text += f"  \n{T['rs_card_explored']}"
+                    with column:
+                        if st.button(
+                            text,
+                            key=f"rs_card_{trigger}",
+                            type="primary" if trigger == selected else "secondary",
+                            # The colour of the dot is also given in words,
+                            # so it does not rely on colour alone.
+                            help=T["rs_card_status"][status],
+                            use_container_width=True,
+                        ):
+                            st.session_state[selected_key] = None if trigger == selected else trigger
+                            st.rerun()
+
+            st.caption(
+                " · ".join(
+                    f"{CARD_DOT_SYMBOLS[status]} {T['rs_card_status'][status]}"
+                    for status in (
+                        ReflectionSession.STATUS_FINDING,
+                        ReflectionSession.STATUS_NONE,
+                        ReflectionSession.STATUS_UNAVAILABLE,
+                    )
+                )
+            )
+
+            if selected is None:
+                st.info(T["rs_cards_choose"])
+            else:
+                opportunity = next(o for o in ordered_opportunities if o.trigger == selected)
+                label = T["section_labels"].get(selected, selected.replace("_", " ").title())
+                with st.container(border=True):
+                    st.markdown(f"#### {TRIGGER_ICONS.get(selected, '•')} {label}")
                     _render_opportunity_tab_body(session, opportunity)
 
         st.divider()

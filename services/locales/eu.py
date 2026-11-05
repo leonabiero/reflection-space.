@@ -742,6 +742,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                      'edozein, ireki elkarrizketa labur bat nahi baduzu, gehitu zure '
                                      'oharrak eta sakatu Amaitu hausnarketa. Ondoren saioaren '
                                      'erabilgarritasuna balora dezakezu -- guztiz aukerakoa.',
+          'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
+                         'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
+                         'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
+                         '(txartelaren barruan berriro saia zaitezke).',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
                           'desc': 'Pertsonaren ahotsa, helburuak eta hobespenak presente al daude, '
@@ -1528,4 +1532,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'ch_show_anonymised_text': 'Ikusi gordetako testu anonimizatua',
  'ch_anonymised_text_caption': 'AAk jaso zuen bertsio babestua (inoiz ez jatorrizko testua). '
                                '{months} hilabete igarotakoan automatikoki ezabatzen da.',
- 'ch_anonymised_text_unavailable': 'Hausnarketa honen testu anonimizatua ez dago erabilgarri jada.'}
+ 'ch_anonymised_text_unavailable': 'Hausnarketa honen testu anonimizatua ez dago erabilgarri jada.',
+ 'rs_cards_hint': 'Aukeratu edozein txartel irekitzeko.',
+ 'rs_cards_choose': 'Aukeratu txartel bat bere hausnarketa ikusteko.',
+ 'rs_card_explored': '✓ Arakatua',
+ 'rs_card_status': {'finding': 'Badago zer hausnartu',
+                    'none': 'Ez da ezer nabarmenik aurkitu',
+                    'unavailable': 'Orain ez dago erabilgarri, berriro saia zaitezke'}}

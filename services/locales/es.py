@@ -743,6 +743,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                      'breve conversación sobre alguna si quieres, añade tus notas y pulsa '
                                      'Terminar reflexión. Después puedes valorar la utilidad de la sesión '
                                      '-- totalmente opcional.',
+          'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
+                         'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
+                         'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
+                         '(puedes reintentarlo dentro de la tarjeta).',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '
@@ -1524,4 +1528,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'ch_show_anonymised_text': 'Ver el texto anonimizado guardado',
  'ch_anonymised_text_caption': 'Versión protegida que recibió la IA (nunca el texto original). Se '
                                'borra automáticamente a los {months} meses.',
- 'ch_anonymised_text_unavailable': 'El texto anonimizado de esta reflexión ya no está disponible.'}
+ 'ch_anonymised_text_unavailable': 'El texto anonimizado de esta reflexión ya no está disponible.',
+ 'rs_cards_hint': 'Elige cualquier tarjeta para abrirla.',
+ 'rs_cards_choose': 'Elige una tarjeta para ver su reflexión.',
+ 'rs_card_explored': '✓ Explorada',
+ 'rs_card_status': {'finding': 'Hay algo sobre lo que reflexionar',
+                    'none': 'No se ha encontrado nada destacable',
+                    'unavailable': 'No disponible ahora, puedes reintentar'}}

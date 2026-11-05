@@ -66,6 +66,7 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
 
         with st.expander(H["reflection_section_title"], expanded=False):
             st.write(H["reflection_section_body"])
+            st.write(H["cards_note"])
             st.markdown(f"**{H['dimensions_title']}**")
             for dim in H["dimensions"]:
                 st.markdown(f"- **{dim['label']}** \u2014 {dim['desc']}")

@@ -130,7 +130,9 @@ class _RetryInvitation:
                         focus=text["not_applicable"],
                         invitation=[],
                     )
-                self.session.replace_opportunity(self.trigger, replacement)
+                self.session.replace_opportunity(
+                    self.trigger, replacement, generated=bool(observation or questions),
+                )
             else:
                 self.session.mark_manual_retry_failed(self.trigger)
 
@@ -179,6 +181,10 @@ class ReflectionSession:
         self.manual_retry_failed = set()
 
         generated_by_trigger = {o.trigger: o for o in self.opportunities}
+        # November 2026 card view: which dimensions actually produced a
+        # reflection (green dot). The others are either "nothing notable"
+        # (grey) or "temporarily unavailable" (amber, retryable).
+        self.generated_triggers = set(generated_by_trigger)
         failed_label_set = set(self.failed_labels)
         ordered_opportunities = []
         lang = st.session_state.get("lang", "Español")
@@ -248,7 +254,13 @@ class ReflectionSession:
     def can_retry_companion(self, trigger):
         return trigger in self.retryable_triggers and trigger not in self.manual_retry_failed
 
-    def replace_opportunity(self, trigger, replacement):
+    def replace_opportunity(self, trigger, replacement, generated=False):
+        """Swap in the result of a manual retry. `generated` is True when
+        the retry produced a real reflection (observation or questions)."""
+        if generated:
+            self.generated_triggers.add(trigger)
+        else:
+            self.generated_triggers.discard(trigger)
         self.opportunities = [
             replacement if opportunity.trigger == trigger else opportunity
             for opportunity in self.opportunities
@@ -284,6 +296,28 @@ class ReflectionSession:
             if opportunity.trigger == trigger:
                 return opportunity
         return None
+
+    # Card status (November 2026): "finding" (green), "none" (grey) or
+    # "unavailable" (amber). See pages/reflection_space.py.
+    STATUS_FINDING = "finding"
+    STATUS_NONE = "none"
+    STATUS_UNAVAILABLE = "unavailable"
+
+    def status_of(self, trigger):
+        if trigger in self.retryable_triggers or trigger in self.manual_retry_failed:
+            return self.STATUS_UNAVAILABLE
+        generated = getattr(self, "generated_triggers", None)
+        if generated is None:
+            # A session created before this version: fall back to whether
+            # there is anything to show.
+            opportunity = self.get_opportunity(trigger)
+            known_placeholders = {t["not_applicable"] for t in _COVERAGE_REASON_TEXT.values()}
+            return (
+                self.STATUS_FINDING
+                if opportunity is not None and opportunity.focus not in known_placeholders
+                else self.STATUS_NONE
+            )
+        return self.STATUS_FINDING if trigger in generated else self.STATUS_NONE
 
     def explored_count(self):
         return sum(1 for o in self.opportunities if o.explored)

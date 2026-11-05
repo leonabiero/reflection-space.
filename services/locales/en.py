@@ -722,6 +722,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                      'short conversation about one, add your notes and select Finish '
                                      'reflection. Afterwards you can rate how useful the session was -- '
                                      'entirely optional.',
+          'cards_note': 'The eight reflection opportunities are shown as cards in one view. The dot in the '
+                         'corner shows what each one found: green, something to reflect on; grey, nothing '
+                         'notable in this text; amber, not available right now (you can retry inside the '
+                         'card).',
           'dimensions_title': 'The eight reflective dimensions',
           'dimensions': [{'label': "Client's Voice",
                           'desc': "Is the person's own voice, goals, and preferences reflected, or "
@@ -1482,4 +1486,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'ch_show_anonymised_text': 'Show the saved anonymised text',
  'ch_anonymised_text_caption': 'The protected version the AI received (never the original text). '
                                'Deleted automatically after {months} months.',
- 'ch_anonymised_text_unavailable': 'The anonymised text of this reflection is no longer available.'}
+ 'ch_anonymised_text_unavailable': 'The anonymised text of this reflection is no longer available.',
+ 'rs_cards_hint': 'Choose any card to open it.',
+ 'rs_cards_choose': 'Choose a card to see its reflection.',
+ 'rs_card_explored': '✓ Explored',
+ 'rs_card_status': {'finding': 'Something to reflect on',
+                    'none': 'Nothing notable found',
+                    'unavailable': 'Not available right now, you can retry'}}

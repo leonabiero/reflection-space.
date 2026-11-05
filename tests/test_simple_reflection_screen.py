@@ -328,3 +328,68 @@ class TranslationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OpportunityCardsTests(unittest.TestCase):
+    """November 2026: the eight opportunities as cards with a status dot."""
+
+    def _session(self, result_findings, failed=()):
+        from rdi.reflection_session import ReflectionSession
+        from rdi.reflection_objects import ReflectiveOpportunity
+        from rdi.companions import COMPANIONS
+        labels = {c["key"]: c["label"] for c in COMPANIONS}
+        result = {
+            "opportunities": [ReflectiveOpportunity(trigger=k, context="", focus="obs", invitation=["q"])
+                              for k in result_findings],
+            "failed_labels": [labels[k] for k in failed],
+            "safe_text": "text",
+        }
+        with patch("rdi.reflection_session.st") as fake_st:
+            fake_st.session_state = {"lang": "English"}
+            return ReflectionSession(result, [], "RS-TEST01")
+
+    def test_each_card_gets_the_right_status(self):
+        s = self._session(["client_voice", "continuity"], failed=["possible_bias"])
+        self.assertEqual(s.status_of("client_voice"), s.STATUS_FINDING)
+        self.assertEqual(s.status_of("continuity"), s.STATUS_FINDING)
+        self.assertEqual(s.status_of("possible_bias"), s.STATUS_UNAVAILABLE)
+        self.assertEqual(s.status_of("labels_and_language"), s.STATUS_NONE)
+
+    def test_a_successful_retry_turns_the_dot_green(self):
+        from rdi.reflection_objects import ReflectiveOpportunity
+        s = self._session([], failed=["possible_bias"])
+        s.replace_opportunity("possible_bias",
+                              ReflectiveOpportunity(trigger="possible_bias", context="", focus="o", invitation=["q"]),
+                              generated=True)
+        self.assertEqual(s.status_of("possible_bias"), s.STATUS_FINDING)
+
+    def test_a_retry_with_nothing_found_turns_the_dot_grey(self):
+        from rdi.reflection_objects import ReflectiveOpportunity
+        s = self._session([], failed=["possible_bias"])
+        s.replace_opportunity("possible_bias",
+                              ReflectiveOpportunity(trigger="possible_bias", context="", focus="n/a", invitation=[]))
+        self.assertEqual(s.status_of("possible_bias"), s.STATUS_NONE)
+
+    def test_page_uses_cards_not_tabs(self):
+        page = _read("pages", "reflection_space.py")
+        self.assertNotIn("st.tabs(", page)
+        self.assertIn('key=f"rs_card_{trigger}"', page)
+        self.assertIn('help=T["rs_card_status"][status]', page)   # not colour alone
+        self.assertIn('st.info(T["rs_cards_choose"])', page)      # nothing open at first
+
+    def test_fixed_order_matches_the_drawing(self):
+        from rdi.conversation_builder import CONVERSATION_ORDER
+        self.assertEqual(CONVERSATION_ORDER, [
+            "client_voice", "observation_vs_interpretation", "labels_and_language", "possible_bias",
+            "missing_information", "evidence_for_decisions", "continuity", "strengths_and_deficits",
+        ])
+
+    def test_card_texts_exist_in_all_languages(self):
+        from services.locales.es import LANG_ES
+        from services.locales.eu import LANG_EU
+        from services.locales.en import LANG_EN
+        for lang in (LANG_ES, LANG_EU, LANG_EN):
+            for key in ("rs_cards_hint", "rs_cards_choose", "rs_card_explored"):
+                self.assertTrue(lang[key], key)
+            self.assertEqual(set(lang["rs_card_status"]), {"finding", "none", "unavailable"})
+            self.assertTrue(lang["help"]["cards_note"])

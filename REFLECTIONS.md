@@ -54,6 +54,18 @@ reflection.**
   theme filter in managers' Reflection History only finds older reflections.
   Nothing breaks.
 
+### Reflection opportunities as cards (November 2026)
+
+The eight dimensions are shown as **cards in one view** (4 per row on a
+laptop, 2 on a phone) instead of tabs, in the fixed order of
+`rdi/conversation_builder.py`. Nothing is open at first; choosing a card
+opens its content (observation, passages, questions, Explore, notes) below
+the grid. A **dot** in each card's top-right corner shows what that companion
+produced — green: something to reflect on; grey: nothing notable; amber:
+temporarily unavailable (Retry inside). The same meaning is given in words
+(tooltip and a key under the cards), so it never relies on colour alone.
+Status comes from `ReflectionSession.status_of()`.
+
 ### Saved anonymised text (November 2026, product owner decision)
 
 To make it possible to study patterns across reflections later, each new
