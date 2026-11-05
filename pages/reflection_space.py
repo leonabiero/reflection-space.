@@ -235,12 +235,10 @@ with error_boundary(
         """
         UX Priority 2 & 4 -- Reflection Dashboard + Navigator.
 
-        Same content and same behavior as the previous per-opportunity
-        expander (observation, questions, Explore toggle, conversation) --
-        only the container changed, from a stacked st.expander to the body
-        of one st.tabs() tab (see the call site below), so practitioners
-        can jump directly to a dimension instead of scrolling past seven
-        others to find it.
+        The content of one opportunity (observation, passages, questions,
+        notes, Explore toggle, conversation). Since November 2026 it is
+        shown below the grid of eight cards when that card is chosen (see
+        the call site below); earlier it was the body of a tab.
         """
         if opportunity.focus:
             st.write(opportunity.focus)
