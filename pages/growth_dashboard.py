@@ -5,7 +5,8 @@ from services.identity import init_identity, render_identity_footer, require_wor
 from services.error_log import error_boundary
 from services.exploration_log import get_personal_exploration_history
 from services.reflection_log import THEME_KEYS
-from services.findings_store import get_my_findings, count_my_findings
+from services.findings_store import get_my_findings_by_reflection, count_my_reflections_with_findings
+from rdi.conversation_builder import CONVERSATION_ORDER
 from services.findings_ui import render_evidence, render_notes_form
 from services.reflection_records import get_anonymised_text
 from services import reflection_records
@@ -121,40 +122,54 @@ with error_boundary(
     st.subheader(T["findings_journal_header"])
     st.caption(T["findings_journal_intro"])
 
-    FINDINGS_PAGE_SIZE = 10
-    total_findings = count_my_findings(user_name)
+    # November 2026 -- grouped by reflection: ONE line per reflection
+    # (code, date, how many observations, how many have notes), with its
+    # observations inside. The person picks one observation at a time, in
+    # the same fixed order as the cards on the Reflection Space screen.
+    REFLECTIONS_PAGE_SIZE = 5
+    total_reflections = count_my_reflections_with_findings(user_name)
 
-    if total_findings == 0:
+    if total_reflections == 0:
         st.info(T["findings_journal_empty"])
     else:
-        last_page = (total_findings - 1) // FINDINGS_PAGE_SIZE
+        last_page = (total_reflections - 1) // REFLECTIONS_PAGE_SIZE
         page = min(max(st.session_state.get("findings_journal_page", 0), 0), last_page)
 
-        findings = get_my_findings(
-            user_name, limit=FINDINGS_PAGE_SIZE, offset=page * FINDINGS_PAGE_SIZE,
+        reflections = get_my_findings_by_reflection(
+            user_name, limit=REFLECTIONS_PAGE_SIZE, offset=page * REFLECTIONS_PAGE_SIZE,
         )
 
-        st.caption(T["findings_journal_count"].format(
-            total=total_findings, page=page + 1, pages=last_page + 1,
+        st.caption(T["findings_journal_count_reflections"].format(
+            total=total_reflections, page=page + 1, pages=last_page + 1,
         ))
 
-        for f in findings:
-            module_label = T["section_labels"].get(f["module"], f["module"].replace("_", " ").title())
-            case_label = f["case_ref"] or T["reflection_no_case_ref"]
-            date_part = (f["created_at"] or "")[:16]
-            saved_mark = " ✔" if f["feedback"] else ""
-            with st.expander(f"{module_label} — {case_label} — {date_part}{saved_mark}"):
-                st.write(f["observation"])
-                render_evidence(T, f["evidence"], f["unverified_quote_count"])
-                for q in f["questions"]:
-                    st.markdown(f"- {q}")
+        card_order = {key: i for i, key in enumerate(CONVERSATION_ORDER)}
+
+        def _lens_label(module):
+            return T["section_labels"].get(module, module.replace("_", " ").title())
+
+        for reflection in reflections:
+            findings = sorted(
+                reflection["findings"],
+                key=lambda f: (card_order.get(f["module"], len(card_order)), f["id"]),
+            )
+            with_notes = sum(1 for f in findings if f["feedback"])
+            header = T["findings_reflection_line"].format(
+                code=reflection["case_ref"] or T["reflection_no_case_ref"],
+                date=(reflection["created_at"] or "")[:16].replace("T", " "),
+                count=len(findings),
+            )
+            if with_notes:
+                header += " " + T["findings_reflection_notes_suffix"].format(count=with_notes)
+
+            with st.expander(header):
                 # The saved ANONYMISED text of this reflection (never the
                 # original). Only the author can load it here.
-                if SAVE_ANONYMISED_TEXT and f.get("run_id") and st.toggle(
-                    T["ch_show_anonymised_text"], key=f"jr_anon_text_{f['id']}",
+                if SAVE_ANONYMISED_TEXT and reflection["run_id"] and st.toggle(
+                    T["ch_show_anonymised_text"], key=f"jr_anon_text_run_{reflection['run_id']}",
                 ):
                     try:
-                        saved_text = get_anonymised_text(f["run_id"], user_name, user_role)
+                        saved_text = get_anonymised_text(reflection["run_id"], user_name, user_role)
                     except Exception:
                         saved_text = None
                     with st.container(border=True):
@@ -163,10 +178,27 @@ with error_boundary(
                             st.write(saved_text)
                         else:
                             st.info(T["ch_anonymised_text_unavailable"])
-                st.divider()
-                render_notes_form(
-                    T, f["id"], user_name, f["feedback"], key_prefix="jr",
+
+                by_id = {f["id"]: f for f in findings}
+                chosen_id = st.radio(
+                    T["findings_pick_observation"],
+                    options=list(by_id),
+                    format_func=lambda fid: _lens_label(by_id[fid]["module"])
+                    + (" ✔" if by_id[fid]["feedback"] else ""),
+                    horizontal=True,
+                    key=f"jr_pick_{reflection['run_id']}",
                 )
+                f = by_id[chosen_id]
+                with st.container(border=True):
+                    st.markdown(f"**{_lens_label(f['module'])}**")
+                    st.write(f["observation"])
+                    render_evidence(T, f["evidence"], f["unverified_quote_count"])
+                    for q in f["questions"]:
+                        st.markdown(f"- {q}")
+                    st.divider()
+                    render_notes_form(
+                        T, f["id"], user_name, f["feedback"], key_prefix="jr",
+                    )
 
         if page > 0:
             if st.button(T["findings_journal_newer"], key="findings_journal_newer_btn"):

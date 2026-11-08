@@ -452,6 +452,59 @@ class SimplerResultsScreenTests(unittest.TestCase):
         self.assertEqual(LANG_ES["workspace_explore_button"], "Explorar con el acompañante")
 
 
+class MyReflectionGroupedTests(unittest.TestCase):
+    """November 2026: My Reflection shows one line per reflection with its
+    observations inside, instead of one line per observation."""
+
+    def test_observations_are_grouped_under_their_reflection(self):
+        from unittest.mock import MagicMock
+        from datetime import datetime
+        from services import findings_store as fs
+
+        cursor = MagicMock()
+        when = datetime(2026, 11, 8, 23, 1)
+        cursor.fetchall.side_effect = [
+            [(2, "RS-NEWER", when), (1, "RS-OLDER", when)],          # page of reflections
+            [(21, 2, "RS-NEWER", "continuity", "o", "[]", "[]", 0, "English", "v", when,
+              None, None, None, False, None, False),
+             (11, 1, "RS-OLDER", "client_voice", "o", "[]", "[]", 0, "English", "v", when,
+              "useful", "note", "", False, when, False),
+             (12, 1, "RS-OLDER", "continuity", "o", "[]", "[]", 0, "English", "v", when,
+              None, None, None, False, None, False)],
+        ]
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cursor
+        with patch.object(fs, "_get_conn", return_value=conn):
+            result = fs.get_my_findings_by_reflection("anneh", limit=5)
+
+        self.assertEqual([r["case_ref"] for r in result], ["RS-NEWER", "RS-OLDER"])
+        self.assertEqual([f["id"] for f in result[1]["findings"]], [11, 12])
+        self.assertEqual(result[1]["findings"][0]["feedback"]["label"], "useful")
+        self.assertIsNone(result[0]["findings"][0]["feedback"])
+        # Only this person's reflections: the name is a filter in both queries.
+        for call in cursor.execute.call_args_list:
+            self.assertIn("r.created_by = %s", call.args[0])
+        self.assertEqual(fs.get_my_findings_by_reflection(""), [])
+
+    def test_page_uses_the_grouped_view(self):
+        page = _read("pages", "growth_dashboard.py")
+        self.assertIn("get_my_findings_by_reflection(", page)
+        self.assertIn('T["findings_pick_observation"]', page)
+        self.assertNotIn("get_my_findings(", page)
+
+    def test_grouped_view_texts_exist_in_all_languages(self):
+        from services.locales.es import LANG_ES
+        from services.locales.eu import LANG_EU
+        from services.locales.en import LANG_EN
+        for lang in (LANG_ES, LANG_EU, LANG_EN):
+            for key in ("findings_journal_count_reflections", "findings_reflection_line",
+                        "findings_reflection_notes_suffix", "findings_pick_observation"):
+                self.assertTrue(lang.get(key), key)
+            lang["findings_reflection_line"].format(code="RS-X", date="d", count=3)
+            lang["findings_reflection_notes_suffix"].format(count=1)
+            lang["findings_journal_count_reflections"].format(total=1, page=1, pages=1)
+
+
 class OwnDeletionStaticTests(unittest.TestCase):
     def test_hidden_rule_covers_deleted_reflections(self):
         from services.findings_store import NOT_IN_DELETION_WINDOW

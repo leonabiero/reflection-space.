@@ -556,6 +556,131 @@ def get_my_findings(user_name, limit=20, offset=0):
     return results
 
 
+# ---------------------------------------------------------------------
+# My Reflection, grouped by reflection (November 2026)
+# ---------------------------------------------------------------------
+# The personal journal used to list every saved observation on its own
+# line -- up to eight per reflection, so ten reflections meant ~70 lines.
+# It now shows ONE line per reflection with its observations inside. Same
+# privacy rules as above: only the person's own reflections, filtered by
+# name IN SQL, and nothing in the 48-hour deletion window.
+
+_MY_FINDING_COLUMNS = """
+    f.id, f.run_id, r.case_ref, f.module, f.observation,
+    f.questions, f.evidence, f.unverified_quote_count,
+    r.language, r.prompt_version, f.created_at,
+    fb.label, fb.note, fb.alternative_explanation,
+    fb.flagged_misread, fb.updated_at, fb.shared_with_team
+"""
+
+
+def _my_finding_from_row(r):
+    """One row of _MY_FINDING_COLUMNS -> the same dict get_my_findings()
+    returns."""
+    has_feedback = any([r[11], r[12], r[13], r[14], r[16]])
+    return {
+        "id": r[0],
+        "run_id": r[1],
+        "case_ref": r[2] or "",
+        "module": r[3],
+        "observation": r[4],
+        "questions": _loads(r[5], []),
+        "evidence": _loads(r[6], []),
+        "unverified_quote_count": r[7] or 0,
+        "language": r[8],
+        "prompt_version": r[9],
+        "created_at": iso(r[10]),
+        "feedback": {
+            "label": r[11],
+            "note": r[12] or "",
+            "alternative_explanation": r[13] or "",
+            "flagged_misread": bool(r[14]),
+            "updated_at": iso(r[15]),
+            "shared_with_team": bool(r[16]),
+        } if has_feedback else None,
+    }
+
+
+def count_my_reflections_with_findings(user_name):
+    """How many of this professional's reflections have at least one
+    saved observation (excluding any in the deletion window)."""
+    if not user_name:
+        return 0
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM reflection_runs r
+                WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}
+                  AND EXISTS (SELECT 1 FROM reflection_findings f WHERE f.run_id = r.id)
+                """,
+                (user_name,),
+            )
+            return c.fetchone()[0]
+    finally:
+        conn.close()
+
+
+def get_my_findings_by_reflection(user_name, limit=5, offset=0):
+    """
+    One page of this professional's own reflections (newest first), each
+    with ALL of its saved observations and this person's notes on them.
+
+    Returns a list of dicts: run_id, case_ref, created_at, findings
+    (a list of the same dicts get_my_findings() returns, in the order the
+    AI produced them).
+    """
+    if not user_name:
+        return []
+    limit = max(1, min(int(limit), 50))
+    offset = max(0, int(offset))
+
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT r.id, r.case_ref, r.created_at
+                FROM reflection_runs r
+                WHERE r.created_by = %s AND {NOT_IN_DELETION_WINDOW}
+                  AND EXISTS (SELECT 1 FROM reflection_findings f WHERE f.run_id = r.id)
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (user_name, limit, offset),
+            )
+            runs = c.fetchall()
+            if not runs:
+                return []
+            run_ids = [row[0] for row in runs]
+            c.execute(
+                f"""
+                SELECT {_MY_FINDING_COLUMNS}
+                FROM reflection_findings f
+                JOIN reflection_runs r ON r.id = f.run_id
+                LEFT JOIN finding_feedback fb
+                       ON fb.finding_id = f.id AND fb.user_name = %s
+                WHERE r.created_by = %s AND f.run_id = ANY(%s)
+                ORDER BY f.id ASC
+                """,
+                (user_name, user_name, run_ids),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+
+    by_run = {run_id: [] for run_id in run_ids}
+    for r in rows:
+        by_run.setdefault(r[1], []).append(_my_finding_from_row(r))
+    return [
+        {"run_id": run_id, "case_ref": case_ref or "", "created_at": iso(created_at),
+         "findings": by_run.get(run_id, [])}
+        for run_id, case_ref, created_at in runs
+    ]
+
+
 def delete_runs_for_drafts(cursor, draft_ids):
     """
     Permanently delete every reflection run that used any of these

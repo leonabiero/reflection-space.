@@ -85,6 +85,13 @@ reflection.**
   texts are re-checked just before they are read
   (`services/corpus_reading_service.read_texts`), so texts saved before age
   protection existed do not send exact ages.
+- **My Reflection is grouped by reflection (November 2026).** "Saved
+  observations and your notes" used to list every observation on its own line
+  (up to eight per reflection). It now shows one line per reflection — code,
+  date, number of observations and how many have notes — and inside it the
+  person picks one observation at a time, in the same order as the cards
+  (`services/findings_store.get_my_findings_by_reflection`, five reflections
+  per page). Every observation is still kept, so nothing is lost.
 - **A professional's own notes are protected too (November 2026).** The two
   free-text boxes under "My notes and sharing with the team" (another possible
   explanation, my reflection or note) never go to the AI, but they are stored.
