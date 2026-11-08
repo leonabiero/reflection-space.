@@ -272,8 +272,38 @@ def ask(question, lang="Español", evidence_limit=DEFAULT_EVIDENCE_LIMIT,
     if not question:
         return {"error": "Empty question", "raw": ""}
 
+    # November 2026 -- privacy gate for the question itself. The retrieved
+    # excerpts were already anonymized, but the supervisor's QUESTION was
+    # sent to Claude exactly as typed, so a name or age written in it left
+    # the system. It now goes through the same anonymize() first. If that
+    # fails for any reason, NOTHING is sent (no fallback to the question as
+    # typed) and the caller gets "privacy_blocked": True.
+    try:
+        safe_question = anonymize(question)
+    except Exception as exc:
+        error_id, issue_id = log_error(
+            page="learning (knowledge assistant, anonymise)",
+            error_type="AnonymisationFailed",
+            message=(
+                f"Anonymisation raised {type(exc).__name__}. The question was "
+                "not sent to any AI provider."
+            ),
+            traceback_text=None,
+            traceback_unavailable_reason=(
+                "Deliberately not recorded: a traceback could contain parts "
+                "of the question."
+            ),
+            context={"question_length": len(question)},
+            severity="error",
+        )
+        return {"error": "Anonymisation failed", "raw": "", "privacy_blocked": True,
+                "issue_id": issue_id, "error_id": error_id}
+    if not (safe_question or "").strip():
+        return {"error": "Anonymisation failed", "raw": "", "privacy_blocked": True,
+                "issue_id": None, "error_id": None}
+
     since_iso = (datetime.now() - timedelta(days=window_days)).isoformat()
-    docs = retrieve_global_context(query_text=question, limit=evidence_limit, since_iso=since_iso)
+    docs = retrieve_global_context(query_text=safe_question, limit=evidence_limit, since_iso=since_iso)
     evidence_block, evidence_for_ui = _build_evidence_block(docs)
 
     summary = build_research_summary(window_days=window_days)
@@ -283,7 +313,7 @@ def ask(question, lang="Español", evidence_limit=DEFAULT_EVIDENCE_LIMIT,
     full_system_prompt = SYSTEM_PROMPT + "\n\n" + lang_instruction
 
     user_content = f"""QUESTION:
-{question}
+{safe_question}
 
 RETRIEVED EVIDENCE ({len(docs)} item(s)):
 {evidence_block if evidence_block else "(no relevant saved reflections were found for this question)"}

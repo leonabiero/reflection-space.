@@ -85,10 +85,15 @@ class AnonymizerSecurityTests(unittest.TestCase):
         safe = anonymize(text)
         self.assertNotIn("Maria Lopez", safe)
         self.assertNotIn("0712 345 678", safe)
-        # The unique combination itself cannot be reliably detected by a
-        # deterministic anonymizer; this test documents that limitation
-        # instead of pretending the system provides k-anonymity.
-        self.assertIn("12-year-old", safe)
+        # November 2026: the exact age is now generalised to a life stage
+        # (the minor / adult distinction is kept).
+        self.assertNotIn("12-year-old", safe)
+        self.assertIn("[AGE_CHILD]", safe)
+        # The unique combination itself ("small village", "only pupil")
+        # cannot be reliably detected by a deterministic anonymizer; this
+        # test documents that limitation instead of pretending the system
+        # provides k-anonymity.
+        self.assertIn("small village", safe)
 
 
     # --- October 2026: Spanish / Basque hardening ---------------------------
@@ -203,6 +208,178 @@ class CapitalLettersTests(unittest.TestCase):
         safe = anonymizer.anonymize(text)
         for name in ("NEREA", "JOHN", "AGIRRE"):
             self.assertNotIn(name, safe)
+
+
+class AnonymizerAgeProtectionTests(unittest.TestCase):
+    """November 2026: exact ages never reach an AI provider. Each one is
+    replaced by a life-stage tag (see config.AGE_BAND_LIMITS)."""
+
+    def safe(self, text):
+        return anonymize(text)
+
+    def assert_no_digits(self, safe, *numbers):
+        for n in numbers:
+            self.assertNotRegex(safe, rf"(?<!\d){n}(?!\d)", msg=f"Age {n} survived:\n{safe}")
+
+    # --- The pilot example ---------------------------------------------------
+    def test_pilot_example_name_and_both_ages_are_protected(self):
+        safe = self.safe(
+            "Ashley Rose was here at the center and she wanted accommodation, she also "
+            "told us her actual age is 30 not 29 as we had indicated earlier, she did not "
+            "give reasons for needing new accommodation."
+        )
+        self.assertNotIn("Ashley", safe)
+        self.assertNotIn("Rose", safe)
+        self.assert_no_digits(safe, 30, 29)
+        self.assertIn("[AGE_ADULT]", safe)
+        # The professional meaning stays.
+        self.assertIn("wanted accommodation", safe)
+        self.assertIn("did not give reasons", safe)
+
+    # --- English -------------------------------------------------------------
+    def test_english_age_forms(self):
+        cases = {
+            "She is 30 years old.": "[AGE_ADULT]",
+            "A 24-year-old woman asked for help.": "[AGE_YOUNG_ADULT]",
+            "He is 67 years old.": "[AGE_OLDER_ADULT]",
+            "A child aged 8 was present.": "[AGE_CHILD]",
+            "Age: 45.": "[AGE_ADULT]",
+            "She turned 18 last month.": "[AGE_YOUNG_ADULT]",
+            "A 6-month-old baby.": "[AGE_INFANT]",
+            "She is 30, not 29.": "[AGE_ADULT]",
+        }
+        for text, tag in cases.items():
+            safe = self.safe(text)
+            self.assertIn(tag, safe, msg=text)
+            self.assertNotRegex(safe, r"\d", msg=f"{text!r} -> {safe!r}")
+
+    def test_age_correction_from_29_to_30_exposes_neither_number(self):
+        for text in ("She corrected her age from 29 to 30.",
+                     "Su edad pasó de 29 a 30 años.",
+                     "Tiene 30, no 29 como indicamos.",
+                     "Benetako adina 30 da, ez 29."):
+            safe = self.safe(text)
+            self.assert_no_digits(safe, 30, 29)
+
+    def test_age_written_as_words(self):
+        for text in ("She is thirty-two years old.",
+                     "Tiene treinta y cinco años.",
+                     "Hogeita hamar urte ditu.",
+                     "He is seventeen years old."):
+            safe = self.safe(text)
+            self.assertIn("[AGE_", safe, msg=f"{text!r} -> {safe!r}")
+            for word in ("thirty", "treinta", "hogeita", "seventeen"):
+                self.assertNotIn(word, safe.lower())
+
+    # --- Spanish -------------------------------------------------------------
+    def test_spanish_age_forms(self):
+        cases = {
+            "La usuaria tiene 30 años.": "[AGE_ADULT]",
+            "Una mujer de 24 años acudió al servicio.": "[AGE_YOUNG_ADULT]",
+            "La menor, de 17 años, vive con su madre.": "[AGE_ADOLESCENT]",
+            "Edad: 70.": "[AGE_OLDER_ADULT]",
+            "El bebé de 8 meses.": "[AGE_INFANT]",
+            "Cumplió 18 años en marzo.": "[AGE_YOUNG_ADULT]",
+        }
+        for text, tag in cases.items():
+            safe = self.safe(text)
+            self.assertIn(tag, safe, msg=text)
+            self.assertNotRegex(safe, r"\d", msg=f"{text!r} -> {safe!r}")
+
+    def test_spanish_lists_of_ages(self):
+        safe = self.safe("Tiene dos hijos de 5 y 7 años.")
+        self.assert_no_digits(safe, 5, 7)
+        self.assertEqual(safe.count("[AGE_CHILD]"), 2)
+        self.assertIn("dos hijos", safe)
+
+    # --- Basque --------------------------------------------------------------
+    def test_basque_age_forms(self):
+        cases = {
+            "Anek 17 urte ditu.": "[AGE_ADOLESCENT]",
+            "30 urteko emakumea da.": "[AGE_ADULT]",
+            "Adina: 45.": "[AGE_ADULT]",
+            "18 hilabeteko haurra.": "[AGE_INFANT]",
+            "70 urte zituen.": "[AGE_OLDER_ADULT]",
+        }
+        for text, tag in cases.items():
+            safe = self.safe(text)
+            self.assertIn(tag, safe, msg=text)
+            self.assertNotRegex(safe, r"\d", msg=f"{text!r} -> {safe!r}")
+
+    def test_equivalent_ages_in_three_languages_get_the_same_tag(self):
+        for text in ("She is 30 years old.", "Tiene 30 años.", "30 urte ditu."):
+            self.assertIn("[AGE_ADULT]", self.safe(text), msg=text)
+
+    # --- Minors --------------------------------------------------------------
+    def test_minor_stays_a_minor_without_the_exact_age(self):
+        for text, tag in (("He is 17 years old.", "[AGE_ADOLESCENT]"),
+                          ("Tiene 17 años.", "[AGE_ADOLESCENT]"),
+                          ("17 urte ditu.", "[AGE_ADOLESCENT]"),
+                          ("A child aged 8.", "[AGE_CHILD]"),
+                          ("He is 18 years old.", "[AGE_YOUNG_ADULT]")):
+            safe = self.safe(text)
+            self.assertIn(tag, safe, msg=text)
+            self.assertNotIn("17", safe)
+
+    def test_age_groups_follow_the_documented_limits(self):
+        from services.anonymizer import age_band_tag
+        expected = {0: "INFANT", 2: "INFANT", 3: "CHILD", 12: "CHILD", 13: "ADOLESCENT",
+                    17: "ADOLESCENT", 18: "YOUNG_ADULT", 25: "YOUNG_ADULT", 26: "ADULT",
+                    64: "ADULT", 65: "OLDER_ADULT", 99: "OLDER_ADULT"}
+        for age, name in expected.items():
+            self.assertEqual(age_band_tag(age), f"[AGE_{name}]", msg=age)
+
+    def test_invalid_age_configuration_falls_back_to_safe_defaults(self):
+        from unittest.mock import patch
+        import config
+        from services import anonymizer
+        for bad in ("nonsense", "2,12,16,25,64", "1,2,3", "64,25,17,12,2"):
+            with patch.object(config, "AGE_BAND_LIMITS", bad):
+                self.assertEqual(anonymizer._load_age_limits(), anonymizer._DEFAULT_AGE_LIMITS, msg=bad)
+
+    # --- Dates of birth ------------------------------------------------------
+    def test_date_and_year_of_birth_are_removed(self):
+        for text, secret in (("Born on 12 March 1996.", "1996"),
+                             ("Born in 1996.", "1996"),
+                             ("Nació el 12 de marzo de 1996.", "1996"),
+                             ("Nació en 1996.", "1996"),
+                             ("1996an jaio zen.", "1996")):
+            safe = self.safe(text)
+            self.assertNotIn(secret, safe, msg=text)
+            self.assertIn("[DATE]", safe)
+
+    # --- Numbers that are NOT ages must stay ----------------------------------
+    def test_unrelated_numbers_are_kept(self):
+        text = ("Hace 3 años llegó; lleva 2 años en el piso. Tiene 3 hijos y paga 30 euros. "
+                "Con 3 años de experiencia. Duela 3 urte etorri zen. She has lived here "
+                "for 5 years. She has 2 children. The meeting lasted 45 minutes. "
+                "2 de cada 10 personas.")
+        safe = self.safe(text)
+        self.assertNotIn("[AGE_", safe)
+        for kept in ("Hace 3 años", "lleva 2 años", "3 hijos", "30 euros", "3 años de experiencia",
+                     "Duela 3 urte", "for 5 years", "2 children", "45 minutes", "2 de cada 10"):
+            self.assertIn(kept, safe)
+
+    # --- Capitals and idempotency ----------------------------------------------
+    def test_ages_in_capital_letters(self):
+        safe = self.safe("MIKEL TIENE 17 AÑOS.")
+        self.assertNotIn("17", safe)
+        self.assertNotIn("MIKEL", safe)
+        self.assertIn("[AGE_ADOLESCENT]", safe)
+
+    def test_age_protection_is_idempotent(self):
+        for text in ("Her actual age is 30 not 29.", "Tiene dos hijos de 5 y 7 años.",
+                     "30 urteko emakumea da.", "Born in 1996."):
+            once = self.safe(text)
+            self.assertEqual(self.safe(once), once, msg=text)
+
+    def test_mixed_language_text(self):
+        safe = self.safe(
+            "La usuaria Ane tiene 30 años; her son is 8 years old eta alabak 17 urte ditu. "
+            "Email ane@example.com, tel +34 612 345 678."
+        )
+        for secret in ("Ane", "30", " 8 ", "17", "ane@example.com", "612 345 678"):
+            self.assertNotIn(secret, safe)
 
 
 if __name__ == "__main__":

@@ -449,7 +449,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_anon_tags_help': 'Etiketak: [PERSON] = pertsona-izena · [LOCATION] = tokia · [ADDRESS] = '
                          'helbidea · [ORGANISATION] = zentroa edo erakundea · [ID] = NAN/AIZ, '
                          'espedientea, kontua edo beste identifikatzaile bat · [PHONE] = telefonoa '
-                         '· [EMAIL] = posta elektronikoa · [DATE] = data.',
+                         '· [EMAIL] = posta elektronikoa · [DATE] = data · [AGE_…] = adin '
+                         'zehatza, bizitzako etapa batekin ordezkatua (INFANT = haurtxoa, CHILD = '
+                         'haurra, ADOLESCENT = nerabe adingabea, YOUNG_ADULT = heldu gaztea, ADULT = '
+                         'heldua, OLDER_ADULT = adinekoa).',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
  'admin_tools_reset_index_header': 'Bilaketa-indizea berrezarri (Qdrant)',
  'admin_tools_reset_index_caption': 'Bilaketa semantikoaren indizea ezabatu eta hutsik berriz '
@@ -1522,8 +1525,11 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_need_material': 'Idatzi, itsatsi edo igo testu bat Hausnartu sakatu aurretik.',
  'rs_language_label': 'Hausnarketaren hizkuntza',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ AAri ezer bidali aurretik, izenak eta beste datu pertsonal batzuk '
-                    'automatikoki kentzen dira.',
+ 'rs_privacy_note': '🛡️ AAri ezer bidali aurretik, izenak, adin zehatzak eta beste datu '
+                    'pertsonal batzuk automatikoki kentzen dira.',
+ 'privacy_message_blocked': 'Ezin izan dugu zure mezua babestu, beraz ez da ezer bidali AAra. '
+                            'Saiatu berriro; arazoak jarraitzen badu, jakinarazi '
+                            'laguntza-taldeari.',
  'rs_reflect_button': 'Hausnartu',
  'rs_anonymised_status': 'Zure testua anonimizatu da.',
  'rs_preparing_status': 'Zure hausnarketa prestatzen...',

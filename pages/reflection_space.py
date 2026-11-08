@@ -343,6 +343,11 @@ with error_boundary(
                             st.session_state[f"convo_error_ref_{opportunity.trigger}"] = (
                                 result.get("issue_id"), result.get("error_id"),
                             )
+                            # Privacy gate stopped the message (nothing was
+                            # sent): say so plainly instead of a generic error.
+                            st.session_state[f"convo_error_privacy_{opportunity.trigger}"] = bool(
+                                result.get("privacy_blocked")
+                            )
 
                         # Flag the conversation input box to be cleared on
                         # the next run (right before it's re-instantiated
@@ -368,9 +373,15 @@ with error_boundary(
                 convo_issue_id, convo_error_id = st.session_state.pop(
                     f"convo_error_ref_{opportunity.trigger}", (None, None),
                 )
+                privacy_blocked = st.session_state.pop(
+                    f"convo_error_privacy_{opportunity.trigger}", False,
+                )
                 render_application_error_screen(
                     T, convo_issue_id, convo_error_id,
-                    friendly_message=T["workspace_conversation_error"],
+                    friendly_message=(
+                        T["privacy_message_blocked"] if privacy_blocked
+                        else T["workspace_conversation_error"]
+                    ),
                 )
 
 

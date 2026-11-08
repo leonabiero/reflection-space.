@@ -206,7 +206,10 @@ with error_boundary(
                             T,
                             result.get("issue_id"),
                             result.get("error_id"),
-                            friendly_message=T["ka_error"],
+                            friendly_message=(
+                                T["privacy_message_blocked"] if result.get("privacy_blocked")
+                                else T["ka_error"]
+                            ),
                         )
                     else:
                         st.session_state["ka_last_result"] = result

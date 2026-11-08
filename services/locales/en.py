@@ -439,7 +439,9 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_anon_tags_help': "Tags: [PERSON] = person's name · [LOCATION] = place · [ADDRESS] = "
                          'address · [ORGANISATION] = centre or organisation · [ID] = DNI/NIE, case '
                          'file, account or other identifier · [PHONE] = phone · [EMAIL] = email · '
-                         '[DATE] = date.',
+                         '[DATE] = date · [AGE_…] = exact age replaced by a life stage (INFANT = '
+                         'baby, CHILD = child, ADOLESCENT = teenager under 18, YOUNG_ADULT = young '
+                         'adult, ADULT = adult, OLDER_ADULT = older adult).',
  'admin_tools_anon_test_header': 'Anonymization Test',
  'admin_tools_reset_index_header': 'Reset Search Index (Qdrant)',
  'admin_tools_reset_index_caption': 'Deletes and rebuilds the semantic search index from scratch, '
@@ -1475,8 +1477,11 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_need_material': 'Please write, paste or upload some text before pressing Reflect.',
  'rs_language_label': 'Reflection language',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ Before anything is sent to the AI, names and other personal details are '
-                    'removed automatically.',
+ 'rs_privacy_note': '🛡️ Before anything is sent to the AI, names, exact ages and other personal '
+                    'details are removed automatically.',
+ 'privacy_message_blocked': "We couldn't protect your message, so nothing was sent to the AI. "
+                            'Please try again; if the problem continues, let the support team '
+                            'know.',
  'rs_reflect_button': 'Reflect',
  'rs_anonymised_status': 'Your text has been anonymised.',
  'rs_preparing_status': 'Preparing your reflection...',

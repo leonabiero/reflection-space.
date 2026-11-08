@@ -335,7 +335,54 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
     - The cache entry expires after a short idle window (currently ~5
       minutes). A conversation the practitioner returns to after a long
       pause will simply re-cache on its next turn rather than error.
+
+    November 2026 -- privacy gate for what the practitioner TYPES
+    -------------------------------------------------------------
+    The document (`safe_text`) was already anonymized, but the
+    practitioner's own messages in this conversation were sent to Claude
+    exactly as typed -- so a client's name or age written in the chat box
+    left the system. Every professional message (the new one and the
+    earlier ones in `conversation_history`) now goes through the same
+    anonymize() as the document before anything is sent. If anonymizing
+    fails for any reason, NOTHING is sent: the function returns an error
+    dict with "privacy_blocked": True (and a logged reference number) --
+    there is no fallback to the text as typed. The practitioner still sees
+    their own words on screen; only the AI receives the protected version.
     """
+    try:
+        safe_message = anonymize(professional_message or "")
+        safe_history = [
+            {
+                "role": turn.get("role"),
+                "content": (
+                    turn.get("content", "") if turn.get("role") == "ai"
+                    else anonymize(turn.get("content", "") or "")
+                ),
+            }
+            for turn in (conversation_history or [])
+        ]
+    except Exception as exc:
+        error_id, issue_id = log_error(
+            page="reflection_space (workspace conversation, anonymise)",
+            error_type="AnonymisationFailed",
+            message=(
+                f"Anonymisation raised {type(exc).__name__}. The message was "
+                "not sent to any AI provider."
+            ),
+            traceback_text=None,
+            traceback_unavailable_reason=(
+                "Deliberately not recorded: a traceback could contain parts "
+                "of the practitioner's message."
+            ),
+            context={"companion": companion.get("key")},
+            severity="error",
+        )
+        return {"error": "Anonymisation failed", "raw": "", "privacy_blocked": True,
+                "issue_id": issue_id, "error_id": error_id}
+    if not safe_message.strip():
+        return {"error": "Anonymisation failed", "raw": "", "privacy_blocked": True,
+                "issue_id": None, "error_id": None}
+
     system_prompt = build_companion_conversation_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
     full_system_prompt = system_prompt + "\n\n" + lang_instruction
@@ -382,11 +429,12 @@ Your original reflective question(s) were:
     # Everything after the cache breakpoint is genuinely new each turn,
     # so it's sent as plain (uncached) messages -- caching it wouldn't
     # help, since it never repeats identically.
-    for turn in conversation_history:
+    for turn in safe_history:
         role = "assistant" if turn.get("role") == "ai" else "user"
         messages.append({"role": role, "content": turn.get("content", "")})
 
-    messages.append({"role": "user", "content": professional_message})
+    # Only the ANONYMISED message is ever sent (see the docstring).
+    messages.append({"role": "user", "content": safe_message})
 
     # Duplicate-request protection (see this function's docstring and
     # services/request_dedup.py). Only active when a caller identifies
@@ -396,7 +444,7 @@ Your original reflective question(s) were:
     if requested_by:
         request_id = request_dedup.fingerprint(
             "companion_conversation", requested_by, companion.get("key"),
-            len(conversation_history), professional_message,
+            len(safe_history), safe_message,
         )
         claim_status = request_dedup.claim(
             request_id, "companion_conversation", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,

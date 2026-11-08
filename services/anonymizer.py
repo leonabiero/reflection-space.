@@ -334,6 +334,293 @@ def _replace_single_names(text: str, known_names: set) -> str:
     return pattern.sub(lambda m: found[m.group(0)], text)
 
 
+# ---------------------------------------------------------------------------
+# Exact ages (November 2026)
+# ---------------------------------------------------------------------------
+# An exact age is an identifier: together with a town, a service and a date
+# it can single one person out ("a 30-year-old woman who came to the centre
+# on Monday"). In the pilot, "her actual age is 30 not 29" reached the AI
+# untouched. Every exact age is now replaced by a life-stage tag
+# ([AGE_CHILD], [AGE_ADULT], ...; see config.AGE_BAND_LIMITS), in Spanish,
+# Basque and English, written in digits or in words, including corrections
+# ("30, not 29", "de 29 a 30") and years of birth ("born in 1996",
+# "nació en 1996", "1996an jaio zen" -> [DATE]).
+#
+# A number is only treated as an age when the words around it say so
+# ("years old", "tiene ... años", "urte ditu", "age", "edad", "adina",
+# "a woman of ..."). Durations and quantities -- "hace 3 años",
+# "lleva 2 años en el piso", "duela 3 urte", "2 hijos", "30 euros" -- are
+# left alone, because the reflection needs them.
+#
+# The minor / adult distinction is always kept exact (the adolescent group
+# always ends at 17), because it matters for safeguarding.
+
+_DEFAULT_AGE_LIMITS = (2, 12, 17, 25, 64)
+_AGE_BAND_NAMES = ("INFANT", "CHILD", "ADOLESCENT", "YOUNG_ADULT", "ADULT", "OLDER_ADULT")
+_MAX_PLAUSIBLE_AGE = 120
+
+
+def _load_age_limits():
+    """Age limits from config.AGE_BAND_LIMITS, or the defaults if that is
+    missing or invalid (never a reason to switch age protection off)."""
+    try:
+        from config import AGE_BAND_LIMITS
+        limits = tuple(int(p) for p in str(AGE_BAND_LIMITS).split(","))
+    except Exception:
+        return _DEFAULT_AGE_LIMITS
+    valid = (
+        len(limits) == 5
+        and all(a < b for a, b in zip(limits, limits[1:]))
+        and limits[0] >= 0
+        and limits[2] == 17
+        and limits[4] < _MAX_PLAUSIBLE_AGE
+    )
+    return limits if valid else _DEFAULT_AGE_LIMITS
+
+
+_AGE_LIMITS = _load_age_limits()
+
+
+def age_band_tag(years: float) -> str:
+    """The life-stage tag for an age in years, e.g. 30 -> "[AGE_ADULT]"."""
+    for limit, name in zip(_AGE_LIMITS, _AGE_BAND_NAMES):
+        if years < limit + 1:
+            return f"[AGE_{name}]"
+    return f"[AGE_{_AGE_BAND_NAMES[-1]}]"
+
+
+def _build_number_words():
+    words = {}
+    # English
+    units = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+             "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+             "sixteen", "seventeen", "eighteen", "nineteen"]
+    tens = {20: "twenty", 30: "thirty", 40: "forty", 50: "fifty", 60: "sixty",
+            70: "seventy", 80: "eighty", 90: "ninety"}
+    for n, w in enumerate(units):
+        words[w] = n
+    for t, w in tens.items():
+        words[w] = t
+        for u in range(1, 10):
+            words[f"{w}-{units[u]}"] = t + u
+            words[f"{w} {units[u]}"] = t + u
+    # Spanish
+    es = ["cero", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho",
+          "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis",
+          "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós",
+          "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete",
+          "veintiocho", "veintinueve"]
+    for n, w in enumerate(es):
+        words[w] = n
+    words.update({"uno": 1, "una": 1, "dieciseis": 16, "veintidos": 22,
+                  "veintitres": 23, "veintiseis": 26, "veintiún": 21, "veintiun": 21})
+    es_tens = {30: "treinta", 40: "cuarenta", 50: "cincuenta", 60: "sesenta",
+               70: "setenta", 80: "ochenta", 90: "noventa"}
+    for t, w in es_tens.items():
+        words[w] = t
+        for u in range(1, 10):
+            words[f"{w} y {es[u]}"] = t + u
+        words[f"{w} y uno"] = t + 1
+    # Basque (vigesimal: 20 hogei, 40 berrogei, 60 hirurogei, 80 laurogei)
+    eu = ["zero", "bat", "bi", "hiru", "lau", "bost", "sei", "zazpi", "zortzi",
+          "bederatzi", "hamar", "hamaika", "hamabi", "hamahiru", "hamalau", "hamabost",
+          "hamasei", "hamazazpi", "hemezortzi", "hemeretzi"]
+    for n, w in enumerate(eu):
+        words.setdefault(w, n)
+    for base, w in {20: "hogei", 40: "berrogei", 60: "hirurogei", 80: "laurogei"}.items():
+        words[w] = base
+        for u in range(1, 20):
+            words[f"{w}ta {eu[u]}"] = base + u
+    words.pop("zero", None)
+    words.pop("cero", None)
+    return words
+
+
+_NUMBER_WORDS = _build_number_words()
+_NUMBER_WORDS_RE = "|".join(
+    re.escape(w).replace(r"\ ", r"\s+").replace(r"\-", r"[\s\-]")
+    for w in sorted(_NUMBER_WORDS, key=len, reverse=True)
+)
+# One age as digits (1-3, optionally "30-year") or words.
+_NUM = rf"(?:(?<!\d)(?<!\d[.,:/])\d{{1,3}}(?![\d.,:/]?\d)|(?<![\w])(?:{_NUMBER_WORDS_RE})(?![\w]))"
+# Several ages at once: "5 y 7", "5, 7 and 9", "bost eta zazpi".
+_NUMLIST = rf"{_NUM}(?:\s*(?:,|\by\b|\be\b|\band\b|\bor\b|\bo\b|\beta\b|\bedo\b)\s*{_NUM})*"
+_NUM_FIND_RE = re.compile(_NUM, re.IGNORECASE)
+
+_YEARS_EN = r"(?:years?|yrs?)"
+_MONTHS_EN = r"(?:months?|weeks?)"
+_YEARS_ES = r"(?:años|año|añitos)"
+_MONTHS_ES = r"(?:meses|mes|semanas)"
+_YEARS_EU = r"(?:urte)"
+_MONTHS_EU = r"(?:hilabete|aste)"
+_UNIT = rf"(?:{_YEARS_EN}|{_MONTHS_EN}|{_YEARS_ES}|{_MONTHS_ES}|{_YEARS_EU}|{_MONTHS_EU})"
+
+# Not an age when a duration / quantity word follows a bare number.
+_NOT_AGE_AFTER = (
+    r"(?!\s*(?:%|€|\$|euros?|percent|por\s+ciento|minutes?|minutos?|hours?|horas?|"
+    r"days?|días?|dias?|times|veces|people|personas|pm|am|h\b|:\d))"
+)
+
+_PERSON_NOUNS_ES = (
+    r"(?:mujer|hombre|chic[oa]|niñ[oa]|joven|menor|usuari[oa]|persona|señor[a]?|"
+    r"hij[oa]|beb[ée]|adolescente|madre|padre|herman[oa]|chaval[a]?|muchach[oa]|"
+    r"ancian[oa]|abuel[oa]|niet[oa]|pareja|marido|espos[oa]|varón|cliente|"
+    r"chiquill[oa]|criatura|pequeñ[oa]|mayor|tí[oa]|prim[oa]|sobrin[oa]|vecin[oa])e?s?"
+)
+_PERSON_NOUNS_EN = (
+    r"(?:woman|women|man|men|girl|boy|child|children|kid|baby|infant|teenager|teen|"
+    r"person|client|mother|father|son|daughter|brother|sister|adult|minor|youth|"
+    r"partner|husband|wife|grandmother|grandfather|toddler|student|pupil|resident)s?"
+)
+
+# Each pattern marks the part to replace as the named group "age".
+_AGE_PATTERNS = [
+    # --- English -----------------------------------------------------------
+    # "30 years old", "30-year-old", "6 months old", "thirty years of age"
+    rf"(?P<age>{_NUMLIST}[\s\-]*(?:{_YEARS_EN}|{_MONTHS_EN})[\s\-]*(?:old|of\s+age)\b)",
+    # "30 y/o", "30yo"
+    rf"(?P<age>{_NUM}\s*(?:y/o|y\.o\.|yo)\b)",
+    # "age 30", "aged 30", "age: 30", "her actual age is 30", "age of 30"
+    rf"\bage[ds]?\b(?:\s*(?:is|was|of|now|actually|really|about|around|approximately|"
+    rf"approx\.?|:|=|-|–)\s*)*\s*(?P<age>{_NUMLIST}(?:\s*{_YEARS_EN})?)\b{_NOT_AGE_AFTER}",
+    # "turned 30", "turns eighteen", "will be 18"
+    rf"\b(?:turned|turns|turning|will\s+be|is\s+now|was\s+then)\s+(?P<age>{_NUM})\b"
+    rf"{_NOT_AGE_AFTER}(?!\s*(?:{_YEARS_EN}|{_MONTHS_EN})?\s*(?:later|ago|before|after)\b)",
+    # "she is 30, not 29", "he's 17.", "who is 67 and"
+    rf"\b(?:she|he|they|who|i)(?:'s|’s|\s+is|\s+was|\s+am|\s+are)\s+(?:only\s+|just\s+|now\s+|actually\s+)?"
+    rf"(?P<age>{_NUM})(?=\s*(?:[,.;!?)]|$|\s+(?:not|and|but|now|or|this|so)\b))",
+    # "a woman of 30", "children of 5 and 7"
+    rf"\b{_PERSON_NOUNS_EN}\s+(?:aged\s+|of\s+)(?P<age>{_NUMLIST}(?:\s*{_YEARS_EN})?)\b{_NOT_AGE_AFTER}",
+    # --- Spanish -----------------------------------------------------------
+    # "tiene 30 años", "cumplió 18 años", "con 17 años", "tiene 8 meses"
+    rf"\b(?:tiene|tenía|tenia|tendrá|tendra|tienen|tenían|cumple|cumplió|cumplio|cumplirá|"
+    rf"cumplira|cumplen|ha\s+cumplido|había\s+cumplido|habia\s+cumplido|con|a\s+los)\s+"
+    rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b"
+    # ... but not a duration: "con 3 años de experiencia", "tiene 2 años
+    # trabajando", "a los 3 meses de llegar" ("de edad" is still an age).
+    rf"(?!\s+(?:de\s+(?!edad\b)\w|trabajando|viviendo|en\s+(?:el|la|este|esta|su)\b))",
+    # "tiene 30, no 29", "cumple 18."
+    rf"\b(?:tiene|tenía|tenia|cumple|cumplió|cumplio|cumplirá)\s+(?P<age>{_NUM})"
+    rf"(?=\s*(?:[,.;!?)]|$|\s+(?:y\s+)?no\b))",
+    # "30 años de edad"
+    rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES})\s+de\s+edad)\b",
+    # "una mujer de 30 años", "hijos de 5 y 7 años", "menor de 17 años"
+    rf"\b{_PERSON_NOUNS_ES}\s*,?\s+de\s+(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b",
+    # "edad: 30", "su edad real es 30", "edad de 30 años", "edad, 30"
+    rf"\bedad(?:es)?\b(?:\s*(?:real|actual|verdadera|correcta|es|era|sería|seria|de|"
+    rf"aproximada|aprox\.?|unos|unas|:|=|-|–|,)\s*)*\s*(?P<age>{_NUM}(?:\s+{_YEARS_ES})?)\b{_NOT_AGE_AFTER}",
+    # "su edad pasó de 29 a 30", "age changed from 29 to 30" (the second
+    # number is caught by the correction rule below)
+    rf"\b(?:age[ds]?|edad(?:es)?|adin(?:a|ak)?)\b[^.\n;]{{0,30}}?\b(?:from|de)\s+"
+    rf"(?P<age>{_NUM})(?=\s+(?:to|a)\s+{_NUM})",
+    # --- Basque ------------------------------------------------------------
+    # "30 urte ditu", "17 urte zituen", "18 urte bete ditu", "8 hilabete ditu"
+    rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_EU}|{_MONTHS_EU}))\s+(?=(?:ditu|dauzka|zituen|"
+    rf"zeuzkan|dituela|zituela|dituen|zituen|dituzte|zituzten|izango\s+ditu|bete\b|"
+    rf"beteko\b|betetzen\b|betetakoan\b|bete\s+berri\b))",
+    # "30 urteko emakumea", "17 urterekin", "6 hilabeteko haurra"
+    rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_EU}|{_MONTHS_EU})(?:ko|rekin|tan)\b)",
+    # "adina: 30", "benetako adina 30 da", "adinez 30"
+    rf"\badin(?:a|ak|aren|ez|eko)?\b(?:\s*(?:erreala|benetakoa|zuzena|da|zen|:|=|-|–|,)\s*)*\s*"
+    rf"(?P<age>{_NUM}(?:\s+{_YEARS_EU})?)\b{_NOT_AGE_AFTER}",
+]
+_AGE_RES = [re.compile(p, re.IGNORECASE) for p in _AGE_PATTERNS]
+
+_AGE_TAG_RE = r"\[AGE_[A-Z_]+\]"
+# A second number joined to an age by a correction or a list:
+# "[AGE_ADULT] not 29", "[AGE_ADULT], no 29 años", "ez 29", "from 29 to [AGE_ADULT]".
+_AGE_LINK = (
+    r"(?:not|no|ez|nor|ni|or|o|edo|to|a|instead\s+of|rather\s+than|en\s+vez\s+de|"
+    r"en\s+lugar\s+de|y\s+no|and\s+not|eta\s+ez|but|pero|baina|ordez|then|now|ahora|"
+    r"orain|luego|from|de|tik)"
+)
+_AGE_FORWARD_RE = re.compile(
+    rf"(?P<tag>{_AGE_TAG_RE})(?P<link>(?:\s+(?:da|zen|is|was|es|era|años|urte))?\s*[,;]?\s*{_AGE_LINK}\s+)"
+    rf"(?P<age>{_NUM}(?:\s*{_UNIT}(?:\s+old)?)?)\b{_NOT_AGE_AFTER}",
+    re.IGNORECASE,
+)
+_AGE_BACKWARD_RE = re.compile(
+    rf"(?<![\w\[])(?P<age>{_NUM}(?:\s*{_UNIT})?)(?P<link>\s*[,;]?\s*{_AGE_LINK}\s+)(?=(?P<tag>{_AGE_TAG_RE}))",
+    re.IGNORECASE,
+)
+
+_YEAR = r"(?:19|20)\d{2}"
+_BIRTH_YEAR_RES = [
+    re.compile(p, re.IGNORECASE) for p in (
+        rf"\bborn\s+(?:in\s+)?(?:the\s+year\s+)?(?P<age>{_YEAR})\b",
+        rf"\b(?:year\s+of\s+birth|birth\s+year|DOB|d\.o\.b\.?)\s*[:\-]?\s*(?:is\s+)?(?P<age>{_YEAR})\b",
+        rf"\b(?:nacid[oa]s?|naci[óo]|nace)\s+(?:en\s+)?(?:el\s+(?:año\s+)?)?(?P<age>{_YEAR})\b",
+        rf"\baño\s+de\s+nacimiento\s*[:\-]?\s*(?:es\s+)?(?:el\s+)?(?P<age>{_YEAR})\b",
+        rf"\b(?P<age>{_YEAR})(?:-?an|-?ean)?\s+jaio(?:a|tako|takoa|zen|ziren|nintzen)?\b",
+        rf"\bjaio(?:a|tako|takoa|zen|ziren|nintzen)?\s+(?P<age>{_YEAR})(?:an|ean)?\b",
+        rf"\bjaiotze[\s\-]*(?:urtea|data)\s*[:\-]?\s*(?P<age>{_YEAR})(?:\s*(?:da|zen))?\b",
+    )
+]
+
+
+def _lookup_number_word(token: str):
+    token = re.sub(r"\s+", " ", token.strip().lower())
+    for candidate in (token, token.replace(" ", "-"), token.replace("-", " ")):
+        if candidate in _NUMBER_WORDS:
+            return _NUMBER_WORDS[candidate]
+    return None
+
+
+def _age_span_to_tags(span: str):
+    """Replace every number in an age phrase with its life-stage tag and
+    drop the unit words. Returns None if a number is not a plausible age."""
+    in_months = bool(re.search(rf"\b(?:{_MONTHS_EN}|{_MONTHS_ES}|{_MONTHS_EU})", span, re.IGNORECASE))
+    in_weeks = bool(re.search(r"\b(?:weeks?|semanas|aste)", span, re.IGNORECASE))
+    pieces = []
+    last = 0
+    numbers = list(_NUM_FIND_RE.finditer(span))
+    if not numbers:
+        return None
+    for m in numbers:
+        raw = m.group(0)
+        value = int(raw) if raw.isdigit() else _lookup_number_word(raw)
+        if value is None or value > _MAX_PLAUSIBLE_AGE:
+            return None
+        years = value / 52 if in_weeks else value / 12 if in_months else value
+        pieces.append(span[last:m.start()])
+        pieces.append(age_band_tag(years))
+        last = m.end()
+    # Text after the last number is the unit ("años", "-year-old", "urteko"):
+    # dropped, since the tag already says it is an age.
+    return "".join(pieces)
+
+
+def _replace_age_group(match):
+    start, end = match.span("age")
+    tags = _age_span_to_tags(match.group("age"))
+    if tags is None:
+        return match.group(0)
+    whole_start = match.start()
+    text = match.group(0)
+    return text[: start - whole_start] + tags + text[end - whole_start:]
+
+
+def _generalise_ages(text: str) -> str:
+    """Replace exact ages with life-stage tags (see the section comment)."""
+    for regex in _BIRTH_YEAR_RES:
+        text = regex.sub(
+            lambda m: m.group(0)[: m.start("age") - m.start()] + "[DATE]"
+            + m.group(0)[m.end("age") - m.start():],
+            text,
+        )
+    for regex in _AGE_RES:
+        text = regex.sub(_replace_age_group, text)
+    # Corrections and lists linked to an age that was just replaced. A few
+    # rounds, so "29 to 30 or 31" is fully covered.
+    for _ in range(4):
+        before = text
+        text = _AGE_FORWARD_RE.sub(_replace_age_group, text)
+        text = _AGE_BACKWARD_RE.sub(_replace_age_group, text)
+        if text == before:
+            break
+    return text
+
+
 def anonymize(text: str) -> str:
     """Return a privacy-hardened representation suitable for external AI.
 
@@ -348,7 +635,7 @@ def anonymize(text: str) -> str:
 
 
 def _anonymize_core(text: str) -> str:
-    """The original rule set (unchanged)."""
+    """The rule set: the original rules plus (November 2026) exact ages."""
     if not text:
         return text
 
@@ -358,6 +645,7 @@ def _anonymize_core(text: str) -> str:
     safe = _EMAIL_RE.sub("[EMAIL]", safe)
     safe = _IBAN_RE.sub("[ID]", safe)
     safe = _DATE_RE.sub("[DATE]", safe)
+    safe = _generalise_ages(safe)
     safe = _IDENTIFIER_RE.sub("[ID]", safe)
     safe = _DNI_NIE_RE.sub("[ID]", safe)
     safe = _PHONE_RE.sub("[PHONE]", safe)

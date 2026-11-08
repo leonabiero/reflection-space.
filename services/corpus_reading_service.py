@@ -18,6 +18,13 @@ What it is -- and is not
   something happens.
 - The text sent is the stored (already name-scrubbed) text, so every
   verified quote is an exact piece of what is stored.
+- November 2026: the stored text is passed through anonymize() once more
+  right before it is sent. Texts added before age protection existed may
+  still hold exact ages; this removes them. For text that is already
+  protected this changes nothing (anonymize() is idempotent). If it fails,
+  the job stops before ANY text is sent. (For an older text that did hold
+  an exact age, quotes are taken from the protected version -- which is
+  exactly what the AI saw.)
 
 Bounds: one reading job at a time; at most BATCH_SIZE texts per click so a
 click never runs for many minutes; each text is saved as soon as its eight
@@ -37,6 +44,7 @@ from config import ANTHROPIC_API_KEY
 from rdi.companions import COMPANIONS
 from rdi.companions.prompt_builder import SHARED_FRAME, SELF_CHECK
 from services import corpus_store, reflection_service
+from services.anonymizer import anonymize
 from services.corpus_store import READING_LENSES
 from services.db_time import get_logger
 from services.evidence import verify_quotes
@@ -222,8 +230,11 @@ def read_texts(role, actor, corpus_id, lang, include_questions=True,
     try:
         results = {d["id"]: [] for d in documents}
         by_id = {d["id"]: d for d in documents}
+        # Privacy gate: protect every text BEFORE the first AI call, so a
+        # failure here stops the whole job with nothing sent.
+        safe_content = {d["id"]: anonymize(d["content"] or "") for d in documents}
         with ThreadPoolExecutor(max_workers=READ_WORKERS) as pool:
-            futures = {pool.submit(read_lens, comp, d["content"], lang, include_questions): d["id"]
+            futures = {pool.submit(read_lens, comp, safe_content[d["id"]], lang, include_questions): d["id"]
                        for d in documents for comp in companions}
             for future in as_completed(futures):
                 document_id = futures[future]

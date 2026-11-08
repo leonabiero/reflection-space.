@@ -47,7 +47,10 @@ goes to the RDI ("Reflective Decision Intelligence") layer in `rdi/`, which
 uses Claude to generate reflective prompts (never directive advice) in the
 language the worker chose → only the **reflection** is saved to Postgres,
 with a neutral, automatically created code; the case text is discarded when
-the worker finishes. Qdrant/Gemini indexing remains in the code for documents stored
+the worker finishes. Messages typed into follow-up conversations and
+Knowledge Assistant questions go through the same anonymisation before they
+reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
+are replaced by life stages (see `REFLECTIONS.md`). Qdrant/Gemini indexing remains in the code for documents stored
 before October 2026 (see `REFLECTIONS.md`).
 
 ## Where things live

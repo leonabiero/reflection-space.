@@ -470,3 +470,24 @@ SAVE_ANONYMISED_TEXT = os.getenv("SAVE_ANONYMISED_TEXT", "true").strip().lower()
     "0", "false", "no", "off",
 )
 ANONYMISED_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ANONYMISED_TEXT_RETENTION_MONTHS", "12")))
+
+# ---------------------------------------------------------------------
+# Age protection in the anonymizer (November 2026)
+# ---------------------------------------------------------------------
+# Exact ages ("30 años", "17 urte ditu", "a 24-year-old woman", "her age
+# is 30, not 29") are never sent to an AI provider. services/anonymizer.py
+# replaces each one with a life-stage tag:
+#
+#   [AGE_INFANT]       0 .. first limit          (default 0-2)
+#   [AGE_CHILD]        .. second limit           (default 3-12)
+#   [AGE_ADOLESCENT]   .. third limit, always 17 (13-17, a minor)
+#   [AGE_YOUNG_ADULT]  .. fourth limit           (default 18-25)
+#   [AGE_ADULT]        .. fifth limit            (default 26-64)
+#   [AGE_OLDER_ADULT]  above the fifth limit     (default 65+)
+#
+# AGE_BAND_LIMITS is the highest age (in whole years) of each of the first
+# five groups, separated by commas. The third value MUST stay 17, so the
+# difference between a minor and an adult -- which matters for
+# safeguarding -- is always exact. If the value is missing or invalid the
+# defaults below are used, so a typo can never switch age protection off.
+AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")

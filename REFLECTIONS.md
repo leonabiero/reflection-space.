@@ -42,6 +42,32 @@ reflection.**
   may be hidden as if it were a surname ("UNAI ESTABAN"), place names without
   a cue ("…, BILBAO.") are kept, and names written all in lower case
   ("john") are still not recognised.
+- **Exact ages are protected (November 2026).** "her actual age is 30 not 29",
+  "tiene 30 años, no 29", "17 urte ditu", "a 24-year-old woman", ages written
+  in words ("treinta y cinco", "hogeita hamar") and years of birth ("born in
+  1996", "nació en 1996", "1996an jaio zen") used to reach the AI unchanged.
+  Each age is now replaced by a life-stage tag — `[AGE_INFANT]`,
+  `[AGE_CHILD]`, `[AGE_ADOLESCENT]`, `[AGE_YOUNG_ADULT]`, `[AGE_ADULT]`,
+  `[AGE_OLDER_ADULT]` — and a year of birth by `[DATE]`. The groups are set in
+  `config.AGE_BAND_LIMITS` (default 0-2, 3-12, 13-17, 18-25, 26-64, 65+); the
+  adolescent group always ends at 17, so minor versus adult — which matters for
+  safeguarding — is always exact. A number only counts as an age when the words
+  around it say so; durations and quantities ("hace 3 años", "lleva 2 años en
+  el piso", "duela 3 urte", "2 hijos", "30 euros") are kept. Known limits: a
+  bare number with no age wording ("she was 30 then") may be kept, and the
+  sentence is not rewritten ("age is [AGE_ADULT] not [AGE_ADULT]").
+- **What the practitioner types in a follow-up conversation is protected too
+  (November 2026).** Previously only the document was anonymised; the
+  messages typed into a companion conversation went to Claude as written. Each
+  message now goes through the same `anonymize()` first
+  (`services/reflection_service.continue_companion_conversation`). If that
+  fails, nothing is sent and the practitioner sees a plain message. They still
+  see their own words on screen; only the AI receives the protected version.
+  The same protection now covers the question typed into the **Knowledge
+  Assistant** (`services/knowledge_assistant.ask`), and stored document-analysis
+  texts are re-checked just before they are read
+  (`services/corpus_reading_service.read_texts`), so texts saved before age
+  protection existed do not send exact ages.
 
 **What stopped as a consequence (agreed with the product owner):**
 

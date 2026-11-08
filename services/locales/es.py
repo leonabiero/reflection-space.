@@ -449,7 +449,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_anon_tags_help': 'Etiquetas: [PERSON] = nombre de persona · [LOCATION] = lugar · [ADDRESS] '
                          '= dirección · [ORGANISATION] = centro u organización · [ID] = DNI/NIE, '
                          'expediente, cuenta u otro identificador · [PHONE] = teléfono · [EMAIL] = '
-                         'correo · [DATE] = fecha.',
+                         'correo · [DATE] = fecha · [AGE_…] = edad exacta sustituida por una '
+                         'etapa de la vida (INFANT = bebé, CHILD = niño/a, ADOLESCENT = adolescente '
+                         'menor de edad, YOUNG_ADULT = adulto/a joven, ADULT = adulto/a, OLDER_ADULT = '
+                         'persona mayor).',
  'admin_tools_anon_test_header': 'Prueba de anonimización',
  'admin_tools_reset_index_header': 'Reiniciar el índice de búsqueda (Qdrant)',
  'admin_tools_reset_index_caption': 'Elimina y vuelve a crear el índice de búsqueda semántica '
@@ -1517,8 +1520,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_need_material': 'Escribe, pega o sube un texto antes de pulsar Reflexionar.',
  'rs_language_label': 'Idioma de la reflexión',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ Antes de enviar nada a la IA, se quitan automáticamente los nombres y '
-                    'otros datos personales.',
+ 'rs_privacy_note': '🛡️ Antes de enviar nada a la IA, se quitan automáticamente los nombres, '
+                    'las edades exactas y otros datos personales.',
+ 'privacy_message_blocked': 'No hemos podido proteger tu mensaje, así que no se ha enviado nada a '
+                            'la IA. Inténtalo de nuevo; si el problema continúa, avisa al equipo '
+                            'de soporte.',
  'rs_reflect_button': 'Reflexionar',
  'rs_anonymised_status': 'Tu texto ha sido anonimizado.',
  'rs_preparing_status': 'Preparando tu reflexión...',
