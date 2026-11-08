@@ -382,5 +382,26 @@ class AnonymizerAgeProtectionTests(unittest.TestCase):
             self.assertNotIn(secret, safe)
 
 
+class AnonymizerSyntheticCaseRegressionTests(unittest.TestCase):
+    """Found by testing a synthetic English case (November 2026)."""
+
+    def test_age_straight_after_a_name_is_protected(self):
+        for text in ("Her ex-partner, John Hughes, is 41 and still contacts her.",
+                     "Juan Pérez, de 41 años, acudió al servicio."):
+            safe = anonymize(text)
+            self.assertNotIn("41", safe, msg=safe)
+            self.assertIn("[AGE_ADULT]", safe)
+
+    def test_address_does_not_swallow_the_household_details_after_it(self):
+        safe = anonymize("She lives at 14 River Road with her two children: her son Daniel, aged 9.")
+        self.assertNotIn("14 River Road", safe)
+        self.assertNotIn("Daniel", safe)
+        self.assertIn("with her two children", safe)
+        self.assertIn("[AGE_CHILD]", safe)
+        safe = anonymize("Su domicilio es Calle Mayor 5 con su madre.")
+        self.assertNotIn("Mayor 5", safe)
+        self.assertIn("con su madre", safe)
+
+
 if __name__ == "__main__":
     unittest.main()

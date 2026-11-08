@@ -173,6 +173,13 @@ _PERSON_CUES_ES_EU = (
     r"ama|aita|semea|alaba|anaia|arreba|ahizpa|neba|amona|aitona|izena|izeneko)"
 )
 
+# The text of an address after its cue: up to punctuation, or up to a word
+# that starts a new piece of information.
+_ADDRESS_STOP_EN = r"(?:with|and|since|where|together|alone|for|but|who|which|because|until|while|when)"
+_ADDRESS_STOP_ES_EU = r"(?:con|y|desde|donde|junto|sol[oa]|para|pero|que|porque|hasta|cuando|eta|bere|baina|non)"
+_ADDRESS_BODY_EN = r"(?:(?!\s+%s\b)[^\n,.;!?:])+" % _ADDRESS_STOP_EN
+_ADDRESS_BODY_ES_EU = r"(?:(?!\s+%s\b)[^\n,.;!?:])+" % _ADDRESS_STOP_ES_EU
+
 _CONTEXTUAL_IDENTIFIER_PATTERNS = [
     # Person labels / introductions.
     (re.compile(r"\b(?:client|patient|child|mother|father|guardian|caregiver|named|name(?:d)?\s+as)\s*[:\-]?\s+(%s(?:\s+%s){0,3})\b" % (_NAME_TOKEN, _NAME_TOKEN)), "[PERSON]"),
@@ -192,13 +199,16 @@ _CONTEXTUAL_IDENTIFIER_PATTERNS = [
     # "natural de Getxo", "empadronada en Basauri").
     (re.compile(r"\b(?i:vive|viven|reside|residen|residente|vecin[oa]|natural|procedente|empadronad[oa]s?|nacid[oa])\s+(?i:en|de)\s+(%s(?:\s+%s){0,3})\b" % (_NAME_TOKEN, _NAME_TOKEN)), "[LOCATION]"),
     # Explicit address labels and natural-language residence/address phrases.
-    (re.compile(r"\b(?:home\s+address|postal\s+address|physical\s+address|address)\s*[:\-]?\s+[^\n,.;!?]+", re.IGNORECASE), "[ADDRESS]"),
-    (re.compile(r"\b(?:lives?|resides?)\s+at\s+[^\n,.;!?]+", re.IGNORECASE), "[ADDRESS]"),
+    # (November 2026) The address ends where a new piece of information
+    # starts ("lives at 14 River Road with her two children"), so the
+    # household details after it are no longer swallowed with it.
+    (re.compile(r"\b(?:home\s+address|postal\s+address|physical\s+address|address)\s*[:\-]?\s+%s" % _ADDRESS_BODY_EN, re.IGNORECASE), "[ADDRESS]"),
+    (re.compile(r"\b(?:lives?|resides?)\s+at\s+%s" % _ADDRESS_BODY_EN, re.IGNORECASE), "[ADDRESS]"),
     # Spanish / Basque street addresses. The street word must be followed by
     # a capitalised name or a number, so "duerme en la calle" (homelessness)
     # is left alone.
     (re.compile(r"(?:\b(?i:calle|avenida|avda|plaza|paseo|pasaje|camino|carretera|barrio|travesía|ronda|kalea|etorbidea|plaza|pasealekua|auzoa)\.?|(?<!\w)(?i:c/|av\.|pza\.))\s*(?:(?i:de|del|de\s+la|de\s+los)\s+)?(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª]*)(?:\s+(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª\-]*|(?i:de|del|la|los|las|n[º°o]\.?|s/n|bis))(?=\s|$|[,.;:!?)]))*"), "[ADDRESS]"),
-    (re.compile(r"\b(?:domicilio|dirección|direccion|helbidea)\s*(?::|\s+(?:en|es|:))\s*[^\n,.;!?]+", re.IGNORECASE), "[ADDRESS]"),
+    (re.compile(r"\b(?:domicilio|dirección|direccion|helbidea)\s*(?::|\s+(?:en|es|:))\s*%s" % _ADDRESS_BODY_ES_EU, re.IGNORECASE), "[ADDRESS]"),
 ]
 
 # The complete identifier label must end at a word boundary. In particular,
@@ -487,7 +497,8 @@ _AGE_PATTERNS = [
     rf"\b(?:turned|turns|turning|will\s+be|is\s+now|was\s+then)\s+(?P<age>{_NUM})\b"
     rf"{_NOT_AGE_AFTER}(?!\s*(?:{_YEARS_EN}|{_MONTHS_EN})?\s*(?:later|ago|before|after)\b)",
     # "she is 30, not 29", "he's 17.", "who is 67 and"
-    rf"\b(?:she|he|they|who|i)(?:'s|’s|\s+is|\s+was|\s+am|\s+are)\s+(?:only\s+|just\s+|now\s+|actually\s+)?"
+    # (also after a name already replaced: "[PERSON], is 41", "[PERSON] was 67")
+    rf"(?:\b(?:she|he|they|who|i)|\[PERSON\]\s*,?)(?:'s|’s|\s+is|\s+was|\s+am|\s+are)\s+(?:only\s+|just\s+|now\s+|actually\s+)?"
     rf"(?P<age>{_NUM})(?=\s*(?:[,.;!?)]|$|\s+(?:not|and|but|now|or|this|so)\b))",
     # "a woman of 30", "children of 5 and 7"
     rf"\b{_PERSON_NOUNS_EN}\s+(?:aged\s+|of\s+)(?P<age>{_NUMLIST}(?:\s*{_YEARS_EN})?)\b{_NOT_AGE_AFTER}",
@@ -505,7 +516,7 @@ _AGE_PATTERNS = [
     # "30 años de edad"
     rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES})\s+de\s+edad)\b",
     # "una mujer de 30 años", "hijos de 5 y 7 años", "menor de 17 años"
-    rf"\b{_PERSON_NOUNS_ES}\s*,?\s+de\s+(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b",
+    rf"(?:\b{_PERSON_NOUNS_ES}|\[PERSON\])\s*,?\s+de\s+(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b",
     # "edad: 30", "su edad real es 30", "edad de 30 años", "edad, 30"
     rf"\bedad(?:es)?\b(?:\s*(?:real|actual|verdadera|correcta|es|era|sería|seria|de|"
     rf"aproximada|aprox\.?|unos|unas|:|=|-|–|,)\s*)*\s*(?P<age>{_NUM}(?:\s+{_YEARS_ES})?)\b{_NOT_AGE_AFTER}",
@@ -679,7 +690,10 @@ def _anonymize_core(text: str) -> str:
     )
 
     safe = _replace_proper_names(safe, known_names)
-    return _replace_single_names(safe, known_names)
+    safe = _replace_single_names(safe, known_names)
+    # Ages again, now that names are tags: "John Hughes, is 41" only
+    # looks like an age once the name has become "[PERSON], is 41".
+    return _generalise_ages(safe)
 
 
 # ---------------------------------------------------------------------------
