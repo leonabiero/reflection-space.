@@ -18,7 +18,7 @@ import re
 import streamlit as st
 
 from services.findings_store import (
-    upsert_feedback, FEEDBACK_LABELS, MAX_NOTE_CHARS, MAX_ALTERNATIVE_CHARS,
+    upsert_feedback, protect_note_text, FEEDBACK_LABELS, MAX_NOTE_CHARS, MAX_ALTERNATIVE_CHARS,
 )
 
 
@@ -86,6 +86,11 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
         saved_label = ""
 
     st.caption(T["findings_notes_privacy"])
+    # After a save the two text boxes are drawn as NEW boxes (new key), so
+    # they show what was really stored -- the anonymised text -- rather
+    # than what was typed.
+    version_key = f"{key_prefix}_notes_version_{finding_id}"
+    version = st.session_state.get(version_key, 0)
     with st.form(key=f"{key_prefix}_form_{finding_id}"):
         label = st.radio(
             T["findings_label_prompt"],
@@ -104,13 +109,13 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
             T["findings_alternative_label"],
             value=saved.get("alternative_explanation", ""),
             max_chars=MAX_ALTERNATIVE_CHARS,
-            key=f"{key_prefix}_alt_{finding_id}",
+            key=f"{key_prefix}_alt_{finding_id}_v{version}",
         )
         note = st.text_area(
             T["findings_note_label"],
             value=saved.get("note", ""),
             max_chars=MAX_NOTE_CHARS,
-            key=f"{key_prefix}_note_{finding_id}",
+            key=f"{key_prefix}_note_{finding_id}_v{version}",
         )
         # Stage 2: sharing is the author's explicit, per-observation
         # choice. Off unless they tick it; unticking withdraws it at once.
@@ -141,10 +146,13 @@ def render_notes_form(T, finding_id, user_name, saved, key_prefix):
         return None
 
     st.success(T["findings_save_success"])
+    # Show what was really stored (the anonymised version, see
+    # findings_store.protect_note_text) in fresh boxes on the next run.
+    st.session_state[version_key] = version + 1
     return {
         "label": label or None,
-        "note": (note or "").strip(),
-        "alternative_explanation": (alternative or "").strip(),
+        "note": protect_note_text(note, MAX_NOTE_CHARS),
+        "alternative_explanation": protect_note_text(alternative, MAX_ALTERNATIVE_CHARS),
         "flagged_misread": bool(misread),
         "shared_with_team": bool(share),
     }

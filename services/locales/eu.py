@@ -955,7 +955,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus '
                            'ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da '
                            'inoiz aldatzen. «Partekatu» markatzen baduzu bakarrik partekatzen dira '
-                           'behaketa eta bere aipua (inoiz ez zure izena edo oharrak).',
+                           'behaketa eta bere aipua (inoiz ez zure izena edo oharrak). Gordetzean, izenak, '
+                           'adin zehatzak eta beste datu pertsonal batzuk kentzen dira zure oharretatik.',
  'patterns_title': '🔎 Patroien berrikuspena',
  'patterns_no_access': 'Orri hau gainbegiratzerako eta programaren kudeaketarako bakarrik da.',
  'patterns_intro': 'Orri honek partekatutako behaketetan errepikatzen diren gaiak bilatzen '

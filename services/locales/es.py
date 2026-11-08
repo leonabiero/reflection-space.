@@ -954,7 +954,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se '
                            'guardan aparte de lo que dijo la IA, que nunca se modifica. Solo si '
                            'marcas «Compartir» se comparte la observación y su cita (nunca tu '
-                           'nombre ni tus notas).',
+                           'nombre ni tus notas). Al guardar, se quitan de tus notas los nombres, las edades '
+                           'exactas y otros datos personales.',
  'patterns_title': '🔎 Revisión de patrones',
  'patterns_no_access': 'Esta página es solo para supervisión y coordinación del programa.',
  'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones '

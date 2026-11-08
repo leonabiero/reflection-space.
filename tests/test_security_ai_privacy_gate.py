@@ -202,6 +202,48 @@ class CorpusReadingPrivacyTests(unittest.TestCase):
         self.assertEqual(finish.call_args.args[1], "failed")
 
 
+class SavedNotesPrivacyTests(unittest.TestCase):
+    """November 2026: a professional's own notes on an observation are
+    anonymised before they are stored (they never go to the AI, but they
+    are kept in the database)."""
+
+    def test_note_text_is_anonymised(self):
+        from services.findings_store import protect_note_text
+        stored = protect_note_text("  Sarah Mitchell is 34; call +34 612 345 678.  ", 4000)
+        for secret in ("Sarah", "Mitchell", "34", "612 345 678"):
+            self.assertNotIn(secret, stored)
+        self.assertIn("[PERSON]", stored)
+        self.assertEqual(protect_note_text("", 4000), "")
+        self.assertEqual(protect_note_text(None, 4000), "")
+
+    def test_only_protected_text_reaches_the_database(self):
+        from services import findings_store as fs
+
+        cursor = MagicMock()
+        cursor.fetchone.return_value = ("anneh",)
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cursor
+        with patch.object(fs, "_get_conn", return_value=conn):
+            ok = fs.upsert_feedback(
+                1, "anneh", label=None,
+                note="Sarah Mitchell is 34 years old.",
+                alternative_explanation="Her ex-partner John Hughes calls her.",
+            )
+        self.assertTrue(ok)
+        written = repr(cursor.execute.call_args_list)
+        for secret in ("Sarah", "Mitchell", "34", "John", "Hughes"):
+            self.assertNotIn(secret, written)
+
+    def test_anonymiser_failure_saves_nothing(self):
+        from services import findings_store as fs
+
+        with patch.object(fs, "anonymize", side_effect=RuntimeError("boom")), \
+                patch.object(fs, "_get_conn") as get_conn:
+            ok = fs.upsert_feedback(1, "anneh", note="Sarah Mitchell is 34.")
+        self.assertFalse(ok)
+        get_conn.assert_not_called()
+
+
 class AllAiRoutesUseTheGateTests(unittest.TestCase):
     """Static guard: every module that calls Claude or Gemini with case
     material imports the anonymizer (or is documented as receiving only

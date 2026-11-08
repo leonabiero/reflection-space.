@@ -925,7 +925,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'findings_notes_privacy': 'Your notes and ratings are private: only you can see them. They are '
                            'saved separately from what the AI said, which is never changed. Only '
                            'if you tick "Share" are the observation and its quotation shared '
-                           '(never your name or notes).',
+                           '(never your name or notes). When you save, names, exact ages and other personal '
+                           'details are removed from your notes.',
  'patterns_title': '🔎 Pattern Review',
  'patterns_no_access': 'This page is only for supervision and programme management.',
  'patterns_intro': 'This page helps the team look for themes that recur across shared '

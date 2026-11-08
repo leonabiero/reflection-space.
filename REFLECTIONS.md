@@ -85,6 +85,14 @@ reflection.**
   texts are re-checked just before they are read
   (`services/corpus_reading_service.read_texts`), so texts saved before age
   protection existed do not send exact ages.
+- **A professional's own notes are protected too (November 2026).** The two
+  free-text boxes under "My notes and sharing with the team" (another possible
+  explanation, my reflection or note) never go to the AI, but they are stored.
+  They now go through the same `anonymize()` before saving
+  (`services/findings_store.protect_note_text`, used by `upsert_feedback`), and
+  after saving the boxes show the protected version that was stored. If
+  anonymising fails, nothing is saved and the usual "couldn't be saved" message
+  appears. Notes saved before this change are not rewritten.
 
 **What stopped as a consequence (agreed with the product owner):**
 

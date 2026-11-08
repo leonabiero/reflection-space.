@@ -52,6 +52,7 @@ Privacy rules this module enforces
 
 import json
 
+from services.anonymizer import anonymize
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import now_utc, iso, get_logger
 
@@ -291,6 +292,15 @@ def add_finding_to_run(run_id, finding, acting_user):
         conn.close()
 
 
+def protect_note_text(text, max_chars):
+    """A professional's free-text note exactly as it is stored: trimmed,
+    limited to `max_chars` as typed, then anonymised (names, ages, phone
+    numbers... replaced by tags such as [PERSON]). Raises if anonymising
+    fails, so callers never fall back to the text as typed."""
+    text = (text or "").strip()[:max_chars]
+    return anonymize(text).strip() if text else ""
+
+
 def upsert_feedback(finding_id, user_name, label=None, note="",
                     alternative_explanation="", flagged_misread=False,
                     shared_with_team=None):
@@ -309,6 +319,13 @@ def upsert_feedback(finding_id, user_name, label=None, note="",
     reads. True shares it, False withdraws it immediately, None (the
     default) leaves whatever was chosen before unchanged. Nothing is
     ever shared unless the author set it True.
+
+    November 2026 -- the two free-text fields (note, alternative
+    explanation) go through the same anonymize() as the case text before
+    they are stored, so a name, age, phone number etc. typed into a note
+    is never kept. If anonymizing fails, NOTHING is saved (returns False,
+    the page shows its usual "couldn't be saved" message) -- never the
+    text as typed. Use protect_note_text() to get exactly what is stored.
     """
     if not user_name or not finding_id:
         return False
@@ -317,8 +334,13 @@ def upsert_feedback(finding_id, user_name, label=None, note="",
     elif label not in FEEDBACK_LABELS:
         return False
 
-    note = (note or "").strip()[:MAX_NOTE_CHARS]
-    alternative = (alternative_explanation or "").strip()[:MAX_ALTERNATIVE_CHARS]
+    try:
+        note = protect_note_text(note, MAX_NOTE_CHARS)
+        alternative = protect_note_text(alternative_explanation, MAX_ALTERNATIVE_CHARS)
+    except Exception as exc:
+        # No text in the log -- only the kind of failure.
+        logger.warning("Notes not saved: anonymisation raised %s", type(exc).__name__)
+        return False
 
     conn = _get_conn()
     try:
