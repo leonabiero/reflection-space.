@@ -185,7 +185,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'workspace_document_header': 'Kasuaren testua (ez da gordetzen)',
  'workspace_context_header': 'Hausnarketaren testuingurua',
  'workspace_progress_label': 'Aztertuta: {explored} / {total}',
- 'workspace_explore_button': 'Aztertu',
+ 'workspace_explore_button': 'Aztertu laguntzailearekin',
+ 'workspace_more_header': 'Behaketa honi buruz gehiago',
+ 'workspace_questions_header': 'Hausnartzeko galderak',
+ 'rs_info_header': 'Hausnarketaren informazioa',
  'workspace_close_button': 'Itxi',
  'workspace_explored_badge': '🗨️ Aztertuta',
  'workspace_conversation_input_label': 'Zure hausnarketa',
@@ -202,8 +205,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                  'beste profesional batzuekin konparatzen. Elkarrizketetan aztertzen duzuna eta '
                  'zure oharrak zureak bakarrik dira. Zure hausnarketen gordetako behaketak (eta '
                  'haien testu anonimizatua) arduradunek ere ikus ditzakete Hausnarketen historian.',
- 'growth_no_data': 'Oraindik ez duzu hausnarketarik aztertu. Hausnarketa Gunean «Aztertu» botoia '
-                   'erabili ahala, zure bidea hemen agertuko da.',
+ 'growth_no_data': 'Oraindik ez duzu hausnarketarik aztertu. Hausnarketa Gunean «Aztertu '
+                   'laguntzailearekin» botoia erabili ahala, zure bidea hemen agertuko da.',
  'growth_themes_header': 'Gehien aztertu dituzun arloak',
  'growth_themes_caption': 'Erregistratutako {total} azterketa-unetan oinarrituta',
  'growth_history_header': 'Duela gutxiko hausnarketa-uneak',
@@ -749,7 +752,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
                          'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
                          'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
-                         '(txartelaren barruan berriro saia zaitezke).',
+                         '(txartelaren barruan berriro saia zaitezke). Txartel bat irekitzean esaldi labur '
+                         'bat eta galderak ikusten dituzu; behaketaren gainerakoa eta oinarri duen pasartea '
+                         '«Behaketa honi buruz gehiago» atalean daude.',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
                           'desc': 'Pertsonaren ahotsa, helburuak eta hobespenak presente al daude, '

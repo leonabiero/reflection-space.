@@ -182,8 +182,10 @@ class PagePrivacyFlowTests(unittest.TestCase):
         self.assertNotIn("safe_text = material", self.page)
 
     def test_preview_is_collapsed_and_shows_the_protected_text(self):
-        self.assertIn('st.expander(T["rs_anonymised_preview_label"], expanded=False)', self.page)
-        start = self.page.index('st.expander(T["rs_anonymised_preview_label"]')
+        # November 2026: it now sits inside the folded "Reflection info"
+        # band and opens with a switch that starts OFF.
+        self.assertIn('st.toggle(T["rs_anonymised_preview_label"], value=False', self.page)
+        start = self.page.index('st.toggle(T["rs_anonymised_preview_label"]')
         block = self.page[start:self.page.index("st.write(session.safe_text)", start) + 40]
         self.assertIn("st.write(session.safe_text)", block)
         self.assertNotIn("case_text", block)
@@ -393,6 +395,61 @@ class OpportunityCardsTests(unittest.TestCase):
                 self.assertTrue(lang[key], key)
             self.assertEqual(set(lang["rs_card_status"]), {"finding", "none", "unavailable"})
             self.assertTrue(lang["help"]["cards_note"])
+
+
+class SimplerResultsScreenTests(unittest.TestCase):
+    """November 2026, after the first session with the EDE team: only what
+    is needed to start reflecting is open after Reflect."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.page = _read("pages", "reflection_space.py")
+
+    def test_first_sentence_is_split_without_rewording(self):
+        from services.findings_ui import split_first_sentence
+        first, rest = split_first_sentence(
+            "The note records housing and rent. It does not say why the move is needed now! ¿Por qué?"
+        )
+        self.assertEqual(first, "The note records housing and rent.")
+        self.assertEqual(rest, "It does not say why the move is needed now! ¿Por qué?")
+        self.assertEqual(split_first_sentence("One sentence only."), ("One sentence only.", ""))
+        self.assertEqual(split_first_sentence("e.g. a lower-case start stays whole"),
+                         ("e.g. a lower-case start stays whole", ""))
+        self.assertEqual(split_first_sentence(""), ("", ""))
+        self.assertEqual(split_first_sentence(None), ("", ""))
+
+    def test_reflection_info_is_one_folded_band(self):
+        self.assertIn('T[\'rs_info_header\']} · {session.case_ref} · {reflection_language}"', self.page)
+        start = self.page.index("T['rs_info_header']")
+        band = self.page[start:self.page.index('st.subheader(T["workspace_opportunities_header"])', start)]
+        self.assertIn("expanded=False", band)
+        self.assertIn("_render_identity_caption(session.case_ref)", band)
+        self.assertIn('st.toggle(T["workspace_document_header"], value=False', band)
+        self.assertIn("st.write(session.safe_text)", band)
+        self.assertIn("st.write(session.case_text)", band)
+
+    def test_questions_open_and_the_rest_folded(self):
+        start = self.page.index("def _render_opportunity_tab_body")
+        body = self.page[start:self.page.index("_render_finding_notes(session, opportunity)", start)]
+        # Order: first sentence, questions, then the fold.
+        self.assertLess(body.index("st.write(first_sentence)"), body.index('st.markdown(f"- {q}")'))
+        self.assertLess(body.index('st.markdown(f"- {q}")'), body.index('st.expander(T["workspace_more_header"], expanded=False)'))
+        fold = body[body.index('st.expander(T["workspace_more_header"]'):]
+        self.assertIn("render_evidence(", fold)
+        self.assertIn('st.caption(T["workspace_reminder"])', fold)   # reminder stays inside the fold
+        # The questions list is iterated once, so the Retry button still appears.
+        self.assertEqual(body.count("for q in questions:"), 1)
+
+    def test_new_texts_exist_in_all_languages(self):
+        from services.locales.es import LANG_ES
+        from services.locales.eu import LANG_EU
+        from services.locales.en import LANG_EN
+        for lang in (LANG_ES, LANG_EU, LANG_EN):
+            for key in ("rs_info_header", "workspace_more_header", "workspace_questions_header",
+                        "workspace_explore_button"):
+                self.assertTrue(lang.get(key), key)
+        self.assertEqual(LANG_EN["workspace_explore_button"], "Explore this with the companion")
+        self.assertEqual(LANG_ES["workspace_explore_button"], "Explorar con el acompañante")
 
 
 class OwnDeletionStaticTests(unittest.TestCase):

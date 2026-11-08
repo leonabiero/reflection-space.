@@ -31,6 +31,29 @@ def md_escape(text):
     return re.sub(r"([\\`*_\[\]<>#~|])", r"\\\1", flattened)
 
 
+# A sentence ends at . ! ? (or … ) followed by a space and the start of a
+# new sentence (a capital letter, a digit, an opening quote / bracket or
+# Spanish ¿ ¡). "e.g. something" therefore does not split.
+_SENTENCE_BREAK_RE = re.compile(r"(?<=[.!?…])\s+(?=[\"'«“(¿¡0-9A-ZÀ-ÖØ-Þ\[])")
+
+
+def split_first_sentence(text):
+    """(first sentence, the rest) of an observation, both stripped.
+
+    November 2026 -- simpler results screen: the first sentence is shown
+    above the questions, so the questions make sense on their own; the
+    rest of the observation is folded away under "More about this
+    observation". Text without a clear sentence break is returned whole
+    as the first part. Nothing is reworded."""
+    text = (text or "").strip()
+    if not text:
+        return "", ""
+    parts = _SENTENCE_BREAK_RE.split(text, maxsplit=1)
+    if len(parts) == 1:
+        return text, ""
+    return parts[0].strip(), parts[1].strip()
+
+
 def render_evidence(T, evidence, unverified_count=0):
     """The exact passage(s) an observation is based on, as quotations,
     plus an honest note if some proposed passages could not be matched to

@@ -30,6 +30,23 @@ reflection.**
   your reflection..."*, and goes straight to the results.
 - On the results, a collapsed **"View anonymised text"** section shows exactly
   what the AI received. It never shows the original text.
+- **Simpler results screen (November 2026, after the first session with the
+  EDE team, who asked for a very simple tool).** After Reflect, only what is
+  needed to start reflecting is open:
+  - One folded band, **"Reflection info · <code> · <language>"**, holds the
+    reflection code, the language, "View anonymised text" and "Case text (not
+    saved)". Streamlit cannot put a fold inside a fold, so those two texts open
+    with a switch (off by default). Warnings (a lens that failed, findings not
+    saved) stay visible above it.
+  - Opening a card shows the **first sentence** of the observation (so the
+    questions make sense on their own) and **the questions**. The rest of the
+    observation, the quoted passage(s) and the "this is your professional
+    decision" reminder are under **"More about this observation"** (folded);
+    "My notes and sharing with the team" stays folded. Nothing is reworded:
+    the first sentence is cut at the first sentence break
+    (`services/findings_ui.split_first_sentence`).
+  - The button is now **"Explore this with the companion"** ("Explorar con el
+    acompañante", "Aztertu laguntzailearekin").
 - If the whole reflection fails, **"Try again with the same text"** puts the
   text and the chosen language back into the form.
 - After **Finish reflection** the screen is immediately empty and ready for

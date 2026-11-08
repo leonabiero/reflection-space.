@@ -1,7 +1,7 @@
 import streamlit as st
 from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
-from services.findings_ui import render_evidence, render_notes_form
+from services.findings_ui import render_evidence, render_notes_form, split_first_sentence
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
@@ -165,6 +165,7 @@ with error_boundary(
 
         _reset_ephemeral_widget_state([
             "ctx_sim_", "workspace_open_", "convo_input_", "convo_error_",
+            "rs_info_show_",
         ])
 
 
@@ -239,19 +240,41 @@ with error_boundary(
         notes, Explore toggle, conversation). Since November 2026 it is
         shown below the grid of eight cards when that card is chosen (see
         the call site below); earlier it was the body of a tab.
+
+        Simpler screen (November 2026, after the first session with the
+        EDE team): only what is needed to start reflecting is open --
+        the FIRST sentence of the observation (so the questions make
+        sense on their own) and the questions. The rest of the
+        observation, the quoted passage(s) and the "your professional
+        decision" reminder are folded under "More about this
+        observation"; the notes stay folded as before.
         """
-        if opportunity.focus:
-            st.write(opportunity.focus)
+        first_sentence, rest_of_observation = split_first_sentence(opportunity.focus)
+        if first_sentence:
+            st.write(first_sentence)
 
-        # Saved-findings Stage 1: the exact passage(s) this observation is
-        # based on. Only passages verified word for word against the text
-        # the AI was given are ever shown (services/evidence.py).
-        render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
-
-        for q in opportunity.invitation:
+        # `invitation` is a plain list of questions, or -- for a
+        # companion that is temporarily unavailable -- the object that
+        # draws the Retry button when iterated (rdi/reflection_session.py).
+        # It is iterated exactly once either way.
+        questions = opportunity.invitation
+        if isinstance(questions, (list, tuple)) and questions:
+            st.markdown(f"**{T['workspace_questions_header']}**")
+        for q in questions:
             st.markdown(f"- {q}")
 
-        st.caption(T["workspace_reminder"])
+        if session.status_of(opportunity.trigger) == ReflectionSession.STATUS_FINDING:
+            with st.expander(T["workspace_more_header"], expanded=False):
+                if rest_of_observation:
+                    st.write(rest_of_observation)
+                # Saved-findings Stage 1: the exact passage(s) this
+                # observation is based on. Only passages verified word for
+                # word against the text the AI was given are ever shown
+                # (services/evidence.py).
+                render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
+                st.caption(T["workspace_reminder"])
+        elif rest_of_observation:
+            st.write(rest_of_observation)
 
         _render_finding_notes(session, opportunity)
 
@@ -435,36 +458,43 @@ with error_boundary(
                     st.rerun()
             st.stop()
 
-        _render_identity_caption(session.case_ref)
-        st.caption(
-            f"{T['rs_language_label']}: "
-            f"{_language_name(getattr(session, 'reflection_lang', st.session_state.lang))}"
-        )
-
+        # Warnings stay visible: they change what the practitioner sees.
         if session.failed_count > 0:
             st.warning(T["reflection_partial_failure_notice"].format(count=session.failed_count))
 
         if session.findings_save_failed:
             st.info(T["findings_not_saved_notice"])
 
-        # Transparency: exactly the protected text the AI received
-        # (the orchestrator returns it as "safe_text"). Collapsed by
-        # default; never shows the original text.
-        if session.safe_text:
-            with st.expander(T["rs_anonymised_preview_label"], expanded=False):
-                st.caption(T["rs_anonymised_preview_help"])
-                if SAVE_ANONYMISED_TEXT and session.run_id:
-                    st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
-                st.write(session.safe_text)
+        # Simpler screen (November 2026): the reflection code, the
+        # language, the anonymised text and the case text are folded into
+        # ONE band. Streamlit cannot put a fold inside a fold, so the two
+        # texts inside it open with a switch instead.
+        reflection_language = _language_name(getattr(session, "reflection_lang", st.session_state.lang))
+        with st.expander(
+            f"{T['rs_info_header']} · {session.case_ref} · {reflection_language}",
+            expanded=False,
+        ):
+            _render_identity_caption(session.case_ref)
+            st.caption(f"{T['rs_language_label']}: {reflection_language}")
 
-        # What this reflection is grounded in. The case text is only held
-        # in this browser session and is never saved.
-        with st.expander(T["workspace_document_header"], expanded=False):
-            st.caption(T["rs_case_text_not_saved_note"])
-            st.write(session.case_text)
+            # Transparency: exactly the protected text the AI received
+            # (the orchestrator returns it as "safe_text"). Hidden until
+            # switched on; never shows the original text.
+            if session.safe_text:
+                if st.toggle(T["rs_anonymised_preview_label"], value=False, key="rs_info_show_anonymised"):
+                    st.caption(T["rs_anonymised_preview_help"])
+                    if SAVE_ANONYMISED_TEXT and session.run_id:
+                        st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                    st.write(session.safe_text)
 
-        if session.context_summary:
-            st.caption(f"{T['workspace_context_header']}: {session.context_summary}")
+            # What this reflection is grounded in. The case text is only
+            # held in this browser session and is never saved.
+            if st.toggle(T["workspace_document_header"], value=False, key="rs_info_show_case_text"):
+                st.caption(T["rs_case_text_not_saved_note"])
+                st.write(session.case_text)
+
+            if session.context_summary:
+                st.caption(f"{T['workspace_context_header']}: {session.context_summary}")
 
         # -----------------------------------------------------------------
         # Reflection opportunities -- all eight as cards in one view
@@ -882,6 +912,7 @@ with error_boundary(
                     # collapsed and no leftover input or error state.
                     _reset_ephemeral_widget_state([
                         "workspace_open_", "convo_input_", "convo_error_",
+                        "rs_info_show_",
                     ])
 
                     st.rerun()

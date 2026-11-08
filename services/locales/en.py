@@ -182,7 +182,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'workspace_document_header': 'Case text (not saved)',
  'workspace_context_header': 'Reflection context',
  'workspace_progress_label': 'Explored: {explored} of {total}',
- 'workspace_explore_button': 'Explore',
+ 'workspace_explore_button': 'Explore this with the companion',
+ 'workspace_more_header': 'More about this observation',
+ 'workspace_questions_header': 'Questions to reflect on',
+ 'rs_info_header': 'Reflection info',
  'workspace_close_button': 'Close',
  'workspace_explored_badge': '🗨️ Explored',
  'workspace_conversation_input_label': 'Your reflection',
@@ -199,7 +202,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
                  'is never compared with other professionals. What you explore in conversations '
                  'and your notes are yours alone. The saved observations from your reflections '
                  '(and their anonymised text) can also be seen by managers in Reflection History.',
- 'growth_no_data': 'You haven\'t explored a reflection yet. As you use the "Explore" button in the '
+ 'growth_no_data': 'You haven\'t explored a reflection yet. As you use the "Explore this with the '
+                   'companion" button in the '
                    'Reflection Space, your journey will appear here.',
  'growth_themes_header': "Areas you've explored most",
  'growth_themes_caption': 'Based on {total} recorded exploration moment(s)',
@@ -728,7 +732,9 @@ LANG_EN = {'title': '🧠 Reflection Space',
           'cards_note': 'The eight reflection opportunities are shown as cards in one view. The dot in the '
                          'corner shows what each one found: green, something to reflect on; grey, nothing '
                          'notable in this text; amber, not available right now (you can retry inside the '
-                         'card).',
+                         'card). Opening a card shows one short sentence and the questions; the rest of '
+                         'the observation and the passage it is based on are under "More about this '
+                         'observation".',
           'dimensions_title': 'The eight reflective dimensions',
           'dimensions': [{'label': "Client's Voice",
                           'desc': "Is the person's own voice, goals, and preferences reflected, or "

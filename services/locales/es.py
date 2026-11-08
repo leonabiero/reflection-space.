@@ -185,7 +185,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'workspace_document_header': 'Texto del caso (no se guarda)',
  'workspace_context_header': 'Contexto de la reflexión',
  'workspace_progress_label': 'Explorado(s): {explored} de {total}',
- 'workspace_explore_button': 'Explorar',
+ 'workspace_explore_button': 'Explorar con el acompañante',
+ 'workspace_more_header': 'Más sobre esta observación',
+ 'workspace_questions_header': 'Preguntas para reflexionar',
+ 'rs_info_header': 'Información de la reflexión',
  'workspace_close_button': 'Cerrar',
  'workspace_explored_badge': '🗨️ Explorado',
  'workspace_conversation_input_label': 'Tu reflexión',
@@ -203,8 +206,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                  'notas son solo tuyos. Las observaciones guardadas de tus reflexiones (y su texto '
                  'anonimizado) también las pueden ver los responsables en el Historial de '
                  'reflexiones.',
- 'growth_no_data': 'Aún no has explorado ninguna reflexión. A medida que uses el botón «Explorar» '
-                   'en el Espacio de Reflexión, tu trayectoria aparecerá aquí.',
+ 'growth_no_data': 'Aún no has explorado ninguna reflexión. A medida que uses el botón «Explorar con el '
+                   'acompañante» en el Espacio de Reflexión, tu trayectoria aparecerá aquí.',
  'growth_themes_header': 'Áreas que más has explorado',
  'growth_themes_caption': 'Basado en {total} momento(s) de exploración registrados',
  'growth_history_header': 'Momentos reflexivos recientes',
@@ -751,7 +754,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
                          'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
                          'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
-                         '(puedes reintentarlo dentro de la tarjeta).',
+                         '(puedes reintentarlo dentro de la tarjeta). Al abrir una tarjeta ves una frase '
+                         'breve y las preguntas; el resto de la observación y el pasaje en que se basa '
+                         'están en «Más sobre esta observación».',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '
