@@ -13,7 +13,7 @@ from services import usage_ledger
 from services.cost_pricing import estimate_anthropic_cost
 from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
 
-CLAUDE_MODEL = "claude-sonnet-5"
+CLAUDE_MODEL = "claude-sonnet-5-5"
 
 
 def _record_claude_usage(operation, started_at, message=None, success=True,
@@ -87,7 +87,7 @@ def generate_reflection(text: str, lang: str = "Español"):
     _started = time.monotonic()
     try:
         message = client.messages.create(
-            model="claude-sonnet-5",
+            model="claude-sonnet-5-5",
             max_tokens=3000,
             system=full_system_prompt,
             messages=[
@@ -206,7 +206,7 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
 # The model used for the one-shot companion reflections. Defined once so
 # the saved-findings feature can record exactly which model produced each
 # finding (services/findings_store.py) without repeating the string.
-COMPANION_MODEL = "claude-sonnet-5"
+COMPANION_MODEL = "claude-sonnet-5-5"
 
 
 def _call_companion_model(full_system_prompt, safe_text):
@@ -458,7 +458,7 @@ Your original reflective question(s) were:
     try:
         _started = time.monotonic()
         message = client.messages.create(
-            model="claude-sonnet-5",
+            model="claude-sonnet-5-5",
             max_tokens=400,
             system=system_param,
             messages=messages,

@@ -57,8 +57,8 @@ Cost note (flagged per project standing rules)
 --------------------------------------------------
 Each question asked here is exactly ONE Claude API call (no fan-out,
 unlike the 8-companion Reflection orchestrator). Using
-claude-sonnet-5 at standard current per-token pricing (~$3 / MTok
-input, ~$15 / MTok output as of this writing -- Anthropic's published
+claude-sonnet-5-5 at standard current per-token pricing (~$2 / MTok
+input, ~$10 / MTok output as of this writing -- Anthropic's published
 pricing should always be checked for the current rate), a typical
 question with up to 8 retrieved evidence excerpts plus the aggregate
 summary runs roughly 4,000-6,000 input tokens and up to ~700 output
@@ -101,7 +101,7 @@ def retrieve_global_context(query_text, limit=8, since_iso=None):
     """
     return search_reflection_evidence(query_text, limit=limit, since_iso=since_iso)
 
-CLAUDE_MODEL = "claude-sonnet-5"
+CLAUDE_MODEL = "claude-sonnet-5-5"
 
 DEFAULT_EVIDENCE_LIMIT = 8
 DEFAULT_WINDOW_DAYS = 365
@@ -325,7 +325,7 @@ AGGREGATE STATISTICS:
     try:
         _started = time.monotonic()
         message = client.messages.create(
-            model="claude-sonnet-5",
+            model="claude-sonnet-5-5",
             max_tokens=900,
             system=full_system_prompt,
             messages=[{"role": "user", "content": user_content}],

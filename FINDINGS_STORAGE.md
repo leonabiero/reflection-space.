@@ -81,7 +81,7 @@ the existing yes/no theme log (`reflections` table), which holds no text.
 
 Asking the AI for evidence adds a little input (≈165 tokens of instructions per
 companion) and output (the quotes). Estimated at the pricing in
-`services/cost_pricing.py` (Claude Sonnet 5: $2 / $10 per million input /
+`services/cost_pricing.py` (Claude Sonnet 5.5: $2 / $10 per million input /
 output tokens):
 
 - about **$0.007 per reflection** typically, **$0.011** at most

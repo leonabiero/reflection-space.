@@ -44,6 +44,18 @@ CURRENCY = "USD"
 # companion-conversation path, which is the only call site that can
 # ever produce cache_read/cache_creation tokens today.
 ANTHROPIC_PRICING = {
+    # Current model used by the app (switched from claude-sonnet-5 on
+    # 2026-11-09). Same published rate as Sonnet 5.
+    "claude-sonnet-5-5": {
+        "input_per_mtok": 2.00,
+        "output_per_mtok": 10.00,
+        "cache_read_per_mtok": 0.20,
+        "cache_write_per_mtok": 2.50,
+        "effective_date": "2026-11-09",
+        "currency": CURRENCY,
+    },
+    # Previous model -- kept so usage recorded before the switch is
+    # still priced correctly in the Cost & Usage Monitor.
     "claude-sonnet-5": {
         "input_per_mtok": 2.00,
         "output_per_mtok": 10.00,
@@ -58,7 +70,7 @@ ANTHROPIC_PRICING = {
 # above (keeps the dashboard from silently showing $0.00 if a model
 # string ever changes) -- estimate_cost() also flags this case so it's
 # visible in the admin panel rather than silently wrong.
-_ANTHROPIC_FALLBACK_MODEL = "claude-sonnet-5"
+_ANTHROPIC_FALLBACK_MODEL = "claude-sonnet-5-5"
 
 # Google Gemini -- embeddings only. gemini-embedding-001 has no output
 # token cost; billing is purely on input tokens.

@@ -53,6 +53,21 @@ class CostPricingTests(unittest.TestCase):
         self.assertIn("effective_date", cost_pricing.ANTHROPIC_PRICING["claude-sonnet-5"])
         self.assertIn("gemini-embedding-001", cost_pricing.GEMINI_PRICING)
 
+    def test_every_model_the_app_uses_has_a_price(self):
+        """The model the app actually calls must be priced, otherwise the
+        Cost & Usage Monitor would fall back to an estimate."""
+        from services import cost_pricing, reflection_service, knowledge_assistant
+
+        for model in (reflection_service.CLAUDE_MODEL,
+                      reflection_service.COMPANION_MODEL,
+                      knowledge_assistant.CLAUDE_MODEL):
+            self.assertEqual(model, "claude-sonnet-5-5")
+            self.assertIn(model, cost_pricing.ANTHROPIC_PRICING)
+        cost, recognized = cost_pricing.estimate_anthropic_cost(
+            "claude-sonnet-5-5", input_tokens=100, output_tokens=50)
+        self.assertTrue(recognized)
+        self.assertGreater(cost, 0)
+
 
 class UsageLedgerRecordingTests(unittest.TestCase):
     def test_record_usage_never_raises_when_db_unavailable(self):
