@@ -73,6 +73,13 @@ reflection.**
   el piso", "duela 3 urte", "2 hijos", "30 euros") are kept. Known limits: a
   bare number with no age wording ("she was 30 then") may be kept, and the
   sentence is not rewritten ("age is [AGE_ADULT] not [AGE_ADULT]").
+- **Places and addresses (November 2026, from a synthetic Spanish case).**
+  Bizkaia municipalities, the other Basque capitals and nearby / large cities
+  (Spanish and Basque spellings, with Basque endings such as "Bilboko",
+  "Barakaldon") are tagged `[LOCATION]` instead of `[PERSON]`; "una tienda de
+  Barakaldo" is a place. Floor and door after an address ("2º izquierda",
+  "3ºB", "bajo", "2. ezkerra") are removed with it. In text written in
+  capitals, "VIVE EN BILBAO CON SU MADRE" no longer loses "CON SU MADRE".
 - **What the practitioner types in a follow-up conversation is protected too
   (November 2026).** Previously only the document was anonymised; the
   messages typed into a companion conversation went to Claude as written. Each

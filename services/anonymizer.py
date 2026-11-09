@@ -128,6 +128,10 @@ _STOPWORDS = {
 _PLACE_NOUNS = {
     "ayuntamiento", "salud", "municipio", "pueblo", "barrio", "ciudad",
     "provincia", "zona", "comarca", "localidad", "udala", "centro",
+    # November 2026: places of work / everyday places ("una tienda de
+    # Barakaldo"). "casa de X" is left out on purpose: that is a person.
+    "tienda", "bar", "fábrica", "fabrica", "supermercado", "mercado",
+    "oficina", "polideportivo", "biblioteca", "estación", "estacion", "parque",
 }
 
 # Common Spanish and Basque first names. A lone first name at the very start
@@ -159,6 +163,38 @@ brian susan linda karen nancy lisa michelle mohammed muhammad omar amina
 """.split())
 
 _LOCATION_PREPOSITIONS = {"en", "desde", "hacia", "in", "at", "from", "near", "to"}
+
+# November 2026 -- towns and cities named in notes are tagged [LOCATION]
+# (not [PERSON]) wherever they appear, so the AI is not told that "a shop
+# in Barakaldo" is "a shop belonging to a person". Bizkaia municipalities,
+# the other Basque capitals and nearby / large cities, in Spanish and
+# Basque spellings. Basque case endings are understood too ("Bilboko",
+# "Barakaldon", "Getxora", "Donostiatik"). This list only changes the LABEL
+# of something that is removed anyway; a town not on it is still removed.
+# Compared in lower case.
+_KNOWN_PLACES = set("""
+bilbao bilbo barakaldo baracaldo getxo portugalete santurtzi santurce sestao
+basauri leioa lejona durango erandio galdakao galdácano bermeo gernika guernica
+mungia amorebieta zornotza etxebarri echevarri ermua balmaseda sopela sopelana
+berriz elorrio abadiño abadiano iurreta ondarroa lekeitio markina zalla gordexola
+güeñes muskiz trapagaran trapaga ortuella derio zamudio sondika loiu lezama
+arrigorriaga ugao miravalles orozko igorre laukiz plentzia gorliz barrika urduliz
+berango lemoa bedia amurrio llodio laudio
+donostia gasteiz vitoria iruña iruñea pamplona eibar irun hondarribia zarautz
+tolosa errenteria arrasate mondragón mondragon bergara azpeitia beasain
+santander logroño burgos madrid barcelona zaragoza valencia sevilla
+""".split())
+_KNOWN_PLACE_PHRASES = {"san sebastián", "san sebastian", "vitoria-gasteiz", "castro urdiales"}
+_BASQUE_PLACE_SUFFIXES = ("ko", "koa", "koak", "n", "an", "en", "ra", "ara", "era",
+                          "rako", "tik", "etik", "raino", "rantz", "ean")
+
+
+def _is_known_place(word: str) -> bool:
+    low = word.lower()
+    if low in _KNOWN_PLACES or low in _KNOWN_PLACE_PHRASES:
+        return True
+    return any(low.startswith(place) and low[len(place):] in _BASQUE_PLACE_SUFFIXES
+               for place in _KNOWN_PLACES if len(place) >= 4)
 
 # Courtesy titles (English, Spanish, Basque). A title followed by a name is
 # always a person.
@@ -210,6 +246,17 @@ _CONTEXTUAL_IDENTIFIER_PATTERNS = [
     (re.compile(r"(?:\b(?i:calle|avenida|avda|plaza|paseo|pasaje|camino|carretera|barrio|travesía|ronda|kalea|etorbidea|plaza|pasealekua|auzoa)\.?|(?<!\w)(?i:c/|av\.|pza\.))\s*(?:(?i:de|del|de\s+la|de\s+los)\s+)?(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª]*)(?:\s+(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª\-]*|(?i:de|del|la|los|las|n[º°o]\.?|s/n|bis))(?=\s|$|[,.;:!?)]))*"), "[ADDRESS]"),
     (re.compile(r"\b(?:domicilio|dirección|direccion|helbidea)\s*(?::|\s+(?:en|es|:))\s*%s" % _ADDRESS_BODY_ES_EU, re.IGNORECASE), "[ADDRESS]"),
 ]
+
+# (November 2026) Floor, door, staircase... right after an address are part
+# of it: "[ADDRESS], 2º izquierda", "[ADDRESS] 3ºB", "[ADDRESS], bajo",
+# "[ADDRESS], 2. ezkerra", "[ADDRESS], flat 4". Applied after every address
+# rule above.
+_ADDRESS_UNIT_RE = re.compile(
+        r"\[ADDRESS\](?:\s*,?\s*(?:\d+\s*[ºª°]\.?\s*(?:[A-Za-z](?!\w)|(?i:izquierda|izda\.?|izq\.?|derecha|dcha\.?|centro|ezkerra|eskuina|ezk\.?|esk\.?))?"
+        r"|\d+\.\s*(?i:ezkerra|eskuina|ezk\.?|esk\.?)"
+        r"|(?i:bajo|entresuelo|ático|atico)(?!\w)"
+        r"|(?i:piso|puerta|escalera|esc\.|portal|solairua|atea|flat|apartment|apt\.?)\s+[\wºª]+))+"
+    )
 
 # The complete identifier label must end at a word boundary. In particular,
 # plain `ref` must NOT match the beginning of words such as "referral".
@@ -279,6 +326,8 @@ def _replace_proper_names(text: str, known_names: set) -> str:
             return phrase
         if len(tokens) == 1 and _is_safe_word(tokens[0]):
             return phrase
+        if " ".join(tokens).lower() in _KNOWN_PLACE_PHRASES:
+            return (" ".join(lead) + " " if lead else "") + "[LOCATION]"
         _record_name_tokens(" ".join(tokens), known_names)
         return (" ".join(lead) + " " if lead else "") + "[PERSON]"
 
@@ -286,6 +335,8 @@ def _replace_proper_names(text: str, known_names: set) -> str:
 
     def complex_repl(match):
         token = match.group(0)
+        if _is_known_place(token):
+            return "[LOCATION]"
         if "-" in token or "'" in token or "’" in token:
             known_names.add(token)
             return "[PERSON]"
@@ -332,8 +383,15 @@ def _replace_single_names(text: str, known_names: set) -> str:
             found[word] = "[PERSON]"
 
     for name in known_names:
-        if name not in found and not _is_safe_word(name):
+        if name not in found and not _is_safe_word(name) and not _is_known_place(name):
             found[name] = "[PERSON]"
+
+    # Known towns and cities: a place wherever they are, even at the start
+    # of a sentence (see _KNOWN_PLACES).
+    for match in _SINGLE_CAPITALISED_RE.finditer(text):
+        word = match.group(0)
+        if _is_known_place(word):
+            found[word] = "[LOCATION]"
 
     if not found:
         return text
@@ -667,6 +725,19 @@ def _anonymize_core(text: str) -> str:
             if not m.groups() or m.group(1) is None:
                 return r
             captured = m.group(1)
+            tail = ""
+            if m.end(1) == m.end(0):
+                # (November 2026) In text written in CAPITALS every word
+                # looks like a name, so "VIVE EN BILBAO CON SU MADRE" used
+                # to swallow "CON SU MADRE". The name now stops at the
+                # first small word ("con", "su", "and", "with", ...); the
+                # rest is kept.
+                words = list(re.finditer(r"\S+", captured))
+                for w in words[1:]:
+                    if w.group(0).lower().strip(",.;:!?()\"'«»") in _STOPWORDS:
+                        captured = captured[:w.start()].rstrip()
+                        tail = m.group(1)[len(captured):]
+                        break
             # "in English", "en Servicios Sociales": nothing personal there.
             if all(_is_safe_word(t) for t in captured.split()):
                 return m.group(0)
@@ -675,9 +746,10 @@ def _anonymize_core(text: str) -> str:
             if m.end(1) == m.end(0):
                 # Keep the cue words ("la madre, ...", "vive en ...") so the
                 # sentence still makes sense; only the name is replaced.
-                return m.group(0)[: m.start(1) - m.start(0)] + r
+                return m.group(0)[: m.start(1) - m.start(0)] + r + tail
             return r
         safe = pattern.sub(ctx_repl, safe)
+    safe = _ADDRESS_UNIT_RE.sub("[ADDRESS]", safe)
 
     def title_repl(m):
         _record_name_tokens(m.group(1), known_names)

@@ -403,5 +403,56 @@ class AnonymizerSyntheticCaseRegressionTests(unittest.TestCase):
         self.assertIn("con su madre", safe)
 
 
+class AnonymizerSpanishSyntheticCaseTests(unittest.TestCase):
+    """Found by testing a synthetic Spanish case (November 2026)."""
+
+    CASE = (
+        "La usuaria, Lucía Fernández Etxebarria, acudió al servicio el 5 de noviembre de 2026 "
+        "para pedir ayuda con el alquiler. Nos dijo que tiene 42 años, no 40 como consta en su "
+        "expediente, y que nació en 1984. Vive en la calle Iparraguirre 23, 2º izquierda, con su "
+        "hijo Unai, de 14 años, y su madre, Carmen, que tiene 78 años y necesita cuidados. Su DNI "
+        "es 12345678Z y su teléfono 688 123 456. Trabaja a media jornada en una tienda de "
+        "Barakaldo y cobra 900 euros al mes. Lleva 3 años en el piso y debe dos mensualidades."
+    )
+
+    def test_whole_case(self):
+        safe = anonymize(self.CASE)
+        for secret in ("Lucía", "Fernández", "Etxebarria", "42", "40", "1984", "Iparraguirre",
+                       "2º", "izquierda", "Unai", "14", "Carmen", "78", "12345678Z",
+                       "688 123 456", "Barakaldo"):
+            self.assertNotIn(secret, safe, msg=secret)
+        self.assertIn("una tienda de [LOCATION]", safe)
+        self.assertIn("con su hijo [PERSON], de [AGE_ADOLESCENT]", safe)
+        for kept in ("900 euros", "Lleva 3 años en el piso", "dos mensualidades"):
+            self.assertIn(kept, safe)
+
+    def test_floor_and_door_belong_to_the_address(self):
+        for text in ("Su domicilio es Calle Mayor 5, 3ºB, con su madre.",
+                     "Vive en la calle Mayor 5, bajo, sola.",
+                     "Kalea Nagusia 4, 2. ezkerra."):
+            safe = anonymize(text)
+            for secret in ("3ºB", "bajo", "ezkerra", "Mayor", "Nagusia"):
+                self.assertNotIn(secret, safe, msg=f"{text!r} -> {safe!r}")
+
+    def test_known_towns_are_places_not_people(self):
+        cases = {
+            "Trabaja en una tienda de Barakaldo.": "[LOCATION]",
+            "Barakaldo es donde vive.": "[LOCATION]",
+            "Bilboko zentroan dago.": "[LOCATION]",
+            "Se mudó a San Sebastián y luego a Vitoria-Gasteiz.": "[LOCATION]",
+        }
+        for text, tag in cases.items():
+            safe = anonymize(text)
+            self.assertIn(tag, safe, msg=text)
+            self.assertNotIn("[PERSON]", safe, msg=f"{text!r} -> {safe!r}")
+        # "la casa de Carmen" is still a person.
+        self.assertIn("[PERSON]", anonymize("La casa de Carmen está lejos."))
+
+    def test_capitals_place_does_not_swallow_the_rest(self):
+        safe = anonymize("VIVE EN BILBAO CON SU MADRE.")
+        self.assertNotIn("BILBAO", safe)
+        self.assertIn("CON SU MADRE", safe)
+
+
 if __name__ == "__main__":
     unittest.main()
