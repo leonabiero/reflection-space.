@@ -1,7 +1,7 @@
 import streamlit as st
 from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
-from services.findings_ui import render_evidence, render_notes_form, split_first_sentence
+from services.findings_ui import render_evidence, render_notes_form
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
@@ -242,16 +242,29 @@ with error_boundary(
         the call site below); earlier it was the body of a tab.
 
         Simpler screen (November 2026, after the first session with the
-        EDE team): only what is needed to start reflecting is open --
-        the FIRST sentence of the observation (so the questions make
-        sense on their own) and the questions. The rest of the
-        observation, the quoted passage(s) and the "your professional
-        decision" reminder are folded under "More about this
-        observation"; the notes stay folded as before.
+        EDE team): only the questions are open. What the AI noticed is in
+        one fold above them ("Why these questions?"); the notes stay
+        folded as before.
         """
-        first_sentence, rest_of_observation = split_first_sentence(opportunity.focus)
-        if first_sentence:
-            st.write(first_sentence)
+        # Simpler screen, second round (November 2026, product owner): only
+        # the QUESTIONS are open. Everything the AI noticed -- the whole
+        # observation, the quoted passage(s) and the "your professional
+        # decision" reminder -- is in ONE fold just above them, which the
+        # practitioner opens when they want to know why these questions.
+        if session.status_of(opportunity.trigger) == ReflectionSession.STATUS_FINDING:
+            with st.expander(T["workspace_more_header"], expanded=False):
+                if opportunity.focus:
+                    st.write(opportunity.focus)
+                # Saved-findings Stage 1: the exact passage(s) this
+                # observation is based on. Only passages verified word for
+                # word against the text the AI was given are ever shown
+                # (services/evidence.py).
+                render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
+                st.caption(T["workspace_reminder"])
+        elif opportunity.focus:
+            # "Nothing notable" / "not available": the short status text
+            # stays visible -- there is nothing to fold.
+            st.write(opportunity.focus)
 
         # `invitation` is a plain list of questions, or -- for a
         # companion that is temporarily unavailable -- the object that
@@ -262,19 +275,6 @@ with error_boundary(
             st.markdown(f"**{T['workspace_questions_header']}**")
         for q in questions:
             st.markdown(f"- {q}")
-
-        if session.status_of(opportunity.trigger) == ReflectionSession.STATUS_FINDING:
-            with st.expander(T["workspace_more_header"], expanded=False):
-                if rest_of_observation:
-                    st.write(rest_of_observation)
-                # Saved-findings Stage 1: the exact passage(s) this
-                # observation is based on. Only passages verified word for
-                # word against the text the AI was given are ever shown
-                # (services/evidence.py).
-                render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
-                st.caption(T["workspace_reminder"])
-        elif rest_of_observation:
-            st.write(rest_of_observation)
 
         _render_finding_notes(session, opportunity)
 

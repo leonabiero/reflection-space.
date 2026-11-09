@@ -183,7 +183,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'workspace_context_header': 'Reflection context',
  'workspace_progress_label': 'Explored: {explored} of {total}',
  'workspace_explore_button': 'Explore this with the companion',
- 'workspace_more_header': 'More about this observation',
+ 'workspace_more_header': 'Why these questions? See what the AI noticed',
  'workspace_questions_header': 'Questions to reflect on',
  'rs_info_header': 'Reflection info',
  'workspace_close_button': 'Close',
@@ -732,9 +732,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
           'cards_note': 'The eight reflection opportunities are shown as cards in one view. The dot in the '
                          'corner shows what each one found: green, something to reflect on; grey, nothing '
                          'notable in this text; amber, not available right now (you can retry inside the '
-                         'card). Opening a card shows one short sentence and the questions; the rest of '
-                         'the observation and the passage it is based on are under "More about this '
-                         'observation".',
+                         'card). Opening a card shows the questions; what the AI noticed and the passage '
+                         'it is based on are under "Why these questions?".',
           'dimensions_title': 'The eight reflective dimensions',
           'dimensions': [{'label': "Client's Voice",
                           'desc': "Is the person's own voice, goals, and preferences reflected, or "

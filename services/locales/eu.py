@@ -186,7 +186,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'workspace_context_header': 'Hausnarketaren testuingurua',
  'workspace_progress_label': 'Aztertuta: {explored} / {total}',
  'workspace_explore_button': 'Aztertu laguntzailearekin',
- 'workspace_more_header': 'Behaketa honi buruz gehiago',
+ 'workspace_more_header': 'Zergatik galdera hauek? Ikusi IAk zer nabaritu duen',
  'workspace_questions_header': 'Hausnartzeko galderak',
  'rs_info_header': 'Hausnarketaren informazioa',
  'workspace_close_button': 'Itxi',
@@ -752,9 +752,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
                          'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
                          'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
-                         '(txartelaren barruan berriro saia zaitezke). Txartel bat irekitzean esaldi labur '
-                         'bat eta galderak ikusten dituzu; behaketaren gainerakoa eta oinarri duen pasartea '
-                         '«Behaketa honi buruz gehiago» atalean daude.',
+                         '(txartelaren barruan berriro saia zaitezke). Txartel bat irekitzean galderak '
+                         'ikusten dituzu; IAk nabaritu duena eta oinarri duen pasartea «Zergatik galdera '
+                         'hauek?» atalean daude.',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
                           'desc': 'Pertsonaren ahotsa, helburuak eta hobespenak presente al daude, '

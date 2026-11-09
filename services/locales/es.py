@@ -186,7 +186,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'workspace_context_header': 'Contexto de la reflexión',
  'workspace_progress_label': 'Explorado(s): {explored} de {total}',
  'workspace_explore_button': 'Explorar con el acompañante',
- 'workspace_more_header': 'Más sobre esta observación',
+ 'workspace_more_header': '¿Por qué estas preguntas? Mira lo que observó la IA',
  'workspace_questions_header': 'Preguntas para reflexionar',
  'rs_info_header': 'Información de la reflexión',
  'workspace_close_button': 'Cerrar',
@@ -754,9 +754,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
                          'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
                          'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
-                         '(puedes reintentarlo dentro de la tarjeta). Al abrir una tarjeta ves una frase '
-                         'breve y las preguntas; el resto de la observación y el pasaje en que se basa '
-                         'están en «Más sobre esta observación».',
+                         '(puedes reintentarlo dentro de la tarjeta). Al abrir una tarjeta ves las preguntas; '
+                         'lo que observó la IA y el pasaje en que se basa están en «¿Por qué estas '
+                         'preguntas?».',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '

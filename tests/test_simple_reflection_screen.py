@@ -405,19 +405,6 @@ class SimplerResultsScreenTests(unittest.TestCase):
     def setUpClass(cls):
         cls.page = _read("pages", "reflection_space.py")
 
-    def test_first_sentence_is_split_without_rewording(self):
-        from services.findings_ui import split_first_sentence
-        first, rest = split_first_sentence(
-            "The note records housing and rent. It does not say why the move is needed now! ¿Por qué?"
-        )
-        self.assertEqual(first, "The note records housing and rent.")
-        self.assertEqual(rest, "It does not say why the move is needed now! ¿Por qué?")
-        self.assertEqual(split_first_sentence("One sentence only."), ("One sentence only.", ""))
-        self.assertEqual(split_first_sentence("e.g. a lower-case start stays whole"),
-                         ("e.g. a lower-case start stays whole", ""))
-        self.assertEqual(split_first_sentence(""), ("", ""))
-        self.assertEqual(split_first_sentence(None), ("", ""))
-
     def test_reflection_info_is_one_folded_band(self):
         self.assertIn('T[\'rs_info_header\']} · {session.case_ref} · {reflection_language}"', self.page)
         start = self.page.index("T['rs_info_header']")
@@ -428,13 +415,15 @@ class SimplerResultsScreenTests(unittest.TestCase):
         self.assertIn("st.write(session.safe_text)", band)
         self.assertIn("st.write(session.case_text)", band)
 
-    def test_questions_open_and_the_rest_folded(self):
+    def test_only_the_questions_are_open(self):
         start = self.page.index("def _render_opportunity_tab_body")
         body = self.page[start:self.page.index("_render_finding_notes(session, opportunity)", start)]
-        # Order: first sentence, questions, then the fold.
-        self.assertLess(body.index("st.write(first_sentence)"), body.index('st.markdown(f"- {q}")'))
-        self.assertLess(body.index('st.markdown(f"- {q}")'), body.index('st.expander(T["workspace_more_header"], expanded=False)'))
-        fold = body[body.index('st.expander(T["workspace_more_header"]'):]
+        # The fold ("Why these questions?") comes first and holds everything
+        # the AI noticed; the questions come after it, open.
+        fold_at = body.index('st.expander(T["workspace_more_header"], expanded=False)')
+        self.assertLess(fold_at, body.index('st.markdown(f"- {q}")'))
+        fold = body[fold_at:body.index("elif opportunity.focus:")]
+        self.assertIn("st.write(opportunity.focus)", fold)
         self.assertIn("render_evidence(", fold)
         self.assertIn('st.caption(T["workspace_reminder"])', fold)   # reminder stays inside the fold
         # The questions list is iterated once, so the Retry button still appears.

@@ -38,13 +38,13 @@ reflection.**
     saved)". Streamlit cannot put a fold inside a fold, so those two texts open
     with a switch (off by default). Warnings (a lens that failed, findings not
     saved) stay visible above it.
-  - Opening a card shows the **first sentence** of the observation (so the
-    questions make sense on their own) and **the questions**. The rest of the
-    observation, the quoted passage(s) and the "this is your professional
-    decision" reminder are under **"More about this observation"** (folded);
-    "My notes and sharing with the team" stays folded. Nothing is reworded:
-    the first sentence is cut at the first sentence break
-    (`services/findings_ui.split_first_sentence`).
+  - Opening a card shows **only the questions**. What the AI noticed — the
+    whole observation, the quoted passage(s) and the "this is your professional
+    decision" reminder — is in one fold just above them, **"Why these
+    questions? See what the AI noticed"**, which the practitioner opens when
+    they want. "My notes and sharing with the team" stays folded. (A first
+    version showed the observation's first sentence open; the product owner
+    asked for it to be folded too.)
   - The button is now **"Explore this with the companion"** ("Explorar con el
     acompañante", "Aztertu laguntzailearekin").
 - If the whole reflection fails, **"Try again with the same text"** puts the
