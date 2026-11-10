@@ -98,7 +98,7 @@ def check_and_alert():
     unless a real crossing just happened.
 
     Also checks: projected monthly cost exceeding the configured
-    budget (Anthropic, Gemini), and Qdrant becoming unavailable.
+    budget (Anthropic, Gemini).
     Never raises.
     """
     try:
@@ -127,23 +127,6 @@ def check_and_alert():
         ],
     )
     _rearm_if_green("gemini", gemini["status"])
-
-    qdrant = overviews["qdrant"]
-    if qdrant.get("configured") and not qdrant.get("connected"):
-        _maybe_alert(
-            "qdrant_unavailable", "Qdrant", "red",
-            [f"Qdrant is configured but not reachable. Error: {qdrant.get('error') or 'unknown'}"],
-        )
-    else:
-        _rearm_if_green("qdrant_unavailable", "green")
-
-    if qdrant.get("budget_pct_used") is not None:
-        _maybe_alert(
-            "qdrant_capacity", "Qdrant vector capacity", qdrant["status"],
-            [f"{qdrant.get('points_count')} of {qdrant.get('capacity')} vectors used "
-             f"({qdrant['budget_pct_used']}%)."],
-        )
-        _rearm_if_green("qdrant_capacity", qdrant["status"])
 
     postgres = overviews["postgres"]
     _maybe_alert(

@@ -36,8 +36,7 @@ mistake in one place doesn't expose data it shouldn't.
 |---|---|---|
 | Streamlit | The web app itself (all the screens) | `app.py`, `pages/` |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
-| Qdrant | Vector search over documents stored before Oct 2026 (new reflections are matched by code and case themes in Postgres) | `services/qdrant_service.py` |
-| Google Gemini | Turns text into the numbers Qdrant searches on | `services/embedding_service.py` |
+| Google Gemini | Turns text into numerical "fingerprints" for the pattern features (Text analysis, Pattern Review); the results are stored in Postgres | `services/embedding_service.py` |
 | Claude (Anthropic) | Powers the reflection companion and the Knowledge Assistant | `rdi/`, `services/knowledge_assistant.py` |
 
 **Data flow, in short:** a social worker writes, pastes or uploads a case on
@@ -46,12 +45,13 @@ first (if that fails, nothing is sent anywhere) → only the anonymised text
 goes to the RDI ("Reflective Decision Intelligence") layer in `rdi/`, which
 uses Claude to generate reflective prompts (never directive advice) in the
 language the worker chose → only the **reflection** is saved to Postgres,
-with a neutral, automatically created code; the case text is discarded when
-the worker finishes. Messages typed into follow-up conversations and
+with a neutral, automatically created code, together with the **original**
+text (since 10 November 2026, agreed with EDE, for later pattern analysis —
+it is stored in the EU database and never sent to the AI). Messages typed into follow-up conversations and
 Knowledge Assistant questions go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
-are replaced by life stages (see `REFLECTIONS.md`). Qdrant/Gemini indexing remains in the code for documents stored
-before October 2026 (see `REFLECTIONS.md`).
+are replaced by life stages (see `REFLECTIONS.md`). The Qdrant search service,
+which served the old document-based design, was removed in November 2026.
 
 ## Where things live
 
@@ -69,7 +69,7 @@ before October 2026 (see `REFLECTIONS.md`).
   the database connection pool under load
 - `tests/` — automated tests, grouped by what they protect: security,
   reliability, scalability
-- Service Cost & Usage Monitor — tracks what Claude, Gemini, Qdrant, the
+- Service Cost & Usage Monitor — tracks what Claude, Gemini, the
   database, and SMTP are actually costing/being used, shown on System
   Administration → "Service Usage & Costs". See `SERVICE_USAGE_MONITORING.md`.
 
@@ -107,7 +107,7 @@ Tests are organised by what they guard:
 - `test_scalability_*.py` — pagination, caching, load behaviour under many
   concurrent users (Phase 3)
 - `test_reflection_records_*.py` — the reflection-only design: neutral codes,
-  case themes, "case text is never stored", similar-reflection matching
+  case themes, who may read the saved original text, similar-reflection matching
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call
@@ -128,9 +128,10 @@ must pass before a change is considered safe to keep.
 
 - Never hardcode user-facing text — add it to the translation files in
   `services/locales/` in all three languages.
-- Never store the original case text. Only the reflection and, since
-  November 2026, its **anonymised** text (time-limited) are kept (see
-  `REFLECTIONS.md`).
+- Never send the original case text to an AI provider: only the anonymised
+  text goes to Claude. Since 10 November 2026 (agreed with EDE) the original
+  text is stored, time-limited, in the EU database and read only under the
+  rules in `REFLECTIONS.md` ("Saved ORIGINAL text").
 - Never bypass the database connection pool (`services/db_pool.py`) for
   application queries — it exists to keep the app stable under load.
 - Keep business logic out of `pages/` files where possible — pages should

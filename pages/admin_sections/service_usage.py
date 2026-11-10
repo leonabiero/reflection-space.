@@ -62,17 +62,6 @@ def render(T):
             T.get("admin_usage_col_cost", "Est. cost (month)"): _money(g["cost_month_usd"]),
             T.get("admin_usage_col_status", "Status"): _status_label(g["status"]),
         })
-        q = overviews["qdrant"]
-        q_usage = f"{q['points_count']} vectors" if q.get("points_count") is not None else T.get("admin_usage_unavailable", "Unavailable")
-        q_limit = f"{q['capacity']} vectors" if q.get("capacity") is not None else T.get("admin_usage_limit_unavailable", "Limit unavailable")
-        overview_rows.append({
-            T.get("admin_usage_col_service", "Service"): q["service"],
-            T.get("admin_usage_col_usage", "Usage (this month)"): q_usage,
-            T.get("admin_usage_col_limit", "Budget"): q_limit,
-            T.get("admin_usage_col_pct", "% used"): _pct(q["budget_pct_used"]),
-            T.get("admin_usage_col_cost", "Est. cost (month)"): T.get("admin_usage_no_billing_api", "No billing API"),
-            T.get("admin_usage_col_status", "Status"): _status_label(q["status"]),
-        })
         p = overviews["postgres"]
         p_usage = f"{p['active_conn']} / {p['max_conn']} " + T.get("admin_usage_connections", "connections") if p.get("pool_created") else T.get("admin_usage_not_started", "Not started yet")
         overview_rows.append({
@@ -155,15 +144,6 @@ def render(T):
         if not g["configured"]:
             st.warning(T.get("admin_usage_gemini_not_configured", "Gemini API key is not configured."))
 
-        # --- Qdrant detail --------------------------------------------------------
-        st.markdown(f"### {T.get('admin_usage_qdrant_detail_header', 'Qdrant detail')}")
-        st.metric(T.get("admin_usage_qdrant_vectors", "Vectors stored"), q.get("points_count") if q.get("points_count") is not None else "—")
-        st.metric(T.get("admin_usage_qdrant_capacity", "Configured capacity"), q.get("capacity") if q.get("capacity") is not None else T.get("admin_usage_limit_unavailable", "Limit unavailable"))
-        if q.get("dimension_mismatch"):
-            st.error(f"⚠️ {q['dimension_mismatch']}")
-        if q.get("error"):
-            st.warning(q["error"])
-
         # --- Alerts / budgets configuration note ----------------------------------
         with st.expander(T.get("admin_usage_pricing_header", "Pricing & budget configuration"), expanded=False):
             st.caption(T.get(
@@ -198,9 +178,6 @@ def render(T):
                    _money(forecast["projected_claude_cost_usd"]))
         st.metric(T.get("admin_usage_forecast_gemini_cost", "Projected Gemini cost/month"),
                    _money(forecast["projected_gemini_cost_usd"]))
-        if forecast.get("projected_vector_count") is not None:
-            st.metric(T.get("admin_usage_forecast_vectors", "Projected vector count"),
-                       forecast["projected_vector_count"])
         st.caption(f"ℹ️ {forecast['basis_note']}")
 
         # --- Preset scenario table --------------------------------------------------

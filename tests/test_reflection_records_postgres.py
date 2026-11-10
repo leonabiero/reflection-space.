@@ -44,7 +44,6 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
             patch.object(findings_store, "_get_conn", self._connect),
             patch.object(draft_storage, "_get_conn", self._connect),
             patch.object(reflection_records, "_get_conn", self._connect),
-            patch.object(draft_storage, "delete_document", lambda *a, **k: None),
             patch.object(draft_storage, "log_action", lambda *a, **k: None),
             patch("services.audit_log.log_action", lambda *a, **k: None),
         ]
@@ -140,6 +139,77 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
         run_id = self._save_with_text("test_alice", "to be deleted")
         self.assertTrue(self.rr.delete_reflection(run_id, "test_admin", "System Administrator"))
         self.assertIsNone(self.rr.get_anonymised_text(run_id, "test_admin", "System Administrator"))
+
+    # --- saved ORIGINAL text (November 2026, agreed with EDE) ----------
+    def _save_with_original(self, owner, text):
+        code = self.rr.generate_code()
+        saved = self.fs.save_reflection_run(
+            case_ref=code, source_draft_ids=[], language="Español",
+            prompt_version="v", model="m", module_status={},
+            findings=[_finding("client_voice", "obs")],
+            created_by=owner, created_by_role="Social Worker",
+            reflection_code=code, original_text=text,
+        )
+        return saved["run_id"]
+
+    def test_original_text_is_readable_by_its_author_only_by_id(self):
+        run_id = self._save_with_original("test_alice", "Maria Lopez came to the centre.")
+        self.assertEqual(self.rr.get_original_text(run_id, "test_alice"), "Maria Lopez came to the centre.")
+        self.assertIsNone(self.rr.get_original_text(run_id, "test_bob"))
+        self.assertIsNone(self.rr.get_original_text(run_id, ""))
+        listed = [r for r in self.rr.list_reflections("Supervisor", limit=500) if r["run_id"] == run_id]
+        self.assertTrue(listed and listed[0]["has_original_text"])
+        self.assertNotIn("Maria", str(listed[0]))          # the list never carries the text
+
+    def test_managers_see_original_texts_without_names_or_codes(self):
+        run_id = self._save_with_original("test_alice", "Text written by Alice.")
+        for role in ("Supervisor", "Programme Manager"):
+            items = [i for i in self.rr.list_original_texts(role, limit=200) if i["run_id"] == run_id]
+            self.assertEqual(len(items), 1, role)
+            self.assertEqual(set(items[0]), {"run_id", "date", "language", "text"})
+            self.assertEqual(items[0]["text"], "Text written by Alice.")
+            self.assertNotIn("test_alice", str(items[0]))
+            self.assertGreaterEqual(self.rr.count_original_texts(role), 1)
+        for role in ("Social Worker", "System Administrator", ""):
+            self.assertEqual(self.rr.list_original_texts(role), [], role)
+            self.assertEqual(self.rr.count_original_texts(role), 0, role)
+
+    def test_expired_original_text_is_hidden_then_cleared_but_reflection_stays(self):
+        from config import ORIGINAL_TEXT_RETENTION_MONTHS as months
+        fresh = self._save_with_original("test_alice", "fresh text")
+        old = self._save_with_original("test_alice", "old text")
+        self._age(old, months + 1)
+        self.assertIsNone(self.rr.get_original_text(old, "test_alice"))
+        ids = [i["run_id"] for i in self.rr.list_original_texts("Supervisor", limit=200)]
+        self.assertIn(fresh, ids)
+        self.assertNotIn(old, ids)
+        self.assertGreaterEqual(self.rr.purge_expired_original_text(), 1)
+        self.assertEqual(self.rr.get_original_text(fresh, "test_alice"), "fresh text")
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute("SELECT original_text, reflection_code FROM reflection_runs WHERE id = %s", (old,))
+                text, code = c.fetchone()
+        finally:
+            conn.close()
+        self.assertIsNone(text)
+        self.assertTrue(code)          # the reflection itself is kept
+
+    def test_deleted_reflection_hides_and_then_erases_its_original_text(self):
+        from config import DELETION_WINDOW_HOURS
+        run_id = self._save_with_original("test_alice", "to be deleted")
+        self.assertTrue(self.rr.delete_own_reflection(run_id, "test_alice"))
+        self.assertIsNone(self.rr.get_original_text(run_id, "test_alice"))
+        self.assertNotIn(run_id, [i["run_id"] for i in self.rr.list_original_texts("Supervisor", limit=200)])
+        self._set_deleted_hours_ago(run_id, DELETION_WINDOW_HOURS + 1)
+        self.rr.purge_expired_reflection_deletions()
+        conn = self._connect()
+        try:
+            with conn.cursor() as c:
+                c.execute("SELECT COUNT(*) FROM reflection_runs WHERE id = %s", (run_id,))
+                self.assertEqual(c.fetchone()[0], 0)
+        finally:
+            conn.close()
 
     # --- a practitioner deleting their own reflection (November 2026) -
     def _set_deleted_hours_ago(self, run_id, hours):

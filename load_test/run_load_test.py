@@ -32,8 +32,6 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql://fake:fake@localhost/fake")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-fake-for-load-test")
 os.environ.setdefault("GEMINI_API_KEY", "fake-for-load-test")
-os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
-os.environ.setdefault("QDRANT_API_KEY", "fake")
 
 from load_test.harness import run_load_test
 from load_test.scenarios import (

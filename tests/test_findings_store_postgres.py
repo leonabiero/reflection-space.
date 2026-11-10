@@ -42,7 +42,6 @@ class FindingsStoreRealDatabaseTests(unittest.TestCase):
         patches = [
             patch.object(findings_store, "_get_conn", self._connect),
             patch.object(draft_storage, "_get_conn", self._connect),
-            patch.object(draft_storage, "delete_document", lambda *a, **k: None),
             patch.object(draft_storage, "log_action", lambda *a, **k: None),
         ]
         for p in patches:

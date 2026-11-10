@@ -1,11 +1,11 @@
 """System Administration -- Section 6: Configuration.
 
-Extracted unchanged from the original system_administration.py file.
+November 2026: the Qdrant collection name and the old historical-document
+retrieval limit were removed together with the Qdrant search service.
 """
 import streamlit as st
 
-from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, QDRANT_COLLECTION_NAME
-from rdi.context_engine import DEFAULT_HISTORY_LIMIT
+from config import EMBEDDING_MODEL, EMBEDDING_DIMENSIONS
 
 
 def render(T):
@@ -13,6 +13,4 @@ def render(T):
         st.markdown(f"""
 - **{T['admin_rag_embedding_model']}:** {EMBEDDING_MODEL}
 - **{T['admin_rag_embedding_dims']}:** {EMBEDDING_DIMENSIONS}
-- **{T.get('historical_docs_used_label', 'Retrieval limit')}:** {DEFAULT_HISTORY_LIMIT}
-- **{T['admin_rag_collection']}:** {QDRANT_COLLECTION_NAME}
     """)

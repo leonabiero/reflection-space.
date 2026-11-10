@@ -12,6 +12,7 @@ These tests cover what can be checked without a browser:
   - every new piece of on-screen text exists in Spanish, Basque and English.
 """
 
+import os
 import re
 import threading
 import unittest
@@ -238,57 +239,90 @@ class SimpleScreenTests(unittest.TestCase):
             self.assertIn(guard, self.page, guard)
 
 
-class SavedAnonymisedTextStaticTests(unittest.TestCase):
-    """November 2026: the ANONYMISED text is saved for pattern analysis --
-    never the original."""
+class SavedOriginalTextStaticTests(unittest.TestCase):
+    """November 2026 (agreed with EDE): the ORIGINAL text is saved in the EU
+    database for pattern analysis. The AI still only receives the
+    anonymised text (see PagePrivacyFlowTests above)."""
 
-    def test_page_saves_only_the_anonymised_text(self):
+    def test_page_saves_the_original_text_and_no_longer_the_anonymised_copy(self):
         page = _read("pages", "reflection_space.py")
-        self.assertIn("session.safe_text if SAVE_ANONYMISED_TEXT else None", page)
-        for raw_name in ("material", "case_text", "file_text", "session.case_text"):
-            self.assertNotIn(f"anonymised_text={raw_name}", page)
-            self.assertNotIn(f"anonymised_text=(\n                                    {raw_name}", page)
+        self.assertIn("material if SAVE_ORIGINAL_TEXT else None", page)
+        self.assertNotIn("anonymised_text=", page)
 
-    def test_schema_has_the_column_but_never_a_raw_text_column(self):
+    def test_schema_has_the_original_text_column(self):
         schema = _read("services", "db_schema.py")
+        self.assertIn("ADD COLUMN IF NOT EXISTS original_text TEXT", schema)
+        # Older reflections (4-10 November 2026) keep their anonymised copy.
         self.assertIn("ADD COLUMN IF NOT EXISTS anonymised_text TEXT", schema)
-        for forbidden in ("case_text TEXT", "original_text TEXT", "raw_text TEXT"):
-            self.assertNotIn(forbidden, schema)
 
     def test_settings_have_safe_defaults(self):
         import config
-        self.assertIsInstance(config.SAVE_ANONYMISED_TEXT, bool)
+        self.assertIsInstance(config.SAVE_ORIGINAL_TEXT, bool)
+        self.assertGreaterEqual(config.ORIGINAL_TEXT_RETENTION_MONTHS, 1)
+        if "ORIGINAL_TEXT_RETENTION_MONTHS" not in os.environ:
+            self.assertEqual(config.ORIGINAL_TEXT_RETENTION_MONTHS, 15)
         self.assertGreaterEqual(config.ANONYMISED_TEXT_RETENTION_MONTHS, 1)
 
-    def test_reading_is_limited_to_author_or_managers_and_unexpired(self):
-        from services import reflection_records as rr
-        self.assertIsNone(rr.get_anonymised_text(5, "", "Supervisor"))
-        self.assertIsNone(rr.get_anonymised_text(None, "ana", "Supervisor"))
+    def _capture(self, rr, call):
         captured = {}
 
         class _Cursor:
             def __enter__(self): return self
             def __exit__(self, *a): return False
-            def execute(self, sql, params): captured["sql"], captured["params"] = sql, params
+            def execute(self, sql, params=None): captured["sql"], captured["params"] = sql, params
             def fetchone(self): return None
+            def fetchall(self): return []
 
         class _Conn:
             def cursor(self): return _Cursor()
             def close(self): pass
 
         with patch.object(rr, "_get_conn", lambda: _Conn()):
-            rr.get_anonymised_text(5, "ana", "Social Worker")
-        self.assertIn("make_interval(months", captured["sql"])
+            call()
+        return captured
+
+    def test_original_text_by_id_is_for_its_author_only(self):
+        from services import reflection_records as rr
+        self.assertIsNone(rr.get_original_text(5, ""))
+        self.assertIsNone(rr.get_original_text(None, "ana"))
+        captured = self._capture(rr, lambda: rr.get_original_text(5, "ana"))
         self.assertIn("r.created_by = %s", captured["sql"])
-        self.assertEqual(captured["params"][2:], (False, "ana"))   # not a manager -> own only
-        with patch.object(rr, "_get_conn", lambda: _Conn()):
-            rr.get_anonymised_text(5, "boss", "Supervisor")
+        self.assertIn("r.deleted_at IS NULL", captured["sql"])
+        self.assertIn("make_interval(months", captured["sql"])
+        self.assertEqual(captured["params"][:2], (5, "ana"))
+
+    def test_management_list_has_no_names_codes_or_times(self):
+        from services import reflection_records as rr
+        with patch.object(rr, "_get_conn", side_effect=AssertionError("no DB for these roles")):
+            for role in ("Social Worker", "System Administrator", ""):
+                self.assertEqual(rr.list_original_texts(role), [])
+                self.assertEqual(rr.count_original_texts(role), 0)
+        captured = self._capture(rr, lambda: rr.list_original_texts("Supervisor"))
+        select_part = captured["sql"].split("FROM", 1)[0]
+        for forbidden in ("created_by", "reflection_code", "case_ref", "r.created_at,"):
+            self.assertNotIn(forbidden, select_part)
+        self.assertIn("r.created_at::date", select_part)
+
+    def test_case_history_never_shows_the_original_text(self):
+        page = _read("pages", "case_history.py")
+        self.assertNotIn("get_original_text", page)
+        self.assertNotIn("list_original_texts", page)
+        self.assertIn('T["ch_original_text_in_patterns_note"]', page)
+
+    def test_older_anonymised_text_is_still_limited_to_author_or_managers(self):
+        from services import reflection_records as rr
+        self.assertIsNone(rr.get_anonymised_text(5, "", "Supervisor"))
+        captured = self._capture(rr, lambda: rr.get_anonymised_text(5, "ana", "Social Worker"))
+        self.assertEqual(captured["params"][2:], (False, "ana"))
+        captured = self._capture(rr, lambda: rr.get_anonymised_text(5, "boss", "Supervisor"))
         self.assertEqual(captured["params"][2:], (True, "boss"))
 
-    def test_the_text_is_never_logged(self):
+    def test_the_texts_are_never_logged(self):
         source = _read("services", "reflection_records.py")
         for call in re.findall(r"logger\.\w+\((?:.|\n)*?\)\n", source):
-            self.assertNotIn("anonymised_text", call.split(",", 1)[-1])
+            args = call.split(",", 1)[-1]
+            self.assertNotIn("anonymised_text", args)
+            self.assertNotIn("original_text", args)
 
 
 class TranslationTests(unittest.TestCase):
@@ -298,8 +332,11 @@ class TranslationTests(unittest.TestCase):
         "rs_choose_source_warning", "rs_need_material", "rs_language_label",
         "rs_language_names", "rs_privacy_note", "rs_reflect_button", "rs_anonymised_status",
         "rs_preparing_status", "rs_anonymise_failed", "rs_anonymised_preview_label",
-        "rs_anonymised_preview_help", "rs_try_again_button", "rs_saved_anonymised_note",
+        "rs_anonymised_preview_help", "rs_try_again_button", "rs_original_saved_note",
         "ch_show_anonymised_text", "ch_anonymised_text_caption", "ch_anonymised_text_unavailable",
+        "ch_show_saved_text", "ch_original_text_caption", "ch_saved_text_unavailable",
+        "ch_original_text_in_patterns_note", "patterns_texts_header", "patterns_texts_caption",
+        "patterns_texts_empty", "patterns_texts_showing", "patterns_texts_item",
     )
 
     def test_every_new_text_exists_in_all_three_languages(self):
@@ -315,8 +352,12 @@ class TranslationTests(unittest.TestCase):
                 {"Español": "Español", "Euskera": "Euskara", "English": "English"},
             )
         for lang in (LANG_ES, LANG_EU, LANG_EN):
-            self.assertIn("{months}", lang["rs_saved_anonymised_note"])
-            self.assertIn("{months}", lang["help"]["anonymised_saved_note"])
+            self.assertIn("{months}", lang["rs_original_saved_note"])
+            self.assertIn("{months}", lang["help"]["original_saved_note"])
+            self.assertIn("{months}", lang["ch_original_text_caption"])
+            self.assertIn("{months}", lang["patterns_texts_caption"])
+            self.assertIn("{shown}", lang["patterns_texts_showing"])
+            self.assertIn("{date}", lang["patterns_texts_item"])
         self.assertEqual(LANG_EN["rs_heading"], "Let's reflect.")
         self.assertEqual(LANG_EN["rs_reflect_button"], "Reflect")
         self.assertEqual(LANG_EN["rs_anonymised_preview_label"], "View anonymised text")

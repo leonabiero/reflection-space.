@@ -124,7 +124,8 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                         model, module_status, findings,
                         created_by, created_by_role="",
                         reflection_code=None, case_tags=None,
-                        note_type="", previous_code="", anonymised_text=None):
+                        note_type="", previous_code="", anonymised_text=None,
+                        original_text=None):
     """
     Save one generated reflection: the run, the documents it used, and
     every finding -- all in ONE transaction, so either everything is
@@ -143,9 +144,15 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
     groups by case_ref keeps working. All four are optional, so older
     callers (and older rows) are unaffected.
 
-    `anonymised_text` (November 2026): the ANONYMISED text the AI received,
-    kept for later pattern analysis -- callers must never pass the
-    original text here. Optional; NULL when not given.
+    `original_text` (November 2026, agreed with EDE): the ORIGINAL text
+    the reflection was made from, kept in the EU database for later
+    pattern analysis. It is stored only -- it is never sent to an AI
+    provider and never logged. Optional; NULL when not given.
+
+    `anonymised_text`: used 4-10 November 2026, before the original text
+    was kept instead. Still accepted so older callers keep working, but
+    the reflection screen no longer passes it. Optional; NULL when not
+    given.
 
     Returns {"run_id": int, "finding_ids": {module: finding_id}}.
     Raises on database failure (callers decide how to degrade).
@@ -175,8 +182,8 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                     (case_ref, language, prompt_version, model, module_status,
                      created_by, created_by_role, created_at,
                      reflection_code, case_tags, note_type, previous_code,
-                     anonymised_text)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     anonymised_text, original_text)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (case_ref, language, prompt_version, model,
@@ -184,7 +191,7 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                  created_by, created_by_role, now_utc(),
                  reflection_code or None, tags_json,
                  note_type or None, previous_code or None,
-                 anonymised_text or None),
+                 anonymised_text or None, original_text or None),
             )
             run_id = c.fetchone()[0]
 

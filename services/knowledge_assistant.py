@@ -19,9 +19,8 @@ orchestration layer over pieces that already exist:
       REFLECTIONS -- the AI's observations across every professional's
       reflections, never anyone's private notes and never case text.
       Previously this searched stored documents through
-      rdi.retrieval_service.retrieve_global_context(); that module is
-      untouched and still serves the System Administration Retrieval
-      Test for any documents stored before the redesign.
+      rdi.retrieval_service.retrieve_global_context(); that module and
+      the Qdrant search service behind it were removed in November 2026.
 
     - services.research_metrics_service.build_research_summary() -- the
       SAME organisation-wide, anonymous aggregate counts (theme flags,
@@ -33,11 +32,10 @@ orchestration layer over pieces that already exist:
 
     - services.anonymizer.anonymize() -- the SAME anonymization
       boundary used everywhere else before any document content
-      reaches Claude (reflection_service.py, qdrant_service.py). Every
-      retrieved excerpt is anonymized again here (defense in depth: the
-      Qdrant-indexed content was anonymized at index time already, but
-      this module never assumes that and anonymizes independently
-      before it ever gets included in a prompt).
+      reaches Claude (reflection_service.py). Every retrieved excerpt is
+      anonymized again here (defense in depth: this module never assumes
+      its inputs were already anonymized and anonymizes independently
+      before anything is included in a prompt).
 
 Grounding, not general knowledge
 ------------------------------------

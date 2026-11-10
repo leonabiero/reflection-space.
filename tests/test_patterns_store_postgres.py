@@ -33,8 +33,7 @@ class PatternsRealDatabaseTests(unittest.TestCase):
         for mod in (findings_store, draft_storage, pattern_store):
             p = patch.object(mod, "_get_conn", self._connect)
             p.start(); self.addCleanup(p.stop)
-        for target, name, repl in ((draft_storage, "delete_document", lambda *a, **k: None),
-                                   (draft_storage, "log_action", lambda *a, **k: None)):
+        for target, name, repl in ((draft_storage, "log_action", lambda *a, **k: None),):
             p = patch.object(target, name, repl)
             p.start(); self.addCleanup(p.stop)
         self._clean(); self.addCleanup(self._clean)

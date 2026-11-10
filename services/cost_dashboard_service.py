@@ -17,7 +17,7 @@ tests/test_service_usage_monitoring.py).
 Every number here traces back to either:
   - a real row in service_usage (services/usage_ledger.py), or
   - an existing, already-audited service (services.reflection_log,
-    services.qdrant_service.get_diagnostics(), services.db_pool.get_pool_stats()).
+    services.db_pool.get_pool_stats()).
 
 Nothing here invents a limit, a price, or a percentage that the
 underlying data doesn't support -- see _status_for_pct() and every
@@ -29,7 +29,6 @@ import calendar
 
 import config
 from services import usage_ledger
-from services.qdrant_service import get_diagnostics as qdrant_diagnostics
 from services.embedding_service import is_available as gemini_available
 from services.db_pool import get_pool_stats
 from services.reflection_log import get_total_reflection_count
@@ -126,31 +125,6 @@ def get_gemini_overview():
     }
 
 
-def get_qdrant_overview():
-    """Qdrant exposes no billing API -- usage/capacity only, never a
-    fabricated dollar cost (spec Phase 5)."""
-    diag = qdrant_diagnostics()
-    points = diag.get("points_count")
-    capacity = config.QDRANT_CAPACITY_VECTORS or None
-    pct = round(100.0 * points / capacity, 1) if (points is not None and capacity) else None
-    month = usage_ledger.get_window_summary("qdrant", window_days=30)
-    return {
-        "service": "Qdrant",
-        "configured": diag.get("configured", False),
-        "connected": diag.get("connected", False),
-        "points_count": points,
-        "capacity": capacity,
-        "budget_pct_used": pct,
-        "status": _status_for_pct(pct) if diag.get("connected") else (
-            STATUS_RED if diag.get("configured") else STATUS_UNKNOWN
-        ),
-        "dimension_mismatch": diag.get("dimension_mismatch"),
-        "requests_30d": month["request_count"],
-        "fail_count_30d": month["fail_count"],
-        "error": diag.get("error"),
-    }
-
-
 def get_postgres_overview():
     """APPLICATION-level pool metrics only -- explicitly NOT Neon's own
     billing/compute data, which this app cannot retrieve (spec Phase
@@ -211,7 +185,6 @@ def get_all_service_overviews():
     return {
         "anthropic": get_anthropic_overview(),
         "gemini": get_gemini_overview(),
-        "qdrant": get_qdrant_overview(),
         "postgres": get_postgres_overview(),
         "streamlit": get_streamlit_overview(),
         "smtp": get_smtp_overview(),
@@ -318,20 +291,12 @@ def forecast_scenario(users, reflections_per_user_per_month):
     if avg_gemini_cost_per_reflection is not None:
         projected_gemini_cost = avg_gemini_cost_per_reflection * total_reflections
 
-    qdrant = get_qdrant_overview()
-    projected_vector_count = None
-    if qdrant.get("points_count") is not None:
-        # Roughly one new vector per newly completed document/reflection.
-        projected_vector_count = qdrant["points_count"] + total_reflections
-
     return {
         "users": users,
         "reflections_per_user_per_month": reflections_per_user_per_month,
         "total_reflections_per_month": total_reflections,
         "projected_claude_cost_usd": projected_claude_cost,
         "projected_gemini_cost_usd": projected_gemini_cost,
-        "projected_vector_count": projected_vector_count,
-        "qdrant_capacity": qdrant.get("capacity"),
         "basis_note": (
             "Estimate only -- based on this pilot's current measured average "
             "cost per reflection, projected linearly to the volumes above. "

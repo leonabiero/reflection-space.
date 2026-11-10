@@ -4,9 +4,10 @@ A professional can upload a Word (.docx), PDF or text (.txt) file instead of ret
 
 - Since October 2026 the upload sits on the single Reflection Space screen (the separate Documentation page was
   merged into it -- see `REFLECTIONS.md`).
-- Only the TEXT is read (`services/document_import.py`). The file itself is never stored, and neither is the text:
-  it is placed in the case box so the professional can check and edit it, it is anonymised before any AI sees it,
-  and it is discarded when the reflection is finished.
+- Only the TEXT is read (`services/document_import.py`). The file itself is never stored. The text is placed in
+  the case box so the professional can check and edit it, and it is anonymised before any AI sees it. Since
+  10 November 2026 the text reflected on is saved with the reflection (agreed with EDE -- see `REFLECTIONS.md`,
+  "Saved ORIGINAL text").
 - Refused with a clear message: unsupported types (including old .doc), files over 5 MB (also enforced by
   `maxUploadSize` in `.streamlit/config.toml` -- keep the two equal), PDFs over 60 pages, text over about 30,000
   characters, password-protected files, damaged files, empty files, and scanned PDFs (no text layer -- there is no OCR).

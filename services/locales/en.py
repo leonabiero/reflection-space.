@@ -10,13 +10,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'doc': 'Documentation',
  'case_ref': 'Case reference',
  'doc_type': 'Document type',
- 'doc_types': ['Case note',
-               'Follow-up diary',
-               'Interview record',
-               'Social work report',
-               'Referral proposal',
-               'Intervention plan',
-               'Email'],
  'language': 'Language',
  'text': 'Text',
  'save': 'Save draft',
@@ -179,7 +172,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'audit_action_restored': 'Restored',
  'audit_action_purged': 'Permanently purged',
  'workspace_opportunities_header': 'Reflection Opportunities',
- 'workspace_document_header': 'Case text (not saved)',
+ 'workspace_document_header': 'Case text',
  'workspace_context_header': 'Reflection context',
  'workspace_progress_label': 'Explored: {explored} of {total}',
  'workspace_explore_button': 'Explore this with the companion',
@@ -243,24 +236,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'research_export_caption': 'The file contains aggregate counts only -- no names, no cases, no '
                             'document text.',
  'research_no_data': "There isn't enough recorded activity for this period yet.",
- 'why_included_label': 'Why was this included?',
- 'why_reason_must_include_plan': 'This is the latest Intervention Plan and provides important '
-                                 "context for today's reflection.",
- 'why_reason_must_include_assessment': 'This is the most recent assessment available for this '
-                                       'client.',
- 'why_reason_must_include_generic': 'This is one of the core documents for this client.',
- 'why_reason_semantic_specific': 'This document discusses {themes}, which are also mentioned in '
-                                 "today's documentation.",
- 'why_reason_semantic_generic': 'This document discusses themes that are closely related to '
-                                "today's documentation.",
- 'why_reason_recency': 'This document was created recently and may contain important developments '
-                       "relevant to today's reflection.",
- 'why_technical_details_label': 'Technical details',
- 'why_similarity_label': 'Similarity:',
- 'why_similarity_very_high': 'Very High',
- 'why_similarity_high': 'High',
- 'why_similarity_moderate': 'Moderate',
- 'why_similarity_low': 'Low',
  'journey_step1': 'Your Case',
  'journey_step2': 'Earlier Reflections',
  'journey_step3': 'Professional Reflection',
@@ -273,7 +248,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'historical_timeline_header': 'Historical Timeline',
  'historical_timeline_intro': 'Relevant documents for this case, arranged chronologically.',
  'timeline_today_label': "📍 Today's Documentation",
- 'historical_docs_used_label': 'Historical documents currently included',
  'dashboard_navigator_hint': 'Use the tabs to move between reflection areas without scrolling '
                              'through the whole page.',
  'coverage_header': 'Reflection Coverage',
@@ -340,73 +314,12 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_user_col_username': 'Username',
  'admin_user_col_name': 'Name',
  'admin_user_col_role': 'Role',
- 'admin_doc_indexing_header': '📇 Document Indexing',
- 'admin_doc_indexing_caption': 'Hybrid RAG backfill utility -- generates Qdrant embeddings for '
-                               'documents completed before semantic retrieval was enabled.',
- 'admin_doc_indexing_cost': '💰 Cost note: this calls Gemini API (embeddings) once per completed '
-                            'document, never Claude.',
- 'admin_doc_indexing_unavailable': 'Qdrant is not configured, so semantic indexing is unavailable.',
- 'admin_doc_indexing_button': 'Run document backfill',
- 'admin_doc_indexing_success': '✅ Indexed {indexed} of {total} documents.',
- 'admin_doc_indexing_none_failed': '✅ No documents are pending indexing. Everything is up to date.',
- 'admin_doc_indexing_failed_label': '⚠️ {failed} document(s) saved correctly but failed to index '
-                                    'for search.',
- 'admin_doc_indexing_failed_caption': 'These documents are complete and appear normally throughout '
-                                      'the app -- only the step that makes them findable in '
-                                      "Knowledge Assistant and Reflection Context's historical "
-                                      'case lookup failed. No data was lost; retrying the indexing '
-                                      "is all that's needed.",
- 'admin_doc_indexing_retry_button': 'Retry failed documents only',
- 'admin_doc_indexing_retry_success': '✅ Retry complete: {indexed} of {total} documents indexed '
-                                     'successfully.',
- 'admin_retrieval_test_header': '🔍 Retrieval Test',
- 'admin_retrieval_test_caption': 'Runs a real semantic search against Qdrant to verify retrieval '
-                                 'is working end to end -- either scoped to one case, or across '
-                                 'the entire knowledge base.',
- 'admin_retrieval_test_cost': '💰 Cost note: this embeds your query text via Gemini API only -- it '
-                              'never calls the Claude/Anthropic API.',
- 'admin_retrieval_case_label': 'Case reference (optional -- leave blank to search the entire '
-                               'knowledge base)',
- 'admin_retrieval_query_label': 'Search query',
- 'admin_retrieval_run_button': 'Run retrieval test',
- 'admin_retrieval_summary_header': '#### Retrieval Summary',
- 'admin_retrieval_mode_global': '🌍 Global Knowledge Base Search',
- 'admin_retrieval_mode_case': '📁 Case-specific ({case_ref})',
- 'admin_retrieval_status_label': 'Status',
- 'admin_retrieval_status_success': '✅ Successful',
- 'admin_retrieval_status_failed': '❌ Failed',
- 'admin_retrieval_mode_row_label': 'Retrieval Mode',
- 'admin_retrieval_time_label': 'Search time',
- 'admin_retrieval_query_row_label': 'Query',
- 'admin_retrieval_docs_returned_label': 'Documents returned',
- 'admin_retrieval_embedding_model_label': 'Embedding model',
- 'admin_retrieval_global_notice': '🌍 Global mode: this search applied no case filter and may '
-                                  'return documents from more than one case.',
- 'admin_retrieval_failed_label': 'Retrieval failed:',
- 'admin_retrieval_documents_header': '#### Retrieved Documents',
- 'admin_retrieval_no_docs': 'No documents were returned for this query.',
- 'admin_retrieval_col_rank': 'Rank',
- 'admin_retrieval_col_doctype': 'Document Type',
- 'admin_retrieval_col_reason': 'Retrieval Reason',
- 'admin_retrieval_col_similarity': 'Similarity',
- 'admin_retrieval_col_case': 'Case Reference',
  'admin_advanced_diagnostics': '🔧 Advanced Diagnostics',
  'admin_show_raw_response': 'Show raw response',
- 'admin_rag_status_header': '📡 RAG Status',
- 'admin_rag_status_ok': '✅ Semantic retrieval layer is reachable.',
  'admin_rag_status_item': 'Item',
  'admin_rag_status_value': 'Status',
- 'admin_rag_qdrant_connection': 'Qdrant connection',
- 'admin_rag_collection': 'Collection',
  'admin_rag_embedding_model': 'Embedding model',
  'admin_rag_embedding_dims': 'Embedding dimensions',
- 'admin_rag_indexed_docs': 'Indexed documents',
- 'admin_rag_case_ref_index': 'Case reference index',
- 'admin_rag_doc_id_index': 'Document ID index',
- 'admin_rag_latest_doc_id': 'Latest document ID',
- 'admin_rag_latest_case': 'Latest case',
- 'admin_rag_latest_doctype': 'Latest document type',
- 'admin_rag_last_indexed': 'Last indexed',
  'admin_status_connected': 'Connected',
  'admin_status_not_connected': 'Not connected',
  'admin_status_present': '✅ Present',
@@ -421,16 +334,13 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_health_component_col': 'Component',
  'admin_health_status_col': 'Status',
  'admin_health_component_database': 'Database',
- 'admin_health_component_qdrant': 'Qdrant',
  'admin_health_component_embedding': 'Embedding service (Gemini API)',
- 'admin_health_component_retrieval': 'Retrieval service',
  'admin_health_component_reflection': 'Reflection engine (Claude API)',
  'admin_health_healthy_label': 'Healthy',
  'admin_health_unreachable_label': 'Unreachable',
  'admin_health_available_label': 'Available',
  'admin_health_not_configured_label': 'Not configured',
  'admin_health_operational_label': '✅ Operational',
- 'admin_health_fallback_label': '🟡 Fallback mode (recency-based)',
  'admin_health_db_error_prefix': 'Database error:',
  'admin_health_key_missing': 'ANTHROPIC_API_KEY is not configured -- reflections cannot be '
                              'generated.',
@@ -447,28 +357,8 @@ LANG_EN = {'title': '🧠 Reflection Space',
                          'baby, CHILD = child, ADOLESCENT = teenager under 18, YOUNG_ADULT = young '
                          'adult, ADULT = adult, OLDER_ADULT = older adult).',
  'admin_tools_anon_test_header': 'Anonymization Test',
- 'admin_tools_reset_index_header': 'Reset Search Index (Qdrant)',
- 'admin_tools_reset_index_caption': 'Deletes and rebuilds the semantic search index from scratch, '
-                                    'using the currently configured embedding provider. Use this '
-                                    'after switching embedding providers (e.g. from Voyage to '
-                                    "Gemini) so old, incompatible data doesn't interfere with new "
-                                    'searches.',
- 'admin_tools_reset_index_warning': '⚠️ This will permanently delete every existing search vector '
-                                    'in Qdrant. The documents themselves are NOT lost -- they '
-                                    'remain fully intact in the database -- but they will stop '
-                                    'appearing in Knowledge Assistant searches or Reflection '
-                                    'Context until they are re-indexed. Are you sure you want to '
-                                    'continue?',
- 'admin_tools_reset_index_button': 'Reset search index',
- 'admin_tools_reset_index_yes': 'Yes, reset',
- 'admin_tools_reset_index_cancel': 'Cancel',
- 'admin_tools_reset_index_success': 'The search index was reset successfully. It is now empty and '
-                                    'ready to index new documents with the current embedding '
-                                    'provider.',
- 'admin_tools_reset_index_failed': 'Could not reset the search index:',
- 'admin_tools_reset_index_unavailable': 'Qdrant is not configured -- there is no index to reset.',
  'admin_tools_future': 'Future administrator tools will appear here.',
- 'admin_console_caption': 'Administration console for Reflection Space -- system status, indexing, '
+ 'admin_console_caption': 'Administration console for Reflection Space -- system status, users '
                           'and diagnostic tools.',
  'admin_error_log_unknown_page': 'unknown page',
  'admin_error_log_generic_error': 'Error',
@@ -700,26 +590,11 @@ LANG_EN = {'title': '🧠 Reflection Space',
           'guardrail_note': 'The tool never grades, scores, or decides anything for you. You '
                             'decide what, if anything, to do with what it made you think about.',
           'journey_title': 'How it works',
-          'journey_steps': ["1. Let's reflect -- write or paste your text, or upload a document (Word, PDF "
-                            'or text). No reference, type of text or theme is needed.',
-                            '2. Choose the reflection language (Español, Euskara or English) and press '
-                            'Reflect. The text is anonymised automatically before the AI receives it.',
-                            '3. Professional Reflection -- explore the eight reflective dimensions, '
-                            'optionally have a short conversation about any of them, add your notes and '
-                            'finish. The case text is discarded when you finish.'],
+          'journey_steps': ["1. Let's reflect -- write or paste your text, or upload a document (Word, PDF or text). No reference, type of text or theme is needed.", '2. Choose the reflection language (Español, Euskara or English) and press Reflect. The text is anonymised automatically before the AI receives it.', '3. Professional Reflection -- explore the eight reflective dimensions, optionally have a short conversation about any of them, add your notes and finish. The case text is then cleared from the screen.'],
           'practitioner_title': 'Practitioner workspace',
           'doc_section_title': '📝 Your case -- write, paste or upload',
-          'doc_section_body': 'On Reflection Space you write or paste your text into a single box, or '
-                              'upload a Word, PDF or text file (only the text is read; the file is never '
-                              "kept). If you both write text and upload a document, you'll be asked which "
-                              "one to reflect on. You don't have to give any case reference or details: the "
-                              'app creates a neutral code by itself (for example RS-7F3K2Q) that identifies '
-                              'no one. The case text is never saved.',
-          'anonymised_saved_note': 'Only the anonymised version of the text is kept (never the original), '
-                                    'for {months} months, to help identify patterns in practice. It can be '
-                                    'seen by the person who made the reflection (in My Reflection) and by '
-                                    'managers who can already see saved reflections. After that time it is '
-                                    'deleted automatically; the reflection itself stays.',
+          'doc_section_body': "On Reflection Space you write or paste your text into a single box, or upload a Word, PDF or text file (only the text is read; the file is never kept). If you both write text and upload a document, you'll be asked which one to reflect on. You don't have to give any case reference or details: the app creates a neutral code by itself (for example RS-7F3K2Q) that identifies no one. The original text is saved securely for later pattern analysis (see below).",
+          'original_saved_note': "The original text is kept securely in a database in the EU, for up to {months} months, to help identify patterns in practice. Only the anonymised version is ever sent to the AI. You can read your own text in My Reflection; supervisors and programme managers can read the texts in Pattern Review, without the author's name. After that time it is deleted automatically; the reflection itself stays.",
           'reflection_section_title': '🪞 Reflection Space -- reflecting on the spot',
           'reflection_section_body': 'When you press Reflect, your text is anonymised automatically (names '
                                      'and other personal details are removed) and only that protected '
@@ -803,17 +678,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                  'and select Send -- the system automatically attaches page, '
                                  'session, and navigation context.',
           'privacy_title': '🔒 Privacy and data',
-          'privacy_points': ['The case text is never saved -- it only exists while the reflection '
-                             'lasts and is discarded when you finish.',
-                             'Each reflection is identified by a neutral code and themes with no '
-                             'personal details, never by names.',
-                             'Your notes on the observations are private -- only you can see them.',
-                             'Reflective conversation content is never stored beyond the session '
-                             '-- only which theme was explored, and when.',
-                             'My Reflection is personal and comparison-free: no scores, no '
-                             'ranking, visible to no one but you.',
-                             'Two-layer role-based access control is enforced throughout the '
-                             'app.']},
+          'privacy_points': ['The original case text is kept securely in an EU database for a limited time, for pattern analysis -- only the anonymised version is ever sent to the AI, and supervisors and programme managers read it without your name.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', 'Your notes on the observations are private -- only you can see them.', 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.']},
  'admin_usage_header': '💰 Service Usage & Costs',
  'admin_usage_caption': 'What each external service is costing this pilot, estimated from actual '
                         'recorded API usage. Figures marked "estimate" could not be tied to an '
@@ -861,9 +726,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_usage_gemini_estimate_note': '⚠️ Some embedding calls did not return an exact token count '
                                      'from the provider; their cost is marked as an estimate.',
  'admin_usage_gemini_not_configured': 'Gemini API key is not configured.',
- 'admin_usage_qdrant_detail_header': 'Qdrant detail',
- 'admin_usage_qdrant_vectors': 'Vectors stored',
- 'admin_usage_qdrant_capacity': 'Configured capacity',
  'admin_usage_pricing_header': 'Pricing & budget configuration',
  'admin_usage_pricing_caption': 'Provider prices are centralized in one place '
                                 '(services/cost_pricing.py) so they never have to be hunted down '
@@ -880,7 +742,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_usage_forecast_total_reflections': 'Total reflections/month',
  'admin_usage_forecast_claude_cost': 'Projected Claude cost/month',
  'admin_usage_forecast_gemini_cost': 'Projected Gemini cost/month',
- 'admin_usage_forecast_vectors': 'Projected vector count',
  'admin_usage_forecast_presets_header': 'Common scenarios',
  'admin_usage_forecast_current': 'Current',
  'admin_usage_forecast_col_users': 'Users',
@@ -1050,8 +911,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'doc_import_help': 'Only the text is read; the file itself is not saved. Up to {max_mb} MB, '
                     '{max_pages} pages and about {max_chars} characters. Scanned PDFs (photos of '
                     'paper) cannot be read.',
- 'doc_import_loaded': 'Text loaded. Check and correct it before continuing: neither the file nor '
-                      'the text is saved.',
+ 'doc_import_loaded': 'Text loaded. Check and correct it before continuing. The file itself is not saved.',
  'doc_import_errors': {'unsupported': 'This type of file is not supported. Use Word (.docx), PDF '
                                       'or text (.txt).',
                        'too_large': 'The file is too large (maximum {max_mb} MB).',
@@ -1373,9 +1233,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                'Automatic anonymisation may not catch all personal details: check '
                                'this report before sharing it.'],
  'corpus_report_footer': 'Confidential · Candidates for reflection, not conclusions · {date}',
- 'rs_intro': 'Write, paste or upload the case you want to reflect on, and reflect on it straight '
-             'away. The case text is only used during this reflection and is never saved: what is '
-             'saved is the reflection.',
+ 'rs_intro': 'Write, paste or upload the case you want to reflect on, and reflect on it straight away. Only an anonymised version of your text is sent to the AI. The original text is saved securely together with the reflection, for later pattern analysis.',
  'rs_code_label': 'Code for this reflection:',
  'rs_code_help': 'A neutral code created by the app. It does not identify anyone. Note it down if '
                  'you later want to link another reflection about the same situation.',
@@ -1401,7 +1259,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_case_text_not_saved_note': '🔒 This text is not saved. It only exists while this reflection '
                                 'lasts.',
  'rs_continue_button': 'Continue',
- 'rs_case_text_review_label': 'Case text (not saved)',
+ 'rs_case_text_review_label': 'Case text',
  'rs_similar_header': 'Your related earlier reflections',
  'rs_similar_intro': 'Your reflections linked to this one or sharing themes with it. Untick any '
                      "you don't want taken into account.",
@@ -1416,17 +1274,13 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_similar_used_label': 'Earlier reflections included',
  'rs_back_to_case_button': 'Back to the case',
  'rs_finish_header': 'Finish the reflection',
- 'rs_finish_caption': 'Your reflection and your notes are saved under the code {code}. When you '
-                      'finish, the case text is discarded.',
- 'rs_finish_caption_unsaved': "This reflection couldn't be saved. When you finish, the case text "
-                              'is discarded.',
+ 'rs_finish_caption': 'Your reflection and your notes are saved under the code {code}. When you finish, the case text is cleared from this screen.',
+ 'rs_finish_caption_unsaved': "This reflection couldn't be saved. When you finish, the case text is cleared from this screen.",
  'rs_finish_button': 'Finish reflection',
- 'rs_finished_success': '✔ Reflection finished. The case text has been discarded.',
+ 'rs_finished_success': '✔ Reflection finished. The case text has been cleared from this screen.',
  'rs_start_over_button': 'Start again',
  'ch_reflections_header': 'Saved reflections',
- 'ch_reflections_intro': "Each reflection is shown with its neutral code and themes. The AI's "
-                         "observations are shown; never the case text (it isn't saved) and never "
-                         "professionals' private notes.",
+ 'ch_reflections_intro': "Each reflection is shown with its neutral code and themes. The AI's observations are shown; never professionals' private notes. Original texts are not shown here: they can be read in Pattern Review, without author names.",
  'ch_tag_filter_label': 'Theme',
  'ch_all_tags': 'All themes',
  'ch_showing_recent': 'Showing the {shown} most recent of {total} reflections. Pick a date or '
@@ -1502,12 +1356,20 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_anonymised_preview_help': 'Check the protected version of your material. This is exactly what '
                                'the AI received.',
  'rs_try_again_button': 'Try again with the same text',
- 'rs_saved_anonymised_note': '📁 The anonymised version is kept for {months} months to help '
-                             'identify patterns in practice. The original text is never saved.',
+ 'rs_original_saved_note': '📁 The original text is kept securely (database in the EU) for up to {months} months, to help identify patterns in practice. Supervisors and programme managers may read it for that purpose, without your name. Only the anonymised version is sent to the AI.',
  'ch_show_anonymised_text': 'Show the saved anonymised text',
  'ch_anonymised_text_caption': 'The protected version the AI received (never the original text). '
                                'Deleted automatically after {months} months.',
  'ch_anonymised_text_unavailable': 'The anonymised text of this reflection is no longer available.',
+ 'ch_show_saved_text': 'Show the saved text',
+ 'ch_original_text_caption': 'The original text, as you wrote it. It is never sent to the AI and is deleted automatically after {months} months.',
+ 'ch_saved_text_unavailable': 'The text of this reflection is not available (it was not saved or has been deleted).',
+ 'ch_original_text_in_patterns_note': "📄 The original text of this reflection is saved. Supervisors and programme managers can read it in Pattern Review, without the author's name.",
+ 'patterns_texts_header': '📄 Saved original texts',
+ 'patterns_texts_caption': 'The original texts the reflections were made from, for studying patterns in how cases are written. Author names, reflection codes and exact times are never shown. Each text is deleted automatically after {months} months. These texts are confidential: do not copy them outside the app.',
+ 'patterns_texts_empty': 'No original texts have been saved yet.',
+ 'patterns_texts_showing': 'Showing the {shown} most recent of {total} saved texts.',
+ 'patterns_texts_item': 'Text from {date} · {language}',
  'rs_cards_hint': 'Choose any card to open it.',
  'rs_cards_choose': 'Choose a card to see its reflection.',
  'rs_card_explored': '✓ Explored',

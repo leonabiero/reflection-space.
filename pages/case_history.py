@@ -179,8 +179,14 @@ with error_boundary(
             if record["previous_code"]:
                 st.caption(f"🔗 {T['ch_linked_label']}: {record['previous_code']}")
 
-            # The saved ANONYMISED text (never the original), loaded only
-            # when asked for. Management roles only on this page.
+            # The ORIGINAL text is never shown here, because this page shows
+            # the author's name: Supervisors and Programme Managers read it
+            # in Pattern Review, without names (agreed November 2026).
+            if record.get("has_original_text"):
+                st.caption(T["ch_original_text_in_patterns_note"])
+
+            # Reflections from 4-10 November 2026 kept the ANONYMISED text
+            # instead; it stays readable here until it expires.
             if record.get("has_anonymised_text") and st.toggle(
                 T["ch_show_anonymised_text"], key=f"show_anon_text_{record['run_id']}",
             ):

@@ -8,10 +8,10 @@ from services.reflection_log import THEME_KEYS
 from services.findings_store import get_my_findings_by_reflection, count_my_reflections_with_findings
 from rdi.conversation_builder import CONVERSATION_ORDER
 from services.findings_ui import render_evidence, render_notes_form
-from services.reflection_records import get_anonymised_text
+from services.reflection_records import get_anonymised_text, get_original_text
 from services import reflection_records
 from services.confirm_state import is_confirming, start_confirming, clear_confirming
-from config import SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
+from config import ORIGINAL_TEXT_RETENTION_MONTHS, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
 
 # Professional Growth Dashboard
 # ================================
@@ -163,21 +163,29 @@ with error_boundary(
                 header += " " + T["findings_reflection_notes_suffix"].format(count=with_notes)
 
             with st.expander(header):
-                # The saved ANONYMISED text of this reflection (never the
-                # original). Only the author can load it here.
-                if SAVE_ANONYMISED_TEXT and reflection["run_id"] and st.toggle(
-                    T["ch_show_anonymised_text"], key=f"jr_anon_text_run_{reflection['run_id']}",
+                # The saved text of this reflection. Only the author can
+                # load it here. Since November 2026 that is the ORIGINAL
+                # text; reflections from 4-10 November 2026 kept the
+                # anonymised version instead, shown until it expires.
+                if reflection["run_id"] and st.toggle(
+                    T["ch_show_saved_text"], key=f"jr_anon_text_run_{reflection['run_id']}",
                 ):
                     try:
-                        saved_text = get_anonymised_text(reflection["run_id"], user_name, user_role)
+                        original = get_original_text(reflection["run_id"], user_name)
+                        anonymised = None if original else get_anonymised_text(
+                            reflection["run_id"], user_name, user_role,
+                        )
                     except Exception:
-                        saved_text = None
+                        original = anonymised = None
                     with st.container(border=True):
-                        st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
-                        if saved_text:
-                            st.write(saved_text)
+                        if original:
+                            st.caption(T["ch_original_text_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+                            st.write(original)
+                        elif anonymised:
+                            st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                            st.write(anonymised)
                         else:
-                            st.info(T["ch_anonymised_text_unavailable"])
+                            st.info(T["ch_saved_text_unavailable"])
 
                 by_id = {f["id"]: f for f in findings}
                 chosen_id = st.radio(

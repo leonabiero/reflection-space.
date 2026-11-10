@@ -95,11 +95,8 @@ This toolkit is deliberately honest about what it does **not** prove:
   application's own code, and would need a real deployed instance and
   an HTTP-level load-testing tool (e.g. Locust or k6 pointed at a
   staging deployment) to measure honestly.
-- **It does not measure Qdrant query performance under load** — the
-  Knowledge Assistant's retrieval path was not included in this pass
-  (only the AI-generation and rate-limiting paths were in scope); a
-  future load-testing pass could add a fake Qdrant client following
-  the same pattern as `FakeAnthropicMessages`.
+- (The Qdrant search service this note used to mention was removed from the
+  app in November 2026.)
 - Simulated latencies (a few milliseconds for a fake DB query, ~1.5s
   for a fake Claude call) are reasonable estimates, not measurements —
   they make the reported queueing/contention behavior meaningful, but

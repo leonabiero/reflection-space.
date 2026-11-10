@@ -10,13 +10,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'doc': 'Documentación',
  'case_ref': 'Referencia del caso',
  'doc_type': 'Tipo de documento',
- 'doc_types': ['Nota de caso',
-               'Diario de seguimiento',
-               'Registro de entrevista',
-               'Informe social',
-               'Propuesta de derivación',
-               'Plan de intervención',
-               'Correo electrónico'],
  'language': 'Idioma',
  'text': 'Texto',
  'save': 'Guardar borrador',
@@ -182,7 +175,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'audit_action_restored': 'Restaurado',
  'audit_action_purged': 'Purgado permanentemente',
  'workspace_opportunities_header': 'Oportunidades de reflexión',
- 'workspace_document_header': 'Texto del caso (no se guarda)',
+ 'workspace_document_header': 'Texto del caso',
  'workspace_context_header': 'Contexto de la reflexión',
  'workspace_progress_label': 'Explorado(s): {explored} de {total}',
  'workspace_explore_button': 'Explorar con el acompañante',
@@ -247,24 +240,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'research_export_caption': 'El archivo contiene únicamente recuentos agregados — sin nombres, sin '
                             'casos, sin texto de documentos.',
  'research_no_data': 'Aún no hay suficiente actividad registrada para este periodo.',
- 'why_included_label': '¿Por qué se incluyó este documento?',
- 'why_reason_must_include_plan': 'Este es el Plan de Intervención más reciente y aporta contexto '
-                                 'importante para la reflexión de hoy.',
- 'why_reason_must_include_assessment': 'Este es el informe social más reciente disponible para '
-                                       'este caso.',
- 'why_reason_must_include_generic': 'Este es uno de los documentos clave de este caso.',
- 'why_reason_semantic_specific': 'Este documento trata sobre {themes}, temas que también aparecen '
-                                 'en la documentación de hoy.',
- 'why_reason_semantic_generic': 'Este documento trata temas estrechamente relacionados con la '
-                                'documentación de hoy.',
- 'why_reason_recency': 'Este documento se creó recientemente y puede contener novedades '
-                       'importantes para la reflexión de hoy.',
- 'why_technical_details_label': 'Detalles técnicos',
- 'why_similarity_label': 'Similitud:',
- 'why_similarity_very_high': 'Muy alta',
- 'why_similarity_high': 'Alta',
- 'why_similarity_moderate': 'Moderada',
- 'why_similarity_low': 'Baja',
  'journey_step1': 'Tu caso',
  'journey_step2': 'Reflexiones anteriores',
  'journey_step3': 'Reflexión Profesional',
@@ -277,7 +252,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'historical_timeline_header': 'Línea temporal histórica',
  'historical_timeline_intro': 'Documentos relevantes de este caso, ordenados cronológicamente.',
  'timeline_today_label': '📍 Documentación de hoy',
- 'historical_docs_used_label': 'Documentos históricos incluidos actualmente',
  'dashboard_navigator_hint': 'Usa las pestañas para moverte entre las áreas de reflexión sin '
                              'desplazarte por toda la página.',
  'coverage_header': 'Cobertura de la reflexión',
@@ -345,75 +319,12 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_user_col_username': 'Usuario',
  'admin_user_col_name': 'Nombre',
  'admin_user_col_role': 'Rol',
- 'admin_doc_indexing_header': '📇 Indexación de documentos',
- 'admin_doc_indexing_caption': 'Utilidad de reindexado del Hybrid RAG — genera embeddings de '
-                               'Qdrant para los documentos completados antes de activar la '
-                               'recuperación semántica.',
- 'admin_doc_indexing_cost': '💰 Nota de coste: esto llama a Gemini API (embeddings) una vez por '
-                            'documento completado, nunca a Claude.',
- 'admin_doc_indexing_unavailable': 'Qdrant no está configurado, por lo que la indexación semántica '
-                                   'no está disponible.',
- 'admin_doc_indexing_button': 'Ejecutar reindexado de documentos',
- 'admin_doc_indexing_success': '✅ Indexados {indexed} de {total} documentos.',
- 'admin_doc_indexing_none_failed': '✅ No hay documentos pendientes de indexar. Todo está al día.',
- 'admin_doc_indexing_failed_label': '⚠️ {failed} documento(s) se guardaron correctamente pero no '
-                                    'se indexaron para la búsqueda.',
- 'admin_doc_indexing_failed_caption': 'Estos documentos están completos y visibles con normalidad '
-                                      'en toda la aplicación — solo falló el paso que los hace '
-                                      'localizables en el Asistente de Conocimiento y en el '
-                                      'histórico de casos de Contexto de Reflexión. Ningún dato se '
-                                      'ha perdido; basta con reintentar la indexación.',
- 'admin_doc_indexing_retry_button': 'Reintentar solo los documentos fallidos',
- 'admin_doc_indexing_retry_success': '✅ Reintento completado: {indexed} de {total} documentos '
-                                     'indexados correctamente.',
- 'admin_retrieval_test_header': '🔍 Prueba de recuperación',
- 'admin_retrieval_test_caption': 'Ejecuta una búsqueda semántica real en Qdrant para verificar que '
-                                 'la recuperación funciona de extremo a extremo — con alcance a un '
-                                 'caso o a toda la base de conocimiento.',
- 'admin_retrieval_test_cost': '💰 Nota de coste: esto solo genera el embedding de tu texto de '
-                              'búsqueda vía Gemini API — nunca llama a la API de Claude/Anthropic.',
- 'admin_retrieval_case_label': 'Referencia de caso (opcional — déjalo en blanco para buscar en '
-                               'toda la base de conocimiento)',
- 'admin_retrieval_query_label': 'Consulta de búsqueda',
- 'admin_retrieval_run_button': 'Ejecutar prueba de recuperación',
- 'admin_retrieval_summary_header': '#### Resumen de la recuperación',
- 'admin_retrieval_mode_global': '🌍 Búsqueda global en la base de conocimiento',
- 'admin_retrieval_mode_case': '📁 Específico del caso ({case_ref})',
- 'admin_retrieval_status_label': 'Estado',
- 'admin_retrieval_status_success': '✅ Correcto',
- 'admin_retrieval_status_failed': '❌ Fallido',
- 'admin_retrieval_mode_row_label': 'Modo de recuperación',
- 'admin_retrieval_time_label': 'Tiempo de búsqueda',
- 'admin_retrieval_query_row_label': 'Consulta',
- 'admin_retrieval_docs_returned_label': 'Documentos devueltos',
- 'admin_retrieval_embedding_model_label': 'Modelo de embeddings',
- 'admin_retrieval_global_notice': '🌍 Modo global: esta búsqueda no aplicó filtro de caso y puede '
-                                  'devolver documentos de más de un caso.',
- 'admin_retrieval_failed_label': 'La recuperación falló:',
- 'admin_retrieval_documents_header': '#### Documentos recuperados',
- 'admin_retrieval_no_docs': 'No se devolvieron documentos para esta consulta.',
- 'admin_retrieval_col_rank': 'Posición',
- 'admin_retrieval_col_doctype': 'Tipo de documento',
- 'admin_retrieval_col_reason': 'Motivo de recuperación',
- 'admin_retrieval_col_similarity': 'Similitud',
- 'admin_retrieval_col_case': 'Referencia de caso',
  'admin_advanced_diagnostics': '🔧 Diagnóstico avanzado',
  'admin_show_raw_response': 'Mostrar respuesta sin procesar',
- 'admin_rag_status_header': '📡 Estado del RAG',
- 'admin_rag_status_ok': '✅ La capa de recuperación semántica es accesible.',
  'admin_rag_status_item': 'Elemento',
  'admin_rag_status_value': 'Estado',
- 'admin_rag_qdrant_connection': 'Conexión con Qdrant',
- 'admin_rag_collection': 'Colección',
  'admin_rag_embedding_model': 'Modelo de embeddings',
  'admin_rag_embedding_dims': 'Dimensiones de embeddings',
- 'admin_rag_indexed_docs': 'Documentos indexados',
- 'admin_rag_case_ref_index': 'Índice de referencia de caso',
- 'admin_rag_doc_id_index': 'Índice de ID de documento',
- 'admin_rag_latest_doc_id': 'Último ID de documento',
- 'admin_rag_latest_case': 'Último caso',
- 'admin_rag_latest_doctype': 'Último tipo de documento',
- 'admin_rag_last_indexed': 'Última indexación',
  'admin_status_connected': 'Conectado',
  'admin_status_not_connected': 'No conectado',
  'admin_status_present': '✅ Presente',
@@ -428,16 +339,13 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_health_component_col': 'Componente',
  'admin_health_status_col': 'Estado',
  'admin_health_component_database': 'Base de datos',
- 'admin_health_component_qdrant': 'Qdrant',
  'admin_health_component_embedding': 'Servicio de embeddings (Gemini API)',
- 'admin_health_component_retrieval': 'Servicio de recuperación',
  'admin_health_component_reflection': 'Motor de reflexión (API de Claude)',
  'admin_health_healthy_label': 'Saludable',
  'admin_health_unreachable_label': 'No accesible',
  'admin_health_available_label': 'Disponible',
  'admin_health_not_configured_label': 'No configurado',
  'admin_health_operational_label': '✅ Operativo',
- 'admin_health_fallback_label': '🟡 Modo alternativo (basado en fecha)',
  'admin_health_db_error_prefix': 'Error de base de datos:',
  'admin_health_key_missing': 'ANTHROPIC_API_KEY no está configurado — no se pueden generar '
                              'reflexiones.',
@@ -457,31 +365,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                          'menor de edad, YOUNG_ADULT = adulto/a joven, ADULT = adulto/a, OLDER_ADULT = '
                          'persona mayor).',
  'admin_tools_anon_test_header': 'Prueba de anonimización',
- 'admin_tools_reset_index_header': 'Reiniciar el índice de búsqueda (Qdrant)',
- 'admin_tools_reset_index_caption': 'Elimina y vuelve a crear el índice de búsqueda semántica '
-                                    'desde cero, usando el proveedor de embeddings configurado '
-                                    'actualmente. Úsalo después de cambiar de proveedor de '
-                                    'embeddings (por ejemplo, de Voyage a Gemini) para que los '
-                                    'datos antiguos e incompatibles no interfieran con las '
-                                    'búsquedas nuevas.',
- 'admin_tools_reset_index_warning': '⚠️ Esta acción eliminará permanentemente todos los vectores '
-                                    'de búsqueda existentes en Qdrant. Los documentos en sí NO se '
-                                    'pierden -- siguen intactos en la base de datos -- pero '
-                                    'dejarán de aparecer en las búsquedas del Asistente de '
-                                    'Conocimiento o en el Contexto de Reflexión hasta que se '
-                                    'vuelvan a indexar. ¿Confirmas que quieres continuar?',
- 'admin_tools_reset_index_button': 'Reiniciar índice de búsqueda',
- 'admin_tools_reset_index_yes': 'Sí, reiniciar',
- 'admin_tools_reset_index_cancel': 'Cancelar',
- 'admin_tools_reset_index_success': 'El índice de búsqueda se ha reiniciado correctamente. Ya está '
-                                    'vacío y listo para indexar documentos nuevos con el proveedor '
-                                    'de embeddings actual.',
- 'admin_tools_reset_index_failed': 'No se pudo reiniciar el índice de búsqueda:',
- 'admin_tools_reset_index_unavailable': 'Qdrant no está configurado -- no hay ningún índice que '
-                                        'reiniciar.',
  'admin_tools_future': 'Las futuras herramientas de administración aparecerán aquí.',
  'admin_console_caption': 'Consola de administración de Reflection Space -- estado del sistema, '
-                          'indexación y herramientas de diagnóstico.',
+                          'usuarios y herramientas de diagnóstico.',
  'admin_error_log_unknown_page': 'página desconocida',
  'admin_error_log_generic_error': 'Error',
  'admin_error_log_no_message': '(sin mensaje)',
@@ -721,27 +607,11 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'guardrail_note': 'La herramienta nunca califica, puntúa ni decide nada por ti. Tú '
                             'decides qué hacer, si acaso, con lo que te haya hecho pensar.',
           'journey_title': 'Cómo funciona',
-          'journey_steps': ['1. Reflexionemos -- escribe o pega tu texto, o sube un documento (Word, PDF o '
-                            'texto). No hace falta ninguna referencia, tipo de texto ni tema.',
-                            '2. Elige el idioma de la reflexión (Español, Euskara o English) y pulsa '
-                            'Reflexionar. El texto se anonimiza automáticamente antes de que lo reciba la '
-                            'IA.',
-                            '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, conversa '
-                            'brevemente sobre alguna si quieres, añade tus notas y termina. El texto del '
-                            'caso se descarta al terminar.'],
+          'journey_steps': ['1. Reflexionemos -- escribe o pega tu texto, o sube un documento (Word, PDF o texto). No hace falta ninguna referencia, tipo de texto ni tema.', '2. Elige el idioma de la reflexión (Español, Euskara o English) y pulsa Reflexionar. El texto se anonimiza automáticamente antes de que lo reciba la IA.', '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, conversa brevemente sobre alguna si quieres, añade tus notas y termina. Después, el texto del caso se retira de la pantalla.'],
           'practitioner_title': 'Espacio del profesional',
           'doc_section_title': '📝 Tu caso -- escribir, pegar o subir',
-          'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un '
-                              'Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si '
-                              'escribes un texto y además subes un documento, se te preguntará sobre cuál '
-                              'quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: '
-                              'la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no '
-                              'identifica a nadie. El texto del caso nunca se guarda.',
-          'anonymised_saved_note': 'Solo se guarda la versión anonimizada del texto (nunca el original), '
-                                    'durante {months} meses, para ayudar a detectar patrones en la práctica. '
-                                    'Pueden verla la persona que hizo la reflexión (en Mi reflexión) y los '
-                                    'responsables que ya ven las reflexiones guardadas. Pasado ese tiempo se '
-                                    'borra sola; la reflexión se mantiene.',
+          'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si escribes un texto y además subes un documento, se te preguntará sobre cuál quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no identifica a nadie. El texto original se guarda de forma segura para analizar patrones más adelante (ver abajo).',
+          'original_saved_note': 'El texto original se guarda de forma segura en una base de datos de la UE, durante un máximo de {months} meses, para ayudar a detectar patrones en la práctica. A la IA solo se envía la versión anonimizada. Puedes leer tu propio texto en Mi reflexión; las personas supervisoras y responsables de programa pueden leer los textos en Revisión de patrones, sin el nombre de quien los escribió. Pasado ese tiempo se borra automáticamente; la reflexión se mantiene.',
           'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
           'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se '
                                      'quitan nombres y otros datos personales) y solo esa versión protegida '
@@ -830,18 +700,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto del caso nunca se guarda -- solo existe mientras dura la '
-                             'reflexión y se descarta al terminar.',
-                             'Cada reflexión se identifica con un código neutro y temas sin datos '
-                             'personales, nunca con nombres.',
-                             'Tus notas sobre las observaciones son privadas -- solo tú puedes '
-                             'verlas.',
-                             'El contenido de las conversaciones reflexivas nunca se guarda más '
-                             'allá de la sesión -- solo se registra qué tema se exploró y cuándo.',
-                             'Mi Reflexión es personal y no admite comparaciones: sin '
-                             'puntuaciones, sin clasificaciones, visible solo para ti.',
-                             'El control de acceso basado en roles se aplica en dos niveles en '
-                             'toda la aplicación.']},
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado, para analizar patrones -- a la IA solo se envía la versión anonimizada, y las personas supervisoras y responsables de programa lo leen sin tu nombre.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tus notas sobre las observaciones son privadas -- solo tú puedes verlas.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.']},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
  'admin_usage_caption': 'Lo que cuesta cada servicio externo en este proyecto piloto, estimado a '
                         'partir del uso real registrado de las API. Las cifras marcadas como '
@@ -891,9 +750,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                      'exacto de tokens del proveedor; su coste se marca como '
                                      'estimación.',
  'admin_usage_gemini_not_configured': 'La clave de la API de Gemini no está configurada.',
- 'admin_usage_qdrant_detail_header': 'Detalle de Qdrant',
- 'admin_usage_qdrant_vectors': 'Vectores almacenados',
- 'admin_usage_qdrant_capacity': 'Capacidad configurada',
  'admin_usage_pricing_header': 'Configuración de precios y presupuestos',
  'admin_usage_pricing_caption': 'Los precios de los proveedores están centralizados en un solo '
                                 'lugar (services/cost_pricing.py) para no tener que buscarlos por '
@@ -910,7 +766,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_usage_forecast_total_reflections': 'Total de reflexiones/mes',
  'admin_usage_forecast_claude_cost': 'Coste de Claude proyectado/mes',
  'admin_usage_forecast_gemini_cost': 'Coste de Gemini proyectado/mes',
- 'admin_usage_forecast_vectors': 'Recuento de vectores proyectado',
  'admin_usage_forecast_presets_header': 'Escenarios habituales',
  'admin_usage_forecast_current': 'Actual',
  'admin_usage_forecast_col_users': 'Usuarios',
@@ -1085,8 +940,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'doc_import_help': 'Solo se lee el texto; el archivo no se guarda. Hasta {max_mb} MB, {max_pages} '
                     'páginas y unos {max_chars} caracteres. Los PDF escaneados (fotos de papel) no '
                     'se pueden leer.',
- 'doc_import_loaded': 'Texto cargado. Revísalo y corrígelo antes de continuar: el archivo y el '
-                      'texto no se guardan.',
+ 'doc_import_loaded': 'Texto cargado. Revísalo y corrígelo antes de continuar. El archivo en sí no se guarda.',
  'doc_import_errors': {'unsupported': 'Este tipo de archivo no se admite. Usa Word (.docx), PDF o '
                                       'texto (.txt).',
                        'too_large': 'El archivo es demasiado grande (máximo {max_mb} MB).',
@@ -1417,9 +1271,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                'La anonimización automática puede no detectar todos los datos '
                                'personales: revisa este informe antes de compartirlo.'],
  'corpus_report_footer': 'Confidencial · Candidatos para la reflexión, no conclusiones · {date}',
- 'rs_intro': 'Escribe, pega o sube el caso sobre el que quieres reflexionar y reflexiona en el '
-             'momento. El texto del caso solo se usa durante esta reflexión y nunca se guarda: lo '
-             'que se guarda es la reflexión.',
+ 'rs_intro': 'Escribe, pega o sube el caso sobre el que quieres reflexionar y reflexiona en el momento. A la IA solo se envía una versión anonimizada de tu texto. El texto original se guarda de forma segura junto con la reflexión, para analizar patrones más adelante.',
  'rs_code_label': 'Código de esta reflexión:',
  'rs_code_help': 'Código neutro generado por la aplicación. No identifica a ninguna persona. '
                  'Anótalo si más adelante quieres enlazar otra reflexión sobre la misma situación.',
@@ -1445,7 +1297,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_case_text_not_saved_note': '🔒 Este texto no se guarda. Solo existe mientras dura esta '
                                 'reflexión.',
  'rs_continue_button': 'Continuar',
- 'rs_case_text_review_label': 'Texto del caso (no se guarda)',
+ 'rs_case_text_review_label': 'Texto del caso',
  'rs_similar_header': 'Tus reflexiones anteriores relacionadas',
  'rs_similar_intro': 'Reflexiones tuyas enlazadas con esta o con temas en común. Desmarca las que '
                      'no quieras tener en cuenta.',
@@ -1460,17 +1312,13 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_similar_used_label': 'Reflexiones anteriores incluidas',
  'rs_back_to_case_button': 'Volver al caso',
  'rs_finish_header': 'Terminar la reflexión',
- 'rs_finish_caption': 'Tu reflexión y tus notas quedan guardadas con el código {code}. Al '
-                      'terminar, el texto del caso se descarta.',
- 'rs_finish_caption_unsaved': 'Esta reflexión no se ha podido guardar. Al terminar, el texto del '
-                              'caso se descarta.',
+ 'rs_finish_caption': 'Tu reflexión y tus notas quedan guardadas con el código {code}. Al terminar, el texto del caso se retira de esta pantalla.',
+ 'rs_finish_caption_unsaved': 'Esta reflexión no se ha podido guardar. Al terminar, el texto del caso se retira de esta pantalla.',
  'rs_finish_button': 'Terminar reflexión',
- 'rs_finished_success': '✔ Reflexión terminada. El texto del caso se ha descartado.',
+ 'rs_finished_success': '✔ Reflexión terminada. El texto del caso se ha retirado de esta pantalla.',
  'rs_start_over_button': 'Empezar de nuevo',
  'ch_reflections_header': 'Reflexiones guardadas',
- 'ch_reflections_intro': 'Cada reflexión aparece con su código neutro y sus temas. Se muestran las '
-                         'observaciones de la IA; nunca el texto del caso (no se guarda) ni las '
-                         'notas privadas de los profesionales.',
+ 'ch_reflections_intro': 'Cada reflexión aparece con su código neutro y sus temas. Se muestran las observaciones de la IA; nunca las notas privadas de los profesionales. Los textos originales no se muestran aquí: pueden leerse en Revisión de patrones, sin el nombre de quien los escribió.',
  'ch_tag_filter_label': 'Tema',
  'ch_all_tags': 'Todos los temas',
  'ch_showing_recent': 'Mostrando las {shown} reflexiones más recientes de {total}. Elige una fecha '
@@ -1545,13 +1393,20 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_anonymised_preview_help': 'Comprueba la versión protegida de tu material. Es exactamente lo '
                                'que ha recibido la IA.',
  'rs_try_again_button': 'Volver a intentarlo con el mismo texto',
- 'rs_saved_anonymised_note': '📁 Se guarda la versión anonimizada durante {months} meses para '
-                             'ayudar a detectar patrones en la práctica. El texto original nunca '
-                             'se guarda.',
+ 'rs_original_saved_note': '📁 El texto original se guarda de forma segura (base de datos en la UE) durante un máximo de {months} meses, para ayudar a detectar patrones en la práctica. Las personas supervisoras y responsables de programa pueden leerlo con ese fin, sin tu nombre. A la IA solo se envía la versión anonimizada.',
  'ch_show_anonymised_text': 'Ver el texto anonimizado guardado',
  'ch_anonymised_text_caption': 'Versión protegida que recibió la IA (nunca el texto original). Se '
                                'borra automáticamente a los {months} meses.',
  'ch_anonymised_text_unavailable': 'El texto anonimizado de esta reflexión ya no está disponible.',
+ 'ch_show_saved_text': 'Ver el texto guardado',
+ 'ch_original_text_caption': 'El texto original, tal como lo escribiste. Nunca se envía a la IA y se borra automáticamente a los {months} meses.',
+ 'ch_saved_text_unavailable': 'El texto de esta reflexión no está disponible (no se guardó o ya se ha borrado).',
+ 'ch_original_text_in_patterns_note': '📄 El texto original de esta reflexión está guardado. Las personas supervisoras y responsables de programa pueden leerlo en Revisión de patrones, sin el nombre de quien lo escribió.',
+ 'patterns_texts_header': '📄 Textos originales guardados',
+ 'patterns_texts_caption': 'Los textos originales a partir de los que se hicieron las reflexiones, para estudiar patrones en cómo se escriben los casos. Nunca se muestran nombres de autores, códigos de reflexión ni horas exactas. Cada texto se borra automáticamente a los {months} meses. Estos textos son confidenciales: no los copies fuera de la aplicación.',
+ 'patterns_texts_empty': 'Todavía no se ha guardado ningún texto original.',
+ 'patterns_texts_showing': 'Se muestran los {shown} más recientes de {total} textos guardados.',
+ 'patterns_texts_item': 'Texto del {date} · {language}',
  'rs_cards_hint': 'Elige cualquier tarjeta para abrirla.',
  'rs_cards_choose': 'Elige una tarjeta para ver su reflexión.',
  'rs_card_explored': '✓ Explorada',

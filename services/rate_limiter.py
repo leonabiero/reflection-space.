@@ -76,7 +76,7 @@ def check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR):
     for any reason -- a rate-limiter outage must never be the reason a
     practitioner can't do their work. This mirrors the same
     graceful-degradation philosophy already used throughout this
-    codebase (see services/qdrant_service.py, services/embedding_service.py).
+    codebase (see services/embedding_service.py).
     """
     if not user_name:
         # No identified user to attribute this to -- don't block, but

@@ -22,7 +22,7 @@ finding, and can come back to them later on the "My Reflection" page.
 
 | Table | One row per | Holds |
 |---|---|---|
-| `reflection_runs` | generated reflection | reflection code (also stored as case reference), case themes, type of text, optional link to an earlier code (these three are left empty by the simplified screen since November 2026), language of the reflection, the anonymised text the AI received (November 2026; author and managers only, cleared after `ANONYMISED_TEXT_RETENTION_MONTHS`), prompt version, model, per-dimension status (`finding` / `no_finding` / `failed`), who ran it, when |
+| `reflection_runs` | generated reflection | reflection code (also stored as case reference), case themes, type of text, optional link to an earlier code (these three are left empty by the simplified screen since November 2026), language of the reflection, the ORIGINAL text (since 10 November 2026, agreed with EDE: author, and Supervisors / Programme Managers without author names in Pattern Review; cleared after `ORIGINAL_TEXT_RETENTION_MONTHS`, 15 months — the AI still only receives the anonymised text), the anonymised text for reflections made 4–10 November 2026 (cleared after `ANONYMISED_TEXT_RETENTION_MONTHS`), prompt version, model, per-dimension status (`finding` / `no_finding` / `failed`), who ran it, when |
 | `reflection_run_sources` | document used by a run | which stored documents fed the run (only reflections made before October 2026; new ones use no stored document) |
 | `reflection_findings` | dimension with a result | observation, questions, verified quotes, how many proposed quotes were rejected |
 | `finding_feedback` | professional + finding | label, note, alternative explanation, "AI misunderstood" flag |

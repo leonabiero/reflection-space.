@@ -1,8 +1,7 @@
 from datetime import timedelta
 from config import DELETION_WINDOW_HOURS
 from services.audit_log import log_action
-from services.qdrant_service import upsert_document, delete_document
-from services.db_time import now_utc, iso, iso_row, get_logger
+from services.db_time import now_utc, iso_row, get_logger
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.findings_store import delete_runs_for_drafts
 from services.db_schema import ensure_schema
@@ -63,14 +62,14 @@ logger = get_logger(__name__)
 #   get_pending_deletions() gain optional `limit`/`offset` parameters.
 #   Both default to `limit=None`, which preserves the EXACT previous
 #   behavior (return every matching row) for every existing call site
-#   in this codebase (pages/case_history.py, rdi/retrieval_service.py)
+#   in this codebase (pages/case_history.py; previously also rdi/retrieval_service.py, removed November 2026)
 #   -- pagination only activates if a caller explicitly opts in by
 #   passing `limit`.
 #
 #   Change 9 (Scalability -- filter in SQL, not Python): September
 #   pilot hardening. get_completed_drafts() gains optional `case_ref`
 #   and `date_filter` parameters so callers that only need one case's
-#   documents (rdi/retrieval_service.py) or one date's documents
+#   documents (formerly rdi/retrieval_service.py) or one date's documents
 #   (pages/case_history.py) push that filter into the WHERE clause
 #   instead of fetching every completed document org-wide and
 #   discarding rows in Python. A new get_completed_draft_dates() does
@@ -316,23 +315,10 @@ def finalize_draft(draft_id, edited_content, owner_name):
     never actually applied. Both statements now share one transaction
     that is rolled back as a unit on any failure.
 
-    Data-integrity fix (Qdrant indexing failures were silent): this
-    function's `return True` used to happen unconditionally after
-    calling upsert_document(), without even looking at what it
-    returned -- so a document could be marked 'completed' and shown
-    normally everywhere in the app while permanently failing to become
-    searchable, with zero trace of that anywhere the app itself
-    surfaces. That PostgreSQL commit above stays exactly as it was
-    (this function still always returns True once the record is safely
-    saved -- a practitioner's submission must never be blocked or look
-    like it failed just because search indexing had a hiccup). What
-    changed is what happens after: the outcome of upsert_document() is
-    now recorded on the row itself (`embedding_status`), and a real
-    failure (not the expected/deliberate "Qdrant isn't configured"
-    skip) is logged loudly via services/error_log.py, the same place
-    every other error in this app shows up for a System Administrator
-    -- see the "Document Indexing" panel on pages/system_administration.py,
-    which reads `embedding_status` to show and retry failures.
+    November 2026: completed documents used to be indexed in the Qdrant
+    search service right after this commit. Qdrant was removed (it
+    served the old document-based design), so nothing else happens
+    after the record is saved.
     """
     if not owner_name:
         return False
@@ -386,90 +372,7 @@ def finalize_draft(draft_id, edited_content, owner_name):
         details=("edited" if edited_flag else "not edited"),
     )
 
-    # Hybrid RAG: index the now-completed document in Qdrant so future
-    # reflections on this case can find it semantically. Best-effort --
-    # see services/qdrant_service.py for why this never raises upward.
-    # Fetch created_at separately rather than reusing the SELECT above,
-    # since that row reflects pre-update state.
-    conn2 = _get_conn()
-    try:
-        with conn2.cursor() as c2:
-            c2.execute("SELECT created_at FROM drafts WHERE id=%s", (draft_id,))
-            created_row = c2.fetchone()
-    finally:
-        conn2.close()
-    created_at = iso(created_row[0]) if created_row else ""
-
-    indexed_ok, reason = upsert_document(
-        draft_id, case_ref, doc_type,
-        content=edited_content,
-        language=language,
-        created_at=created_at,
-        completed_at=iso(now),
-        created_by_role=created_by_role,
-        was_edited=edited_flag,
-    )
-    record_embedding_outcome(draft_id, case_ref, indexed_ok, reason)
     return True
-
-
-def record_embedding_outcome(draft_id, case_ref, indexed_ok, reason):
-    """
-    Persist the result of an upsert_document() call onto the draft row,
-    and -- for a genuine failure (as opposed to the expected "Qdrant
-    isn't configured" skip) -- log it loudly via services/error_log.py
-    so it's impossible to miss on the System Administration page.
-
-    Shared by finalize_draft() (one document, right after completion)
-    and pages/system_administration.py's "Retry failed only" and full
-    backfill actions (many documents, run on demand by an admin) --
-    kept in one place so all three paths always agree on what
-    `embedding_status` means and how failures get reported.
-
-    Never raises: this runs after the document is already safely saved
-    and must not turn a successful save into a visible error for the
-    person who just submitted it.
-    """
-    status = "indexed" if indexed_ok else ("not_applicable" if reason == "not_configured" else "failed")
-    try:
-        conn = _get_conn()
-        try:
-            with conn.cursor() as c:
-                c.execute("UPDATE drafts SET embedding_status=%s WHERE id=%s", (status, draft_id))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-    except Exception:
-        logger.exception(
-            "Failed to record embedding_status=%r for draft_id=%r (indexing outcome itself was %r)",
-            status, draft_id, reason,
-        )
-
-    if status == "failed":
-        try:
-            from services.error_log import log_error
-            log_error(
-                page="reflection_space (document indexing)",
-                error_type="EmbeddingIndexError",
-                message=(
-                    f"Document {draft_id} (case {case_ref!r}) was saved as 'completed' "
-                    f"but failed to index in Qdrant, so it will not appear in Knowledge "
-                    f"Assistant or Reflection Context's historical-document lookup until "
-                    f"it is retried. Reason: {reason}"
-                ),
-                traceback_text="",
-                traceback_unavailable_reason=(
-                    "upsert_document() reports failures as a (success, reason) result "
-                    "rather than raising, so there is no exception/traceback here."
-                ),
-                context={"draft_id": draft_id, "case_ref": case_ref, "reason": reason},
-                severity="warning",
-            )
-        except Exception:
-            logger.exception("Failed to log_error() for embedding failure on draft_id=%r", draft_id)
 
 
 def get_completed_drafts(limit=None, offset=0, case_ref=None, date_filter=None):
@@ -487,7 +390,7 @@ def get_completed_drafts(limit=None, offset=0, case_ref=None, date_filter=None):
 
     - `case_ref`: restrict to one case (`WHERE case_ref = %s`). Use
       this any time the caller only needs one case's documents --
-      e.g. rdi/retrieval_service.py's retrieve_historical_context(),
+      e.g. the former rdi/retrieval_service.py retrieve_historical_context(),
       which used to fetch every completed document org-wide and then
       discard everything not matching the case in Python.
     - `date_filter`: restrict to documents completed on one calendar
@@ -524,82 +427,6 @@ def get_completed_drafts(limit=None, offset=0, case_ref=None, date_filter=None):
     finally:
         conn.close()
     return [iso_row(row, [4, 8]) for row in rows]
-
-
-def get_drafts_by_ids(draft_ids):
-    """
-    Returns completed (status='completed') documents matching the
-    given list of draft ids, in no particular guaranteed order (callers
-    that care about order should re-key by id, as
-    rdi/retrieval_service.py's retrieve_global_context() does).
-
-    Added for retrieve_global_context(), which looks up the handful
-    (bounded by its own `limit`, a handful of documents) of documents
-    Qdrant's cross-case semantic search matched, by id -- there is no
-    case_ref to filter by there (matches can span any case, by
-    design), so `case_ref` filtering doesn't apply. Fetching only the
-    matched ids, instead of every completed document org-wide, is the
-    same "filter in SQL, not Python" fix as get_completed_drafts()'s
-    new `case_ref`/`date_filter` parameters, applied to an id lookup
-    rather than an equality/date filter. Returns [] for an empty/None
-    id list without touching the database.
-    """
-    if not draft_ids:
-        return []
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-                SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
-                FROM drafts
-                WHERE status='completed' AND id = ANY(%s)
-            """, (list(draft_ids),))
-            rows = c.fetchall()
-    finally:
-        conn.close()
-    return [iso_row(row, [4, 8]) for row in rows]
-
-
-def get_failed_embedding_drafts():
-    """
-    Returns every completed document whose embedding_status is
-    'failed' -- i.e. it saved fine but a real attempt to index it in
-    Qdrant did not succeed (as opposed to 'not_applicable', which
-    means Qdrant wasn't configured at the time and nothing actually
-    went wrong). Used by pages/system_administration.py's "Document
-    Indexing" panel to show what needs attention and drive the
-    "Retry failed only" action. Same row shape as get_completed_drafts()
-    so it can reuse the same upsert_document() call pattern.
-    """
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute("""
-                SELECT id, case_ref, doc_type, content, created_at, created_by, created_by_role, was_edited, completed_at
-                FROM drafts
-                WHERE status='completed' AND embedding_status='failed'
-                ORDER BY completed_at DESC
-            """)
-            rows = c.fetchall()
-    finally:
-        conn.close()
-    return [iso_row(row, [4, 8]) for row in rows]
-
-
-def count_failed_embedding_drafts():
-    """
-    Cheap count-only version of get_failed_embedding_drafts(), for
-    showing a badge/count on the admin page without fetching full
-    document content when the panel is collapsed.
-    """
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute("SELECT COUNT(*) FROM drafts WHERE status='completed' AND embedding_status='failed'")
-            (count,) = c.fetchone()
-    finally:
-        conn.close()
-    return count
 
 
 def get_completed_draft_dates():
@@ -742,12 +569,6 @@ def soft_delete_draft(draft_id, deleted_by="", deleted_by_role=""):
     window in case this needs to be undone. Content is only truly
     removed by purge_expired_deletions().
 
-    The Qdrant vector deliberately stays in place during this window
-    (see services/qdrant_service.py:delete_document docstring) -- the
-    case is already invisible everywhere a user could see it, and
-    keeping the vector means restore_draft() doesn't need to re-embed
-    anything.
-
     Transaction safety (Change 2): the single UPDATE below is already
     atomic on its own, but is still wrapped with an explicit
     commit/rollback pair (rather than the previous bare conn.commit())
@@ -850,12 +671,6 @@ def purge_expired_deletions():
     the next time someone actually uses the app after the window
     closes, rather than at an exact second.
 
-    Also removes the corresponding Qdrant vector for each purged
-    document (see services/qdrant_service.py:delete_document), so a
-    permanently erased case leaves no retrievable trace in the semantic
-    index either -- matching the same GDPR guarantee already made for
-    Postgres content.
-
     DELETION_WINDOW_HOURS now comes from config.py (Change 8) rather
     than being defined as a local module constant.
 
@@ -897,7 +712,6 @@ def purge_expired_deletions():
         conn.close()
 
     for draft_id, case_ref, doc_type in expired:
-        delete_document(draft_id)
         log_action("purged", draft_id, case_ref, doc_type, "system", "system")
 
 
@@ -930,9 +744,8 @@ def erase_all_stored_documents(actor_name, actor_role):
     soft-deleted), its edit history, and -- in the same transaction,
     exactly like every other permanent deletion in this module -- every
     reflection that was generated from those documents
-    (findings_store.delete_runs_for_drafts). Their search copies in
-    Qdrant are then removed too (delete_document), so no retrievable
-    trace remains.
+    (findings_store.delete_runs_for_drafts), so no retrievable trace
+    remains.
 
     System Administrator only (checked here, not just in the page).
     Reflections created after the redesign are not linked to any
@@ -962,8 +775,6 @@ def erase_all_stored_documents(actor_name, actor_role):
     finally:
         conn.close()
 
-    for draft_id, case_ref, doc_type in erased:
-        delete_document(draft_id)
     log_action(
         "purged", None, "", "all documents", actor_name, actor_role,
         details=f"erased all {len(erased)} stored document(s) (reflection-only redesign)",

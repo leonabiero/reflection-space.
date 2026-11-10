@@ -10,13 +10,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'doc': 'Dokumentazioa',
  'case_ref': 'Kasuaren erreferentzia',
  'doc_type': 'Dokumentu mota',
- 'doc_types': ['Kasu-oharra',
-               'Jarraipen egunkaria',
-               'Elkarrizketaren erregistroa',
-               'Gizarte-txostena',
-               'Deribazio proposamena',
-               'Esku-hartze plana',
-               'Posta elektronikoa'],
  'language': 'Hizkuntza',
  'text': 'Testua',
  'save': 'Gorde zirriborroa',
@@ -182,7 +175,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'audit_action_restored': 'Berreskuratua',
  'audit_action_purged': 'Behin betiko ezabatua',
  'workspace_opportunities_header': 'Hausnarketa aukerak',
- 'workspace_document_header': 'Kasuaren testua (ez da gordetzen)',
+ 'workspace_document_header': 'Kasuaren testua',
  'workspace_context_header': 'Hausnarketaren testuingurua',
  'workspace_progress_label': 'Aztertuta: {explored} / {total}',
  'workspace_explore_button': 'Aztertu laguntzailearekin',
@@ -246,24 +239,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'research_export_caption': 'Fitxategiak zenbaketa agregatuak bakarrik ditu — izenik, kasurik edo '
                             'dokumentu-testurik gabe.',
  'research_no_data': 'Oraindik ez dago nahikoa jarduera erregistratuta epe honetarako.',
- 'why_included_label': 'Zergatik sartu da dokumentu hau?',
- 'why_reason_must_include_plan': 'Hau da azken Esku-hartze Plana, eta gaurko hausnarketarako '
-                                 'testuinguru garrantzitsua ematen du.',
- 'why_reason_must_include_assessment': 'Hau da kasu honetarako eskuragarri dagoen azken '
-                                       'gizarte-txostena.',
- 'why_reason_must_include_generic': 'Hau kasu honetako funtsezko dokumentuetako bat da.',
- 'why_reason_semantic_specific': 'Dokumentu honek {themes} jorratzen ditu, gaurko dokumentazioan '
-                                 'ere aipatzen direnak.',
- 'why_reason_semantic_generic': 'Dokumentu honek gaurko dokumentazioarekin lotura estua duten '
-                                'gaiak jorratzen ditu.',
- 'why_reason_recency': 'Dokumentu hau duela gutxi sortu zen eta gaurko hausnarketarako '
-                       'garrantzitsuak izan daitezkeen garapenak izan ditzake.',
- 'why_technical_details_label': 'Xehetasun teknikoak',
- 'why_similarity_label': 'Antzekotasuna:',
- 'why_similarity_very_high': 'Oso altua',
- 'why_similarity_high': 'Altua',
- 'why_similarity_moderate': 'Ertaina',
- 'why_similarity_low': 'Baxua',
  'journey_step1': 'Zure kasua',
  'journey_step2': 'Aurreko hausnarketak',
  'journey_step3': 'Hausnarketa Profesionala',
@@ -276,7 +251,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'historical_timeline_header': 'Denbora-lerro historikoa',
  'historical_timeline_intro': 'Kasu honetako dokumentu garrantzitsuak, kronologikoki ordenatuta.',
  'timeline_today_label': '📍 Gaurko dokumentazioa',
- 'historical_docs_used_label': 'Une honetan sartutako dokumentu historikoak',
  'dashboard_navigator_hint': 'Erabili fitxak hausnarketa-arloen artean mugitzeko orri osoan zehar '
                              'joan gabe.',
  'coverage_header': 'Hausnarketaren estaldura',
@@ -343,77 +317,12 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_user_col_username': 'Erabiltzaile-izena',
  'admin_user_col_name': 'Izena',
  'admin_user_col_role': 'Rola',
- 'admin_doc_indexing_header': '📇 Dokumentuen indexazioa',
- 'admin_doc_indexing_caption': 'Hybrid RAG birindexatze-tresna — berreskuratze semantikoa aktibatu '
-                               'aurretik osatutako dokumentuentzako Qdrant embeddingak sortzen '
-                               'ditu.',
- 'admin_doc_indexing_cost': '💰 Kostu-oharra: honek Gemini API (embeddings) deitzen du osatutako '
-                            'dokumentu bakoitzeko behin, inoiz ez Claude.',
- 'admin_doc_indexing_unavailable': 'Qdrant ez dago konfiguratuta, beraz indexazio semantikoa ez '
-                                   'dago eskuragarri.',
- 'admin_doc_indexing_button': 'Exekutatu dokumentuen birindexatzea',
- 'admin_doc_indexing_success': '✅ {indexed}/{total} dokumentu indexatuta.',
- 'admin_doc_indexing_none_failed': '✅ Ez dago indexatzeke dagoen dokumenturik. Dena eguneratuta '
-                                   'dago.',
- 'admin_doc_indexing_failed_label': '⚠️ {failed} dokumentu ondo gorde dira, baina ez dira '
-                                    'bilaketarako indexatu.',
- 'admin_doc_indexing_failed_caption': 'Dokumentu horiek osatuta daude eta aplikazio osoan normal '
-                                      'ikusten dira — huts egin duen urrats bakarra Ezagutza '
-                                      'Laguntzailean eta Hausnarketa Testuinguruaren '
-                                      'kasu-historikoan bilagarri egiten dituena da. Ez da daturik '
-                                      'galdu; indexazioa berriro saiatzea nahikoa da.',
- 'admin_doc_indexing_retry_button': 'Saiatu berriro huts egindako dokumentuekin bakarrik',
- 'admin_doc_indexing_retry_success': '✅ Berriz saiatzea amaituta: {indexed}/{total} dokumentu ondo '
-                                     'indexatu dira.',
- 'admin_retrieval_test_header': '🔍 Berreskuratze-proba',
- 'admin_retrieval_test_caption': 'Qdrant-en aurkako benetako bilaketa semantikoa exekutatzen du '
-                                 'berreskuratzea muturretik muturrera funtzionatzen duela '
-                                 'egiaztatzeko — kasu batera mugatuta edo ezagutza-base osoan.',
- 'admin_retrieval_test_cost': '💰 Kostu-oharra: honek zure bilaketa-testuaren embedding-a sortzen '
-                              'du Gemini API bidez soilik — inoiz ez du Claude/Anthropic APIa '
-                              'deitzen.',
- 'admin_retrieval_case_label': 'Kasuaren erreferentzia (aukerakoa — utzi hutsik ezagutza-base '
-                               'osoan bilatzeko)',
- 'admin_retrieval_query_label': 'Bilaketa-kontsulta',
- 'admin_retrieval_run_button': 'Exekutatu berreskuratze-proba',
- 'admin_retrieval_summary_header': '#### Berreskuratzearen laburpena',
- 'admin_retrieval_mode_global': '🌍 Ezagutza-basean bilaketa globala',
- 'admin_retrieval_mode_case': '📁 Kasuaren araberakoa ({case_ref})',
- 'admin_retrieval_status_label': 'Egoera',
- 'admin_retrieval_status_success': '✅ Arrakastatsua',
- 'admin_retrieval_status_failed': '❌ Huts egin du',
- 'admin_retrieval_mode_row_label': 'Berreskuratze modua',
- 'admin_retrieval_time_label': 'Bilaketa-denbora',
- 'admin_retrieval_query_row_label': 'Kontsulta',
- 'admin_retrieval_docs_returned_label': 'Itzulitako dokumentuak',
- 'admin_retrieval_embedding_model_label': 'Embedding eredua',
- 'admin_retrieval_global_notice': '🌍 Modu globala: bilaketa honek ez du kasu-iragazkirik aplikatu '
-                                  'eta kasu bat baino gehiagotako dokumentuak itzul ditzake.',
- 'admin_retrieval_failed_label': 'Berreskuratzeak huts egin du:',
- 'admin_retrieval_documents_header': '#### Berreskuratutako dokumentuak',
- 'admin_retrieval_no_docs': 'Ez da dokumenturik itzuli kontsulta honetarako.',
- 'admin_retrieval_col_rank': 'Postua',
- 'admin_retrieval_col_doctype': 'Dokumentu mota',
- 'admin_retrieval_col_reason': 'Berreskuratze arrazoia',
- 'admin_retrieval_col_similarity': 'Antzekotasuna',
- 'admin_retrieval_col_case': 'Kasuaren erreferentzia',
  'admin_advanced_diagnostics': '🔧 Diagnostiko aurreratua',
  'admin_show_raw_response': 'Erakutsi erantzun gordina',
- 'admin_rag_status_header': '📡 RAG egoera',
- 'admin_rag_status_ok': '✅ Berreskuratze-geruza semantikoa eskuragarri dago.',
  'admin_rag_status_item': 'Elementua',
  'admin_rag_status_value': 'Egoera',
- 'admin_rag_qdrant_connection': 'Qdrant konexioa',
- 'admin_rag_collection': 'Bilduma',
  'admin_rag_embedding_model': 'Embedding eredua',
  'admin_rag_embedding_dims': 'Embedding dimentsioak',
- 'admin_rag_indexed_docs': 'Indexatutako dokumentuak',
- 'admin_rag_case_ref_index': 'Kasu-erreferentzia indizea',
- 'admin_rag_doc_id_index': 'Dokumentu ID indizea',
- 'admin_rag_latest_doc_id': 'Azken dokumentu ID',
- 'admin_rag_latest_case': 'Azken kasua',
- 'admin_rag_latest_doctype': 'Azken dokumentu mota',
- 'admin_rag_last_indexed': 'Azken indexazioa',
  'admin_status_connected': 'Konektatuta',
  'admin_status_not_connected': 'Konektatu gabe',
  'admin_status_present': '✅ Presente',
@@ -428,16 +337,13 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_health_component_col': 'Osagaia',
  'admin_health_status_col': 'Egoera',
  'admin_health_component_database': 'Datu-basea',
- 'admin_health_component_qdrant': 'Qdrant',
  'admin_health_component_embedding': 'Embedding zerbitzua (Gemini API)',
- 'admin_health_component_retrieval': 'Berreskuratze zerbitzua',
  'admin_health_component_reflection': 'Hausnarketa motorra (Claude API)',
  'admin_health_healthy_label': 'Osasuntsua',
  'admin_health_unreachable_label': 'Ezin da atzitu',
  'admin_health_available_label': 'Eskuragarri',
  'admin_health_not_configured_label': 'Konfiguratu gabe',
  'admin_health_operational_label': '✅ Funtzionamenduan',
- 'admin_health_fallback_label': '🟡 Ordezko modua (data araberakoa)',
  'admin_health_db_error_prefix': 'Datu-base errorea:',
  'admin_health_key_missing': 'ANTHROPIC_API_KEY ez dago konfiguratuta — ezin dira hausnarketak '
                              'sortu.',
@@ -457,30 +363,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                          'haurra, ADOLESCENT = nerabe adingabea, YOUNG_ADULT = heldu gaztea, ADULT = '
                          'heldua, OLDER_ADULT = adinekoa).',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
- 'admin_tools_reset_index_header': 'Bilaketa-indizea berrezarri (Qdrant)',
- 'admin_tools_reset_index_caption': 'Bilaketa semantikoaren indizea ezabatu eta hutsik berriz '
-                                    'sortzen du, une honetan konfiguratutako embedding '
-                                    'hornitzailea erabiliz. Erabili hau embedding hornitzailea '
-                                    'aldatu ondoren (adibidez, Voyage-tik Gemini-ra), datu zahar '
-                                    'eta bateraezinek bilaketa berriak oztopatu ez ditzaten.',
- 'admin_tools_reset_index_warning': '⚠️ Ekintza honek Qdrant-en dauden bilaketa-bektore guztiak '
-                                    'betiko ezabatuko ditu. Dokumentuak beraiek EZ dira galduko -- '
-                                    'datu-basean osorik jarraituko dute -- baina ez dira agertuko '
-                                    'Ezagutza Laguntzailearen bilaketetan edo Hausnarketa '
-                                    'Testuinguruan berriro indexatu arte. Ziur zaude jarraitu nahi '
-                                    'duzula?',
- 'admin_tools_reset_index_button': 'Bilaketa-indizea berrezarri',
- 'admin_tools_reset_index_yes': 'Bai, berrezarri',
- 'admin_tools_reset_index_cancel': 'Utzi',
- 'admin_tools_reset_index_success': 'Bilaketa-indizea ondo berrezarri da. Orain hutsik dago eta '
-                                    'prest dago dokumentu berriak uneko embedding '
-                                    'hornitzailearekin indexatzeko.',
- 'admin_tools_reset_index_failed': 'Ezin izan da bilaketa-indizea berrezarri:',
- 'admin_tools_reset_index_unavailable': 'Qdrant ez dago konfiguratuta -- ez dago berrezarri '
-                                        'beharreko indizerik.',
  'admin_tools_future': 'Etorkizuneko administrazio-tresnak hemen agertuko dira.',
  'admin_console_caption': 'Reflection Space-ren administrazio-kontsola -- sistemaren egoera, '
-                          'indexazioa eta diagnostiko-tresnak.',
+                          'erabiltzaileak eta diagnostiko-tresnak.',
  'admin_error_log_unknown_page': 'orrialde ezezaguna',
  'admin_error_log_generic_error': 'Errorea',
  'admin_error_log_no_message': '(mezurik ez)',
@@ -718,28 +603,11 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                             'erabakitzen. Zuk erabakitzen duzu zer egin, ezer egitekotan, '
                             'pentsarazi dizunarekin.',
           'journey_title': 'Nola dabilen',
-          'journey_steps': ['1. Hausnar dezagun -- idatzi edo itsatsi zure testua, edo igo dokumentu bat '
-                            '(Word, PDF edo testua). Ez da erreferentziarik, testu motarik edo gairik '
-                            'behar.',
-                            '2. Aukeratu hausnarketaren hizkuntza (Español, Euskara edo English) eta sakatu '
-                            'Hausnartu. Testua automatikoki anonimizatzen da AAk jaso aurretik.',
-                            '3. Hausnarketa profesionala -- arakatu zortzi dimentsio erreflexiboak, hitz '
-                            'egin labur haietako bati buruz nahi baduzu, gehitu zure oharrak eta amaitu. '
-                            'Kasuaren testua baztertu egiten da amaitzean.'],
+          'journey_steps': ['1. Hausnar dezagun -- idatzi edo itsatsi zure testua, edo igo dokumentu bat (Word, PDF edo testua). Ez da erreferentziarik, testu motarik edo gairik behar.', '2. Aukeratu hausnarketaren hizkuntza (Español, Euskara edo English) eta sakatu Hausnartu. Testua automatikoki anonimizatzen da AAk jaso aurretik.', '3. Hausnarketa profesionala -- arakatu zortzi dimentsio erreflexiboak, hitz egin labur haietako bati buruz nahi baduzu, gehitu zure oharrak eta amaitu. Ondoren, kasuaren testua pantailatik kentzen da.'],
           'practitioner_title': 'Profesionalaren area',
           'doc_section_title': '📝 Zure kasua -- idatzi, itsatsi edo igo',
-          'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, '
-                              'edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; '
-                              'fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen '
-                              'baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren '
-                              'erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode '
-                              'neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Kasuaren '
-                              'testua ez da inoiz gordetzen.',
-          'anonymised_saved_note': 'Testuaren bertsio anonimizatua bakarrik gordetzen da (inoiz ez '
-                                    'jatorrizkoa), {months} hilabetez, praktikako ereduak antzemateko. '
-                                    'Hausnarketa egin zuen pertsonak eta gordetako hausnarketak ikus '
-                                    'ditzaketen arduradunek ikus dezakete. Epe hori igarotakoan bera '
-                                    'bakarrik ezabatzen da; hausnarketa mantentzen da.',
+          'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Jatorrizko testua modu seguruan gordetzen da, geroago ereduak aztertzeko (ikus behean).',
+          'original_saved_note': 'Jatorrizko testua modu seguruan gordetzen da EBko datu-base batean, gehienez {months} hilabetez, praktikako ereduak antzemateko. AAri bertsio anonimizatua bakarrik bidaltzen zaio. Zure testua Nire hausnarketan irakur dezakezu; gainbegiraleek eta programa-arduradunek testuak Patroien berrikuspenean irakur ditzakete, egilearen izenik gabe. Denbora hori igarotakoan automatikoki ezabatzen da; hausnarketak bere horretan jarraitzen du.',
           'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
           'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da '
                                      '(izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio '
@@ -828,19 +696,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren testua ez da inoiz gordetzen -- hausnarketak irauten duen '
-                             'bitartean bakarrik dago eta amaitzean baztertzen da.',
-                             'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko '
-                             'gaiekin identifikatzen da, inoiz ez izenekin.',
-                             'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus '
-                             'ditzakezu.',
-                             'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago '
-                             'gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen '
-                             'da.',
-                             'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: '
-                             'puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.',
-                             'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da '
-                             'aplikazio osoan.']},
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, ereduak aztertzeko -- AAri bertsio anonimizatua bakarrik bidaltzen zaio, eta gainbegiraleek eta programa-arduradunek zure izenik gabe irakurtzen dute.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus ditzakezu.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.']},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -891,9 +747,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                      'token-kopuru zehatzik itzuli; horien kostua estimazio gisa '
                                      'markatzen da.',
  'admin_usage_gemini_not_configured': 'Gemini APIaren gakoa ez dago konfiguratuta.',
- 'admin_usage_qdrant_detail_header': 'Qdrant-en xehetasuna',
- 'admin_usage_qdrant_vectors': 'Gordetako bektoreak',
- 'admin_usage_qdrant_capacity': 'Konfiguratutako edukiera',
  'admin_usage_pricing_header': 'Prezioen eta aurrekontuen konfigurazioa',
  'admin_usage_pricing_caption': 'Hornitzaileen prezioak leku bakarrean daude zentralizatuta '
                                 '(services/cost_pricing.py), hornitzaile batek tarifak aldatzean '
@@ -911,7 +764,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_usage_forecast_total_reflections': 'Hausnarketa guztiak/hilabete',
  'admin_usage_forecast_claude_cost': 'Claude-ren kostu proiektatua/hilabete',
  'admin_usage_forecast_gemini_cost': 'Gemini-ren kostu proiektatua/hilabete',
- 'admin_usage_forecast_vectors': 'Bektore-kopuru proiektatua',
  'admin_usage_forecast_presets_header': 'Ohiko eszenatokiak',
  'admin_usage_forecast_current': 'Uneko',
  'admin_usage_forecast_col_users': 'Erabiltzaileak',
@@ -1087,8 +939,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'doc_import_help': 'Testua bakarrik irakurtzen da; fitxategia ez da gordetzen. {max_mb} MB, '
                     '{max_pages} orrialde eta {max_chars} karaktere inguru arte. Eskaneatutako '
                     'PDFak (paperaren argazkiak) ezin dira irakurri.',
- 'doc_import_loaded': 'Testua kargatuta. Berrikusi eta zuzendu jarraitu aurretik: ez fitxategia ez '
-                      'testua ez dira gordetzen.',
+ 'doc_import_loaded': 'Testua kargatuta. Berrikusi eta zuzendu jarraitu aurretik. Fitxategia bera ez da gordetzen.',
  'doc_import_errors': {'unsupported': 'Fitxategi mota hau ez da onartzen. Erabili Word (.docx), '
                                       'PDF edo testua (.txt).',
                        'too_large': 'Fitxategia handiegia da (gehienez {max_mb} MB).',
@@ -1420,9 +1271,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                'Anonimizazio automatikoak baliteke datu pertsonal guztiak ez '
                                'detektatzea: berrikusi txosten hau partekatu aurretik.'],
  'corpus_report_footer': 'Konfidentziala · Hausnarketarako hautagaiak, ez ondorioak · {date}',
- 'rs_intro': 'Idatzi, itsatsi edo igo hausnartu nahi duzun kasua eta hausnartu une berean. '
-             'Kasuaren testua hausnarketa honetan bakarrik erabiltzen da eta ez da inoiz '
-             'gordetzen: hausnarketa da gordetzen dena.',
+ 'rs_intro': 'Idatzi, itsatsi edo igo hausnartu nahi duzun kasua eta hausnartu une berean. AAri zure testuaren bertsio anonimizatu bat bakarrik bidaltzen zaio. Jatorrizko testua modu seguruan gordetzen da hausnarketarekin batera, geroago ereduak aztertzeko.',
  'rs_code_label': 'Hausnarketa honen kodea:',
  'rs_code_help': 'Aplikazioak sortutako kode neutroa. Ez du inor identifikatzen. Idatzi ezazu '
                  'geroago egoera berari buruzko beste hausnarketa bat lotu nahi baduzu.',
@@ -1448,7 +1297,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_case_text_not_saved_note': '🔒 Testu hau ez da gordetzen. Hausnarketak irauten duen bitartean '
                                 'bakarrik dago.',
  'rs_continue_button': 'Jarraitu',
- 'rs_case_text_review_label': 'Kasuaren testua (ez da gordetzen)',
+ 'rs_case_text_review_label': 'Kasuaren testua',
  'rs_similar_header': 'Zure aurreko hausnarketa lotuak',
  'rs_similar_intro': 'Honekin lotutako edo gai komunak dituzten zure hausnarketak. Kendu marka '
                      'kontuan hartu nahi ez dituzunei.',
@@ -1463,17 +1312,13 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_similar_used_label': 'Barne hartutako aurreko hausnarketak',
  'rs_back_to_case_button': 'Itzuli kasura',
  'rs_finish_header': 'Amaitu hausnarketa',
- 'rs_finish_caption': 'Zure hausnarketa eta oharrak {code} kodearekin gordeta geratzen dira. '
-                      'Amaitzean, kasuaren testua baztertu egiten da.',
- 'rs_finish_caption_unsaved': 'Ezin izan da hausnarketa hau gorde. Amaitzean, kasuaren testua '
-                              'baztertu egiten da.',
+ 'rs_finish_caption': 'Zure hausnarketa eta oharrak {code} kodearekin gordeta geratzen dira. Amaitzean, kasuaren testua pantaila honetatik kentzen da.',
+ 'rs_finish_caption_unsaved': 'Ezin izan da hausnarketa hau gorde. Amaitzean, kasuaren testua pantaila honetatik kentzen da.',
  'rs_finish_button': 'Amaitu hausnarketa',
- 'rs_finished_success': '✔ Hausnarketa amaituta. Kasuaren testua baztertu da.',
+ 'rs_finished_success': '✔ Hausnarketa amaituta. Kasuaren testua pantaila honetatik kendu da.',
  'rs_start_over_button': 'Hasi berriro',
  'ch_reflections_header': 'Gordetako hausnarketak',
- 'ch_reflections_intro': 'Hausnarketa bakoitza bere kode neutroarekin eta gaiekin agertzen da. '
-                         'IAren behaketak erakusten dira; inoiz ez kasuaren testua (ez da '
-                         'gordetzen) ezta profesionalen ohar pribatuak ere.',
+ 'ch_reflections_intro': 'Hausnarketa bakoitza bere kode neutroarekin eta gaiekin agertzen da. AAren behaketak erakusten dira; inoiz ez profesionalen ohar pribatuak. Jatorrizko testuak ez dira hemen erakusten: Patroien berrikuspenean irakur daitezke, egileen izenik gabe.',
  'ch_tag_filter_label': 'Gaia',
  'ch_all_tags': 'Gai guztiak',
  'ch_showing_recent': '{total} hausnarketetatik azken {shown}ak erakusten dira. Aukeratu data edo '
@@ -1550,12 +1395,20 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_anonymised_preview_help': 'Egiaztatu zure materialaren bertsio babestua. Hau da, hain zuzen '
                                'ere, AAk jaso duena.',
  'rs_try_again_button': 'Saiatu berriro testu berarekin',
- 'rs_saved_anonymised_note': '📁 Bertsio anonimizatua {months} hilabetez gordetzen da praktikako '
-                             'ereduak antzemateko. Jatorrizko testua ez da inoiz gordetzen.',
+ 'rs_original_saved_note': '📁 Jatorrizko testua modu seguruan gordetzen da (EBko datu-basean) gehienez {months} hilabetez, praktikako ereduak antzemateko. Gainbegiraleek eta programa-arduradunek irakur dezakete helburu horretarako, zure izenik gabe. AAri bertsio anonimizatua bakarrik bidaltzen zaio.',
  'ch_show_anonymised_text': 'Ikusi gordetako testu anonimizatua',
  'ch_anonymised_text_caption': 'AAk jaso zuen bertsio babestua (inoiz ez jatorrizko testua). '
                                '{months} hilabete igarotakoan automatikoki ezabatzen da.',
  'ch_anonymised_text_unavailable': 'Hausnarketa honen testu anonimizatua ez dago erabilgarri jada.',
+ 'ch_show_saved_text': 'Ikusi gordetako testua',
+ 'ch_original_text_caption': 'Jatorrizko testua, zuk idatzi bezala. Ez zaio inoiz AAri bidaltzen eta {months} hilabete igarotakoan automatikoki ezabatzen da.',
+ 'ch_saved_text_unavailable': 'Hausnarketa honen testua ez dago erabilgarri (ez zen gorde edo dagoeneko ezabatu da).',
+ 'ch_original_text_in_patterns_note': '📄 Hausnarketa honen jatorrizko testua gordeta dago. Gainbegiraleek eta programa-arduradunek Patroien berrikuspenean irakur dezakete, egilearen izenik gabe.',
+ 'patterns_texts_header': '📄 Gordetako jatorrizko testuak',
+ 'patterns_texts_caption': 'Hausnarketak egiteko erabili ziren jatorrizko testuak, kasuak nola idazten diren aztertzeko. Ez dira inoiz erakusten egileen izenak, hausnarketa-kodeak edo ordu zehatzak. Testu bakoitza {months} hilabete igarotakoan automatikoki ezabatzen da. Testu hauek konfidentzialak dira: ez itzazu aplikaziotik kanpora kopiatu.',
+ 'patterns_texts_empty': 'Oraindik ez da jatorrizko testurik gorde.',
+ 'patterns_texts_showing': 'Gordetako {total} testuetatik azken {shown}ak erakusten dira.',
+ 'patterns_texts_item': '{date}(e)ko testua · {language}',
  'rs_cards_hint': 'Aukeratu edozein txartel irekitzeko.',
  'rs_cards_choose': 'Aukeratu txartel bat bere hausnarketa ikusteko.',
  'rs_card_explored': '✓ Arakatua',

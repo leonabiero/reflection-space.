@@ -43,7 +43,7 @@ Fails OPEN, consistent with the rest of this codebase
 Exactly like services/rate_limiter.py, if the database is unreachable
 for any reason, checks here return "not locked out" rather than
 blocking every login in the app. A lockout-tracking outage must never
-be the reason nobody can sign in -- see services/qdrant_service.py,
+be the reason nobody can sign in -- see
 services/embedding_service.py, services/rate_limiter.py for the same
 graceful-degradation philosophy applied elsewhere in this app.
 """

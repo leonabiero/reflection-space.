@@ -13,19 +13,20 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # context it used before semantic retrieval was enabled.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# Gemini embedding model used for RAG. gemini-embedding-001 supports
+# Gemini embedding model used by the pattern features (Text analysis,
+# Pattern Review). gemini-embedding-001 supports
 # retrieval-specific task types (document/query) and configurable output
 # dimensionality, which maps cleanly to this app's existing architecture.
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
 
 # Gemini recommends 768, 1536, or 3072 dimensions for reduced/full output.
-# 768 is a good testing balance between retrieval quality and Qdrant memory.
+# 768 is a good balance between quality and storage size.
 EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
 
-# Qdrant (semantic retrieval layer -- system of record stays Postgres)
-QDRANT_URL = os.getenv("QDRANT_URL", None)
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
-QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "rdi_documents")
+# Qdrant -- REMOVED (November 2026). The Qdrant search service served the
+# old document-based design and is no longer used. Any QDRANT_URL /
+# QDRANT_API_KEY / QDRANT_COLLECTION_NAME / QDRANT_CAPACITY_VECTORS left
+# in the hosting secrets is simply ignored and can be deleted.
 
 APP_NAME = "Reflection Space"
 # Optional deployment/version label, shown only inside diagnostic
@@ -51,7 +52,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 # RECENT_WINDOW_MINUTES). Moving them here means every deployment-
 # tunable "how long/how many" knob for the storage layer lives in one
 # place, consistent with how every other environment-configurable
-# value in this app (ANTHROPIC_API_KEY, GEMINI_API_KEY, QDRANT_URL,
+# value in this app (ANTHROPIC_API_KEY, GEMINI_API_KEY,
 # etc.) is already defined here.
 #
 # Values are unchanged from their previous hard-coded defaults, so this
@@ -431,12 +432,6 @@ CLAUDE_REQUEST_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REQUEST_TIMEOUT_SECONDS",
 MONTHLY_BUDGET_ANTHROPIC_USD = float(os.getenv("MONTHLY_BUDGET_ANTHROPIC_USD", "50"))
 MONTHLY_BUDGET_GEMINI_USD = float(os.getenv("MONTHLY_BUDGET_GEMINI_USD", "10"))
 
-# Qdrant free-tier vector capacity, if known for the current cluster/plan
-# (e.g. a 1GB free-tier cluster). Leave at 0 ("not configured") rather
-# than guessing -- the dashboard shows "Limit unavailable" instead of a
-# fabricated percentage when this is 0. See services/qdrant_service.py:
-# get_diagnostics() for the actual (measured) vector count.
-QDRANT_CAPACITY_VECTORS = int(os.getenv("QDRANT_CAPACITY_VECTORS", "0"))
 
 # ---------------------------------------------------------------------
 # Historical Context Prefetch -- REMOVED
@@ -454,21 +449,33 @@ QDRANT_CAPACITY_VECTORS = int(os.getenv("QDRANT_CAPACITY_VECTORS", "0"))
 # trade-off. If prefetching is ever revisited, it must run with a
 # bounded number of concurrent workers, not an unlimited one.
 # ---------------------------------------------------------------------
-# Saved anonymised text (November 2026 -- see REFLECTIONS.md)
+# Saved original text (November 2026 -- see REFLECTIONS.md)
 # ---------------------------------------------------------------------
-# Each reflection also keeps the ANONYMISED version of the text it was
-# made from (exactly what the AI received -- never the original), so
-# that patterns across reflections can be studied later. Only the
-# author and management roles can read it, and it is removed
-# automatically after ANONYMISED_TEXT_RETENTION_MONTHS (the reflection
-# itself stays). Set SAVE_ANONYMISED_TEXT to "false" to stop saving it
-# (for example if EDE's data-protection officer decides against it);
-# already-saved text then simply ages out.
+# Each reflection keeps the ORIGINAL text it was made from (as the
+# professional wrote, pasted or uploaded it), in the PostgreSQL database
+# (Neon, Frankfurt, EU), so that patterns in how cases are written can be
+# studied later. EDE agreed to this because the database is in the EU.
 #
-# NEEDS EDE CONFIRMATION: the 12-month period is a starting proposal.
-SAVE_ANONYMISED_TEXT = os.getenv("SAVE_ANONYMISED_TEXT", "true").strip().lower() not in (
+#   - The AI still only ever receives the ANONYMISED version: saving the
+#     original changes nothing about what is sent to Claude.
+#   - The author can read their own text (My Reflection). Supervisors and
+#     Programme Managers can read the texts WITHOUT author names, in
+#     Pattern Review (services/reflection_records.list_original_texts).
+#   - Each text is deleted automatically after
+#     ORIGINAL_TEXT_RETENTION_MONTHS (the reflection itself stays).
+#     Deleting it as soon as it has been used for pattern analysis will
+#     be added together with that future feature.
+#
+# Set SAVE_ORIGINAL_TEXT to "false" to stop saving new texts (already
+# saved ones then simply age out).
+SAVE_ORIGINAL_TEXT = os.getenv("SAVE_ORIGINAL_TEXT", "true").strip().lower() not in (
     "0", "false", "no", "off",
 )
+ORIGINAL_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ORIGINAL_TEXT_RETENTION_MONTHS", "15")))
+
+# Before the change above (4-10 November 2026) reflections kept the
+# ANONYMISED text instead. New reflections no longer save it; the copies
+# already saved stay readable and are deleted on their original schedule.
 ANONYMISED_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ANONYMISED_TEXT_RETENTION_MONTHS", "12")))
 
 # ---------------------------------------------------------------------

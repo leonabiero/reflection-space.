@@ -150,7 +150,57 @@ The privacy wording on My Reflection and in Help was corrected: notes and
 explorations are private, but saved observations (and their anonymised text)
 are also visible to managers in Reflection History.
 
-### Saved anonymised text (November 2026, product owner decision)
+### Saved ORIGINAL text (10 November 2026, agreed with EDE) — replaces the section below
+
+EDE agreed that the **original** text can be stored, because the database
+(Neon, Frankfurt) is in the EU. It is needed later to study patterns in how
+cases are written (patterns in the text *before* reflection). From this date
+each new reflection keeps the **original** text instead of the anonymised copy.
+
+- **What the AI receives is unchanged:** Claude still only ever receives the
+  anonymised text (`run_reflection(safe_text, …)`). The original is stored,
+  never sent.
+- Column `reflection_runs.original_text` (`services/db_schema.py`), written by
+  `services/findings_store.save_reflection_run(original_text=...)` from the
+  text the professional wrote, pasted or uploaded. The anonymised copy is no
+  longer saved for new reflections.
+- **Who can read it** (enforced in SQL in `services/reflection_records.py`):
+  - the **author**: My Reflection → "Show the saved text"
+    (`get_original_text`, author only);
+  - **Supervisors and Programme Managers**: Pattern Review → "Saved original
+    texts" (`list_original_texts`), **without** author name, reflection code or
+    exact time — only the day and the language. Case History, which shows the
+    author's name, never shows the original text (only a note that it exists);
+  - nobody else (other professionals, the System Administrator).
+- **How long:** `config.ORIGINAL_TEXT_RETENTION_MONTHS` (default **15**).
+  Expired text is never shown, and `purge_expired_original_text()` clears it
+  (after each new reflection and when the Pattern Review texts are opened).
+  The reflection itself is kept. A reflection its author deletes is hidden at
+  once and erased for good, text included, after the deletion window.
+- **Planned:** delete a text as soon as it has been used in a closed pattern
+  review — to be built with the pattern analysis of original texts.
+- **On/off:** `SAVE_ORIGINAL_TEXT` (default on). Turning it off stops saving;
+  text already saved ages out.
+- Practitioners are told on the reflection screen and in Help that the text is
+  saved and may be read by supervisors and programme managers without their
+  name.
+- Never logged.
+- Reflections made between 4 and 10 November 2026 keep their anonymised copy
+  until it expires (12 months); it stays readable as before.
+
+**Points for EDE:** written confirmation (ideally from whoever handles data
+protection); the text passes through the app's hosting (Streamlit Community
+Cloud, outside the EU) while it is being written — that was already the case
+and storing does not change it; the database is currently under a personal
+account and should move to an EDE-owned account.
+
+**Gemini (pattern features):** the Gemini key currently runs on Google's free
+tier. Google's Gemini API terms allow only the paid tier for apps used by people
+in the EU, and on the free tier Google may use submitted text to improve its
+products. Until a paid (EDE) key is in place, original texts must not be sent to
+Gemini. Today Gemini only receives texts that are already anonymised.
+
+### Saved anonymised text (4–10 November 2026, product owner decision) — superseded
 
 To make it possible to study patterns across reflections later, each new
 reflection also keeps the **anonymised** text the AI received — exactly what
@@ -210,7 +260,8 @@ Agreed with the EDE Fundazioa team in October 2026. This replaces the earlier
    optional usefulness feedback follows.
 
 When the professional finishes (or starts again, or logs out) the case text
-is discarded. It only ever lived in the browser session.
+is cleared from the screen. *(Since 10 November 2026 the original text is also
+saved with the reflection — see "Saved ORIGINAL text" above.)*
 
 ## What is stored
 
@@ -220,7 +271,7 @@ is discarded. It only ever lived in the browser session.
 | The AI's observations and questions for each dimension | Uploaded files |
 | Short verified passages the AI quoted (taken from the **anonymised** text) | Conversation text with the companion |
 | The professional's own private notes on observations | Names or real file numbers (codes are random) |
-| **Since November 2026:** the **anonymised** text the AI received, for up to 12 months (see below) | The **original** text as written |
+| **Since 10 November 2026:** the **original** text, for up to 15 months (see "Saved ORIGINAL text" above) | The anonymised copy (4–10 November 2026 only) |
 
 Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
 `note_type`, `previous_code`), `reflection_findings`, `finding_feedback`

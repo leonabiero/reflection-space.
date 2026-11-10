@@ -23,11 +23,10 @@ GitHub.
 
 | Setting | What it's for | What happens if it's missing |
 |---|---|---|
-| `GEMINI_API_KEY` | Turns reflections into search vectors for "similar past case" search | Semantic search is automatically disabled; the app falls back to a simpler recency-based view. Nothing breaks. |
-| `QDRANT_URL` / `QDRANT_API_KEY` | Where those search vectors are stored | Same as above — semantic search quietly turns itself off |
+| `GEMINI_API_KEY` | Turns text into numerical "fingerprints" for the pattern features (Text analysis, Pattern Review) | Those features fall back to simpler grouping; reflections are not affected. Note: the free Gemini tier is not permitted by Google's terms for users in the EU — use a paid key (see `REFLECTIONS.md`). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `ALERT_EMAIL_TO` | Sends an email to an administrator when something breaks | No email alerts go out. Errors are still recorded inside the app's own Error Log screen. |
 | `ADMIN_PASSWORD` | Left over from an earlier design | Not used anywhere in the current code. Safe to leave unset — see note in Section 6. |
-| `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` / `QDRANT_CAPACITY_VECTORS` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
+| `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
 
 Every tuning knob (rate limits, timeouts, pool size, session length,
 etc.) has a safe built-in default and only needs to be touched if a
@@ -99,7 +98,7 @@ dedicated readiness endpoint would be worth adding — not needed now.
 ## 5. Backup and recovery
 
 **What Reflection Space itself is responsible for:** correctly writing
-data to PostgreSQL and Qdrant, and correctly handling deletion. It does
+data to PostgreSQL, and correctly handling deletion. It does
 not run its own backup jobs — that is the hosting platform's job.
 
 **What is confirmed about the hosting side (checked directly in the
@@ -122,10 +121,9 @@ Neon dashboard on 24 Aug 2026):**
   by upgrading the Neon plan and/or setting up manual snapshots before
   major milestones — if the pilot's risk tolerance changes, or before
   it moves from pilot to permanent production use.
-- **Qdrant:** holds only search vectors, never the system of record.
-  If it is ever lost or corrupted, it can be rebuilt from PostgreSQL
-  (the source of truth) by re-embedding existing reflections — there
-  is no case data that exists only in Qdrant.
+- **Qdrant:** removed in November 2026 (it served the old document-based
+  design). Any `QDRANT_*` values left in the hosting Secrets are ignored and
+  can be deleted.
 - **Recovery after a bad deploy:** because Streamlit Cloud deploys
   straight from GitHub, "roll back" means reverting to a previous
   commit on `main` and letting it redeploy — no separate release

@@ -6,10 +6,11 @@ Thin wrapper around Google's Gemini Embedding API. This is the single place
 in the app that turns text into a vector; callers should not import the
 Google GenAI SDK directly.
 
-The service preserves the existing contract used by Qdrant: document text
-is embedded with a retrieval-document task, query text with a retrieval-query
-task, and provider failures return None rather than breaking document
-submission or reflection.
+Used by the pattern features (services/corpus_service.py,
+services/pattern_service.py), which store the resulting vectors in
+PostgreSQL. Document text is embedded with a retrieval-document task, query
+text with a retrieval-query task, and provider failures return None rather
+than breaking the calling feature.
 
 Privacy boundary
 ----------------

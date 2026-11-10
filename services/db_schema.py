@@ -120,6 +120,10 @@ def ensure_schema():
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS status_before_delete TEXT")
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by TEXT")
                 c.execute("ALTER TABLE drafts ADD COLUMN IF NOT EXISTS deleted_by_role TEXT")
+                # HISTORICAL (November 2026): the Qdrant search service was
+                # removed, so nothing writes or reads this column any more.
+                # It is kept so existing databases need no migration.
+                # Original note:
                 # Data-integrity fix: a completed document was previously
                 # marked "completed" in Postgres even when its Qdrant
                 # embedding step failed (rate limit, timeout, Gemini API
@@ -615,7 +619,7 @@ def ensure_schema():
                 # --- services/usage_ledger.py: service_usage ---
                 # Service Cost & Usage Monitor (September pilot hardening).
                 # One row per billable/measurable operation against an
-                # external service (Anthropic, Gemini, Qdrant, SMTP) --
+                # external service (Anthropic, Gemini, SMTP) --
                 # see services/usage_ledger.py's module docstring for the
                 # full design and services/cost_pricing.py for how
                 # estimated_cost_usd is computed. New table, native
@@ -723,6 +727,14 @@ def ensure_schema():
                 # config.ANONYMISED_TEXT_RETENTION_MONTHS. NULL for older
                 # rows, expired rows, or when saving is switched off.
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS anonymised_text TEXT")
+                # November 2026 (later the same month, agreed with EDE): the
+                # ORIGINAL text is kept instead of the anonymised one, in
+                # this EU database, for later pattern analysis. Readable by
+                # the author, and by Supervisors / Programme Managers WITHOUT
+                # author names (services/reflection_records.py). Cleared
+                # automatically after config.ORIGINAL_TEXT_RETENTION_MONTHS.
+                # Never sent to an AI provider and never logged.
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS original_text TEXT")
                 # November 2026: a practitioner can delete their own
                 # reflection. It is hidden everywhere at once (deleted_at
                 # set), can be restored for DELETION_WINDOW_HOURS, and is

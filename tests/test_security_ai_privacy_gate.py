@@ -252,9 +252,9 @@ class AllAiRoutesUseTheGateTests(unittest.TestCase):
     def test_modules_calling_ai_import_the_anonymizer(self):
         import inspect
         from services import (corpus_reading_service, knowledge_assistant,
-                              qdrant_service, reflection_service)
+                              reflection_service)
         from rdi import orchestrator
-        for module in (corpus_reading_service, knowledge_assistant, qdrant_service,
+        for module in (corpus_reading_service, knowledge_assistant,
                        reflection_service, orchestrator):
             self.assertIn("from services.anonymizer import anonymize", inspect.getsource(module),
                           msg=module.__name__)

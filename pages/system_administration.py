@@ -8,9 +8,6 @@ from services.error_log import error_boundary
 from pages.admin_sections import (
     user_management,
     legacy_documents,
-    document_indexing,
-    retrieval_test,
-    rag_status,
     system_health,
     configuration,
     admin_tools,
@@ -23,17 +20,13 @@ from pages.admin_sections import (
 # System Administration -- Admin Console
 # =============================================================================
 #
-# This page is presentation-only. Every value shown here comes from
-# services that already existed (services.qdrant_service,
-# services.embedding_service, services.draft_storage,
-# rdi.retrieval_service, config) -- nothing here makes a NEW call to
-# Gemini API or the Anthropic (Claude) API. The Retrieval Test panel
-# calls rdi.retrieval_service.retrieve_historical_context() (case-
-# specific mode) or rdi.retrieval_service.retrieve_global_context()
-# (global mode, added alongside the optional Case Reference field) --
-# both only ever call Gemini API (embeddings) for the query text and
-# Qdrant for the search; neither calls the Claude/Anthropic API at all.
-# So this page has ZERO impact on Anthropic API cost.
+# This page is presentation-only. It reads status from existing services
+# (services.embedding_service, services.draft_storage, config) and makes
+# no Claude (Anthropic) API calls of its own.
+#
+# November 2026: the Document Indexing, Retrieval Test and RAG Status
+# sections were removed together with the Qdrant search service, which
+# only served the old document-based design (see REFLECTIONS.md).
 #
 # Sprint 12 translation audit
 # -------------------------------
@@ -78,15 +71,6 @@ with error_boundary(
     # 1b. Erase old stored documents (reflection-only redesign,
     # REFLECTIONS.md) -- only shown while old documents remain.
     legacy_documents.render(T)
-
-    # 2. Document Indexing (backfill utility)
-    document_indexing.render(T)
-
-    # 3. Retrieval Test
-    retrieval_test.render(T)
-
-    # 4. RAG Status
-    rag_status.render(T)
 
     # 5. System Health
     system_health.render(T)

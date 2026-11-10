@@ -9,9 +9,12 @@ Reflection Space no longer stores case documents. A professional writes,
 pastes or uploads a case, reflects on it on the spot, and only the
 REFLECTION is kept (the AI's observations, questions and verified
 anonymised passages -- services/findings_store.py -- plus the
-professional's own private notes on them). The case text itself lives
-only in the browser session while the reflection is open and is
-discarded when the professional finishes or leaves.
+professional's own private notes on them).
+
+November 2026 (agreed with EDE): the ORIGINAL text each reflection was
+made from is also kept, in the EU database, for later pattern analysis
+(see "Saved original text" below). The AI still only ever receives the
+anonymised version.
 
 So that reflections can still be connected to similar situations later
 WITHOUT any personal identity, each reflection carries:
@@ -44,7 +47,10 @@ Privacy rules
   this module.
 - Management functions require a management role (checked here, not
   only in the page) and return the AI's observations only -- never
-  case text (there is none) and never anyone's notes.
+  anyone's notes. The saved ORIGINAL text is never returned next to an
+  author's name to anyone but the author: Supervisors and Programme
+  Managers read it only through list_original_texts(), which carries no
+  name, no reflection code and no exact time.
 - Nothing in this module writes observation text, quotes, tags or notes
   to logs -- only ids and counts.
 """
@@ -57,6 +63,7 @@ import unicodedata
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import iso, get_logger
 from services.access_control import require_management_role
+from services.pattern_access import can_review_patterns
 from services.findings_store import NOT_IN_DELETION_WINDOW
 
 logger = get_logger(__name__)
@@ -394,7 +401,9 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
     Organisation-wide list of saved reflections, newest first, for the
     management Case History screen. Management roles only (returns []
     otherwise). Each item: run_id, code, case_tags, note_type,
-    created_by, created_by_role, created_at, finding_count.
+    created_by, created_by_role, created_at, finding_count,
+    previous_code, has_anonymised_text, has_original_text. The texts
+    themselves are never included here.
     """
     if not require_management_role(actor_role):
         return []
@@ -410,13 +419,14 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
                        r.note_type, r.created_by, r.created_by_role, r.created_at,
                        (SELECT COUNT(*) FROM reflection_findings f WHERE f.run_id = r.id),
                        r.previous_code,
-                       (r.anonymised_text IS NOT NULL AND {_TEXT_NOT_EXPIRED})
+                       (r.anonymised_text IS NOT NULL AND {_TEXT_NOT_EXPIRED}),
+                       (r.original_text IS NOT NULL AND {_ORIGINAL_NOT_EXPIRED})
                 FROM reflection_runs r
                 WHERE {where}
                 ORDER BY r.created_at DESC, r.id DESC
                 LIMIT %s OFFSET %s
                 """,
-                (_retention_months(), *params, limit, offset),
+                (_retention_months(), _original_retention_months(), *params, limit, offset),
             )
             rows = c.fetchall()
     finally:
@@ -433,6 +443,7 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
             "finding_count": r[7] or 0,
             "previous_code": r[8] or "",
             "has_anonymised_text": bool(r[9]),
+            "has_original_text": bool(r[10]),
         }
         for r in rows
     ]
@@ -515,13 +526,14 @@ def get_findings_for_reflections(actor_role, run_ids):
 
 
 # ---------------------------------------------------------------------
-# Saved anonymised text (November 2026 -- see REFLECTIONS.md)
+# Saved anonymised text (4-10 November 2026 -- see REFLECTIONS.md)
 # ---------------------------------------------------------------------
-# Only the ANONYMISED text is ever stored (never the original). It can be
-# read by the reflection's author and by management roles, and only while
-# it is younger than config.ANONYMISED_TEXT_RETENTION_MONTHS -- expired
-# text is never returned, even before purge_expired_anonymised_text() has
-# physically cleared it. Never logged.
+# Reflections made in that week kept the ANONYMISED text. New reflections
+# keep the original text instead (next section); these older copies stay
+# readable by the author and by management roles until they expire after
+# config.ANONYMISED_TEXT_RETENTION_MONTHS -- expired text is never
+# returned, even before purge_expired_anonymised_text() has physically
+# cleared it. Never logged.
 
 _TEXT_NOT_EXPIRED = "r.created_at >= now() - make_interval(months => %s)"
 
@@ -583,6 +595,161 @@ def purge_expired_anonymised_text():
         conn.close()
     if cleared:
         logger.info("Expired anonymised text cleared from %d reflection(s)", cleared)
+    return cleared
+
+
+# ---------------------------------------------------------------------
+# Saved original text (November 2026, agreed with EDE -- REFLECTIONS.md)
+# ---------------------------------------------------------------------
+# The ORIGINAL text each reflection was made from, kept in the EU
+# database for later pattern analysis. Rules, enforced here in SQL and
+# not only in the pages:
+#   - the AUTHOR can read their own text (get_original_text);
+#   - Supervisors and Programme Managers (services/pattern_access.py) can
+#     read the texts WITHOUT any author name, reflection code or exact
+#     time (list_original_texts) -- so a text is never shown next to the
+#     name of the person who wrote it;
+#   - nobody else (other professionals, the System Administrator);
+#   - a text older than config.ORIGINAL_TEXT_RETENTION_MONTHS is never
+#     returned and is cleared by purge_expired_original_text();
+#   - a reflection its author deleted is never returned, and is erased
+#     for good (text included) by purge_expired_reflection_deletions().
+# The text is never sent to an AI provider by this module and never
+# written to logs -- only ids and counts are.
+
+_ORIGINAL_NOT_EXPIRED = "r.created_at >= now() - make_interval(months => %s)"
+
+
+def _original_retention_months():
+    from config import ORIGINAL_TEXT_RETENTION_MONTHS
+    return int(ORIGINAL_TEXT_RETENTION_MONTHS)
+
+
+def get_original_text(run_id, actor_name):
+    """The saved original text of one of the actor's OWN reflections, or
+    None (not saved, expired, deleted, unknown, or not theirs)."""
+    if not run_id or not actor_name:
+        return None
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT r.original_text
+                FROM reflection_runs r
+                WHERE r.id = %s
+                  AND r.created_by = %s
+                  AND r.original_text IS NOT NULL
+                  AND r.deleted_at IS NULL
+                  AND {_ORIGINAL_NOT_EXPIRED}
+                """,
+                (int(run_id), actor_name, _original_retention_months()),
+            )
+            row = c.fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def _original_text_filters(date_from, date_to):
+    conditions = [
+        NOT_IN_DELETION_WINDOW,
+        "r.original_text IS NOT NULL",
+        _ORIGINAL_NOT_EXPIRED,
+    ]
+    params = [_original_retention_months()]
+    if date_from:
+        conditions.append("r.created_at::date >= %s")
+        params.append(date_from)
+    if date_to:
+        conditions.append("r.created_at::date <= %s")
+        params.append(date_to)
+    return " AND ".join(conditions), params
+
+
+def list_original_texts(actor_role, date_from=None, date_to=None, limit=50, offset=0):
+    """
+    Saved original texts for pattern analysis, newest first. Supervisors
+    and Programme Managers only (returns [] otherwise).
+
+    Deliberately carries NO author name, NO reflection code and NO exact
+    time -- only the day, the reflection language and the text -- so a
+    manager can study the writing without seeing who wrote it. Each item:
+    {"run_id", "date", "language", "text"}; run_id is for screen keys
+    only and must not be displayed.
+    """
+    if not can_review_patterns(actor_role):
+        return []
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+    where, params = _original_text_filters(date_from, date_to)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                f"""
+                SELECT r.id, r.created_at::date, r.language, r.original_text
+                FROM reflection_runs r
+                WHERE {where}
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (*params, limit, offset),
+            )
+            rows = c.fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "run_id": r[0],
+            "date": r[1].isoformat() if r[1] else "",
+            "language": r[2] or "",
+            "text": r[3] or "",
+        }
+        for r in rows
+    ]
+
+
+def count_original_texts(actor_role, date_from=None, date_to=None):
+    """How many texts list_original_texts() could show. Supervisors and
+    Programme Managers only (0 otherwise)."""
+    if not can_review_patterns(actor_role):
+        return 0
+    where, params = _original_text_filters(date_from, date_to)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(f"SELECT COUNT(*) FROM reflection_runs r WHERE {where}", tuple(params))
+            return c.fetchone()[0]
+    finally:
+        conn.close()
+
+
+def purge_expired_original_text():
+    """Clear saved original text older than the retention period. The
+    reflection itself (code, observations, notes) is kept. Returns how
+    many reflections were cleared."""
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                UPDATE reflection_runs
+                SET original_text = NULL
+                WHERE original_text IS NOT NULL
+                  AND created_at < now() - make_interval(months => %s)
+                """,
+                (_original_retention_months(),),
+            )
+            cleared = c.rowcount or 0
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    if cleared:
+        logger.info("Expired original text cleared from %d reflection(s)", cleared)
     return cleared
 
 

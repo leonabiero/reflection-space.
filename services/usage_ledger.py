@@ -7,7 +7,7 @@ Service Cost & Usage Monitor (September pilot hardening) -- Phases
 
 This module is the single write/read point for the `service_usage`
 table (see services/db_schema.py). Every external/billable operation
-in the app -- a Claude call, a Gemini embedding, a Qdrant call, an
+in the app -- a Claude call, a Gemini embedding, an
 SMTP send -- is recorded here, and every number the System
 Administration "Service Usage & Costs" panel shows is read back out
 through the functions below.
@@ -63,7 +63,7 @@ logger = get_logger(__name__)
 # Recognized service identifiers -- used throughout the dashboard so
 # every panel iterates the same fixed list rather than whatever
 # happens to already be in the table.
-SERVICES = ["anthropic", "gemini", "qdrant", "postgres", "streamlit", "smtp"]
+SERVICES = ["anthropic", "gemini", "postgres", "streamlit", "smtp"]
 
 # Small, bounded pool JUST for usage-ledger writes -- deliberately
 # separate from any request-serving thread pool, and deliberately
@@ -319,13 +319,6 @@ def get_operation_breakdown(service, window_days=30):
         }
         for op, req, fail, retry, cost in rows
     ]
-
-
-def get_qdrant_operation_counts(window_days=30):
-    """Success/failure counts per Qdrant operation -- Qdrant has no
-    dollar cost surfaced by its API, so this is usage/health only, per
-    the spec's Phase 5."""
-    return get_operation_breakdown("qdrant", window_days=window_days)
 
 
 def get_smtp_summary(window_days=30):

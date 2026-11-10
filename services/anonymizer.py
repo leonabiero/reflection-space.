@@ -3,8 +3,8 @@
 This module intentionally uses a layered, deterministic approach rather than
 claiming that a handful of regular expressions can make arbitrary social-work
 narratives anonymous. It removes common direct identifiers, contextual
-identifiers, and conservative proper-name phrases before text reaches Claude,
-Gemini embeddings, or Qdrant.
+identifiers, and conservative proper-name phrases before text reaches Claude
+or Gemini embeddings.
 
 The final layer is deliberately conservative in the privacy direction: a
 proper-looking name may be redacted even when it turns out to be a place or

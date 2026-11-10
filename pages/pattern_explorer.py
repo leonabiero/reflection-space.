@@ -13,6 +13,8 @@ from services.pattern_engine import (
 from services.findings_store import FINDING_MODULES
 from services.findings_ui import render_evidence
 from services.report_builder import build_pattern_report
+from services import reflection_records
+from config import ORIGINAL_TEXT_RETENTION_MONTHS
 from datetime import date
 
 # Pattern Explorer
@@ -32,6 +34,9 @@ from datetime import date
 #   - Counts of observations, reflections and cases are always shown
 #     separately, and "across cases" is only claimed when case references
 #     are recorded.
+#   - Saved ORIGINAL texts (November 2026) are shown without author names,
+#     reflection codes or exact times (services/reflection_records.py:
+#     list_original_texts enforces this, and the role check, in SQL).
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -144,6 +149,34 @@ with error_boundary(
                 st.warning(T["patterns_not_embedded"].format(count=outcome["not_embedded"]))
             if outcome["fallback_count"]:
                 st.warning(T["patterns_fallback_notice"].format(count=outcome["fallback_count"]))
+
+    # ------------------------------------------------------------------
+    # 2b. Saved original texts (November 2026, agreed with EDE)
+    # ------------------------------------------------------------------
+    # The original texts reflections were made from, for studying
+    # patterns in how cases are written. Loaded only when switched on, so
+    # opening this page does not read every text. Never shown with the
+    # author's name, the reflection code or an exact time.
+    TEXTS_PAGE_SIZE = 50
+    st.divider()
+    if st.toggle(T["patterns_texts_header"], value=False, key="patterns_show_texts"):
+        st.caption(T["patterns_texts_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+        try:
+            # Retention first, so an expired text is never displayed.
+            reflection_records.purge_expired_original_text()
+        except Exception:
+            pass
+        saved_texts = reflection_records.list_original_texts(user_role, limit=TEXTS_PAGE_SIZE)
+        total_texts = reflection_records.count_original_texts(user_role)
+        if not saved_texts:
+            st.info(T["patterns_texts_empty"])
+        else:
+            if total_texts > len(saved_texts):
+                st.caption(T["patterns_texts_showing"].format(shown=len(saved_texts), total=total_texts))
+            for item in saved_texts:
+                with st.expander(T["patterns_texts_item"].format(
+                        date=item["date"], language=item["language"] or "—")):
+                    st.write(item["text"])
 
     # ------------------------------------------------------------------
     # 3. Review

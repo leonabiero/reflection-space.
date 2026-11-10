@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import unittest
 
 
@@ -7,30 +6,34 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeletionLifecycleSecurityTests(unittest.TestCase):
-    def test_qdrant_deleted_window_is_not_joined_back_to_postgres_content(self):
-        source = (ROOT / "services" / "draft_storage.py").read_text(encoding="utf-8")
-        start = source.index("def get_drafts_by_ids")
-        end = source.index("def get_failed_embedding_drafts", start)
-        section = source[start:end]
-        self.assertIn("status='completed'", section)
-        self.assertIn("id = ANY(%s)", section)
-
-    def test_permanent_purge_removes_postgres_history_and_qdrant_vector(self):
+    def test_permanent_purge_removes_postgres_history_and_documents(self):
         source = (ROOT / "services" / "draft_storage.py").read_text(encoding="utf-8")
         start = source.index("def purge_expired_deletions")
         section = source[start:]
         self.assertIn("DELETE FROM draft_history", section)
         self.assertIn("DELETE FROM drafts", section)
-        self.assertIn("delete_document(draft_id)", section)
+        self.assertIn("delete_runs_for_drafts", section)
 
-    def test_qdrant_soft_delete_policy_is_documented(self):
-        source = (ROOT / "services" / "qdrant_service.py").read_text(encoding="utf-8")
-        # The explanatory sentence is wrapped across source lines; normalize
-        # whitespace so the assertion tests the documented security policy,
-        # not its source formatting.
-        normalized = re.sub(r"\s+", " ", source)
-        self.assertIn("during the 48-hour restore window", normalized)
+    def test_soft_delete_hides_documents_first(self):
         self.assertIn("status='deleted'", (ROOT / "services" / "draft_storage.py").read_text(encoding="utf-8"))
+
+
+class QdrantRemovedTests(unittest.TestCase):
+    """November 2026: the Qdrant search service was removed. Guard
+    against it creeping back in through code or the requirements."""
+
+    def test_no_code_imports_qdrant(self):
+        offenders = []
+        for folder in ("services", "rdi", "pages", "navigation", "components"):
+            for path in (ROOT / folder).rglob("*.py"):
+                text = path.read_text(encoding="utf-8")
+                if "qdrant_service" in text or "qdrant_client" in text:
+                    offenders.append(str(path.relative_to(ROOT)))
+        self.assertEqual(offenders, [])
+
+    def test_qdrant_library_not_required(self):
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
+        self.assertNotIn("qdrant", requirements)
 
 
 if __name__ == "__main__":

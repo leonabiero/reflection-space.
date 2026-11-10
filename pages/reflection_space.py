@@ -14,7 +14,7 @@ from services import request_dedup
 from services import document_import
 from services import reflection_records
 from config import (
-    REQUEST_DEDUP_TTL_MINUTES, SAVE_ANONYMISED_TEXT, ANONYMISED_TEXT_RETENTION_MONTHS,
+    REQUEST_DEDUP_TTL_MINUTES, SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS,
 )
 from rdi.orchestrator import run_reflection
 from services.anonymizer import anonymize
@@ -483,14 +483,16 @@ with error_boundary(
             if session.safe_text:
                 if st.toggle(T["rs_anonymised_preview_label"], value=False, key="rs_info_show_anonymised"):
                     st.caption(T["rs_anonymised_preview_help"])
-                    if SAVE_ANONYMISED_TEXT and session.run_id:
-                        st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
                     st.write(session.safe_text)
 
-            # What this reflection is grounded in. The case text is only
-            # held in this browser session and is never saved.
+            # What this reflection is grounded in. Since November 2026 the
+            # original text is also saved (EU database) for later pattern
+            # analysis -- see REFLECTIONS.md. It is never sent to the AI.
             if st.toggle(T["workspace_document_header"], value=False, key="rs_info_show_case_text"):
-                st.caption(T["rs_case_text_not_saved_note"])
+                if SAVE_ORIGINAL_TEXT and session.run_id:
+                    st.caption(T["rs_original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+                else:
+                    st.caption(T["rs_case_text_not_saved_note"])
                 st.write(session.case_text)
 
             if session.context_summary:
@@ -735,9 +737,14 @@ with error_boundary(
         key=lang_key,
     )
 
-    st.caption(f"{T['rs_privacy_note']} {T['rs_case_text_not_saved_note']}")
-    if SAVE_ANONYMISED_TEXT:
-        st.caption(T["rs_saved_anonymised_note"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+    # Notice to practitioners (agreed November 2026): the original text is
+    # saved and may be read by management for pattern analysis, without
+    # the author's name. The AI still only receives the anonymised text.
+    if SAVE_ORIGINAL_TEXT:
+        st.caption(T["rs_privacy_note"])
+        st.caption(T["rs_original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+    else:
+        st.caption(f"{T['rs_privacy_note']} {T['rs_case_text_not_saved_note']}")
 
     # -------------------------------------------------------------------
     # Cost-safety guard (unchanged)
@@ -866,7 +873,9 @@ with error_boundary(
 
                     # The REFLECTION is the record: save what the AI found
                     # (with its verified anonymised passages), identified by
-                    # the neutral code. The case text itself is NOT saved.
+                    # the neutral code, together with the ORIGINAL text
+                    # (EU database, for later pattern analysis -- never sent
+                    # to the AI; see REFLECTIONS.md).
                     # Best-effort: if saving fails the reflection still
                     # works, the practitioner is told notes can't be kept.
                     if "error" not in result:
@@ -885,11 +894,12 @@ with error_boundary(
                                 case_tags=[],
                                 note_type="",
                                 previous_code="",
-                                # Only the ANONYMISED text the AI received is
-                                # ever kept (never `material`), for later
-                                # pattern analysis -- see REFLECTIONS.md.
-                                anonymised_text=(
-                                    session.safe_text if SAVE_ANONYMISED_TEXT else None
+                                # The ORIGINAL text, as written, pasted or
+                                # uploaded (agreed with EDE, November 2026).
+                                # Stored only; Claude received the anonymised
+                                # version above. See REFLECTIONS.md.
+                                original_text=(
+                                    material if SAVE_ORIGINAL_TEXT else None
                                 ),
                             )
                             session.attach_saved_findings(
@@ -898,10 +908,11 @@ with error_boundary(
                         except Exception:
                             session.findings_save_failed = True
 
-                        # Retention: clear saved anonymised text that has
-                        # passed its time limit. Best effort -- never
-                        # blocks the reflection.
+                        # Retention: clear saved texts that have passed
+                        # their time limit. Best effort -- never blocks the
+                        # reflection.
                         try:
+                            reflection_records.purge_expired_original_text()
                             reflection_records.purge_expired_anonymised_text()
                         except Exception:
                             pass

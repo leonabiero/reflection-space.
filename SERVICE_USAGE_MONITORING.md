@@ -12,8 +12,7 @@ keep it accurate as providers change their prices. It complements
 | Service | What's tracked | Cost shown? |
 |---|---|---|
 | Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Knowledge Assistant question | Yes — from actual token usage |
-| Gemini Embeddings (Google) | Every document embedding, every query embedding | Yes — from actual token usage |
-| Qdrant | Vector upserts, deletes, searches (case-scoped and global), current vector count | No dollar cost — Qdrant's API doesn't expose billing, so only usage/health is shown |
+| Gemini Embeddings (Google) | Every embedding made for the pattern features | Yes — from actual token usage |
 | PostgreSQL (Neon) | This app's own connection-pool usage | No — this is an *application* metric, not Neon's bill (see below) |
 | Streamlit | Active sessions, where reliably measurable | No — hosting cost isn't available from this deployment |
 | SMTP | Alert emails sent/failed | No — depends on whatever email provider is configured |
@@ -50,8 +49,7 @@ feature.
 ## What counts as exact vs. an estimate
 
 - **Exact:** Claude token counts (from the API response), Gemini token
-  counts (from the SDK response), Qdrant vector counts (from a live
-  API call).
+  counts (from the SDK response).
 - **Estimate:** any cost computed from a token count when the model
   name wasn't recognized in `cost_pricing.py` (falls back to the
   default Claude/Gemini model's price, and is flagged
@@ -93,8 +91,7 @@ volume — all of which can move the real number in either direction.
 
 `services/usage_alerts.py` reuses the existing email alert system
 (`services/email_alert.py`) — there is no second notification channel.
-When a service crosses the 70% / 85% / 95% threshold (or Qdrant becomes
-unreachable), one email is sent. The last-alerted tier is remembered in
+When a service crosses the 70% / 85% / 95% threshold, one email is sent. The last-alerted tier is remembered in
 the existing `app_settings` key-value table so the same crossing never
 re-sends on every page load; dropping back to green and crossing again
 later re-arms the alert.
@@ -117,7 +114,6 @@ every other configuration value in `OPERATIONS.md`:
 |---|---|---|
 | `MONTHLY_BUDGET_ANTHROPIC_USD` | 50 | Claude monthly budget ceiling |
 | `MONTHLY_BUDGET_GEMINI_USD` | 10 | Gemini monthly budget ceiling |
-| `QDRANT_CAPACITY_VECTORS` | 0 (unset) | Qdrant plan's vector capacity, if known — leave unset to show "Limit unavailable" instead of a guess |
 
 ## What happens if monitoring itself fails
 

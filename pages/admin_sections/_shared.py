@@ -13,24 +13,6 @@ import psycopg2
 from config import DATABASE_URL
 
 
-MATCH_REASON_LABEL_KEYS = {
-    "must_include": "why_reason_must_include_generic",
-    "semantic": "why_reason_semantic_generic",
-    "recency": "why_reason_recency",
-}
-MATCH_REASON_ICONS = {
-    "must_include": "📌",
-    "semantic": "🔎",
-    "recency": "🕒",
-}
-
-
-def reason_label(reason, T):
-    icon = MATCH_REASON_ICONS.get(reason, "")
-    text = T.get(MATCH_REASON_LABEL_KEYS.get(reason, ""), reason)
-    return f"{icon} {text}".strip()
-
-
 def status_badge(ok, T, true_key="admin_status_connected", false_key="admin_status_not_connected"):
     return f"✅ {T[true_key]}" if ok else f"❌ {T[false_key]}"
 
