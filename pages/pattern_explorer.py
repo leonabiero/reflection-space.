@@ -28,9 +28,10 @@ from datetime import date
 #     wording on this page may say that bias or poor practice has been
 #     found. The team records its own judgement (status), and the AI's
 #     original suggestion is never overwritten.
-#   - It only ever reads observations their authors chose to share, and it
-#     never shows who wrote them (services/pattern_store.py enforces both
-#     in the database layer, not just here).
+#   - It reads every saved observation (November 2026; before, only those
+#     their authors chose to share), and it never shows who wrote them or
+#     their notes (services/pattern_store.py enforces this in the database
+#     layer, not just here).
 #   - Counts of observations, reflections and cases are always shown
 #     separately, and "across cases" is only claimed when case references
 #     are recorded.

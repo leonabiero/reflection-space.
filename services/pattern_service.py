@@ -5,13 +5,14 @@ Pattern Service
 Stage 2 of the pattern explorer (see PATTERNS.md): runs one generation
 from start to finish.
 
-    shared observations  ->  meaning vectors  ->  groups  ->  evidence
+    observations  ->  meaning vectors  ->  groups  ->  evidence
     check  ->  one written explanation per group  ->  saved snapshot
 
 Every step that costs money or could be abused is bounded:
-  - Only observations their authors chose to share are read
-    (services/pattern_store.py), and only for Supervisors / Programme
-    Managers.
+  - Every saved observation is in the pool (November 2026; before, only
+    those their authors chose to share), never with the author's name or
+    notes (services/pattern_store.py), and only for Supervisors /
+    Programme Managers.
   - Only ONE generation can run at a time (pattern_store.start_run), so
     repeated clicks or two managers cannot launch duplicate paid work.
   - At most MAX_OBSERVATIONS_PER_RUN observations are compared and at most

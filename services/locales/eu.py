@@ -684,19 +684,14 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                            'eta zenbatetan arakatu den, feedback-balorazioak eta '
                                            'CSV esportazio bat.',
           'admin_title': '🛠️ Sistemaren administrazioa',
-          'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen kudeaketa, '
-                                'dokumentuen indexazioa eta berreskurapen-probak, sistemaren '
-                                'osasun-egoera, konfigurazioa, itzulpenen osasun-egiaztapenak, IA '
-                                'Diagnostiko Zentroa (errore-erregistroa) eta kasuen ezagutzan '
-                                'bilaketa. «Hausnarketak bakarrik» aldaketaren aurretik gordetako '
-                                'dokumentu zaharrak behin betiko ezabatzeko aukera ere ematen du.',
+          'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen kudeaketa, sistemaren osasun-egoera, konfigurazioa, itzulpenen osasun-egiaztapenak, IA Diagnostiko Zentroa (errore-erregistroa) eta kasuen ezagutzan bilaketa. «Hausnarketak bakarrik» aldaketaren aurretik gordetako dokumentu zaharrak behin betiko ezabatzeko aukera ere ematen du.',
           'report_problem_title': '🚩 Arazo bat jakinaraztea',
           'report_problem_body': 'Orri bakoitzak 🚩 Arazo bat jakinarazi kontrol bat du alboko '
                                  'barran, edonorentzat eskuragarri. Deskribatu gertatutakoa zure '
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, ereduak aztertzeko -- AAri bertsio anonimizatua bakarrik bidaltzen zaio, eta gainbegiraleek eta programa-arduradunek zure izenik gabe irakurtzen dute.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus ditzakezu.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.']},
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, ereduak aztertzeko -- AAri bertsio anonimizatua bakarrik bidaltzen zaio, eta gainbegiraleek eta programa-arduradunek zure izenik gabe irakurtzen dute.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus ditzakezu. IAren behaketak kudeaketa-taldearen patroien berrikuspenean erabiltzen dira, zure izenik gabe.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.']},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -775,7 +770,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'findings_evidence_caption': 'Behaketa honen oinarri den kasuaren testuko pasartea:',
  'findings_unverified_notice': 'IAk proposatutako {count} pasarte ez datoz testuarekin zehazki '
                                'bat, eta ez dira erakusten.',
- 'findings_notes_header': 'Nire oharrak eta taldearekin partekatzea',
+ 'findings_notes_header': 'Nire oharrak',
  'findings_label_prompt': 'Zer iruditu zaizu?',
  'findings_label_none': 'Baloratu gabe',
  'findings_labels': {'useful': 'Baliagarria',
@@ -804,33 +799,17 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'findings_journal_newer': '← Berrienak',
  'findings_journal_older': 'Zaharrenak →',
  'nav_patterns': '🔎 Patroien berrikuspena',
- 'findings_share_label': 'Partekatu behaketa hau taldearen berrikuspenarekin',
- 'findings_share_help': 'Markatzen baduzu, behaketa eta bere aipu zehatza kudeaketa-taldearen '
-                        'patroien berrikuspenean ager daitezke, zure izenik eta oharrik gabe. '
-                        'Noiznahi kendu dezakezu. Markatzen ez baduzu, inork ez du ikusiko.',
- 'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus '
-                           'ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da '
-                           'inoiz aldatzen. «Partekatu» markatzen baduzu bakarrik partekatzen dira '
-                           'behaketa eta bere aipua (inoiz ez zure izena edo oharrak). Gordetzean, izenak, '
-                           'adin zehatzak eta beste datu pertsonal batzuk kentzen dira zure oharretatik.',
+ 'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da inoiz aldatzen. IAren behaketak (inoiz ez zure izena edo oharrak) kudeaketa-taldearen patroien berrikuspenean erabiltzen dira. Gordetzean, izenak, adin zehatzak eta beste datu pertsonal batzuk kentzen dira zure oharretatik.',
  'patterns_title': '🔎 Patroien berrikuspena',
  'patterns_no_access': 'Orri hau gainbegiratzerako eta programaren kudeaketarako bakarrik da.',
- 'patterns_intro': 'Orri honek partekatutako behaketetan errepikatzen diren gaiak bilatzen '
-                   'laguntzen dio taldeari. Erakusten duena hausnarketarako patroi hautagaiak '
-                   'dira, ez ondorioak: behaketa antzeko multzo batek ez du alborapenik edo jardun '
-                   'txarrik frogatzen, eta borondatez partekatutako sorta txiki honek ez du '
-                   'erakundea ordezkatzen. Taldeak erabakitzen du patroi batek zer esan nahi duen, '
-                   'esan nahi badu.',
+ 'patterns_intro': 'Orri honek profesionalen hausnarketetako behaketetan errepikatzen diren gaiak bilatzen laguntzen dio taldeari. Erakusten duena hausnarketarako patroi hautagaiak dira, ez ondorioak: behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta sortak ez du nahitaez erakundea ordezkatzen. Taldeak erabakitzen du patroi batek zer esan nahi duen, esan nahi badu.',
  'patterns_pool_header': 'Zer dago berrikusteko',
- 'patterns_pool_caption': 'Profesionalek partekatzea erabaki dituzten behaketak soilik agertzen '
-                          'dira hemen. Ez duzu inoiz ikusten nork idatzi dituen, ezta haien ohar '
-                          'pribatuak ere.',
+ 'patterns_pool_caption': 'Profesionalen hausnarketetako behaketa guztiak agertzen dira hemen. Ez duzu inoiz ikusten nork idatzi dituen, ezta haien ohar pribatuak ere.',
  'patterns_filter_lenses': 'Mugatu hausnarketa-puntu hauetara (hutsik = guztiak)',
  'patterns_filter_from': 'Noiztik (aukerakoa)',
  'patterns_filter_to': 'Noiz arte (aukerakoa)',
- 'patterns_pool_empty': 'Oraindik ez dago partekatutako behaketarik iragazki hauekin.',
- 'patterns_pool_counts': '{observations} partekatutako behaketa, {reflections} hausnarketatik eta '
-                         '{cases} kasu-erreferentzia desberdinetatik.',
+ 'patterns_pool_empty': 'Oraindik ez dago behaketarik iragazki hauekin.',
+ 'patterns_pool_counts': '{observations} behaketa, {reflections} hausnarketatik eta {cases} kasu-erreferentzia desberdinetatik.',
  'patterns_pool_no_case': '{count} hausnarketak ez dute kasu-erreferentziarik, beraz ez dira '
                           'kasutzat kontatzen.',
  'patterns_generate_header': 'Bilatu patroiak',
@@ -850,17 +829,14 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'patterns_cost_note': 'Patroiak bilatzeak IA erabiltzen du {max_patterns} azalpen arte idazteko '
                        '(zentimo gutxi guztira). Botoia berriro sakatzen baduzu bakarrik '
                        'ordaintzen da berriro.',
- 'patterns_pool_truncated': 'Aldi berean alderatzen direnak baino partekatutako behaketa gehiago '
-                            'daude; azkeneko {max} erabiltzen dira.',
- 'patterns_not_enough': 'Gutxienez {minimum} partekatutako behaketa behar dira patroiak bilatzeko.',
+ 'patterns_pool_truncated': 'Aldi berean alderatzen direnak baino behaketa gehiago daude; azkeneko {max} erabiltzen dira.',
+ 'patterns_not_enough': 'Gutxienez {minimum} behaketa behar dira patroiak bilatzeko.',
  'patterns_generate_button': 'Bilatu patroiak',
  'patterns_generating': 'Patroiak bilatzen…',
  'patterns_busy': 'Bilaketa bat martxan dago jada. Itxaron amaitu arte eta saiatu berriro.',
  'patterns_unavailable': 'Esanahiaren araberako alderaketa-zerbitzua ez dago konfiguratuta; beraz, '
                          'orain ezin dira patroiak bilatu.',
- 'patterns_none_found': 'Ez da gutxienekoak betetzen dituen multzorik aurkitu {observations} '
-                        'behaketen artean. Probatu ezarpen zabalago bat, edo itxaron partekatutako '
-                        'behaketa gehiago izan arte.',
+ 'patterns_none_found': 'Ez da gutxienekoak betetzen dituen multzorik aurkitu {observations} behaketen artean. Probatu ezarpen zabalago bat, edo itxaron hausnarketa gehiago egon arte.',
  'patterns_generated_ok': '{patterns} patroi hautagai aurkitu dira {observations} behaketen '
                           'artean.',
  'patterns_not_embedded': '{count} behaketa ezin izan dira alderatu oraingoan, eta kanpoan geratu '
@@ -896,9 +872,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                              'gisa kontatzea eragin dezake.',
  'patterns_dates_line': 'Hausnarketak {first} eta {last} artean',
  'patterns_lenses_line': 'Hausnarketa-puntuak: {lenses}',
- 'patterns_lost_members': 'Patroi honetako {count} behaketa ez daude eskuragarri jada (egileak '
-                          'kenduak edo ezabatuak). Idatzitako azalpenak oraindik islatu ditzake: '
-                          'bilatu patroiak berriro horretan fidatu aurretik.',
+ 'patterns_lost_members': 'Patroi honetako {count} behaketa ez daude eskuragarri jada (haien hausnarketa ezabatu da). Idatzitako azalpenak oraindik islatu ditzake: bilatu patroiak berriro horretan fidatu aurretik.',
  'patterns_below_minimum': 'Oraingo behaketekin, multzo honek ez ditu jada aurkitu zenekoko '
                            'gutxienekoak betetzen.',
  'patterns_explanation_failed': 'Patroi honen azalpen automatikoa ezin izan da idatzi. Testu '
@@ -958,15 +932,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'report_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
  'report_prepared': '{date}(e)an prestatua',
  'report_how_to_read_title': 'Nola irakurri txosten hau',
- 'report_how_to_read': 'Txosten honek patroi hautagaiak biltzen ditu: taldeak komentatu nahi '
-                       'ditzakeen behaketa antzeko multzoak. Ez dira ondorioak. Behaketa antzeko '
-                       'multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta behaketak '
-                       'profesionalek borondatez partekatzea erabaki duten sorta txiki batetik '
-                       'datoz; beraz, ez dute erakundea ordezkatzen. Taldeak erabakitzen du patroi '
-                       'bakoitzak zer esan nahi duen, esan nahi badu.',
+ 'report_how_to_read': 'Txosten honek patroi hautagaiak biltzen ditu: taldeak komentatu nahi ditzakeen behaketa antzeko multzoak. Ez dira ondorioak. Behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta behaketak aplikazioan egindako hausnarketetatik datoz; beraz, ez dute nahitaez erakundea ordezkatzen. Taldeak erabakitzen du patroi bakoitzak zer esan nahi duen, esan nahi badu.',
  'report_search_title': 'Zein bilaketatik datorren',
- 'report_search_line': '{date}(e)ko bilaketa: partekatutako {observations} behaketa alderatu dira '
-                       'eta {patterns} patroi hautagai aurkitu dira.',
+ 'report_search_line': '{date}(e)ko bilaketa: {observations} behaketa alderatu dira eta {patterns} patroi hautagai aurkitu dira.',
  'report_filters_line': 'Bilaketaren iragazkiak: {filters}',
  'report_no_filters': 'bat ere ez',
  'report_statuses_line': 'Txosten honetan sartutako egoerak: {statuses}',
@@ -982,16 +950,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'report_observations_omitted': 'Behaketak eta aipuak ez dira txosten honetan sartzen.',
  'report_quote_label': 'Aipu zehatza',
  'report_limits_title': 'Txosten honen mugak',
- 'report_limits_list': ['Esanahiaren antzagatiko multzokatze automatikoa da; erlazionatu gabeko '
-                        'behaketak elkartu ditzake edo erlazionatuak bereizi.',
-                        'Behaketak IAren laguntzako hausnarketetatik eta partekatzea erabaki duten '
-                        'profesionalengandik datoz; ez dira erregistro osoa edo adierazgarria.',
-                        'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa '
-                        'kontatzea eragin dezake.',
-                        'Azalpen-testua IAk idazten du behaketetatik abiatuta, eta bilaketaren '
-                        'ondoren kendutako behaketak islatu ditzake.',
-                        'Txosten honetako ezerk ez du identifikatzen behaketa nork idatzi duen, '
-                        'ezta bere ohar pribatuak barne hartzen ere.'],
+ 'report_limits_list': ['Esanahiaren antzagatiko multzokatze automatikoa da; erlazionatu gabeko behaketak elkartu ditzake edo erlazionatuak bereizi.', 'Behaketak aplikazioan egindako IAren laguntzako hausnarketetatik datoz; ez dira erregistro osoa edo adierazgarria.', 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa kontatzea eragin dezake.', 'Azalpen-testua IAk idazten du behaketetatik abiatuta, eta bilaketaren ondoren kendutako behaketak islatu ditzake.', 'Txosten honetako ezerk ez du identifikatzen behaketa nork idatzi duen, ezta bere ohar pribatuak barne hartzen ere.'],
  'report_footer': 'Konfidentziala · Hausnarketarako patroi hautagaiak, ez ondorioak · {date}',
  'report_section_header': 'Inprimatzeko txostena',
  'report_section_intro': 'Goian erakusten diren patroiekin (hautatutako egoeren arabera) '

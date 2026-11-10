@@ -65,7 +65,7 @@ class PatternsRealDatabaseTests(unittest.TestCase):
         finally:
             conn.close()
 
-    def _observation(self, owner, text, case_ref="", share=True, module="client_voice", draft_id=None):
+    def _observation(self, owner, text, case_ref="", share=False, module="client_voice", draft_id=None):
         """One reflection with one observation; returns (finding_id, draft_id)."""
         did = draft_id or self._draft(owner)
         saved = self.fs.save_reflection_run(
@@ -74,8 +74,18 @@ class PatternsRealDatabaseTests(unittest.TestCase):
               "evidence": [{"quote": "cita exacta"}]}], owner, SW)
         fid = saved["finding_ids"][module]
         if share:
+            # The old per-observation "share" flag; since November 2026 it no
+            # longer decides anything (every observation is in the pool).
             self.assertTrue(self.fs.upsert_feedback(fid, owner, shared_with_team=True))
         return fid, did
+
+    def _hide_reflection_of(self, finding_id):
+        """The author deletes the reflection the observation belongs to."""
+        conn = self._connect()
+        with conn, conn.cursor() as c:
+            c.execute("UPDATE reflection_runs SET deleted_at = now() "
+                      "WHERE id = (SELECT run_id FROM reflection_findings WHERE id = %s)", (finding_id,))
+        conn.close()
 
     def _vec(self, ids_to_vec):
         return lambda text: ids_to_vec(text)
@@ -110,29 +120,28 @@ class PatternsRealDatabaseTests(unittest.TestCase):
                 self.svc.generate_patterns(role, "x", "Español", {})
 
     # ---- privacy ----
-    def test_only_shared_observations_appear_and_never_with_author_or_notes(self):
-        shared, _ = self._observation("test_alice", "A compartida", share=True)
-        private, _ = self._observation("test_bob", "A privada", share=False)
-        self.fs.upsert_feedback(shared, "test_alice", "useful", "NOTA PRIVADA SECRETA")
+    def test_every_observation_appears_but_never_with_author_or_notes(self):
+        first, _ = self._observation("test_alice", "A una", share=True)
+        second, _ = self._observation("test_bob", "A otra", share=False)
+        self.fs.upsert_feedback(first, "test_alice", "useful", "NOTA PRIVADA SECRETA")
         rows = self.ps.get_shared_findings(SUP)
-        self.assertEqual([r["id"] for r in rows], [shared])
+        self.assertEqual(sorted(r["id"] for r in rows), sorted([first, second]))
         flat = repr(rows) + repr(self.ps.get_pool_counts(SUP))
         for secret in ("test_alice", "NOTA PRIVADA", "test_bob"):
             self.assertNotIn(secret, flat)
         for row in rows:
             self.assertFalse({"created_by", "user", "author", "note", "feedback"} & set(row))
 
-    def test_sharing_is_the_authors_choice_and_can_be_withdrawn(self):
+    def test_the_old_share_flag_no_longer_decides_anything(self):
         fid, _ = self._observation("test_alice", "A uno", share=False)
-        self.assertEqual(self.ps.get_shared_findings(SUP), [])
+        self.assertEqual(len(self.ps.get_shared_findings(SUP)), 1)
         self.assertFalse(self.fs.upsert_feedback(fid, "test_bob", shared_with_team=True))
-        self.assertEqual(self.ps.get_shared_findings(SUP), [])
         self.assertTrue(self.fs.upsert_feedback(fid, "test_alice", shared_with_team=True))
         self.assertEqual(len(self.ps.get_shared_findings(SUP)), 1)
-        # saving a private note afterwards must not silently change sharing
         self.assertTrue(self.fs.upsert_feedback(fid, "test_alice", "useful", "nota"))
-        self.assertEqual(len(self.ps.get_shared_findings(SUP)), 1)
         self.assertTrue(self.fs.upsert_feedback(fid, "test_alice", shared_with_team=False))
+        self.assertEqual(len(self.ps.get_shared_findings(SUP)), 1)
+        self._hide_reflection_of(fid)
         self.assertEqual(self.ps.get_shared_findings(SUP), [])
 
     def test_observations_awaiting_deletion_leave_the_pool_immediately(self):
@@ -220,10 +229,10 @@ class PatternsRealDatabaseTests(unittest.TestCase):
             self.assertEqual(len(calls), 3)
 
     # ---- withdrawal / erasure ----
-    def test_withdrawn_observation_leaves_the_pattern_and_is_flagged(self):
+    def test_deleted_observation_leaves_the_pattern_and_is_flagged(self):
         ids = self._three_shared()
         run = self._generate()["run_id"]
-        self.fs.upsert_feedback(ids[0], "test_u0", shared_with_team=False)
+        self._hide_reflection_of(ids[0])
         pattern = self.ps.list_patterns(SUP, run)[0]
         self.assertEqual(len(pattern["members"]), 2)
         self.assertEqual(pattern["lost_members"], 1)
@@ -233,8 +242,8 @@ class PatternsRealDatabaseTests(unittest.TestCase):
     def test_pattern_with_no_remaining_members_disappears(self):
         ids = self._three_shared()
         run = self._generate()["run_id"]
-        for i, fid in enumerate(ids):
-            self.fs.upsert_feedback(fid, f"test_u{i}", shared_with_team=False)
+        for fid in ids:
+            self._hide_reflection_of(fid)
         self.assertEqual(self.ps.list_patterns(SUP, run), [])
 
     def test_permanent_erasure_removes_empty_patterns_and_data(self):

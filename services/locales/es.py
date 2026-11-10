@@ -687,20 +687,14 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                            'frente a cuántas veces se exploró, valoraciones de '
                                            'feedback, y una exportación en CSV.',
           'admin_title': '🛠️ Administración del sistema',
-          'admin_section_body': 'Administración del sistema reúne la gestión de usuarios, la '
-                                'indexación de documentos y pruebas de recuperación, el estado de '
-                                'salud del sistema, la configuración, las comprobaciones de estado '
-                                'de las traducciones, el Centro de diagnóstico con IA (el registro '
-                                'de errores) y la búsqueda en el conocimiento de casos. También '
-                                'permite borrar de forma definitiva los documentos antiguos '
-                                'guardados antes del cambio a «solo reflexiones».',
+          'admin_section_body': 'Administración del sistema reúne la gestión de usuarios, el estado de salud del sistema, la configuración, las comprobaciones de estado de las traducciones, el Centro de diagnóstico con IA (el registro de errores) y la búsqueda en el conocimiento de casos. También permite borrar de forma definitiva los documentos antiguos guardados antes del cambio a «solo reflexiones».',
           'report_problem_title': '🚩 Reportar un problema',
           'report_problem_body': 'Cada página tiene un control 🚩 Reportar un problema en la barra '
                                  'lateral, disponible para todo el mundo. Describe lo ocurrido con '
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado, para analizar patrones -- a la IA solo se envía la versión anonimizada, y las personas supervisoras y responsables de programa lo leen sin tu nombre.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tus notas sobre las observaciones son privadas -- solo tú puedes verlas.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.']},
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado, para analizar patrones -- a la IA solo se envía la versión anonimizada, y las personas supervisoras y responsables de programa lo leen sin tu nombre.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tus notas sobre las observaciones son privadas -- solo tú puedes verlas. Las observaciones de la IA se usan en la revisión de patrones del equipo de gestión, sin tu nombre.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.']},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
  'admin_usage_caption': 'Lo que cuesta cada servicio externo en este proyecto piloto, estimado a '
                         'partir del uso real registrado de las API. Las cifras marcadas como '
@@ -777,7 +771,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'findings_evidence_caption': 'Pasaje del texto del caso en el que se basa esta observación:',
  'findings_unverified_notice': '{count} pasaje(s) propuesto(s) por la IA no coincidía(n) '
                                'exactamente con el texto y no se muestra(n).',
- 'findings_notes_header': 'Mis notas y compartir con el equipo',
+ 'findings_notes_header': 'Mis notas',
  'findings_label_prompt': '¿Cómo te ha resultado?',
  'findings_label_none': 'Sin valorar',
  'findings_labels': {'useful': 'Útil',
@@ -806,31 +800,17 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'findings_journal_newer': '← Más recientes',
  'findings_journal_older': 'Más antiguas →',
  'nav_patterns': '🔎 Revisión de patrones',
- 'findings_share_label': 'Compartir esta observación con la revisión del equipo',
- 'findings_share_help': 'Si lo marcas, la observación y su cita exacta podrán aparecer, sin tu '
-                        'nombre y sin tus notas, en la revisión de patrones del equipo de gestión. '
-                        'Puedes retirarlo en cualquier momento. Si no lo marcas, nadie más la ve.',
- 'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se '
-                           'guardan aparte de lo que dijo la IA, que nunca se modifica. Solo si '
-                           'marcas «Compartir» se comparte la observación y su cita (nunca tu '
-                           'nombre ni tus notas). Al guardar, se quitan de tus notas los nombres, las edades '
-                           'exactas y otros datos personales.',
+ 'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se guardan aparte de lo que dijo la IA, que nunca se modifica. Las observaciones de la IA (nunca tu nombre ni tus notas) se usan en la revisión de patrones del equipo de gestión. Al guardar, se quitan de tus notas los nombres, las edades exactas y otros datos personales.',
  'patterns_title': '🔎 Revisión de patrones',
  'patterns_no_access': 'Esta página es solo para supervisión y coordinación del programa.',
- 'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones '
-                   'compartidas. Lo que muestra son patrones candidatos para la reflexión, no '
-                   'conclusiones: un grupo de observaciones parecidas no demuestra sesgo ni mala '
-                   'práctica, y este conjunto pequeño y compartido voluntariamente no representa a '
-                   'la organización. El equipo decide qué significa, si es que significa algo.',
+ 'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones de las reflexiones de los profesionales. Lo que muestra son patrones candidatos para la reflexión, no conclusiones: un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y el conjunto no representa necesariamente a la organización. El equipo decide qué significa, si es que significa algo.',
  'patterns_pool_header': 'Qué hay para revisar',
- 'patterns_pool_caption': 'Solo aparecen observaciones que los profesionales han decidido '
-                          'compartir. Nunca ves quién las escribió ni sus notas privadas.',
+ 'patterns_pool_caption': 'Aquí aparecen todas las observaciones de las reflexiones de los profesionales. Nunca ves quién las escribió ni sus notas privadas.',
  'patterns_filter_lenses': 'Limitar a estos puntos de reflexión (vacío = todos)',
  'patterns_filter_from': 'Desde (opcional)',
  'patterns_filter_to': 'Hasta (opcional)',
- 'patterns_pool_empty': 'Todavía no hay observaciones compartidas con estos filtros.',
- 'patterns_pool_counts': '{observations} observación(es) compartida(s), de {reflections} '
-                         'reflexión(es) y {cases} referencia(s) de caso distinta(s).',
+ 'patterns_pool_empty': 'Todavía no hay observaciones con estos filtros.',
+ 'patterns_pool_counts': '{observations} observación(es), de {reflections} reflexión(es) y {cases} referencia(s) de caso distinta(s).',
  'patterns_pool_no_case': '{count} reflexión(es) no tienen referencia de caso, por lo que no '
                           'cuentan como casos.',
  'patterns_generate_header': 'Buscar patrones',
@@ -849,18 +829,14 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'patterns_cost_note': 'Buscar patrones usa IA para redactar hasta {max_patterns} explicaciones '
                        '(unos pocos céntimos en total). Solo se vuelve a pagar si pulsas el botón '
                        'de nuevo.',
- 'patterns_pool_truncated': 'Hay más observaciones compartidas de las que se comparan de una vez; '
-                            'se usan las {max} más recientes.',
- 'patterns_not_enough': 'Hacen falta al menos {minimum} observaciones compartidas para buscar '
-                        'patrones.',
+ 'patterns_pool_truncated': 'Hay más observaciones de las que se comparan de una vez; se usan las {max} más recientes.',
+ 'patterns_not_enough': 'Hacen falta al menos {minimum} observaciones para buscar patrones.',
  'patterns_generate_button': 'Buscar patrones',
  'patterns_generating': 'Buscando patrones…',
  'patterns_busy': 'Ya hay una búsqueda en curso. Espera a que termine e inténtalo de nuevo.',
  'patterns_unavailable': 'El servicio de comparación por significado no está configurado, así que '
                          'ahora no se pueden buscar patrones.',
- 'patterns_none_found': 'No se ha encontrado ningún grupo que cumpla los mínimos entre '
-                        '{observations} observaciones. Prueba con un ajuste más amplio o espera a '
-                        'tener más observaciones compartidas.',
+ 'patterns_none_found': 'No se ha encontrado ningún grupo que cumpla los mínimos entre {observations} observaciones. Prueba con un ajuste más amplio o espera a que haya más reflexiones.',
  'patterns_generated_ok': 'Se han encontrado {patterns} patrón(es) candidato(s) entre '
                           '{observations} observaciones.',
  'patterns_not_embedded': '{count} observación(es) no se pudieron comparar esta vez y han quedado '
@@ -896,10 +872,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                              'que un mismo caso cuente como dos.',
  'patterns_dates_line': 'Reflexiones entre {first} y {last}',
  'patterns_lenses_line': 'Puntos de reflexión: {lenses}',
- 'patterns_lost_members': '{count} de las observaciones de este patrón ya no están disponibles '
-                          '(retiradas por quien las escribió o eliminadas). La explicación escrita '
-                          'puede seguir reflejándolas: conviene volver a buscar patrones antes de '
-                          'fiarse de ella.',
+ 'patterns_lost_members': '{count} de las observaciones de este patrón ya no están disponibles (su reflexión fue eliminada). La explicación escrita puede seguir reflejándolas: conviene volver a buscar patrones antes de fiarse de ella.',
  'patterns_below_minimum': 'Con las observaciones actuales, este grupo ya no alcanza los mínimos '
                            'con los que se encontró.',
  'patterns_explanation_failed': 'La explicación automática de este patrón no se pudo redactar. Se '
@@ -959,16 +932,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'report_confidential': 'Documento confidencial para el equipo de gestión',
  'report_prepared': 'Preparado el {date}',
  'report_how_to_read_title': 'Cómo leer este informe',
- 'report_how_to_read': 'Este informe recoge patrones candidatos: grupos de observaciones parecidas '
-                       'que el equipo puede querer comentar. No son conclusiones. Un grupo de '
-                       'observaciones parecidas no demuestra sesgo ni mala práctica, y las '
-                       'observaciones proceden de un conjunto pequeño que los profesionales han '
-                       'decidido compartir voluntariamente, por lo que no representan a la '
-                       'organización. El equipo decide qué significa cada patrón, si es que '
-                       'significa algo.',
+ 'report_how_to_read': 'Este informe recoge patrones candidatos: grupos de observaciones parecidas que el equipo puede querer comentar. No son conclusiones. Un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y las observaciones proceden de las reflexiones hechas en la aplicación, por lo que no representan necesariamente a la organización. El equipo decide qué significa cada patrón, si es que significa algo.',
  'report_search_title': 'Búsqueda de la que procede',
- 'report_search_line': 'Búsqueda del {date}: {observations} observaciones compartidas comparadas y '
-                       '{patterns} patrón(es) candidato(s) encontrado(s).',
+ 'report_search_line': 'Búsqueda del {date}: {observations} observaciones comparadas y {patterns} patrón(es) candidato(s) encontrado(s).',
  'report_filters_line': 'Filtros de la búsqueda: {filters}',
  'report_no_filters': 'ninguno',
  'report_statuses_line': 'Estados incluidos en este informe: {statuses}',
@@ -984,17 +950,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'report_observations_omitted': 'Las observaciones y las citas no se incluyen en este informe.',
  'report_quote_label': 'Cita exacta',
  'report_limits_title': 'Límites de este informe',
- 'report_limits_list': ['Es una agrupación automática por parecido de significado; puede unir '
-                        'observaciones que no tienen relación o separar otras que sí la tienen.',
-                        'Las observaciones proceden de reflexiones asistidas por IA y de '
-                        'profesionales que decidieron compartirlas; no son un registro completo ni '
-                        'representativo.',
-                        'Las referencias de caso se escriben a mano: una errata puede hacer que un '
-                        'mismo caso cuente como dos.',
-                        'El texto explicativo lo redacta la IA a partir de las observaciones y '
-                        'puede reflejar observaciones retiradas después de la búsqueda.',
-                        'Ningún elemento de este informe identifica a quien escribió una '
-                        'observación ni incluye sus notas privadas.'],
+ 'report_limits_list': ['Es una agrupación automática por parecido de significado; puede unir observaciones que no tienen relación o separar otras que sí la tienen.', 'Las observaciones proceden de reflexiones asistidas por IA hechas en la aplicación; no son un registro completo ni representativo.', 'Las referencias de caso se escriben a mano: una errata puede hacer que un mismo caso cuente como dos.', 'El texto explicativo lo redacta la IA a partir de las observaciones y puede reflejar observaciones retiradas después de la búsqueda.', 'Ningún elemento de este informe identifica a quien escribió una observación ni incluye sus notas privadas.'],
  'report_footer': 'Confidencial · Patrones candidatos para la reflexión, no conclusiones · {date}',
  'report_section_header': 'Informe imprimible',
  'report_section_intro': 'Genera un documento para imprimir o guardar como PDF con los patrones '

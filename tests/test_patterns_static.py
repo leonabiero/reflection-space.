@@ -52,11 +52,22 @@ class TranslationTests(unittest.TestCase):
             self.assertEqual(holes(es[key]), holes(en[key]), key)
             self.assertEqual(holes(es[key]), holes(eu[key]), key)
 
-    def test_privacy_sentence_now_mentions_sharing(self):
+    def test_privacy_sentence_says_observations_go_to_pattern_review(self):
+        # November 2026: every observation is used in the pattern review
+        # (no more per-observation "share" tick); notes stay private.
         es, eu, en = self._langs()
-        self.assertIn("Compartir", es["findings_notes_privacy"])
-        self.assertIn("Share", en["findings_notes_privacy"])
-        self.assertIn("Partekatu", eu["findings_notes_privacy"])
+        self.assertIn("revisión de patrones", es["findings_notes_privacy"])
+        self.assertIn("pattern review", en["findings_notes_privacy"])
+        self.assertIn("patroien berrikuspenean", eu["findings_notes_privacy"])
+        for lang in (es, eu, en):
+            self.assertNotIn("findings_share_label", lang)
+
+    def test_the_share_tick_is_gone_and_the_pool_ignores_the_old_flag(self):
+        ui = (ROOT / "services" / "findings_ui.py").read_text(encoding="utf-8")
+        self.assertNotIn("findings_share", ui)
+        self.assertNotIn("shared_with_team=", ui)
+        store = (ROOT / "services" / "pattern_store.py").read_text(encoding="utf-8")
+        self.assertNotIn("fb.shared_with_team", store)
 
 
 class AccessTests(unittest.TestCase):

@@ -88,7 +88,7 @@ _FALLBACK_TEXT = {
         "description": "Estas observaciones se agruparon por la similitud de su significado. La explicación automática no pudo generarse en este momento; revisa las observaciones y sus citas exactas para valorar si comparten algo relevante.",
         "why_it_matters": "Una agrupación solo indica que unas observaciones se parecen. Corresponde al equipo decidir si merece atención.",
         "alternative_explanations": ["Las observaciones pueden parecerse por la forma en que se redactan las notas o por el tipo de caso, y no por una cuestión de práctica."],
-        "limitations": ["Se trata de un agrupamiento automático de un conjunto pequeño y no representativo de observaciones compartidas voluntariamente; no permite concluir nada sobre la organización."],
+        "limitations": ["Se trata de un agrupamiento automático de un conjunto pequeño y no representativo de observaciones; no permite concluir nada sobre la organización."],
         "questions": [
             "¿Qué tienen en común, realmente, estas observaciones cuando se leen con sus citas?",
             "¿Qué información adicional cambiaría la forma de entender este grupo?",
@@ -99,7 +99,7 @@ _FALLBACK_TEXT = {
         "description": "These observations were grouped because their meaning is similar. The automatic explanation could not be generated just now; please read the observations and their exact quotations to judge whether they share something relevant.",
         "why_it_matters": "A grouping only shows that some observations resemble each other. It is for the team to decide whether it deserves attention.",
         "alternative_explanations": ["The observations may resemble each other because of how notes are written or the kind of case, rather than because of a practice issue."],
-        "limitations": ["This is an automatic grouping of a small, non-representative set of voluntarily shared observations; it cannot support conclusions about the organisation."],
+        "limitations": ["This is an automatic grouping of a small, non-representative set of observations; it cannot support conclusions about the organisation."],
         "questions": [
             "What do these observations really have in common when read alongside their quotations?",
             "What further information would change how this group is understood?",
@@ -110,7 +110,7 @@ _FALLBACK_TEXT = {
         "description": "Behaketa hauek euren esanahiaren antzagatik multzokatu dira. Azalpen automatikoa ezin izan da sortu une honetan; irakurri behaketak eta haien aipu zehatzak, partekatzen duten zerbait garrantzitsua dagoen baloratzeko.",
         "why_it_matters": "Multzokatze batek behaketa batzuk elkarren antzekoak direla soilik adierazten du. Taldeari dagokio erabakitzea arreta merezi duen.",
         "alternative_explanations": ["Behaketak elkarren antzekoak izan daitezke oharrak idazteko moduagatik edo kasu motagatik, eta ez jardunaren inguruko arazo bategatik."],
-        "limitations": ["Borondatez partekatutako behaketa-sorta txiki eta ez-adierazgarri baten multzokatze automatikoa da; ezin da erakundeari buruzko ondoriorik atera."],
+        "limitations": ["Behaketa-sorta txiki eta ez-adierazgarri baten multzokatze automatikoa da; ezin da erakundeari buruzko ondoriorik atera."],
         "questions": [
             "Zer dute benetan komunean behaketa hauek aipuekin batera irakurrita?",
             "Zer informazio gehigarrik aldatuko luke multzo hau ulertzeko modua?",

@@ -138,6 +138,8 @@ TEST_DATABASE_URL=postgresql://user:pass@localhost/test_db python -m pytest test
   cover it.
 
 ## Stage 2 addition: optional sharing
-Each observation has a share tick (default off) stored in `finding_feedback.shared_with_team`.
-Only that tick lets the management Pattern Review read the observation and its quotation; notes and ratings stay private.
+Until 10 November 2026 each observation had a share tick (default off), stored in `finding_feedback.shared_with_team`,
+and only ticked observations reached the management Pattern Review. Since then **every** observation (and its
+quotation) is used there, without the author's name; the tick was removed and the flag is no longer read. Notes and
+ratings stay private.
 See `PATTERNS.md`.

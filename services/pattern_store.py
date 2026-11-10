@@ -8,13 +8,13 @@ PRIVACY, in one place
 ----------------------
 - Every function starts with require_pattern_role(): only Supervisors and
   Programme Managers get through (services/pattern_access.py).
-- The pool of observations a pattern can be built from is ONLY those whose
-  author chose to share them (finding_feedback.shared_with_team). An
-  observation that was never shared, or whose sharing was withdrawn, is
-  invisible here -- withdrawing removes it from every pattern at once,
-  because membership is always re-checked against the share flag when a
-  pattern is read.
-- What management can read about a shared observation is: its text, its
+- The pool of observations a pattern can be built from is EVERY saved
+  observation (November 2026 decision -- see PATTERNS.md). Until then only
+  observations whose author ticked "share" were used; that per-observation
+  choice was removed, and finding_feedback.shared_with_team is no longer
+  read here. The professional's own notes, ratings, alternative
+  explanations and "AI misunderstood" flag stay private.
+- What management can read about an observation is: its text, its
   exact quotation, its lens, its case reference, and its reflection date.
   NEVER the author's name or role, and never the author's notes, ratings,
   alternative explanations or "AI misunderstood" flag. The SELECTs below
@@ -77,17 +77,18 @@ def _dumps(value):
 
 
 # ---------------------------------------------------------------------
-# The pool of shared observations
+# The pool of observations
 # ---------------------------------------------------------------------
+# (Function names still say "shared" -- kept so nothing that calls them
+# breaks. Since November 2026 the pool is every saved observation.)
 
 def _pool_conditions(modules, date_from, date_to):
-    """SQL conditions (and parameters) for 'observations whose author
-    shared them', plus the optional filters. Returns (conditions, params,
-    nothing_can_match). One definition shared by every reader of the pool,
-    so counts and data can never disagree about what is in it."""
+    """SQL conditions (and parameters) for 'observations in the pool'
+    (every saved observation not in the deletion window), plus the
+    optional filters. Returns (conditions, params, nothing_can_match). One
+    definition used by every reader of the pool, so counts and data can
+    never disagree about what is in it."""
     conditions = [
-        "EXISTS (SELECT 1 FROM finding_feedback fb "
-        "WHERE fb.finding_id = f.id AND fb.shared_with_team)",
         NOT_IN_DELETION_WINDOW,
     ]
     params = []
@@ -108,7 +109,7 @@ def _pool_conditions(modules, date_from, date_to):
 
 def get_shared_findings(role, modules=None, date_from=None, date_to=None, limit=800):
     """
-    Observations whose author chose to share them, newest first.
+    Observations in the pool (every saved observation), newest first.
 
     Filters (all optional): `modules` (list of lens keys), `date_from` /
     `date_to` (dates, inclusive, applied to the reflection date).
@@ -503,8 +504,7 @@ def list_patterns(role, run_id, statuses=None, module=None):
     The patterns of one generation, each with its CURRENT members and
     honest counts.
 
-    A member counts only while its author still shares it and its
-    documents are not awaiting deletion; observations the reviewer
+    A member counts only while its reflection is not awaiting deletion; observations the reviewer
     excluded are listed separately. A pattern left with no current members
     is not returned.
 
@@ -513,7 +513,7 @@ def list_patterns(role, run_id, statuses=None, module=None):
     (dict), explanation_status, status, created_at, lost_members (how many
     of its starting observations are no longer available -- the written
     explanation may still reflect them), members (current, not excluded),
-    excluded_members (still shared, challenged by a reviewer), counts (see
+    excluded_members (still available, challenged by a reviewer), counts (see
     pattern_engine.summarise_members), below_minimum (True if withdrawals
     or exclusions have dropped it under the generation's own minimums).
     """
@@ -556,8 +556,6 @@ def list_patterns(role, run_id, statuses=None, module=None):
                 JOIN reflection_findings f ON f.id = pf.finding_id
                 JOIN reflection_runs r ON r.id = f.run_id
                 WHERE pf.pattern_id = ANY(%s)
-                  AND EXISTS (SELECT 1 FROM finding_feedback fb
-                              WHERE fb.finding_id = f.id AND fb.shared_with_team)
                   AND {NOT_IN_DELETION_WINDOW}
                 ORDER BY r.created_at DESC, f.id DESC
                 """,

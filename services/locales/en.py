@@ -666,19 +666,14 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                            'dimension was flagged versus explored, feedback '
                                            'ratings, and a CSV export.',
           'admin_title': '🛠️ System Administration',
-          'admin_section_body': 'System Administration brings together user management, document '
-                                'indexing and retrieval testing, system health, configuration, '
-                                'translation health checks, the AI Diagnostic Centre (the error '
-                                'log), and case knowledge search. It also lets you permanently '
-                                'erase old documents stored before the change to "reflections '
-                                'only".',
+          'admin_section_body': 'System Administration brings together user management, system health, configuration, translation health checks, the AI Diagnostic Centre (the error log), and case knowledge search. It also lets you permanently erase old documents stored before the change to "reflections only".',
           'report_problem_title': '🚩 Reporting a problem',
           'report_problem_body': 'Every page has a 🚩 Report a problem control in the sidebar, '
                                  'available to everyone. Describe what happened in your own words '
                                  'and select Send -- the system automatically attaches page, '
                                  'session, and navigation context.',
           'privacy_title': '🔒 Privacy and data',
-          'privacy_points': ['The original case text is kept securely in an EU database for a limited time, for pattern analysis -- only the anonymised version is ever sent to the AI, and supervisors and programme managers read it without your name.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', 'Your notes on the observations are private -- only you can see them.', 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.']},
+          'privacy_points': ['The original case text is kept securely in an EU database for a limited time, for pattern analysis -- only the anonymised version is ever sent to the AI, and supervisors and programme managers read it without your name.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', "Your notes on the observations are private -- only you can see them. The AI's observations are used in the management team's pattern review, without your name.", 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.']},
  'admin_usage_header': '💰 Service Usage & Costs',
  'admin_usage_caption': 'What each external service is costing this pilot, estimated from actual '
                         'recorded API usage. Figures marked "estimate" could not be tied to an '
@@ -752,7 +747,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'findings_evidence_caption': 'Passage from the case text this observation is based on:',
  'findings_unverified_notice': '{count} passage(s) proposed by the AI did not match the text '
                                'exactly and are not shown.',
- 'findings_notes_header': 'My notes and sharing with the team',
+ 'findings_notes_header': 'My notes',
  'findings_label_prompt': 'How did you find it?',
  'findings_label_none': 'Not rated',
  'findings_labels': {'useful': 'Useful',
@@ -781,32 +776,17 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'findings_journal_newer': '← Newer',
  'findings_journal_older': 'Older →',
  'nav_patterns': '🔎 Pattern Review',
- 'findings_share_label': 'Share this observation with the team review',
- 'findings_share_help': 'If ticked, the observation and its exact quotation may appear, without '
-                        "your name and without your notes, in the management team's pattern "
-                        'review. You can withdraw it at any time. If not ticked, nobody else sees '
-                        'it.',
- 'findings_notes_privacy': 'Your notes and ratings are private: only you can see them. They are '
-                           'saved separately from what the AI said, which is never changed. Only '
-                           'if you tick "Share" are the observation and its quotation shared '
-                           '(never your name or notes). When you save, names, exact ages and other personal '
-                           'details are removed from your notes.',
+ 'findings_notes_privacy': "Your notes and ratings are private: only you can see them. They are saved separately from what the AI said, which is never changed. The AI's observations (never your name or your notes) are used in the management team's pattern review. When you save, names, exact ages and other personal details are removed from your notes.",
  'patterns_title': '🔎 Pattern Review',
  'patterns_no_access': 'This page is only for supervision and programme management.',
- 'patterns_intro': 'This page helps the team look for themes that recur across shared '
-                   'observations. What it shows are candidate patterns for reflection, not '
-                   'conclusions: a group of similar observations is not evidence of bias or poor '
-                   'practice, and this small, voluntarily shared set does not represent the '
-                   'organisation. The team decides what a pattern means, if anything.',
+ 'patterns_intro': "This page helps the team look for themes that recur across the observations made in professionals' reflections. What it shows are candidate patterns for reflection, not conclusions: a group of similar observations is not evidence of bias or poor practice, and the set does not necessarily represent the organisation. The team decides what a pattern means, if anything.",
  'patterns_pool_header': 'What is available to review',
- 'patterns_pool_caption': 'Only observations that professionals chose to share appear here. You '
-                          'never see who wrote them or their private notes.',
+ 'patterns_pool_caption': "All observations from professionals' reflections appear here. You never see who wrote them or their private notes.",
  'patterns_filter_lenses': 'Limit to these reflection points (empty = all)',
  'patterns_filter_from': 'From (optional)',
  'patterns_filter_to': 'To (optional)',
- 'patterns_pool_empty': 'There are no shared observations with these filters yet.',
- 'patterns_pool_counts': '{observations} shared observation(s) from {reflections} reflection(s) '
-                         'and {cases} distinct case reference(s).',
+ 'patterns_pool_empty': 'There are no observations with these filters yet.',
+ 'patterns_pool_counts': '{observations} observation(s) from {reflections} reflection(s) and {cases} distinct case reference(s).',
  'patterns_pool_no_case': '{count} reflection(s) have no case reference, so they do not count as '
                           'cases.',
  'patterns_generate_header': 'Look for patterns',
@@ -823,16 +803,14 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                  'a group is worth showing for discussion.',
  'patterns_cost_note': 'Looking for patterns uses AI to write up to {max_patterns} explanations (a '
                        'few cents in total). You only pay again if you press the button again.',
- 'patterns_pool_truncated': 'There are more shared observations than are compared at once; the '
-                            '{max} most recent are used.',
- 'patterns_not_enough': 'At least {minimum} shared observations are needed to look for patterns.',
+ 'patterns_pool_truncated': 'There are more observations than are compared at once; the {max} most recent are used.',
+ 'patterns_not_enough': 'At least {minimum} observations are needed to look for patterns.',
  'patterns_generate_button': 'Look for patterns',
  'patterns_generating': 'Looking for patterns…',
  'patterns_busy': 'A search is already running. Wait for it to finish and try again.',
  'patterns_unavailable': 'The meaning-matching service is not configured, so patterns cannot be '
                          'searched for right now.',
- 'patterns_none_found': 'No group met the minimums among {observations} observations. Try a '
-                        'broader setting, or wait for more shared observations.',
+ 'patterns_none_found': 'No group met the minimums among {observations} observations. Try a broader setting, or wait for more reflections.',
  'patterns_generated_ok': 'Found {patterns} candidate pattern(s) among {observations} '
                           'observations.',
  'patterns_not_embedded': '{count} observation(s) could not be compared this time and were left '
@@ -868,9 +846,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                              'two.',
  'patterns_dates_line': 'Reflections between {first} and {last}',
  'patterns_lenses_line': 'Reflection points: {lenses}',
- 'patterns_lost_members': '{count} of the observations in this pattern are no longer available '
-                          '(withdrawn by their author or erased). The written explanation may '
-                          'still reflect them: look for patterns again before relying on it.',
+ 'patterns_lost_members': '{count} of the observations in this pattern are no longer available (their reflection was deleted). The written explanation may still reflect them: look for patterns again before relying on it.',
  'patterns_below_minimum': 'With the current observations, this group no longer reaches the '
                            'minimums it was found with.',
  'patterns_explanation_failed': 'The automatic explanation for this pattern could not be written. '
@@ -931,15 +907,9 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'report_confidential': 'Confidential document for the management team',
  'report_prepared': 'Prepared on {date}',
  'report_how_to_read_title': 'How to read this report',
- 'report_how_to_read': 'This report lists candidate patterns: groups of similar observations the '
-                       'team may wish to discuss. They are not conclusions. A group of similar '
-                       'observations is not evidence of bias or poor practice, and the '
-                       'observations come from a small set that professionals chose to share '
-                       'voluntarily, so they do not represent the organisation. The team decides '
-                       'what each pattern means, if anything.',
+ 'report_how_to_read': 'This report lists candidate patterns: groups of similar observations the team may wish to discuss. They are not conclusions. A group of similar observations is not evidence of bias or poor practice, and the observations come from the reflections made in the app, so they do not necessarily represent the organisation. The team decides what each pattern means, if anything.',
  'report_search_title': 'The search it comes from',
- 'report_search_line': 'Search of {date}: {observations} shared observations compared and '
-                       '{patterns} candidate pattern(s) found.',
+ 'report_search_line': 'Search of {date}: {observations} observations compared and {patterns} candidate pattern(s) found.',
  'report_filters_line': 'Search filters: {filters}',
  'report_no_filters': 'none',
  'report_statuses_line': 'Statuses included in this report: {statuses}',
@@ -955,16 +925,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'report_observations_omitted': 'Observations and quotations are not included in this report.',
  'report_quote_label': 'Exact quotation',
  'report_limits_title': 'Limits of this report',
- 'report_limits_list': ['It is an automatic grouping by similarity of meaning; it may join '
-                        'unrelated observations or separate related ones.',
-                        'The observations come from AI-assisted reflections and from professionals '
-                        'who chose to share them; they are not a complete or representative '
-                        'record.',
-                        'Case references are typed by hand: a typo can make one case count as two.',
-                        'The explanatory text is written by AI from the observations and may '
-                        'reflect observations withdrawn after the search.',
-                        'Nothing in this report identifies who wrote an observation or includes '
-                        'their private notes.'],
+ 'report_limits_list': ['It is an automatic grouping by similarity of meaning; it may join unrelated observations or separate related ones.', 'The observations come from AI-assisted reflections made in the app; they are not a complete or representative record.', 'Case references are typed by hand: a typo can make one case count as two.', 'The explanatory text is written by AI from the observations and may reflect observations withdrawn after the search.', 'Nothing in this report identifies who wrote an observation or includes their private notes.'],
  'report_footer': 'Confidential · Candidate patterns for reflection, not conclusions · {date}',
  'report_section_header': 'Printable report',
  'report_section_intro': 'Creates a document to print or save as PDF with the patterns shown above '

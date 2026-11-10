@@ -37,7 +37,10 @@ Privacy rules this module enforces
   and get_my_findings filter by the person's own name IN SQL, and
   upsert_feedback refuses to write on someone else's findings. Nothing
   here lets one professional read another's notes.
-- Stage 2: an author may choose to SHARE an observation with the
+- November 2026: EVERY observation is used in the management team's
+  pattern review (services/pattern_store.py), without the author's name;
+  the per-observation share choice described next is no longer read.
+- Stage 2 (until November 2026): an author may choose to SHARE an observation with the
   management team's pattern explorer (upsert_feedback(shared_with_team=
   True)). Only the observation and its exact quote are then readable by
   management (services/pattern_store.py) -- never the author's name, notes,
@@ -320,7 +323,9 @@ def upsert_feedback(finding_id, user_name, label=None, note="",
 
     The AI's finding is never touched -- feedback lives in its own table.
 
-    Stage 2 -- sharing: `shared_with_team` is the AUTHOR'S choice to put
+    Stage 2 -- sharing (no longer used since November 2026, when every
+    observation joined the pattern pool; still stored, never read):
+    `shared_with_team` was the AUTHOR'S choice to put
     this observation (its text and exact quote -- never their name or
     their notes) into the pool the management team's pattern explorer
     reads. True shares it, False withdraws it immediately, None (the
