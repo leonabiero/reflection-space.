@@ -366,21 +366,6 @@ class ReflectionRecordsRealDatabaseTests(unittest.TestCase):
         self.assertTrue(self.rr.delete_reflection(run_id, "test_admin", "System Administrator"))
         self.assertIsNone(self.rr.get_own_reflection(code, "test_alice"))
 
-    # --- knowledge assistant / metrics ----------------------------------
-    def test_evidence_search_prefers_matching_words(self):
-        self._save(findings=[_finding("client_voice", "La vivienda aparece descrita sin la voz de la persona")])
-        self._save(findings=[_finding("possible_bias", "Texto sobre otra cuestión distinta")])
-        results = self.rr.search_reflection_evidence("¿Qué se dice sobre vivienda?", limit=50)
-        self.assertTrue(results)
-        self.assertIn("vivienda", results[0]["content"].lower())
-        self.assertGreater(results[0]["score"], 0)
-        self.assertEqual(results[0]["doc_type"], "client_voice")
-
-    def test_observation_count(self):
-        before = self.rr.count_saved_observations()
-        self._save()
-        self.assertEqual(self.rr.count_saved_observations(), before + 1)
-
     # --- erasing the old stored documents --------------------------------
     def _old_document(self):
         conn = self._connect()

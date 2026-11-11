@@ -468,7 +468,7 @@ def get_feedback_for_findings(user_name, finding_ids):
 #
 # November 2026: a reflection its author has deleted (deleted_at set) is
 # hidden by the same rule, everywhere it is used -- the author's journal,
-# managers' Reflection History, pattern analysis, the Knowledge Assistant
+# managers' Reflection History, pattern analysis
 # and the counts -- until it is restored or erased.
 NOT_IN_DELETION_WINDOW = """
     r.deleted_at IS NULL

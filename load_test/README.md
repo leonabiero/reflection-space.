@@ -15,7 +15,7 @@ timing and success/failure numbers.
 
 **Real (unmodified):** every piece of application logic being tested —
 `services/db_pool.py`, `services/rate_limiter.py`,
-`services/ka_rate_limiter.py`, `services/request_dedup.py`,
+`services/request_dedup.py`,
 `services/login_rate_limiter.py`, and `rdi/orchestrator.py`'s
 concurrency semaphore, 8-way companion fan-out, and retry logic.
 
@@ -65,7 +65,6 @@ concurrency limits).
 |---|---|
 | `db-read` | Database connection pool checkout/queueing under concurrent reads |
 | `reflection-rate` | The reflection-generation cost limiter under concurrent hits from the same user |
-| `ka-rate` | The Knowledge Assistant cost limiter under concurrent hits from the same user |
 | `dedup` | Request deduplication when many identical requests arrive at once |
 | `login` | Login failure bookkeeping under concurrent attempts |
 | `reflection-generation` | A full reflection: real semaphore, real 8-way companion fan-out, real retries (AI faked) |

@@ -11,7 +11,7 @@ keep it accurate as providers change their prices. It complements
 
 | Service | What's tracked | Cost shown? |
 |---|---|---|
-| Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Knowledge Assistant question | Yes — from actual token usage |
+| Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Pattern Review explanation | Yes — from actual token usage |
 | Gemini Embeddings (Google) | Every embedding made for the pattern features | Yes — from actual token usage |
 | PostgreSQL (Neon) | This app's own connection-pool usage | No — this is an *application* metric, not Neon's bill (see below) |
 | Streamlit | Active sessions, where reliably measurable | No — hosting cost isn't available from this deployment |
@@ -23,7 +23,7 @@ Every dollar figure on the panel comes from the same two steps:
 
 1. **Record actual usage.** Every Claude and Gemini call is
    instrumented at its call site (`services/reflection_service.py`,
-   `services/knowledge_assistant.py`, `services/embedding_service.py`)
+   `services/pattern_explainer.py`, `services/embedding_service.py`)
    to capture the token counts the *provider itself* reports back —
    `message.usage.input_tokens` / `output_tokens` for Claude, and the
    Google GenAI SDK's `statistics.token_count` for Gemini. **The

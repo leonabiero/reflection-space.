@@ -25,8 +25,8 @@ logger = get_logger(__name__)
 #
 # Design choice worth knowing about: converting to TIMESTAMPTZ means
 # psycopg2 returns a native datetime object on read, not a string.
-# Every page in this app (case_history.py, learning.py,
-# growth_dashboard.py, research_metrics_service.py, etc.) does string
+# Every page in this app (case_history.py,
+# growth_dashboard.py, etc.) does string
 # operations on these values (e.g. completed_at[:10]). Rather than
 # touch every one of those files in this pass, every function below
 # converts datetime values back to the exact same ISO-8601 string
@@ -155,8 +155,7 @@ def get_case_count(since_iso=None, service=None, doc_type=None):
     """
     Structured query for aggregation/counting.
 
-    Note on since_iso: callers elsewhere in the app (e.g.
-    services/research_metrics_service.py) build this as a naive,
+    Note on since_iso: callers elsewhere in the app may build this as a naive,
     server-local ISO string via datetime.now() (not UTC-aware). Now
     that completed_at is TIMESTAMPTZ, Postgres will cast that string
     using the session's timezone setting when comparing. This is
@@ -721,9 +720,7 @@ def purge_expired_deletions():
 # stores case documents at all -- only reflections. Documents saved
 # before that change still sit in the `drafts` table. The EDE decision
 # was to erase them permanently. That is done ON PURPOSE, by a System
-# Administrator, from System Administration -> "Erase old stored
-# documents" (pages/admin_sections/legacy_documents.py) -- never
-# automatically on start-up, so a deployment can never wipe data by
+# Administrator -- never automatically on start-up, so a deployment can never wipe data by
 # accident.
 
 def count_all_stored_documents():

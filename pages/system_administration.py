@@ -7,45 +7,36 @@ from services.error_log import error_boundary
 
 from pages.admin_sections import (
     user_management,
-    legacy_documents,
     system_health,
-    configuration,
     admin_tools,
     ai_diagnostic_centre,
-    case_knowledge_search,
     service_usage,
+    data_reset,
 )
 
 # =============================================================================
 # System Administration -- Admin Console
 # =============================================================================
 #
-# This page is presentation-only. It reads status from existing services
-# (services.embedding_service, services.draft_storage, config) and makes
-# no Claude (Anthropic) API calls of its own.
+# This page is the thin entry point that Streamlit's page-based
+# navigation loads (see navigation/menus.py). Each section lives in its
+# own file under pages/admin_sections/ and exposes a render(T) function.
+# The page makes no Claude (Anthropic) API calls of its own.
 #
-# November 2026: the Document Indexing, Retrieval Test and RAG Status
-# sections were removed together with the Qdrant search service, which
-# only served the old document-based design (see REFLECTIONS.md).
+# Every user-facing string goes through the central language service
+# (services/language.py, key T).
 #
-# Sprint 12 translation audit
-# -------------------------------
-# Every user-facing string on this page now goes through the existing
-# central language service (services/language.py, key T) -- no second
-# translation table was created. See the "admin_*" / "admin_rag_*" /
-# "admin_health_*" / "admin_retrieval_*" keys added there.
+# Architectural rule: this page and its sections must never use
+# st.dataframe(), st.tabs() or st.columns().
 #
-# File layout (post-reorganization)
-# -------------------------------
-# This page used to be a single ~1,640-line file. It has been split
-# into one file per section under pages/admin_sections/, each
-# exposing a render(T) function that draws exactly the same UI as
-# before, in exactly the same order. This file is now just the thin
-# entry point that Streamlit's page-based navigation loads (see
-# navigation/menus.py's page_link("pages/system_administration.py"))
-# -- it wires the pieces together but no longer contains their logic.
-# Nothing about how the page looks or behaves for a System
-# Administrator has changed.
+# November 2026 clean-up (product owner's decisions):
+#   - Removed: "Erase old stored documents", "Configuration" and "Case
+#     Knowledge Search" (and, earlier the same month, the Qdrant-based
+#     Document Indexing / Retrieval Test / RAG Status sections).
+#   - The AI Diagnostic Centre was reduced to a plain list of recorded
+#     problems (what happened, when, status); the AI diagnosis travels
+#     in the alert email.
+#   - Added: "Erase all data", to start the real pilot from zero.
 
 T = init_language()
 init_identity(T)
@@ -65,27 +56,20 @@ with error_boundary(
     st.title(T.get("nav_system_admin", "🛠️ System Administration"))
     st.caption(T.get("admin_console_caption", "Administration console for Reflection Space -- system status, indexing, and diagnostic tools."))
 
-    # 1. User Management
+    # 1. Users (view only)
     user_management.render(T)
 
-    # 1b. Erase old stored documents (reflection-only redesign,
-    # REFLECTIONS.md) -- only shown while old documents remain.
-    legacy_documents.render(T)
-
-    # 5. System Health
+    # 2. System Health
     system_health.render(T)
 
-    # 6. Configuration
-    configuration.render(T)
-
-    # 7. Administrative Tools
+    # 3. Administrative Tools (anonymisation test)
     admin_tools.render(T)
 
-    # 8. Translation System Health + AI Diagnostic Centre (Phase 6)
+    # 4. Translation System Health + Diagnostic Centre (problem list)
     ai_diagnostic_centre.render(T)
 
-    # 9. Case Knowledge Search (Phase 4)
-    case_knowledge_search.render(T)
-
-    # 10. Service Usage & Costs (Service Cost & Usage Monitor)
+    # 5. Service Usage & Costs
     service_usage.render(T)
+
+    # 6. Erase all data (start from zero)
+    data_reset.render(T)

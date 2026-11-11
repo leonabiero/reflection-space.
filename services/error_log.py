@@ -1057,7 +1057,7 @@ def render_application_error_screen(T, issue_id, error_id=None, friendly_message
     being raised/caught -- e.g. rdi/orchestrator.py's Complete Failure
     case (every one of the 8 companions failed), or a service function
     that catches its own AI-call exception and returns an error dict
-    (e.g. services/knowledge_assistant.py:ask(),
+    (e.g.
     services/reflection_service.py:continue_companion_conversation()).
     Those paths already have everything error_boundary would want (a
     traceback, root cause where available) and call log_error()

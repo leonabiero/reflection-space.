@@ -39,7 +39,6 @@ from load_test.scenarios import (
     fake_ai_environment,
     db_read_scenario,
     reflection_rate_limit_scenario,
-    ka_rate_limit_scenario,
     request_dedup_scenario,
     login_attempt_scenario,
     reflection_generation_scenario,
@@ -63,15 +62,6 @@ def run_reflection_rate_limit(args):
     with fake_database_environment(pool_max=args.pool_max, query_latency_seconds=args.query_latency_ms / 1000.0):
         report = run_load_test(reflection_rate_limit_scenario,
                                 "Reflection rate limiter -- concurrent same-user hits",
-                                num_users=args.users, calls_per_user=args.calls_per_user)
-        report.print_report()
-    return report
-
-
-def run_ka_rate_limit(args):
-    with fake_database_environment(pool_max=args.pool_max, query_latency_seconds=args.query_latency_ms / 1000.0):
-        report = run_load_test(ka_rate_limit_scenario,
-                                "Knowledge Assistant rate limiter -- concurrent same-user hits",
                                 num_users=args.users, calls_per_user=args.calls_per_user)
         report.print_report()
     return report
@@ -112,7 +102,6 @@ def run_reflection_generation(args):
 SCENARIOS = {
     "db-read": run_db_read,
     "reflection-rate": run_reflection_rate_limit,
-    "ka-rate": run_ka_rate_limit,
     "dedup": run_request_dedup,
     "login": run_login,
     "reflection-generation": run_reflection_generation,

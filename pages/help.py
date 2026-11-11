@@ -82,15 +82,8 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
     if can_access_workspace(user_role, "Manager"):
         st.header(H["manager_title"])
 
-        with st.expander(H["learning_section_title"], expanded=False):
-            st.write(H["learning_section_body"])
-
         with st.expander(H["case_history_section_title"], expanded=False):
             st.write(H["case_history_section_body"])
-
-        if user_role == "System Administrator":
-            with st.expander(H["research_metrics_section_title"], expanded=False):
-                st.write(H["research_metrics_section_body"])
 
         st.divider()
 

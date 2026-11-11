@@ -12,24 +12,17 @@ def render_workspace_menu(T):
 
     Role-aware link visibility
     ----------------------------
-    Some pages inside a work mode are further gated to a SUBSET of the
-    roles that can access that work mode at all (e.g. every Manager-mode
-    role -- Supervisor, Programme Manager, System Administrator -- can
-    open "Manager" mode, but Research Metrics itself is restricted to
-    System Administrator only -- see pages/research_metrics_page.py).
+    Pattern Review is limited to a SUBSET of the roles that can open
+    Manager mode (Supervisor and Programme Manager -- see
+    services/pattern_access.py). The link is hidden for the System
+    Administrator so nobody is shown a link that would only deny them.
+    This changes visibility only; the page and the data layer enforce
+    the rule themselves.
 
-    Previously the sidebar link was shown to everyone in Manager mode
-    regardless of this, so a Supervisor or Programme Manager would click
-    through only to land on an immediate "no access" message. This
-    reads the AUTHENTICATED role (st.session_state.user_role) -- the
-    same source of truth already used everywhere else for authorization
-    (see services.identity, navigation.permissions) -- and simply
-    doesn't render that one link for roles that can't use the page.
-
-    This changes visibility only. It does not change who is ALLOWED to
-    view the page (that guard already lives inside
-    pages/research_metrics_page.py and is unchanged), and it does not
-    change any other page's link or any work mode's availability.
+    November 2026: the Learning page (Team Presence, Knowledge
+    Assistant, Learning Insights), Text analysis and Research Metrics
+    were removed at the product owner's request, so Manager mode now
+    holds Case History and Pattern Review only.
     """
     workspace = st.session_state.get("active_work_mode", "Practitioner")
     role = st.session_state.get("user_role", "")
@@ -43,7 +36,6 @@ def render_workspace_menu(T):
         st.sidebar.page_link("pages/growth_dashboard.py", label=T.get("nav_growth", "My Reflection"))
     elif workspace == "Manager":
         render_workspace_badge(T.get("workmode_manager", "Manager"), "Manager")
-        st.sidebar.page_link("pages/learning.py", label=T.get("nav_learning", "Learning"))
         st.sidebar.page_link("pages/case_history.py", label=T.get("nav_case_history", "Case History"))
         # Pattern Review is for Supervisors and Programme Managers only
         # (services/pattern_access.py). The page and the data layer
@@ -51,15 +43,6 @@ def render_workspace_menu(T):
         # System Administrator a link that would deny them.
         if can_review_patterns(role):
             st.sidebar.page_link("pages/pattern_explorer.py", label=T.get("nav_patterns", "Pattern Review"))
-            # Corpus analysis uses the same two roles (services/pattern_access.py);
-            # Social Workers and the System Administrator never see the link.
-            st.sidebar.page_link("pages/corpus_analysis.py", label=T.get("nav_corpus", "Text analysis"))
-        # Research Metrics is restricted to System Administrator inside
-        # the page itself -- only show the link to that role, so
-        # Supervisors/Programme Managers never see a link that
-        # immediately denies them.
-        if role == "System Administrator":
-            st.sidebar.page_link("pages/research_metrics_page.py", label=T.get("nav_research_metrics", "Research Metrics"))
     elif workspace == "System Administration":
         render_workspace_badge(T.get("workmode_admin", "System Administration"), "System Administration")
         st.sidebar.page_link("pages/system_administration.py", label=T.get("nav_system_admin", "System Administration"))

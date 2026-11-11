@@ -17,13 +17,13 @@ GitHub.
 | Setting | What it's for | What happens if it's missing |
 |---|---|---|
 | `DATABASE_URL` | Connection string for the PostgreSQL database (accounts, reflections, logs) | The app cannot start meaningfully — nearly everything depends on the database |
-| `ANTHROPIC_API_KEY` | Powers the AI reflection companion and Knowledge Assistant | Reflection generation and the Knowledge Assistant fail with a plain-language error; the rest of the app still works |
+| `ANTHROPIC_API_KEY` | Powers the AI reflection companion and the Pattern Review explanations | Reflection generation fails with a plain-language error; the rest of the app still works |
 
 ### Optional — the app degrades gracefully without these
 
 | Setting | What it's for | What happens if it's missing |
 |---|---|---|
-| `GEMINI_API_KEY` | Turns text into numerical "fingerprints" for the pattern features (Text analysis, Pattern Review) | Those features fall back to simpler grouping; reflections are not affected. Note: the free Gemini tier is not permitted by Google's terms for users in the EU — use a paid key (see `REFLECTIONS.md`). |
+| `GEMINI_API_KEY` | Turns text into numerical "fingerprints" for Pattern Review | Those features fall back to simpler grouping; reflections are not affected. Note: the free Gemini tier is not permitted by Google's terms for users in the EU — use a paid key (see `REFLECTIONS.md`). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `ALERT_EMAIL_TO` | Sends an email to an administrator when something breaks | No email alerts go out. Errors are still recorded inside the app's own Error Log screen. |
 | `ADMIN_PASSWORD` | Left over from an earlier design | Not used anywhere in the current code. Safe to leave unset — see note in Section 6. |
 | `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |

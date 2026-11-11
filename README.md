@@ -21,10 +21,11 @@ the language of the reflection, press **Reflect**. See `REFLECTIONS.md`.
 Four roles, each with different screens available to them:
 
 - **Social Worker** — reflects on cases on the spot, uses the AI reflection companion
-- **Supervisor** — same as Social Worker, plus visibility into their team
-- **Programme Manager** — organisation-wide activity views, no individual
-  case content
-- **System Administrator** — user management, system health, diagnostics
+- **Supervisor** and **Programme Manager** — same as Social Worker, plus the
+  Manager area: Reflection History (saved reflections and the average
+  usefulness rating) and Pattern Review
+- **System Administrator** — user list, system health, the list of recorded
+  problems, service costs, and the "Erase all data" action
 
 Access to each screen and each action is checked in two places: once in the
 screens themselves, and again inside the service layer underneath, so a
@@ -36,8 +37,8 @@ mistake in one place doesn't expose data it shouldn't.
 |---|---|---|
 | Streamlit | The web app itself (all the screens) | `app.py`, `pages/` |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
-| Google Gemini | Turns text into numerical "fingerprints" for the pattern features (Text analysis, Pattern Review); the results are stored in Postgres | `services/embedding_service.py` |
-| Claude (Anthropic) | Powers the reflection companion and the Knowledge Assistant | `rdi/`, `services/knowledge_assistant.py` |
+| Google Gemini | Turns text into numerical "fingerprints" for Pattern Review; the results are stored in Postgres | `services/embedding_service.py` |
+| Claude (Anthropic) | Powers the reflection companion and the Pattern Review explanations | `rdi/`, `services/reflection_service.py`, `services/pattern_explainer.py` |
 
 **Data flow, in short:** a social worker writes, pastes or uploads a case on
 the Reflection Space screen and presses **Reflect** → the text is anonymised
@@ -47,11 +48,29 @@ uses Claude to generate reflective prompts (never directive advice) in the
 language the worker chose → only the **reflection** is saved to Postgres,
 with a neutral, automatically created code, together with the **original**
 text (since 10 November 2026, agreed with EDE, for later pattern analysis —
-it is stored in the EU database and never sent to the AI). Messages typed into follow-up conversations and
-Knowledge Assistant questions go through the same anonymisation before they
+it is stored in the EU database and never sent to the AI). Messages typed into follow-up conversations
+go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
 are replaced by life stages (see `REFLECTIONS.md`). The Qdrant search service,
 which served the old document-based design, was removed in November 2026.
+
+## November 2026 clean-up
+
+At the product owner's request the app was trimmed to what the pilot needs:
+
+- **Removed screens:** Learning (Team Presence, Knowledge Assistant, Learning
+  Insights, Team Learning), Text analysis, Research Metrics, and the retired
+  Documentation redirect page.
+- **Reflection History** shows only the *average* usefulness rating — never
+  individual ratings, comments or who gave them.
+- **System Administration** lost "Erase old stored documents", "Configuration"
+  and "Case Knowledge Search". The Diagnostic Centre is now a plain list of
+  recorded problems (what happened, when, status); the AI diagnosis still
+  arrives in the alert email. Problems are recorded exactly as before.
+- **Erase all data** (System Administration, typed confirmation, System
+  Administrator only) empties every data table so the real pilot starts from
+  zero. User accounts, sign-in sessions and settings are kept. See
+  `services/data_reset.py`. Nothing is ever erased automatically.
 
 ## Where things live
 

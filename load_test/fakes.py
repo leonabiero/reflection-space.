@@ -11,7 +11,7 @@ a real Postgres database, and without needing production credentials.
 The trick used throughout this package is NOT to re-implement the
 application's logic in a simplified test copy. It is to run the REAL
 application code (services/db_pool.py, services/rate_limiter.py,
-services/ka_rate_limiter.py, services/request_dedup.py,
+services/request_dedup.py,
 services/login_rate_limiter.py, rdi/orchestrator.py, ...) completely
 unmodified, and only swap out the two things that would otherwise cost
 money or require infrastructure we don't have here:
@@ -71,7 +71,6 @@ class FakeDatabase:
         self._lock = threading.Lock()
         self.tables = {
             "reflection_rate_log": [],
-            "ka_rate_log": [],
             "login_failure_log": [],
             "idempotent_requests": [],  # unique on request_id
         }
@@ -279,7 +278,6 @@ class FakeCursor:
 def _row_columns(table_name):
     return {
         "reflection_rate_log": ("user_name", "occurred_at"),
-        "ka_rate_log": ("user_name", "occurred_at"),
         "login_failure_log": ("username", "occurred_at"),
     }.get(table_name, ())
 

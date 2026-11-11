@@ -8,8 +8,7 @@ overview, and services/session_cookie.py for the browser-cookie half.
 services/identity.py (init_identity()) is the only caller of this
 module.
 
-Design, deliberately mirrors services/presence.py and
-services/login_rate_limiter.py
+Design, deliberately mirrors services/login_rate_limiter.py
 -----------------------------------------------------------
 A small Postgres table, one row per active browser session, keyed by
 an opaque, cryptographically random session_id (never predictable,
@@ -39,8 +38,7 @@ Rolling ("sliding") expiry
 ------------------------------
 Every authenticated page load calls touch_session(), which pushes
 expires_at forward by config.SESSION_LIFETIME_HOURS from *now* and
-records the current active_work_mode -- mirroring
-services/presence.py's touch() heartbeat. A session that is actively
+records the current active_work_mode. A session that is actively
 being used never expires; one that is abandoned (browser closed, no
 further page loads) naturally expires SESSION_LIFETIME_HOURS after
 the last activity. validate_session() is the read-only counterpart,
@@ -185,7 +183,7 @@ def touch_session(session_id, active_work_mode=""):
     SESSION_LIFETIME_HOURS from now, and record the currently active
     work mode so a later refresh restores the exact workspace the
     person was in. Call this once per authenticated page load,
-    alongside services.presence.touch() (see services/identity.py).
+    on every authenticated page load (see services/identity.py).
 
     Best-effort -- never raises. A failed heartbeat here must never
     block a page from rendering; worst case, the session simply

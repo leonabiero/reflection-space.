@@ -25,7 +25,7 @@ instant no-op rather than re-running the checks.
 
 Behavior is completely unchanged: this is a pure relocation of DDL
 that used to live in services/draft_storage.py, feedback_store.py,
-presence.py, settings_store.py, audit_log.py, reflection_log.py, and
+settings_store.py, audit_log.py, reflection_log.py, and
 exploration_log.py's respective `_get_conn()` functions. Table names,
 column names, types, and index definitions are copied verbatim from
 those modules -- see each module's own docstring/comments for the
@@ -206,19 +206,6 @@ def ensure_schema():
                 """)
                 c.execute("CREATE INDEX IF NOT EXISTS idx_feedback_submitted_at ON feedback (submitted_at DESC)")
 
-                # --- services/presence.py: user_presence ---
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS user_presence (
-                    professional_name TEXT PRIMARY KEY,
-                    professional_role TEXT,
-                    last_seen TEXT
-                )
-                """)
-                c.execute("""
-                CREATE INDEX IF NOT EXISTS idx_user_presence_role_last_seen
-                ON user_presence (professional_role, last_seen DESC)
-                """)
-
                 # --- services/settings_store.py: app_settings ---
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS app_settings (
@@ -233,7 +220,7 @@ def ensure_schema():
                 # and services/session_store.py for the full design.
                 # New table, so TIMESTAMPTZ columns are used natively
                 # from creation -- no ensure_timestamptz_columns() call
-                # is needed for this one (compare user_presence, drafts,
+                # is needed for this one (compare drafts,
                 # etc. below, which started out as plain TEXT columns).
                 c.execute("""
                 CREATE TABLE IF NOT EXISTS auth_sessions (
@@ -576,24 +563,6 @@ def ensure_schema():
                     ON login_failure_log (username, occurred_at)
                 """)
 
-                # --- services/ka_rate_limiter.py: ka_rate_log ---
-                # Reliability-hardening pass (September pilot): the
-                # Knowledge Assistant (pages/learning.py) previously had
-                # no volume cap at all -- see that module's docstring.
-                # New table, so it uses a native TIMESTAMPTZ column from
-                # creation (like auth_sessions above), not TEXT.
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS ka_rate_log (
-                    id SERIAL PRIMARY KEY,
-                    user_name TEXT,
-                    occurred_at TIMESTAMPTZ
-                )
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_ka_rate_log_user_occurred
-                    ON ka_rate_log (user_name, occurred_at)
-                """)
-
                 # --- services/request_dedup.py: idempotent_requests ---
                 # Reliability-hardening pass (September pilot): shared
                 # "has this exact request already been started or
@@ -908,192 +877,13 @@ def ensure_schema():
                     ON pattern_events (pattern_id, id)
                 """)
 
-
-                # --- Corpus analysis (see CORPUS.md) ---
-                #
-                # A "collection" of existing texts that managers load to look
-                # for wording and ideas recurring across them. Kept entirely
-                # apart from practitioners' drafts and reflections. File
-                # names are never stored: each text is known by a neutral
-                # number (T-001 ...).
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpora (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    last_doc_no INTEGER NOT NULL DEFAULT 0,
-                    created_by TEXT NOT NULL,
-                    created_by_role TEXT,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_documents (
-                    id SERIAL PRIMARY KEY,
-                    corpus_id INTEGER NOT NULL
-                        REFERENCES corpora(id) ON DELETE CASCADE,
-                    doc_no INTEGER NOT NULL,
-                    content TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    char_count INTEGER NOT NULL,
-                    added_by TEXT,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    UNIQUE (corpus_id, doc_no),
-                    UNIQUE (corpus_id, content_hash)
-                )
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_passages (
-                    id SERIAL PRIMARY KEY,
-                    document_id INTEGER NOT NULL
-                        REFERENCES corpus_documents(id) ON DELETE CASCADE,
-                    position INTEGER NOT NULL,
-                    text TEXT NOT NULL
-                )
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_corpus_passages_doc
-                    ON corpus_passages (document_id, position)
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_passage_embeddings (
-                    passage_id INTEGER PRIMARY KEY
-                        REFERENCES corpus_passages(id) ON DELETE CASCADE,
-                    model TEXT NOT NULL,
-                    dims INTEGER NOT NULL,
-                    vector DOUBLE PRECISION[] NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_pattern_runs (
-                    id SERIAL PRIMARY KEY,
-                    corpus_id INTEGER NOT NULL
-                        REFERENCES corpora(id) ON DELETE CASCADE,
-                    status TEXT NOT NULL,
-                    parameters TEXT,
-                    language TEXT,
-                    embedding_model TEXT,
-                    explanation_model TEXT,
-                    prompt_version TEXT,
-                    documents_considered INTEGER NOT NULL DEFAULT 0,
-                    passages_considered INTEGER NOT NULL DEFAULT 0,
-                    patterns_created INTEGER NOT NULL DEFAULT 0,
-                    error_summary TEXT,
-                    created_by TEXT NOT NULL,
-                    created_by_role TEXT,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    finished_at TIMESTAMPTZ
-                )
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_patterns (
-                    id SERIAL PRIMARY KEY,
-                    run_id INTEGER NOT NULL
-                        REFERENCES corpus_pattern_runs(id) ON DELETE CASCADE,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    why_it_matters TEXT,
-                    alternative_explanations TEXT,
-                    limitations TEXT,
-                    questions TEXT,
-                    grouping_basis TEXT,
-                    explanation_status TEXT NOT NULL DEFAULT 'ai',
-                    status TEXT NOT NULL DEFAULT 'candidate',
-                    original_member_count INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_corpus_patterns_run
-                    ON corpus_patterns (run_id)
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_pattern_passages (
-                    pattern_id INTEGER NOT NULL
-                        REFERENCES corpus_patterns(id) ON DELETE CASCADE,
-                    passage_id INTEGER NOT NULL
-                        REFERENCES corpus_passages(id) ON DELETE CASCADE,
-                    excluded BOOLEAN NOT NULL DEFAULT FALSE,
-                    PRIMARY KEY (pattern_id, passage_id)
-                )
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_corpus_pattern_passages_passage
-                    ON corpus_pattern_passages (passage_id)
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_pattern_events (
-                    id SERIAL PRIMARY KEY,
-                    pattern_id INTEGER NOT NULL
-                        REFERENCES corpus_patterns(id) ON DELETE CASCADE,
-                    kind TEXT NOT NULL,
-                    actor TEXT,
-                    actor_role TEXT,
-                    old_value TEXT,
-                    new_value TEXT,
-                    comment TEXT,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_corpus_pattern_events_pattern
-                    ON corpus_pattern_events (pattern_id, id)
-                """)
-
-                # Corpus analysis Step 2: each text read through the
-                # reflection lenses (one row per text per lens) and the
-                # jobs that do the reading. Erased with their text.
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_readings (
-                    id SERIAL PRIMARY KEY,
-                    document_id INTEGER NOT NULL
-                        REFERENCES corpus_documents(id) ON DELETE CASCADE,
-                    lens TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    observation TEXT,
-                    questions TEXT,
-                    evidence TEXT,
-                    unverified_count INTEGER NOT NULL DEFAULT 0,
-                    model TEXT,
-                    prompt_version TEXT,
-                    include_questions BOOLEAN NOT NULL DEFAULT TRUE,
-                    language TEXT,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    UNIQUE (document_id, lens)
-                )
-                """)
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_reading_jobs (
-                    id SERIAL PRIMARY KEY,
-                    corpus_id INTEGER NOT NULL
-                        REFERENCES corpora(id) ON DELETE CASCADE,
-                    status TEXT NOT NULL,
-                    documents_total INTEGER NOT NULL DEFAULT 0,
-                    documents_done INTEGER NOT NULL DEFAULT 0,
-                    failed_lenses INTEGER NOT NULL DEFAULT 0,
-                    error_summary TEXT,
-                    created_by TEXT NOT NULL,
-                    created_by_role TEXT,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    finished_at TIMESTAMPTZ
-                )
-                """)
-
-                # Corpus analysis Step 3: the manager's list of words and
-                # phrases to count. Belongs to one collection; erased with it.
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS corpus_terms (
-                    id SERIAL PRIMARY KEY,
-                    corpus_id INTEGER NOT NULL
-                        REFERENCES corpora(id) ON DELETE CASCADE,
-                    term TEXT NOT NULL,
-                    term_norm TEXT NOT NULL,
-                    origin TEXT NOT NULL DEFAULT 'manager',
-                    created_by TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    UNIQUE (corpus_id, term_norm)
-                )
-                """)
+                # November 2026: the Text analysis (corpus) feature, the
+                # Knowledge Assistant and Team Presence were removed, so
+                # their tables (corpora, corpus_*, ka_rate_log,
+                # user_presence) are no longer created here. Any left
+                # over in an existing database are dropped by the "Erase
+                # all data" action (services/data_reset.py) -- never
+                # automatically at startup.
 
             conn.commit()
 
@@ -1104,7 +894,6 @@ def ensure_schema():
             ensure_timestamptz_columns(conn, "draft_history", ["saved_at"])
             ensure_timestamptz_columns(conn, "user_activity", ["last_seen"])
             ensure_timestamptz_columns(conn, "feedback", ["submitted_at"])
-            ensure_timestamptz_columns(conn, "user_presence", ["last_seen"])
             ensure_timestamptz_columns(conn, "audit_log", ["occurred_at"])
             ensure_timestamptz_columns(conn, "reflections", ["created_at"])
             ensure_timestamptz_columns(conn, "reflection_explorations", ["explored_at"])

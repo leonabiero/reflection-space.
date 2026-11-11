@@ -66,17 +66,6 @@ from services.session_cookie import (
 # entered. navigation/router.py's "back to my workspace" button reads
 # this value back instead of always guessing "Manager".
 #
-# Presence / heartbeat (Team Presence, Sprint 12)
-# ---------------------------------------------------
-# Every authenticated page load "touches" services.presence with the
-# logged-in professional's name/role, updating their last_seen
-# timestamp. This is a lightweight heartbeat -- there is no background
-# job, the timestamp simply advances every time the person interacts
-# with the app (any page load, any button press causes a Streamlit
-# rerun, which re-touches presence). See services/presence.py for the
-# "active now / recently active / offline" classification used by the
-# Team Presence panel on the Learning page.
-#
 # Persistent login (survive a browser refresh)
 # ------------------------------------------------
 # Authentication used to live ONLY in st.session_state, which Streamlit
@@ -157,10 +146,8 @@ from services.session_cookie import (
 
 ROLES = ["Social Worker", "Supervisor", "Programme Manager", "System Administrator"]
 
-LEARNING_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
-
-# FR-028: who can browse completed/reflected case history. Same tier
-# as Learning for now — supervisory and administrative roles only.
+# FR-028: who can browse completed/reflected case history --
+# supervisory and administrative roles only.
 CASE_HISTORY_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
 
 # --- Logout: explicit KEEP-list --------------------------------------------
@@ -235,23 +222,13 @@ def _check_login(username, password, users):
     return None
 
 
-def _touch_presence():
-    """Best-effort presence heartbeat -- never blocks or breaks a page
-    if the presence table/DB is unavailable for any reason."""
-    try:
-        from services.presence import touch
-        touch(st.session_state.user_name, st.session_state.user_role)
-    except Exception:
-        pass
-
-
 def _touch_auth_session():
     """
     Best-effort persistent-session heartbeat (see
     services/session_store.py, services/session_cookie.py) -- slides
     the server-side session's expiry forward and refreshes the
     browser cookie's Max-Age to match, on every authenticated page
-    load. Mirrors _touch_presence() above: never blocks or breaks a
+    load. Never blocks or breaks a
     page if this fails for any reason.
     """
     try:
@@ -341,7 +318,6 @@ def init_identity(T):
         st.session_state.active_work_mode = "Practitioner"
 
     if st.session_state.authed:
-        _touch_presence()
         _touch_auth_session()
         return st.session_state.user_name, st.session_state.user_role
 
@@ -381,7 +357,6 @@ def init_identity(T):
                     st.session_state.active_work_mode = default_workspace_for_role(
                         st.session_state.user_role
                     )
-                _touch_presence()
                 _touch_auth_session()
                 return st.session_state.user_name, st.session_state.user_role
             else:
@@ -508,8 +483,7 @@ def get_current_user_context():
     page-level code.
 
     It breaks down for anything that ISN'T a page: AI companion calls
-    (services/reflection_service.py), the Knowledge Assistant
-    (services/knowledge_assistant.py), the reflection orchestrator
+    (services/reflection_service.py), the reflection orchestrator
     (rdi/orchestrator.py), and any future helper/utility/background
     code. None of those receive user_name/user_role as parameters from
     whoever calls them, so when THEY needed to log an issue, the only
@@ -572,10 +546,6 @@ def get_current_user_context():
 
 def get_active_work_mode():
     return st.session_state.get("active_work_mode", "Practitioner")
-
-
-def can_see_learning(role: str) -> bool:
-    return role in LEARNING_VISIBLE_ROLES
 
 
 def can_see_case_history(role: str) -> bool:

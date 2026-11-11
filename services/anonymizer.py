@@ -42,7 +42,7 @@ adds, without removing any earlier rule:
   identifiers and the reflection needs that context.
 
 The function is idempotent: anonymizing already-anonymized text changes
-nothing (services/knowledge_assistant.py relies on this, because it
+nothing (callers rely on this, because it
 re-anonymizes excerpts that were already anonymized at index time).
 """
 

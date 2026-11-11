@@ -22,7 +22,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'nav_header': 'Navigate:',
  'nav_doc': '📝 Documentation',
  'nav_reflection': '🌿 Reflection Space',
- 'nav_learning': '📚 Learning',
  'no_drafts': 'No drafts available.',
  'select_drafts': 'Select drafts to reflect on',
  'begin_reflection': 'Begin Reflection',
@@ -51,9 +50,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'unknown_label': 'Unknown',
  'audit_unknown_case_label': '(unknown case)',
  'case_history_completed_label': 'completed',
- 'learning_phase2': 'Reflective themes emerging across reflections generated in the app.',
- 'learning_no_data': 'No reflections have been generated yet. Themes will appear here as '
-                     'reflections are created.',
  'themes': ["Client's Voice",
             'Observation vs Interpretation',
             'Labels & Language',
@@ -133,8 +129,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_sample_default': 'On 15/02/2026 the client, Sarah Kimani, of ID number 9988776655, '
                          'attended a follow-up meeting. She can be reached at +254 722 334 455 or '
                          'sarah.kimani@testmail.com. Mr. David Otieno was the assigned caseworker.',
- 'learning_preview_caption': 'Based on the last {total} reflections',
- 'learning_flagged_caption': 'Flagged in {count} of the last {total} reflections',
  'case_history_date_filter_label': 'View history for:',
  'case_history_toggle_label': 'Show:',
  'case_history_edited_option': 'Edited',
@@ -142,7 +136,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'case_history_no_items_for_filter': 'No reflections for this selection.',
  'case_history_showing_recent': 'Showing the {shown} most recent documents out of {total}. Use the '
                                 'date filter above to see older documents.',
- 'feedback_showing_recent': 'Showing the {shown} most recent comments out of {total}.',
  'feedback_prompt_title': 'How useful was this reflection?',
  'feedback_rating_label': 'Rating (1 = not useful, 5 = very useful)',
  'feedback_comment_label': 'Comment (optional)',
@@ -203,39 +196,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'growth_history_header': 'Recent reflective moments',
  'growth_entry_line': '**{theme}** — reflection {case} — {count} exchange(s) — {date}',
  'growth_session_count_label': 'Total exploration moments recorded',
- 'nav_team_learning': '🌍 Team Learning',
- 'team_learning_title': '🌍 Team Reflective Themes',
- 'team_learning_intro': 'This view shows aggregated, anonymous patterns across the whole '
-                        'organisation. It does not identify any professional, does not identify '
-                        "any specific case, and does not show anyone's individual reflection "
-                        'history. Its purpose is to help the organisation see which areas of '
-                        'practice deserve collective attention -- not to evaluate individuals.',
- 'team_learning_period_caption': 'Last 6 months — {total} exploration moment(s) recorded in total, '
-                                 'across all teams',
- 'team_learning_no_data': "There isn't enough exploration data recorded in the last 6 months yet.",
- 'team_learning_header': 'Most common reflective areas',
- 'team_learning_rank_line': '{rank}. {theme} — {count} explorations',
- 'nav_research_metrics': '📊 Research Metrics',
- 'research_title': '📊 Research Metrics',
- 'research_intro': "These metrics describe the organisation's reflective activity -- they do not "
-                   'evaluate or compare any professional. They contain no names, no specific '
-                   'cases, and no document content.',
- 'research_period_caption': 'Period: last {days} days (since {since})',
- 'research_overview_header': 'Activity overview',
- 'research_sessions_label': 'Reflection sessions generated',
- 'research_documents_label': 'Documents completed',
- 'research_theme_table_header': 'Themes: flagged by AI vs. explored by professionals',
- 'research_theme_flagged_col': 'Flagged by AI',
- 'research_theme_explored_col': 'Explored by a professional',
- 'research_feedback_header': 'Usefulness ratings',
- 'research_feedback_count_label': 'Ratings received',
- 'research_feedback_average_label': 'Average rating',
- 'research_feedback_comments_label': 'With a comment',
- 'research_feedback_no_data': 'No ratings have been received yet.',
- 'research_export_button': 'Download research CSV',
- 'research_export_caption': 'The file contains aggregate counts only -- no names, no cases, no '
-                            'document text.',
- 'research_no_data': "There isn't enough recorded activity for this period yet.",
  'journey_step1': 'Your Case',
  'journey_step2': 'Earlier Reflections',
  'journey_step3': 'Professional Reflection',
@@ -263,48 +223,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'workmode_admin': 'System Administration',
  'workmode_access_denied': 'You do not have access to this workspace.',
  'nav_system_admin': '🛠️ System Administration',
- 'presence_header': 'Team Presence',
- 'presence_intro': 'Social workers currently active in the app. No case information or document '
-                   'content is shown.',
- 'presence_active_count': '{count} Social Worker(s) active or recently active',
- 'presence_status_active': '🟢 Active now',
- 'presence_status_recent': '🟡 Active {minutes} minute(s) ago',
- 'presence_status_offline': '⚪ No recent activity',
- 'presence_no_data': 'No activity data recorded yet.',
- 'learning_tab_presence': '👥 Team Presence',
- 'learning_tab_knowledge': '💬 Organisational Learning',
- 'learning_tab_insights': '📚 Learning Insights',
- 'learning_tab_team': '🌍 Team Learning',
- 'ka_header': 'Ask about organisational knowledge',
- 'ka_intro': "Ask a natural-language question about the organisation's reflective patterns, "
-             'themes, and activity. Answers are grounded only in saved reflections -- never in '
-             'outside general knowledge.',
- 'ka_question_label': 'Your question',
- 'ka_question_placeholder': 'For example: What patterns have come up in Kulunka this quarter?',
- 'ka_ask_button': 'Ask',
- 'ka_thinking': 'Analysing the organisational knowledge base...',
- 'ka_error': '⚠ Could not generate an answer. Please try again.',
- 'ka_empty_question': 'Please write a question.',
- 'ka_duplicate_message': 'This question is already being processed. Please wait a moment for it to '
-                         'finish before asking again.',
- 'ka_rate_limit_exceeded_message': "You've reached the limit of {max} Knowledge Assistant "
-                                   'questions in the last hour on this account. This is a safety '
-                                   'limit to prevent accidental repeated requests, not a '
-                                   'restriction on your normal work -- please wait a little and '
-                                   'try again, or contact your System Administrator if you believe '
-                                   'this is a mistake.',
- 'ka_confidence_label': 'Evidence level:',
- 'ka_confidence_strong': '🟢 Strong evidence',
- 'ka_confidence_limited': '🟡 Limited evidence',
- 'ka_confidence_insufficient': '🔴 Insufficient evidence',
- 'ka_limitations_label': 'Limitations:',
- 'ka_evidence_header': 'Evidence used',
- 'ka_evidence_count': '{count} relevant document(s) retrieved',
- 'ka_evidence_doc_type_col': 'Document type',
- 'ka_evidence_date_col': 'Date',
- 'ka_evidence_case_col': 'Reflection code',
- 'ka_evidence_relevance_col': 'Relevance',
- 'ka_evidence_none': 'No relevant documents were retrieved for this question.',
  'admin_user_mgmt_header': '👥 User Management',
  'admin_user_mgmt_info': 'Users are managed through Streamlit Secrets. Dynamic CRUD is '
                          'intentionally unavailable because credentials and roles are configured '
@@ -316,10 +234,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_user_col_role': 'Role',
  'admin_advanced_diagnostics': '🔧 Advanced Diagnostics',
  'admin_show_raw_response': 'Show raw response',
- 'admin_rag_status_item': 'Item',
- 'admin_rag_status_value': 'Status',
- 'admin_rag_embedding_model': 'Embedding model',
- 'admin_rag_embedding_dims': 'Embedding dimensions',
  'admin_status_connected': 'Connected',
  'admin_status_not_connected': 'Not connected',
  'admin_status_present': '✅ Present',
@@ -344,7 +258,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_health_db_error_prefix': 'Database error:',
  'admin_health_key_missing': 'ANTHROPIC_API_KEY is not configured -- reflections cannot be '
                              'generated.',
- 'admin_config_header': '⚙️ Configuration',
  'admin_tools_header': '🧰 Administrative Tools',
  'admin_anon_empty_warning': 'Type or paste a sample text first, then press the button again.',
  'admin_anon_no_changes': 'The anonymizer found no personal details to replace in this text.',
@@ -358,125 +271,39 @@ LANG_EN = {'title': '🧠 Reflection Space',
                          'adult, ADULT = adult, OLDER_ADULT = older adult).',
  'admin_tools_anon_test_header': 'Anonymization Test',
  'admin_tools_future': 'Future administrator tools will appear here.',
- 'admin_console_caption': 'Administration console for Reflection Space -- system status, users '
-                          'and diagnostic tools.',
+ 'admin_console_caption': 'Administration console for Reflection Space -- users, system status, '
+                          'recorded problems, costs and data erasure.',
  'admin_error_log_unknown_page': 'unknown page',
- 'admin_error_log_generic_error': 'Error',
  'admin_error_log_no_message': '(no message)',
- 'admin_error_log_unknown_role': 'unknown role',
- 'readiness_category_exception': 'Exception',
- 'readiness_category_traceback_evidence': 'Traceback',
- 'readiness_category_root_cause': 'Root Cause',
- 'readiness_category_timeline': 'Timeline',
- 'readiness_category_session_context': 'Session Context',
- 'readiness_category_environment': 'Environment',
- 'readiness_category_user_information': 'User Information',
- 'readiness_category_configuration': 'Configuration',
- 'readiness_category_ai_prompt': 'AI Prompt Generated',
  'event_labels': {'Opened page': 'Opened page',
                   'Changed page': 'Changed page',
                   'Email sent': 'Email sent',
                   'User submitted report': 'User submitted report',
                   'Exception occurred': 'Exception occurred',
                   'Error logged': 'Error logged'},
- 'admin_case_export_download': 'Download case #{n}',
- 'admin_case_export_failed': 'Could not build export.',
- 'admin_case_export_format': 'Format',
- 'admin_case_export_header': '📤 Export this case',
- 'admin_case_field_common_cause': 'Common cause',
- 'admin_case_field_deployment_date': 'Deployment date (if applicable)',
- 'admin_case_field_documentation_link': 'Documentation link',
- 'admin_case_field_external_reference': 'External reference',
- 'admin_case_field_fix_applied': 'Fix applied',
- 'admin_case_field_git_commit': 'Git commit',
- 'admin_case_field_known_fix': 'Known fix',
- 'admin_case_field_known_workaround': 'Known workaround',
- 'admin_case_field_lessons_learned': 'Lessons learned',
- 'admin_case_field_prevention_notes': 'Future prevention notes',
- 'admin_case_field_resolution_summary': 'Resolution summary',
- 'admin_case_field_root_cause': "Root cause (administrator's conclusion)",
- 'admin_case_field_version_fixed': 'Version fixed',
- 'admin_case_investigation_add': 'Preserve a new investigation',
- 'admin_case_investigation_by': 'Added by',
- 'admin_case_investigation_delete': '🗑️ Remove this entry',
- 'admin_case_investigation_notes': 'Administrator notes',
- 'admin_case_investigation_notes_input': 'Administrator notes',
- 'admin_case_investigation_prompt': 'Prompt',
- 'admin_case_investigation_prompt_input': 'Prompt',
- 'admin_case_investigation_response': 'AI response',
- 'admin_case_investigation_response_input': 'AI response',
- 'admin_case_investigation_save': '💾 Save investigation',
- 'admin_case_investigation_save_failed': 'Could not save -- please try again.',
- 'admin_case_investigation_saved': 'Investigation preserved.',
- 'admin_case_investigation_tool': 'Tool used',
- 'admin_case_investigations_caption': 'Reflection Space never calls an AI automatically here -- '
-                                      "this is simply a place to preserve investigations you've "
-                                      'already done elsewhere (ChatGPT, Claude, Gemini, or a '
-                                      "manual investigation), so the next person doesn't have to "
-                                      'redo the work.',
- 'admin_case_investigations_empty': 'No investigations preserved yet.',
- 'admin_case_investigations_header': '🧠 AI Investigation History',
- 'admin_case_knowledge_no_issue_id': 'This record predates stable issue references, so case '
-                                     'knowledge (resolution tracking, AI investigation history, '
-                                     "similar issues, export) isn't available for it.",
- 'admin_case_knowledge_subheader': 'Case knowledge (all optional)',
- 'admin_case_resolution_header': '✅ Resolution & Case Knowledge',
- 'admin_case_resolution_history_caption': 'This issue was previously marked Fixed or Closed and '
-                                          'has since recurred. The resolution recorded before each '
-                                          'recurrence is preserved below, even though the form '
-                                          'above now reflects the current investigation.',
- 'admin_case_resolution_history_header': '📜 Previous resolution history ({n} preserved)',
- 'admin_case_resolution_history_occurrence': 'occurrence',
- 'admin_case_resolution_history_reopened_at': 'Reopened at',
- 'admin_case_resolution_last_updated': 'Last updated {when} by {who}',
- 'admin_case_resolution_save': '💾 Save resolution & case knowledge',
- 'admin_case_resolution_save_failed': 'Could not save -- please try again.',
- 'admin_case_resolution_saved': 'Saved.',
- 'admin_case_search_ai_tool': 'AI tool used',
- 'admin_case_search_button': 'Search',
- 'admin_case_search_caption': 'Search resolved and unresolved cases by what you know about them, '
-                              'not just when they happened. Fill in any combination of fields '
-                              'below -- results match ALL fields you provide.',
- 'admin_case_search_exception': 'Exception type',
- 'admin_case_search_find_hint': 'Open the matching case above in AI Diagnostic Centre (by its # '
-                                'reference) for the full record.',
- 'admin_case_search_header': '🔎 Case Knowledge Search',
- 'admin_case_search_lesson': 'Lesson learned contains',
- 'admin_case_search_min_occurrences': 'Minimum occurrence count',
- 'admin_case_search_no_results': 'No cases match those filters. Try fewer fields.',
- 'admin_case_search_page': 'Page',
- 'admin_case_search_resolution': 'Resolution contains',
- 'admin_case_search_resolution_label': 'Resolution',
- 'admin_case_search_result_count': '{n} case(s) found.',
- 'admin_case_search_root_cause': 'Root cause contains',
- 'admin_case_search_root_cause_label': 'Root cause',
- 'admin_case_search_status': 'Status',
- 'admin_case_search_user': 'User',
- 'admin_case_search_version_fixed': 'Version fixed',
- 'admin_case_similar_empty': 'No similar previous issues found.',
- 'admin_case_similar_header': 'Similar Previous Issues',
- 'admin_error_log_caption': 'Every problem recorded in the app -- crashes, failed AI companion '
-                            'calls, or problems people reported -- shown as a full diagnostic '
-                            'workspace: what happened, how serious it is, and a ready-made prompt '
-                            'you can copy straight into a chat with Claude to get it diagnosed and '
-                            'fixed.',
- 'admin_error_log_category_label': 'Category',
- 'admin_error_log_context_label': 'Context',
- 'admin_error_log_copy_hint': 'Hover over the box below and click the copy icon in the top-right '
-                              'corner.',
- 'admin_error_log_count_caption': 'Showing {n} of {total} issue(s).',
- 'admin_error_log_empty': 'No errors recorded. Everything looks clean.',
- 'admin_error_log_env_app_version': 'App version',
- 'admin_error_log_env_browser': 'Browser',
- 'admin_error_log_env_os': 'Operating system',
- 'admin_error_log_env_python': 'Python version',
- 'admin_error_log_environment_label': '💻 Environment',
- 'admin_error_log_evidence_label': '📋 Evidence Collected',
- 'admin_error_log_exception_message_label': 'Exception message',
- 'admin_error_log_exception_type_label': 'Exception type',
- 'admin_error_log_explanation_label': '🗣️ What happened, in plain language',
+ 'admin_error_log_caption': 'A list of the problems recorded in the app (crashes, failed AI '
+                            'calls, or problems people reported): what happened, when, and its '
+                            'status. The AI diagnosis arrives in the alert email.',
+ 'admin_problem_what_label': 'What happened',
+ 'admin_problem_open_header': 'Open problems ({n})',
+ 'admin_problem_solved_header': 'Solved problems ({n})',
+ 'admin_problem_none_open': 'There are no open problems.',
+ 'admin_reset_header': '🧹 Erase all data',
+ 'admin_reset_intro': 'Permanently erases everything saved in the app: reflections and their '
+                      'texts, observations and notes, ratings, pattern reviews, old documents, '
+                      'activity history, recorded problems, and usage and cost records. Every '
+                      'count in the app goes back to 0.',
+ 'admin_reset_kept_note': 'User accounts and settings are kept. Nobody will have to sign in again.',
+ 'admin_reset_warning': 'This action cannot be undone.',
+ 'admin_reset_confirm_word': 'ERASE',
+ 'admin_reset_confirm_label': 'To confirm, type {word}',
+ 'admin_reset_button': 'Erase all data',
+ 'admin_reset_done': 'All data has been erased. The app starts from zero.',
+ 'admin_reset_refused': 'Only the System Administrator can do this.',
+ 'admin_reset_failed': 'The erase could not be completed. Nothing was erased. Please try again.',
+ 'admin_error_log_empty': 'No problems recorded. Everything looks fine.',
  'admin_error_log_first_seen_label': 'First seen',
- 'admin_error_log_header': '🩺 AI Diagnostic Centre',
+ 'admin_error_log_header': '🩺 Diagnostic Centre',
  'admin_translation_health_header': '🌐 Translation System Health',
  'admin_translation_health_caption': 'Live status of the Español / Euskera / English translation '
                                      'system.',
@@ -488,68 +315,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
                               'auto-filling.',
  'admin_translation_runtime_gaps': '⚠️ Keys missing at runtime this session ({count})',
  'admin_translation_panel_error': 'Translation health panel could not be loaded right now.',
- 'admin_error_log_last_seen_label': 'Last seen',
- 'admin_error_log_no_matches': 'No errors match the current filters.',
- 'admin_error_log_no_package': 'No AI Diagnostic Package was generated for this record -- it was '
-                               'logged before the Diagnostic Engine existed. The technical details '
-                               'below are still available.',
- 'admin_error_log_no_traceback': 'No traceback -- this was a user-submitted report, not an '
-                                 'automatic exception.',
- 'admin_error_log_not_available': 'not available',
  'admin_error_log_occurrences_label': 'Occurrences',
  'admin_error_log_page_label': 'Page',
- 'admin_error_log_prompt_label': '🤖 AI Prompt',
- 'admin_error_log_readiness_explainer': "The AI Readiness Score is not AI-generated -- it's a "
-                                        'simple completeness count of how many of the 7 evidence '
-                                        'categories below are present for this record.',
- 'admin_error_log_readiness_label': 'AI Readiness',
- 'admin_error_log_screenshot_error': '(could not display screenshot)',
- 'admin_error_log_screenshot_label': 'Screenshot',
- 'admin_error_log_search_label': '🔍 Search (page, error type, or message)',
- 'admin_error_log_session_label': '🧭 Session Context',
- 'admin_error_log_severity_filter_label': 'Filter by severity',
- 'admin_error_log_severity_label': 'Severity',
- 'admin_error_log_status_filter_label': 'Filter by status',
  'admin_error_log_status_label': 'Status',
- 'admin_error_log_summary_label': 'Summary',
- 'admin_error_log_technical_label': '🔧 Technical Details',
- 'admin_error_log_timeline_label': '🕒 Evidence Timeline',
- 'admin_error_log_traceback_label': 'Full technical traceback',
- 'admin_error_log_user_label': 'User',
  'admin_error_log_when_label': 'When',
- 'admin_error_log_who_experienced_label': '👥 Who experienced this ({n} shown)',
- 'admin_error_log_who_experienced_partial': 'Showing the occurrences currently loaded; the total '
-                                            'count above reflects every occurrence recorded.',
- 'admin_diag_filters_header': '🔍 Filters',
- 'admin_diag_filter_page': 'Page contains',
- 'admin_diag_filter_root_cause': 'Root cause contains',
- 'admin_diag_filter_user': 'User contains',
- 'admin_diag_filter_date_from': 'From date',
- 'admin_diag_filter_date_to': 'To date',
- 'admin_diag_metric_total': 'Total issues',
- 'admin_diag_metric_open': '🟥 Open',
- 'admin_diag_metric_fixed': '✅ Fixed',
- 'admin_diag_metric_warnings': '⚠️ Warnings',
- 'admin_diag_section_selector': 'View',
- 'admin_diag_tab_open': '🟥 Open Issues ({n})',
- 'admin_diag_tab_fixed': '✅ Fixed Issues ({n})',
- 'admin_diag_tab_warnings': '⚠️ Warnings ({n})',
- 'admin_diag_tab_trends': '📈 Trend Analysis',
- 'admin_diag_open_empty': 'No open issues match the current filters.',
- 'admin_diag_fixed_empty': 'No fixed issues match the current filters.',
- 'admin_diag_warnings_empty': 'No warnings match the current filters.',
- 'admin_diag_trends_empty': 'Not enough data yet for trend analysis.',
- 'admin_diag_trends_caption': 'Built entirely from the issues already loaded above -- volume, hot '
-                              'spots, and the most frequent problems, at a glance.',
- 'admin_diag_warnings_caption': 'Warnings are non-fatal conditions worth knowing about -- like a '
-                                'partial reflection generation -- kept separate from application '
-                                'errors above.',
- 'admin_diag_trends_volume_header': '📅 Occurrences over time',
- 'admin_diag_trends_pages_header': '📍 Most affected pages',
- 'admin_diag_trends_category_header': '🗂️ Occurrences by category',
- 'admin_diag_trends_uncategorized': 'Uncategorized',
- 'admin_diag_trends_top_issues_header': '🔁 Most frequent issues',
- 'admin_diag_trends_no_issues': 'No issues recorded yet.',
  'error_boundary_body': 'This has been recorded as error {ref}. Please try again -- if it keeps '
                         'happening, tell your administrator the reference number above.',
  'error_boundary_heading': 'Something went wrong on this page.',
@@ -645,28 +414,18 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                   'scores, no comparison to anyone else. Your notes and what you explore are '
                                   'yours alone; the saved observations can also be seen by managers.',
           'manager_title': 'Manager workspace',
-          'learning_section_title': '📚 Learning',
-          'learning_section_body': "Learning has four tabs: Team Presence (who's active), "
-                                   'Knowledge Assistant (ask a question, get an answer drawn from '
-                                   "the organisation's saved reflections), Learning Insights "
-                                   '(which dimensions have come up most often), and Team Learning '
-                                   '(aggregated themes over the last six months). Everything here '
-                                   "is aggregated and anonymous -- no individual's work can be "
-                                   'singled out.',
           'case_history_section_title': '🗂️ Reflection History',
-          'case_history_section_body': 'Reflection History shows the feedback received (usefulness '
-                                       'ratings and comments) and the saved reflections, each with '
-                                       "its neutral code, themes and the AI's observations. You "
-                                       'can filter by date and theme. It never shows case text or '
-                                       "professionals' private notes.",
-          'research_metrics_section_title': '📊 Research Metrics',
-          'research_metrics_section_body': 'Research Metrics (System Administrator only) gives an '
-                                           'aggregated, pilot-level view: total reflection '
-                                           'sessions and observations saved, how often each '
-                                           'dimension was flagged versus explored, feedback '
-                                           'ratings, and a CSV export.',
+          'case_history_section_body': 'Reflection History shows the average usefulness rating '
+                                       '(never individual ratings or who gave them) and the saved '
+                                       'reflections, each with its neutral code, themes and the '
+                                       "AI's observations. You can filter by date and theme. It "
+                                       "never shows professionals' private notes.",
           'admin_title': '🛠️ System Administration',
-          'admin_section_body': 'System Administration brings together user management, system health, configuration, translation health checks, the AI Diagnostic Centre (the error log), and case knowledge search. It also lets you permanently erase old documents stored before the change to "reflections only".',
+          'admin_section_body': 'System Administration brings together the user list, system '
+                                'health, the anonymisation test, translation health checks, the '
+                                'Diagnostic Centre (the list of recorded problems), and service '
+                                'usage and costs. It also lets you permanently erase all saved '
+                                'data to start from zero.',
           'report_problem_title': '🚩 Reporting a problem',
           'report_problem_body': 'Every page has a 🚩 Report a problem control in the sidebar, '
                                  'available to everyone. Describe what happened in your own words '
@@ -941,259 +700,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
                         'print it or save it as a PDF.',
  'report_outdated': 'You changed the search, the statuses or the options: prepare the report '
                     'again.',
- 'nav_corpus': '📚 Text analysis',
- 'corpus_title': '📚 Text analysis',
- 'corpus_no_access': 'This page is only for supervision and programme coordination.',
- 'corpus_intro': "Here the management team can load existing texts (for example EDE's raw texts) "
-                 'and look for passages with a similar meaning that recur across several '
-                 'documents. What appears are candidate patterns for reflection, not conclusions: '
-                 'a repeated expression does not show bias or poor practice, and may simply '
-                 'reflect the type of document or a template.',
- 'corpus_privacy_note': 'Before saving, each text has names and personal details removed by the '
-                        "app's automatic system, which may not catch everything: only load texts "
-                        'that are already anonymised. Texts are identified by a number (T-001, '
-                        'T-002…); file names are not stored. This collection is kept apart from '
-                        "professionals' reflections and is visible only to supervision and "
-                        'coordination.',
- 'corpus_collection_header': 'Text collection',
- 'corpus_create_header': 'Create a new collection',
- 'corpus_create_name_label': 'Collection name',
- 'corpus_create_button': 'Create collection',
- 'corpus_created_ok': 'Collection created.',
- 'corpus_name_needed': 'Please enter a name. (There can be at most {max} collections.)',
- 'corpus_none_yet': 'There is no collection yet. Create one to get started.',
- 'corpus_select_label': 'Collection',
- 'corpus_option': '{name} ({documents} texts)',
- 'corpus_add_header': 'Add texts',
- 'corpus_add_intro': 'You can add texts one by one, several at a time, or all together. If you add '
-                     'the same text twice, the app notices and does not duplicate it.',
- 'corpus_upload_label': 'Upload files (Word, PDF or text)',
- 'corpus_too_many_files': 'You selected too many files at once: only the first {max} will be '
-                          'added. Upload the rest afterwards.',
- 'corpus_add_files_button': 'Add the selected files',
- 'corpus_adding': 'Adding texts…',
- 'corpus_paste_label': 'Or paste a text here',
- 'corpus_add_paste_button': 'Add the pasted text',
- 'corpus_paste_empty': 'Please paste a text first.',
- 'corpus_pasted_name': 'Pasted text',
- 'corpus_added_summary': '{added} of {total} texts were added.',
- 'corpus_result_added': '{name}: added as {label} ({passages} passages).',
- 'corpus_result_duplicate': '{name}: already in the collection as {label}; not duplicated.',
- 'corpus_result_empty': '{name}: no usable passage could be taken from it (text too short).',
- 'corpus_result_full': '{name}: the collection is full (maximum {max} texts).',
- 'corpus_result_refused': '{name}: {reason}',
- 'corpus_result_error': '{name}: could not be added. Please try again.',
- 'corpus_docs_header': 'Texts in the collection',
- 'corpus_docs_empty': 'This collection has no texts yet.',
- 'corpus_docs_counts': 'The collection has {documents} texts, divided into {passages} passages.',
- 'corpus_docs_list_header': 'View and delete texts',
- 'corpus_doc_line': '{label} — {chars} characters — {passages} passages',
- 'corpus_doc_delete': 'Delete',
- 'corpus_doc_deleted_ok': 'Text deleted, with its passages and its place in the patterns.',
- 'corpus_docs_more': 'And {count} more texts.',
- 'corpus_delete_collection': 'Delete the whole collection',
- 'corpus_delete_collection_help': 'All texts, passages and patterns in this collection are erased. '
-                                  'This cannot be undone.',
- 'corpus_delete_collection_confirm': 'I understand everything will be erased and this cannot be '
-                                     'undone',
- 'corpus_delete_collection_button': 'Delete collection',
- 'corpus_deleted_ok': 'Collection deleted.',
- 'corpus_generate_header': 'Look for recurring passages',
- 'corpus_settings_header': 'Search settings',
- 'corpus_settings_intro': 'These settings are starting points, not proven values. Change them and '
-                          'compare the results.',
- 'corpus_similarity_label': 'Similarity required between passages',
- 'corpus_similarity_help': 'Broad groups passages with a looser resemblance (more groups, more '
-                           'noise). Strict requires a closer resemblance (fewer, more reliable '
-                           'groups).',
- 'corpus_min_passages_label': 'Minimum passages per pattern',
- 'corpus_min_documents_label': 'Minimum different texts per pattern',
- 'corpus_questions_switch': 'Include AI-written questions',
- 'corpus_questions_help': 'If you switch this off, the AI does not write questions and none are '
-                          'shown. The other explanations are still written.',
- 'corpus_cost_note': 'Searching uses AI to write up to {max_patterns} explanations (a few cents in '
-                     'total) and to give meaning to new passages (very cheap, and only once per '
-                     'passage). You only pay again if you press the button again.',
- 'corpus_truncated': 'The collection has more passages than one search can hold; the first {max} '
-                     '(in text order) will be used.',
- 'corpus_not_enough': 'At least {minimum} texts are needed in the collection to search.',
- 'corpus_generate_button': 'Look for recurring passages',
- 'corpus_generating': 'Working… this may take a minute.',
- 'corpus_busy': 'A search is already running. Please wait for it to finish.',
- 'corpus_unavailable': 'The service that compares meanings is not set up, so searching is not '
-                       'possible right now.',
- 'corpus_none_found': 'No group appeared in enough different texts ({documents} texts, {passages} '
-                      'passages reviewed). Try a broader similarity or lower minimums.',
- 'corpus_generated_ok': '{patterns} candidate patterns were found across {documents} texts.',
- 'corpus_not_embedded': '{count} passages could not be compared this time and were left out.',
- 'corpus_fallback_notice': 'For {count} patterns the automatic explanation could not be written; a '
-                           'plain text is shown and you can try again.',
- 'corpus_review_header': 'Review the candidate patterns',
- 'corpus_no_runs': 'No search has been run on this collection yet.',
- 'corpus_run_select': 'Search',
- 'corpus_run_option': '{date} — {documents} texts — {patterns} patterns',
- 'corpus_run_caption': 'Similarity: {level} · minimum passages: {min_passages} · minimum texts: '
-                       '{min_documents} · AI questions: {questions}',
- 'corpus_yes': 'yes',
- 'corpus_no': 'no',
- 'corpus_none_in_view': 'No pattern matches the chosen statuses.',
- 'corpus_no_groups_note': 'The texts carry no labels (neither of who wrote them nor of who they '
-                          'concern), so this page cannot say anything about whether different '
-                          'groups are treated alike or differently. It only shows what recurs and '
-                          'in how many texts.',
- 'corpus_item_header': '{title} — {status} — in {documents} of {total} texts',
- 'corpus_counts_line': 'Appears in {documents} of {total} texts ({percent}%) · {passages} passages',
- 'corpus_documents_line': 'Texts: {labels}',
- 'corpus_lost_members': "{count} of this pattern's passages are no longer available (the text was "
-                        'deleted). The written explanation may still reflect them: search again '
-                        'before relying on it.',
- 'corpus_below_minimum': 'With the current texts, this group no longer reaches the minimums it was '
-                         'found with.',
- 'corpus_passages_header': 'Exact passages',
- 'corpus_more_passages': 'And {count} more passages are not shown here.',
- 'corpus_exclude_button': 'This passage does not belong in this pattern',
- 'corpus_excluded_ok': 'Passage removed from the pattern.',
- 'corpus_restored_ok': 'Passage included again.',
- 'corpus_read_header': 'Read each text with the reflection lenses',
- 'corpus_read_intro': 'The AI reads each text separately with the same eight reflection lenses '
-                      "professionals use (the person's voice, observation versus interpretation, "
-                      'labels and language, possible bias, and so on) and keeps only quotes that '
-                      'really appear in the text. It does not compare texts with each other: the '
-                      'app calculates the counts.',
- 'corpus_read_no_texts': 'Add texts so they can be read.',
- 'corpus_read_status': '{read} of {documents} texts read; {unread} to go.',
- 'corpus_read_nothing': 'All texts have been read.',
- 'corpus_read_cost_note': 'Each text is read with eight AI calls: about ${per_text} per text. This '
-                          'batch (up to {batch} texts) will cost about ${cost}. Texts are read in '
-                          'batches so each click does not take too long; press again to continue '
-                          'with the next ones.',
- 'corpus_read_button': 'Read the next {count} texts',
- 'corpus_reading': 'Reading texts…',
- 'corpus_read_progress': 'Read {done} of {total} texts',
- 'corpus_read_busy': 'A reading is already running. Please wait for it to finish.',
- 'corpus_read_unavailable': 'The AI service is not set up, so reading is not possible right now.',
- 'corpus_read_done': '{count} texts were read. {remaining} to go.',
- 'corpus_read_failed_lenses': '{count} readings could not be completed; they will be tried again '
-                              'next time.',
- 'corpus_read_caveat': '"Raised" means the AI raised an observation in that text with that lens. '
-                       'It does not measure how often something happens, and when it raises '
-                       'nothing that does not mean the text is free of it.',
- 'corpus_lens_counts_header': 'Which lenses were raised, by text',
- 'corpus_lens_item': '{lens} — raised in {raised} of {considered} texts',
- 'corpus_lens_failed_note': 'In {count} texts this lens could not be read.',
- 'corpus_lens_none': 'The AI raised nothing with this lens.',
- 'corpus_lens_no_quote': 'No exact passage (the observation may be about something missing from '
-                         'the text).',
- 'corpus_lens_unverified': '{count} proposed passage(s) could not be checked against the text and '
-                           'are not shown.',
- 'corpus_text_view_header': 'See the reading of one text',
- 'corpus_text_select': 'Text',
- 'corpus_text_no_reading': 'This text has not been read yet.',
- 'corpus_text_lens_failed': 'This lens could not be read.',
- 'corpus_text_lens_none': 'The AI raised nothing.',
- 'corpus_read_again_header': 'Read all texts again',
- 'corpus_read_again_help': 'Erases all readings of this collection so it can be read again from '
-                           'scratch (you pay again).',
- 'corpus_read_again_confirm': 'I understand the readings will be erased and reading again costs '
-                              'again',
- 'corpus_read_again_button': 'Erase the readings',
- 'corpus_read_cleared_ok': 'Readings erased.',
- 'corpus_terms_header': 'Word and phrase list',
- 'corpus_terms_intro': 'Counts in how many texts each word or phrase on your list appears. It is '
-                       'only a count of written words: it does not interpret meaning, and a word '
-                       'not appearing does not mean the idea is absent from the text in other '
-                       'words.',
- 'corpus_terms_how': 'Write one word or phrase per line. Capitals and accents do not matter. Add * '
-                     'at the end of a word to include its endings: "agresiv*" finds agresivo, '
-                     'agresiva, agresivos… This is especially useful in Basque, where words change '
-                     'at the end: "etxe*" finds etxea, etxeak, etxean…',
- 'corpus_terms_add_label': 'Words or phrases (one per line)',
- 'corpus_terms_add_button': 'Add to the list',
- 'corpus_terms_empty_input': 'Write at least one word or phrase.',
- 'corpus_terms_added': 'Added: {added}. Already on the list: {duplicates}. Not valid: {invalid}.',
- 'corpus_terms_invalid_lines': 'These lines could not be used: {lines}. Only letters and numbers '
-                               'are allowed (and * at the end of a word, after at least three '
-                               'letters), with at most {words} words per phrase.',
- 'corpus_terms_full': 'The list has reached its limit of {max} words or phrases.',
- 'corpus_terms_starter_help': 'A starting point with words and phrases that sometimes appear in '
-                              'texts that describe people in a negative or closed way. It is an '
-                              'example list: edit it, remove what does not help and add your own. '
-                              'The Basque part needs to be reviewed by a Basque speaker before it '
-                              'is relied on.',
- 'corpus_terms_starter_button': 'Add the starter list (Spanish and Basque)',
- 'corpus_terms_starter_done': 'Starter list added: {added} new ({duplicates} were already there).',
- 'corpus_terms_basque_review': 'The Basque words in the starter list are a first proposal: a '
-                               'Basque speaker must review them.',
- 'corpus_terms_none_yet': 'The list is empty. Add words or use the starter list.',
- 'corpus_terms_no_texts': 'Add texts to the collection so there is something to count.',
- 'corpus_terms_counts_header': 'Results',
- 'corpus_terms_caveat': '"Texts" counts the texts that contain the word at least once. It does not '
-                        'measure whether something is common, or good or bad: a word can also be '
-                        'used to deny something ("not aggressive"). Always look at the context.',
- 'corpus_terms_col_term': 'Word or phrase',
- 'corpus_terms_col_texts': 'Texts',
- 'corpus_terms_col_times': 'Times',
- 'corpus_terms_texts_cell': '{documents} of {total}',
- 'corpus_terms_remove_label': 'Remove from the list',
- 'corpus_terms_remove_button': 'Remove the selected ones',
- 'corpus_terms_removed_ok': 'Words removed from the list.',
- 'corpus_terms_context_header': 'Where it appears',
- 'corpus_terms_context_select': 'Choose a word or phrase',
- 'corpus_terms_context_none': 'It does not appear in any text.',
- 'corpus_terms_context_caption': 'In brackets, how many times it appears in that text.',
- 'corpus_terms_context_line': '{label} ({times})',
- 'corpus_terms_context_more': '… and {count} more texts.',
- 'corpus_terms_text_header': 'List words in one text',
- 'corpus_terms_text_select': 'Choose a text',
- 'corpus_terms_text_none': 'None of the words on the list appear in this text.',
- 'corpus_terms_text_line': '{term}: {times}',
- 'corpus_terms_download': 'Download the full table (CSV)',
- 'corpus_report_header': 'Printable report',
- 'corpus_report_intro': 'Creates a document to print or save as PDF with the parts you choose. '
-                        'Texts appear only by their number (T-001…).',
- 'corpus_report_opt_patterns': 'Include the patterns from a search',
- 'corpus_report_run_label': 'Pattern search to include',
- 'corpus_report_opt_readings': 'Include the reading through the lenses',
- 'corpus_report_opt_terms': 'Include the word list',
- 'corpus_report_opt_passages': 'Include the passages and exact quotes (unticked: only counts and '
-                               'explanations)',
- 'corpus_report_nothing_selected': 'Tick at least one part of the report.',
- 'corpus_report_no_run': 'There are no pattern searches yet, so no patterns will be included.',
- 'corpus_report_doc_title': 'Text analysis report',
- 'corpus_report_how_to_read': 'This report shows what recurs in a set of texts that already exist. '
-                              'The patterns are candidates for reflection, not conclusions: a '
-                              'theme recurring does not prove bias or poor practice. The strength '
-                              'of each finding is always given as "in how many of the texts it '
-                              'appears". The team decides what it means, if anything.',
- 'corpus_report_collection_title': 'The collection',
- 'corpus_report_collection_line': 'Collection "{name}": {documents} texts and {passages} passages.',
- 'corpus_report_search_title': 'Pattern search',
- 'corpus_report_search_line': 'Search of {date}: {documents} texts and {passages} passages '
-                              'compared; {patterns} candidate pattern(s) found.',
- 'corpus_report_col_texts': 'In how many texts',
- 'corpus_report_col_passages': 'Passages',
- 'corpus_report_passages_omitted': 'The passages and quotes are not included in this report.',
- 'corpus_report_readings_title': 'Reading of each text through the lenses',
- 'corpus_report_readings_omitted': 'The observations and exact quotes are not included in this '
-                                   'report; below, the texts where the AI raised something.',
- 'corpus_report_terms_title': 'Word and phrase list',
- 'corpus_report_col_where': 'Texts where it appears',
- 'corpus_report_more_texts': '(and {count} more)',
- 'corpus_report_limits_list': ['The texts carry no labels (neither of who wrote them nor of who '
-                               'they concern): this report cannot say anything about whether '
-                               'different groups are treated alike or differently.',
-                               'Grouping into patterns is automatic, by similarity of meaning; it '
-                               'can join unrelated passages or separate related ones.',
-                               'The reading through the lenses is done by the AI text by text: '
-                               '"raised" does not measure how often something happens, and when it '
-                               'raises nothing that does not mean the text is free of it.',
-                               'The word count covers written words only: it does not understand '
-                               'context or synonyms.',
-                               'The texts in the collection are the ones the team chose to load; '
-                               'they are not necessarily representative of all documentation.',
-                               'Automatic anonymisation may not catch all personal details: check '
-                               'this report before sharing it.'],
- 'corpus_report_footer': 'Confidential · Candidates for reflection, not conclusions · {date}',
  'rs_intro': 'Write, paste or upload the case you want to reflect on, and reflect on it straight away. Only an anonymised version of your text is sent to the AI. The original text is saved securely together with the reflection, for later pattern analysis.',
  'rs_code_label': 'Code for this reflection:',
  'rs_code_help': 'A neutral code created by the app. It does not identify anyone. Note it down if '
@@ -1254,22 +760,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
                       'notes on them will be erased. This cannot be undone.',
  'ch_deleted_success': '✔ Reflection deleted.',
  'ch_delete_failed': '⚠ The reflection could not be deleted.',
- 'research_observations_label': 'Observations saved',
- 'admin_legacy_docs_header': '🗑️ Erase old stored documents',
- 'admin_legacy_docs_none': 'No old stored documents remain. Reflection Space only stores '
-                           'reflections.',
- 'admin_legacy_docs_count': '{count} document(s) saved before the change to "reflections only" '
-                            'remain.',
- 'admin_legacy_docs_caption': 'This permanently erases: every old document, its edit history, the '
-                              'reflections generated from them (with their observations and notes) '
-                              'and their search copies. New reflections are not touched. This '
-                              'cannot be undone.',
- 'admin_legacy_docs_confirm_word': 'ERASE',
- 'admin_legacy_docs_confirm_label': 'To confirm, type {word}',
- 'admin_legacy_docs_button': 'Erase all old documents',
- 'admin_legacy_docs_done': '✔ {count} old document(s) erased.',
- 'admin_legacy_docs_refused': 'Only the System Administrator can do this.',
- 'admin_legacy_docs_count_failed': "Couldn't check how many old documents remain.",
  'case_tag_labels': {'housing': 'Housing / homelessness',
                      'employment_training': 'Employment and training',
                      'income_benefits': 'Income and benefits',

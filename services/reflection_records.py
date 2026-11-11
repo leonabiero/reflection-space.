@@ -34,9 +34,7 @@ This module owns everything built on those identifiers:
 - finding a professional's OWN earlier reflections that are linked
   (previous_code chain) or similar (shared case tags), to offer as
   context for a new reflection;
-- the management-only reflection listing used by Case History;
-- the evidence search used by the Knowledge Assistant;
-- simple counts for Research Metrics.
+- the management-only reflection listing used by Case History.
 
 Privacy rules
 -------------
@@ -58,7 +56,6 @@ Privacy rules
 import json
 import re
 import secrets
-import unicodedata
 
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import iso, get_logger
@@ -108,8 +105,6 @@ SIMILAR_LIMIT = 5
 LINK_CHAIN_DEPTH = 3
 _SIMILAR_SCAN_LIMIT = 300
 
-# Knowledge Assistant evidence search.
-_EVIDENCE_SCAN_LIMIT = 400
 
 
 def _get_conn():
@@ -1011,129 +1006,3 @@ def purge_expired_reflection_deletions():
     for code in codes:
         _audit("purged", code, "system", "", "deleted reflection erased after the restore window")
     return len(ids)
-
-
-# ---------------------------------------------------------------------
-# Knowledge Assistant evidence
-# ---------------------------------------------------------------------
-
-_STOPWORDS = {
-    # Spanish
-    "para", "como", "pero", "porque", "sobre", "entre", "desde", "hasta", "esta",
-    "este", "estos", "estas", "cual", "cuales", "cuando", "donde", "quien", "quienes",
-    "tiene", "tienen", "hace", "hacen", "sido", "sean", "todo", "todos", "todas",
-    "nuestra", "nuestro", "nuestros", "nuestras", "casos", "caso", "veces", "mucho",
-    "muchos", "otra", "otro", "otros", "otras", "solo", "tambien",
-    # Basque
-    "zein", "zer", "nola", "noiz", "non", "nork", "baina", "edo", "eta", "gure",
-    "dira", "dago", "daude", "kasu", "kasuak", "kasuetan",
-    # English
-    "what", "which", "when", "where", "with", "have", "does", "this", "that",
-    "these", "those", "there", "their", "about", "from", "into", "more", "most",
-    "cases", "case", "often", "many", "much", "other", "only",
-}
-
-
-def _fold(text):
-    text = unicodedata.normalize("NFKD", (text or "").lower())
-    return "".join(ch for ch in text if not unicodedata.combining(ch))
-
-
-def _keywords(text):
-    return {w for w in re.findall(r"[a-z0-9]{4,}", _fold(text)) if w not in _STOPWORDS}
-
-
-def search_reflection_evidence(question, limit=8, since_iso=None):
-    """
-    Saved observations most related to a manager's question, for the
-    Knowledge Assistant (Learning page -- Supervisors and Programme
-    Managers). Organisation-wide by design, exactly like the document
-    search it replaces; observations only, never notes.
-
-    Matching is by shared words (accent-insensitive, Spanish / Basque /
-    English stop-words removed) between the question and each
-    observation, its dimension and its case tags. If nothing shares a
-    word with the question, the most recent observations are returned
-    with relevance 0, so the assistant can say honestly that the
-    evidence is weak.
-
-    Returns dicts shaped like the old document evidence: content,
-    doc_type (the dimension key), case_ref (the reflection code),
-    completed_at, score (0-1 share of the question's words found).
-    """
-    wanted = _keywords(question)
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            query = f"""
-                SELECT f.observation, f.module, COALESCE(r.reflection_code, r.case_ref),
-                       r.case_tags, f.created_at
-                FROM reflection_findings f
-                JOIN reflection_runs r ON r.id = f.run_id
-                WHERE {NOT_IN_DELETION_WINDOW}
-            """
-            params = []
-            if since_iso:
-                query += " AND f.created_at >= %s"
-                params.append(since_iso)
-            query += " ORDER BY f.created_at DESC, f.id DESC LIMIT %s"
-            params.append(_EVIDENCE_SCAN_LIMIT)
-            c.execute(query, tuple(params))
-            rows = c.fetchall()
-    finally:
-        conn.close()
-
-    scored = []
-    for position, (observation, module, code, tags_json, created_at) in enumerate(rows):
-        if not observation:
-            continue
-        haystack = _keywords(" ".join([observation, module.replace("_", " "),
-                                       " ".join(t.replace("_", " ") for t in _loads_list(tags_json))]))
-        overlap = len(wanted & haystack) if wanted else 0
-        score = round(overlap / len(wanted), 2) if wanted else 0.0
-        scored.append((overlap, -position, {
-            "content": observation,
-            "doc_type": module,
-            "case_ref": code or "",
-            "completed_at": iso(created_at),
-            "score": score,
-        }))
-
-    if any(item[0] > 0 for item in scored):
-        scored = [item for item in scored if item[0] > 0]
-    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    results = [item[2] for item in scored[:limit]]
-    logger.info("search_reflection_evidence: scanned=%d returned=%d", len(rows), len(results))
-    return results
-
-
-# ---------------------------------------------------------------------
-# Research Metrics
-# ---------------------------------------------------------------------
-
-def count_saved_observations(since_iso=None):
-    """How many AI observations have been saved (organisation-wide
-    aggregate count, no content)."""
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            if since_iso:
-                c.execute(
-                    f"""
-                    SELECT COUNT(*) FROM reflection_findings f
-                    JOIN reflection_runs r ON r.id = f.run_id
-                    WHERE f.created_at >= %s AND {NOT_IN_DELETION_WINDOW}
-                    """,
-                    (since_iso,),
-                )
-            else:
-                c.execute(
-                    f"""
-                    SELECT COUNT(*) FROM reflection_findings f
-                    JOIN reflection_runs r ON r.id = f.run_id
-                    WHERE {NOT_IN_DELETION_WINDOW}
-                    """
-                )
-            return c.fetchone()[0]
-    finally:
-        conn.close()

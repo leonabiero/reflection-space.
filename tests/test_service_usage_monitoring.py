@@ -56,11 +56,10 @@ class CostPricingTests(unittest.TestCase):
     def test_every_model_the_app_uses_has_a_price(self):
         """The model the app actually calls must be priced, otherwise the
         Cost & Usage Monitor would fall back to an estimate."""
-        from services import cost_pricing, reflection_service, knowledge_assistant
+        from services import cost_pricing, reflection_service
 
         for model in (reflection_service.CLAUDE_MODEL,
-                      reflection_service.COMPANION_MODEL,
-                      knowledge_assistant.CLAUDE_MODEL):
+                      reflection_service.COMPANION_MODEL):
             self.assertEqual(model, "claude-sonnet-5-5")
             self.assertIn(model, cost_pricing.ANTHROPIC_PRICING)
         cost, recognized = cost_pricing.estimate_anthropic_cost(
@@ -317,49 +316,6 @@ class NoSensitiveDataTests(unittest.TestCase):
         table_def = source[table_start:table_start + 1200]
         for forbidden in ["reflection_text", "case_content", "ai_response", "raw_text", "content TEXT"]:
             self.assertNotIn(forbidden, table_def)
-
-
-class KnowledgeAssistantInstrumentationTests(unittest.TestCase):
-    def test_knowledge_assistant_failure_records_usage_without_crashing(self):
-        """Guards against a NameError/UnboundLocalError in the except
-        branch (the started-at timer must be set before the try)."""
-        from services import knowledge_assistant as ka
-
-        with patch.object(ka, "retrieve_global_context", return_value=[]), \
-                patch.object(ka, "build_research_summary", return_value={}), \
-                patch.object(ka, "_build_stats_block", return_value="stats"), \
-                patch.object(ka.client.messages, "create", side_effect=RuntimeError("down")), \
-                patch.object(ka, "usage_ledger") as fake_ledger, \
-                patch.object(ka, "log_error", return_value=(1, 2)):
-            result = ka.ask("a real question", lang="English")
-
-        self.assertEqual(result["error"], "API call failed")
-        fake_ledger.record_usage.assert_called_once()
-        self.assertFalse(fake_ledger.record_usage.call_args.kwargs["success"])
-
-    def test_knowledge_assistant_success_records_actual_tokens(self):
-        from services import knowledge_assistant as ka
-
-        message = MagicMock()
-        message.usage.input_tokens = 555
-        message.usage.output_tokens = 111
-        block = MagicMock()
-        block.type = "text"
-        block.text = '{"answer": "ok", "confidence": "strong", "limitations": "", "evidence": []}'
-        message.content = [block]
-
-        with patch.object(ka, "retrieve_global_context", return_value=[]), \
-                patch.object(ka, "build_research_summary", return_value={}), \
-                patch.object(ka, "_build_stats_block", return_value="stats"), \
-                patch.object(ka.client.messages, "create", return_value=message), \
-                patch.object(ka, "usage_ledger") as fake_ledger:
-            ka.ask("a real question", lang="English")
-
-        fake_ledger.record_usage.assert_called_once()
-        kwargs = fake_ledger.record_usage.call_args.kwargs
-        self.assertEqual(kwargs["input_tokens"], 555)
-        self.assertEqual(kwargs["output_tokens"], 111)
-        self.assertTrue(kwargs["success"])
 
 
 if __name__ == "__main__":

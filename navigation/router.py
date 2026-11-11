@@ -36,7 +36,7 @@ def _label(T, workspace):
 # That key is ALSO written, unconditionally, on every single page load,
 # by services.identity.require_work_mode(T, workspace) -- with
 # `workspace` being a hard-coded string belonging to whichever page
-# file is currently running (e.g. "Manager" on pages/learning.py,
+# file is currently running (e.g. "Manager" on pages/case_history.py,
 # "Practitioner" on pages/documentation.py). require_work_mode() runs
 # BEFORE render_nav() on every page, by design (see its docstring --
 # this is what protects direct-URL access).

@@ -2,7 +2,7 @@ import streamlit as st
 from services.draft_storage import (
     restore_draft, get_pending_deletions, purge_expired_deletions,
 )
-from services.feedback_store import get_all_feedback, get_feedback_summary
+from services.feedback_store import get_feedback_summary
 from services import reflection_records
 from services.findings_ui import render_evidence
 from services.language import init_language
@@ -10,7 +10,7 @@ from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 from services.error_log import error_boundary
 from services.confirm_state import is_confirming, start_confirming, clear_confirming
-from config import CASE_HISTORY_MAX_RESULTS, CASE_HISTORY_FEEDBACK_MAX_RESULTS, ANONYMISED_TEXT_RETENTION_MONTHS
+from config import CASE_HISTORY_MAX_RESULTS, ANONYMISED_TEXT_RETENTION_MONTHS
 
 # =====================================================================
 # Case History -- now a history of REFLECTIONS
@@ -64,34 +64,20 @@ with error_boundary(
         return T["case_tag_labels"].get(key, key.replace("_", " ").title())
 
     # -----------------------------------------------------------------
-    # Usefulness feedback (unchanged). The average is computed in
-    # PostgreSQL; the list is capped to the most recent entries.
+    # Usefulness feedback -- the AVERAGE rating only (November 2026,
+    # product owner's decision). Individual ratings, comments and the
+    # names of the people who gave them are deliberately not shown
+    # here. The average is computed in PostgreSQL.
     # -----------------------------------------------------------------
     st.subheader(T["feedback_section_header"])
     feedback_summary = get_feedback_summary()
-    recent_feedback = get_all_feedback(limit=CASE_HISTORY_FEEDBACK_MAX_RESULTS)
+    rated_count = sum(feedback_summary["distribution"].values())
 
-    if feedback_summary["count"] == 0:
+    if rated_count == 0:
         st.info(T["feedback_no_items"])
     else:
-        rated_count = sum(feedback_summary["distribution"].values())
-        if rated_count:
-            average = feedback_summary["average"]
-            st.write(f"**{T['feedback_average_label']}:** {average:.1f} / 5  ({rated_count})")
-
-        if feedback_summary["count"] > CASE_HISTORY_FEEDBACK_MAX_RESULTS:
-            st.caption(T["feedback_showing_recent"].format(
-                shown=len(recent_feedback), total=feedback_summary["count"],
-            ))
-
-        for row in recent_feedback:
-            fb_id, reference, rating, comment, submitted_by, submitted_by_role, submitted_at = row
-            role_label = T.get("role_labels", {}).get(submitted_by_role, submitted_by_role)
-            stars = "⭐" * (rating or 0)
-            line = f"{stars} ({rating}/5) — {submitted_by or T['unknown_label']}, {role_label} — {submitted_at[:16] if submitted_at else ''}"
-            st.write(line)
-            if comment:
-                st.caption(comment)
+        average = feedback_summary["average"]
+        st.write(f"**{T['feedback_average_label']}:** {average:.1f} / 5  ({rated_count})")
 
     st.divider()
 

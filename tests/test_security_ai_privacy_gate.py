@@ -1,10 +1,9 @@
 """Privacy gate for free text typed by practitioners and supervisors
 (November 2026).
 
-Before this change, two routes sent text to Claude exactly as typed:
-the messages written in a companion follow-up conversation, and the
-question written into the Knowledge Assistant. These tests prove that
-both now send only the anonymised version, and that a failure while
+Before this change, the messages written in a companion follow-up
+conversation were sent to Claude exactly as typed. These tests prove that
+only the anonymised version is sent now, and that a failure while
 anonymising means NOTHING is sent (no fallback to the original text).
 """
 import unittest
@@ -112,96 +111,6 @@ class CompanionConversationPrivacyTests(unittest.TestCase):
         self.assertTrue(result.get("privacy_blocked"))
 
 
-class KnowledgeAssistantPrivacyTests(unittest.TestCase):
-    QUESTION = "Why did Ashley Rose, aged 30, ask for accommodation? Call +34 612 345 678."
-
-    def _patches(self, ka):
-        return (
-            patch.object(ka, "retrieve_global_context", return_value=[]),
-            patch.object(ka, "build_research_summary", return_value={}),
-            patch.object(ka, "_build_stats_block", return_value="stats"),
-            patch.object(ka, "usage_ledger"),
-        )
-
-    def test_question_is_anonymised_before_it_reaches_claude(self):
-        from services import knowledge_assistant as ka
-
-        reply = '{"answer": "ok", "confidence": "limited", "limitations": "", "evidence": []}'
-        p1, p2, p3, p4 = self._patches(ka)
-        with p1 as retrieve, p2, p3, p4, \
-                patch.object(ka.client.messages, "create", return_value=_fake_message(reply)) as create:
-            ka.ask(self.QUESTION, lang="English")
-
-        # Only the parts that carry the question (the fixed instructions
-        # and the search date contain unrelated digits).
-        sent = repr(create.call_args.kwargs["messages"]) + retrieve.call_args.kwargs["query_text"]
-        for secret in ("Ashley", "Rose", "30", "612 345 678"):
-            self.assertNotIn(secret, sent, msg=f"{secret!r} reached an external service")
-        self.assertIn("[PERSON]", sent)
-
-    def test_anonymiser_exception_blocks_the_question(self):
-        from services import knowledge_assistant as ka
-
-        p1, p2, p3, p4 = self._patches(ka)
-        with p1 as retrieve, p2, p3, p4, \
-                patch.object(ka, "anonymize", side_effect=RuntimeError("boom")), \
-                patch.object(ka.client.messages, "create") as create, \
-                patch.object(ka, "log_error", return_value=(3, 4)) as log_error:
-            result = ka.ask(self.QUESTION, lang="English")
-
-        create.assert_not_called()
-        retrieve.assert_not_called()   # not even the search step receives it
-        self.assertTrue(result.get("privacy_blocked"))
-        self.assertEqual(result["issue_id"], 4)
-        self.assertNotIn("Ashley", repr(log_error.call_args))
-
-
-class CorpusReadingPrivacyTests(unittest.TestCase):
-    def test_stored_texts_are_re_protected_before_reading(self):
-        """Texts saved before age protection existed may hold exact ages;
-        they are protected again right before being sent."""
-        from services import corpus_reading_service as crs
-
-        sent_texts = []
-
-        def fake_read(companion, text, lang, include_questions):
-            sent_texts.append(text)
-            return {"lens": companion["key"], "status": "no_finding"}
-
-        docs = [{"id": 1, "content": "[PERSON] tiene 30 años, no 29."}]
-        with patch.object(crs, "is_available", return_value=True), \
-                patch.object(crs, "require_pattern_role"), \
-                patch.object(crs.corpus_store, "get_documents_to_read", return_value=docs), \
-                patch.object(crs.corpus_store, "start_reading_job", return_value=9), \
-                patch.object(crs.corpus_store, "save_readings"), \
-                patch.object(crs.corpus_store, "finish_reading_job"), \
-                patch.object(crs.corpus_store, "get_reading_overview", return_value={"unread": 0}), \
-                patch.object(crs, "read_lens", side_effect=fake_read):
-            crs.read_texts("manager", "tester", 1, "Español")
-
-        self.assertTrue(sent_texts)
-        for text in sent_texts:
-            self.assertNotIn("30", text)
-            self.assertNotIn("29", text)
-
-    def test_anonymiser_failure_stops_the_job_before_any_call(self):
-        from services import corpus_reading_service as crs
-
-        docs = [{"id": 1, "content": "[PERSON] tiene 30 años."}]
-        with patch.object(crs, "is_available", return_value=True), \
-                patch.object(crs, "require_pattern_role"), \
-                patch.object(crs.corpus_store, "get_documents_to_read", return_value=docs), \
-                patch.object(crs.corpus_store, "start_reading_job", return_value=9), \
-                patch.object(crs.corpus_store, "finish_reading_job") as finish, \
-                patch.object(crs, "anonymize", side_effect=RuntimeError("boom")), \
-                patch.object(crs, "read_lens") as read_lens:
-            with self.assertRaises(RuntimeError):
-                crs.read_texts("manager", "tester", 1, "Español")
-
-        read_lens.assert_not_called()
-        self.assertEqual(finish.call_args.args[1], "failed")
-
-
 class SavedNotesPrivacyTests(unittest.TestCase):
     """November 2026: a professional's own notes on an observation are
     anonymised before they are stored (they never go to the AI, but they
@@ -231,7 +140,9 @@ class SavedNotesPrivacyTests(unittest.TestCase):
             )
         self.assertTrue(ok)
         written = repr(cursor.execute.call_args_list)
-        for secret in ("Sarah", "Mitchell", "34", "John", "Hughes"):
+        # "34 years" rather than a bare "34": the recorded calls also
+        # contain a timestamp, which can itself contain the digits 34.
+        for secret in ("Sarah", "Mitchell", "34 years", "John", "Hughes"):
             self.assertNotIn(secret, written)
 
     def test_anonymiser_failure_saves_nothing(self):
@@ -251,11 +162,9 @@ class AllAiRoutesUseTheGateTests(unittest.TestCase):
 
     def test_modules_calling_ai_import_the_anonymizer(self):
         import inspect
-        from services import (corpus_reading_service, knowledge_assistant,
-                              reflection_service)
+        from services import reflection_service
         from rdi import orchestrator
-        for module in (corpus_reading_service, knowledge_assistant,
-                       reflection_service, orchestrator):
+        for module in (reflection_service, orchestrator):
             self.assertIn("from services.anonymizer import anonymize", inspect.getsource(module),
                           msg=module.__name__)
 

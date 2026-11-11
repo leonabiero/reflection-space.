@@ -24,14 +24,16 @@ from typing import Dict
 # screen was merged into Reflection Space, so Practitioner mode now has
 # two pages and lands on Reflection Space.
 PRACTITIONER_PAGES = {"Reflection Space", "My Reflection"}
-MANAGER_PAGES = {"Learning", "Case History", "Research Metrics", "Pattern Review", "Text Analysis"}
+# November 2026: Learning, Research Metrics and Text Analysis were removed,
+# so Manager mode lands on Case History.
+MANAGER_PAGES = {"Case History", "Pattern Review"}
 
 WORKSPACE_ORDER = ["Practitioner", "Manager", "System Administration"]
 
 # Where switching INTO a work mode should land the user.
 WORKSPACE_LANDING_PAGE = {
     "Practitioner": "pages/reflection_space.py",
-    "Manager": "pages/learning.py",
+    "Manager": "pages/case_history.py",
     "System Administration": "pages/system_administration.py",
 }
 

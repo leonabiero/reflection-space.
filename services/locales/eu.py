@@ -22,7 +22,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'nav_header': 'Nabigatu:',
  'nav_doc': '📝 Dokumentazioa',
  'nav_reflection': '🌿 Hausnarketa gunea',
- 'nav_learning': '📚 Ikaskuntza',
  'no_drafts': 'Ez dago zirriborrorik eskuragarri.',
  'select_drafts': 'Hautatu hausnartzeko zirriborroak',
  'begin_reflection': 'Hasi hausnarketa',
@@ -51,9 +50,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'unknown_label': 'Ezezaguna',
  'audit_unknown_case_label': '(kasu ezezaguna)',
  'case_history_completed_label': 'amaituta',
- 'learning_phase2': 'Aplikazioan sortutako hausnarketetan agertzen diren gaiak.',
- 'learning_no_data': 'Oraindik ez dago hausnarketarik erregistratuta. Gaiak hemen agertuko dira '
-                     'hausnarketak sortu ahala.',
  'themes': ['Pertsonaren ahotsa',
             'Ebidentzia vs. Interpretazioa',
             'Etiketak eta hizkera',
@@ -136,8 +132,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                          'duenak, jarraipen-bilera batera joan zen. +254 722 334 455 zenbakian edo '
                          'sarah.kimani@testmail.com helbidean jar daiteke harremanetan. David '
                          'Otieno jauna izan zen esleitutako gizarte-langilea.',
- 'learning_preview_caption': 'Azken {total} hausnarketetan oinarrituta',
- 'learning_flagged_caption': 'Azken {total} hausnarketetatik {count}-tan identifikatua',
  'case_history_date_filter_label': 'Historia ikusi:',
  'case_history_toggle_label': 'Erakutsi:',
  'case_history_edited_option': 'Editatuak',
@@ -145,7 +139,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'case_history_no_items_for_filter': 'Ez dago hausnarketarik hautapen honetarako.',
  'case_history_showing_recent': '{total} dokumentuetatik azken {shown} erakusten ari da. Erabili '
                                 'data-iragazkia dokumentu zaharragoak ikusteko.',
- 'feedback_showing_recent': '{total} iruzkinetatik azken {shown} erakusten ari da.',
  'feedback_prompt_title': 'Zenbateraino izan da baliagarria hausnarketa hau?',
  'feedback_rating_label': 'Balorazioa (1 = ez oso baliagarria, 5 = oso baliagarria)',
  'feedback_comment_label': 'Iruzkina (aukerakoa)',
@@ -205,40 +198,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'growth_history_header': 'Duela gutxiko hausnarketa-uneak',
  'growth_entry_line': '**{theme}** — {case} hausnarketa — {count} truke — {date}',
  'growth_session_count_label': 'Guztira erregistratutako azterketa-uneak',
- 'nav_team_learning': '🌍 Taldearen Ikaskuntza',
- 'team_learning_title': '🌍 Taldearen Hausnarketa Gaiak',
- 'team_learning_intro': 'Ikuspegi honek erakusten ditu erakunde osoko eredu agregatu eta '
-                        'anonimoak. Ez du profesionalik identifikatzen, ez du kasu zehatzik '
-                        'identifikatzen eta ez du inoren hausnarketa-historiala erakusten. Bere '
-                        'helburua da erakundeari laguntzea zein arlok merezi duten arreta '
-                        'kolektiboa identifikatzen — ez pertsonak ebaluatzea.',
- 'team_learning_period_caption': 'Azken 6 hilabeteak — {total} azterketa-une erregistratuta '
-                                 'guztira, talde guztietan',
- 'team_learning_no_data': 'Oraindik ez dago nahikoa azterketa-daturik azken 6 hilabeteetan '
-                          'erregistratuta.',
- 'team_learning_header': 'Hausnarketa-arlo ohikoenak',
- 'team_learning_rank_line': '{rank}. {theme} — {count} azterketa',
- 'nav_research_metrics': '📊 Ikerketa Metrikak',
- 'research_title': '📊 Ikerketa Metrikak',
- 'research_intro': 'Metrika hauek erakundearen hausnarketa-jarduera deskribatzen dute — ez dute '
-                   'inolako profesionalik ebaluatzen edo konparatzen. Ez dute izenik, kasu '
-                   'zehatzik edo dokumentu-edukirik.',
- 'research_period_caption': 'Epea: azken {days} egun (hemendik: {since})',
- 'research_overview_header': 'Jardueraren laburpena',
- 'research_sessions_label': 'Sortutako hausnarketa-saioak',
- 'research_documents_label': 'Osatutako dokumentuak',
- 'research_theme_table_header': 'Gaiak: IAk seinalatuak vs. profesionalek aztertuak',
- 'research_theme_flagged_col': 'IAk seinalatua',
- 'research_theme_explored_col': 'Profesional batek aztertua',
- 'research_feedback_header': 'Erabilgarritasun-balorazioak',
- 'research_feedback_count_label': 'Jasotako balorazioak',
- 'research_feedback_average_label': 'Batez besteko balorazioa',
- 'research_feedback_comments_label': 'Iruzkinarekin',
- 'research_feedback_no_data': 'Oraindik ez da balorazio bakar bat ere jaso.',
- 'research_export_button': 'Ikerketarako CSVa deskargatu',
- 'research_export_caption': 'Fitxategiak zenbaketa agregatuak bakarrik ditu — izenik, kasurik edo '
-                            'dokumentu-testurik gabe.',
- 'research_no_data': 'Oraindik ez dago nahikoa jarduera erregistratuta epe honetarako.',
  'journey_step1': 'Zure kasua',
  'journey_step2': 'Aurreko hausnarketak',
  'journey_step3': 'Hausnarketa Profesionala',
@@ -266,48 +225,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'workmode_admin': 'Sistemaren Administrazioa',
  'workmode_access_denied': 'Ez duzu lan-espazio honetarako sarbiderik.',
  'nav_system_admin': '🛠️ Sistemaren Administrazioa',
- 'presence_header': 'Taldearen Presentzia',
- 'presence_intro': 'Une honetan aplikazioan aktibo dauden gizarte-langileak. Ez da '
-                   'kasu-informaziorik edo dokumentu-edukirik erakusten.',
- 'presence_active_count': '{count} gizarte-langile aktibo edo duela gutxi aktibo',
- 'presence_status_active': '🟢 Aktibo orain',
- 'presence_status_recent': '🟡 Aktibo duela {minutes} minutu',
- 'presence_status_offline': '⚪ Ez du azken jarduerarik izan',
- 'presence_no_data': 'Oraindik ez dago jarduera-daturik erregistratuta.',
- 'learning_tab_presence': '👥 Taldearen Presentzia',
- 'learning_tab_knowledge': '💬 Erakundearen Ikaskuntza',
- 'learning_tab_insights': '📚 Ikaskuntza Ikuspegiak',
- 'learning_tab_team': '🌍 Taldearen Ikaskuntza',
- 'ka_header': 'Galdetu erakundearen ezagutzari buruz',
- 'ka_intro': 'Egin galdera bat hizkuntza naturalean erakundearen eredu, gai eta jarduera '
-             'erreflexiboari buruz. Erantzunak gordetako hausnarketetan oinarritzen dira soilik — '
-             'inoiz ez kanpoko ezagutza orokorrean.',
- 'ka_question_label': 'Zure galdera',
- 'ka_question_placeholder': 'Adibidez: Zein eredu sortu dira Kulunkan hiruhileko honetan?',
- 'ka_ask_button': 'Galdetu',
- 'ka_thinking': 'Erakundearen ezagutza-basea aztertzen...',
- 'ka_error': '⚠ Ezin izan da erantzunik sortu. Saiatu berriro.',
- 'ka_empty_question': 'Mesedez idatzi galdera bat.',
- 'ka_duplicate_message': 'Galdera hau jadanik prozesatzen ari da. Itxaron pixka bat amaitu arte, '
-                         'berriro galdetu aurretik.',
- 'ka_rate_limit_exceeded_message': 'Kontu honetan azken orduan Ezagutza Laguntzaileari egindako '
-                                   '{max} galderaren muga bete duzu. Hau segurtasun-muga bat da '
-                                   'nahi gabeko eskaera errepikatuak saihesteko, ez zure ohiko '
-                                   'lanaren murrizketa bat -- itxaron pixka bat eta saiatu '
-                                   'berriro, edo jarri harremanetan Sistemaren '
-                                   'Administratzailearekin hau errore bat dela uste baduzu.',
- 'ka_confidence_label': 'Ebidentzia maila:',
- 'ka_confidence_strong': '🟢 Ebidentzia sendoa',
- 'ka_confidence_limited': '🟡 Ebidentzia mugatua',
- 'ka_confidence_insufficient': '🔴 Ebidentzia nahikoa ez',
- 'ka_limitations_label': 'Mugak:',
- 'ka_evidence_header': 'Erabilitako ebidentzia',
- 'ka_evidence_count': '{count} dokumentu garrantzitsu berreskuratuta',
- 'ka_evidence_doc_type_col': 'Dokumentu mota',
- 'ka_evidence_date_col': 'Data',
- 'ka_evidence_case_col': 'Hausnarketaren kodea',
- 'ka_evidence_relevance_col': 'Garrantzia',
- 'ka_evidence_none': 'Ez da galdera honentzako dokumentu garrantzitsurik berreskuratu.',
  'admin_user_mgmt_header': '👥 Erabiltzaileen kudeaketa',
  'admin_user_mgmt_info': 'Erabiltzaileak Streamlit Sekretuen bidez kudeatzen dira. CRUD dinamikoa '
                          'ez dago nahita eskuragarri: kredentzialak eta rolak '
@@ -319,10 +236,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_user_col_role': 'Rola',
  'admin_advanced_diagnostics': '🔧 Diagnostiko aurreratua',
  'admin_show_raw_response': 'Erakutsi erantzun gordina',
- 'admin_rag_status_item': 'Elementua',
- 'admin_rag_status_value': 'Egoera',
- 'admin_rag_embedding_model': 'Embedding eredua',
- 'admin_rag_embedding_dims': 'Embedding dimentsioak',
  'admin_status_connected': 'Konektatuta',
  'admin_status_not_connected': 'Konektatu gabe',
  'admin_status_present': '✅ Presente',
@@ -347,7 +260,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_health_db_error_prefix': 'Datu-base errorea:',
  'admin_health_key_missing': 'ANTHROPIC_API_KEY ez dago konfiguratuta — ezin dira hausnarketak '
                              'sortu.',
- 'admin_config_header': '⚙️ Konfigurazioa',
  'admin_tools_header': '🧰 Administrazio-tresnak',
  'admin_anon_empty_warning': 'Idatzi edo itsatsi lehenik lagin-testu bat eta sakatu berriro '
                              'botoia.',
@@ -364,127 +276,43 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                          'heldua, OLDER_ADULT = adinekoa).',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
  'admin_tools_future': 'Etorkizuneko administrazio-tresnak hemen agertuko dira.',
- 'admin_console_caption': 'Reflection Space-ren administrazio-kontsola -- sistemaren egoera, '
-                          'erabiltzaileak eta diagnostiko-tresnak.',
+ 'admin_console_caption': 'Reflection Space-ren administrazio-kontsola -- erabiltzaileak, '
+                          'sistemaren egoera, erregistratutako arazoak, kostuak eta datuen '
+                          'ezabaketa.',
  'admin_error_log_unknown_page': 'orrialde ezezaguna',
- 'admin_error_log_generic_error': 'Errorea',
  'admin_error_log_no_message': '(mezurik ez)',
- 'admin_error_log_unknown_role': 'rol ezezaguna',
- 'readiness_category_exception': 'Salbuespena',
- 'readiness_category_traceback_evidence': 'Traceback-a',
- 'readiness_category_root_cause': 'Jatorrizko kausa',
- 'readiness_category_timeline': 'Denbora-lerroa',
- 'readiness_category_session_context': 'Saioaren testuingurua',
- 'readiness_category_environment': 'Ingurunea',
- 'readiness_category_user_information': 'Erabiltzailearen informazioa',
- 'readiness_category_configuration': 'Konfigurazioa',
- 'readiness_category_ai_prompt': 'AI prompt-a sortuta',
  'event_labels': {'Opened page': 'Orria irekita',
                   'Changed page': 'Orria aldatuta',
                   'Email sent': 'Posta elektronikoa bidalita',
                   'User submitted report': 'Erabiltzaileak bidalitako txostena',
                   'Exception occurred': 'Salbuespen bat gertatu da',
                   'Error logged': 'Errorea erregistratuta'},
- 'admin_case_export_download': '#{n} kasua deskargatu',
- 'admin_case_export_failed': 'Ezin izan da esportazioa sortu.',
- 'admin_case_export_format': 'Formatua',
- 'admin_case_export_header': '📤 Kasu hau esportatu',
- 'admin_case_field_common_cause': 'Kausa arrunta',
- 'admin_case_field_deployment_date': 'Zabalkunde-data (aplikagarria bada)',
- 'admin_case_field_documentation_link': 'Dokumentaziorako esteka',
- 'admin_case_field_external_reference': 'Kanpo-erreferentzia',
- 'admin_case_field_fix_applied': 'Aplikatutako konponketa',
- 'admin_case_field_git_commit': 'Git commit-a',
- 'admin_case_field_known_fix': 'Konponbide ezaguna',
- 'admin_case_field_known_workaround': 'Aldi baterako irtenbide ezaguna',
- 'admin_case_field_lessons_learned': 'Ikasitako lezioak',
- 'admin_case_field_prevention_notes': 'Etorkizuneko prebentzio-oharrak',
- 'admin_case_field_resolution_summary': 'Ebazpenaren laburpena',
- 'admin_case_field_root_cause': 'Erro-kausa (administratzailearen ondorioa)',
- 'admin_case_field_version_fixed': 'Konpondutako bertsioa',
- 'admin_case_investigation_add': 'Gorde ikerketa berri bat',
- 'admin_case_investigation_by': 'Nork gehitua',
- 'admin_case_investigation_delete': '🗑️ Sarrera hau kendu',
- 'admin_case_investigation_notes': 'Administratzailearen oharrak',
- 'admin_case_investigation_notes_input': 'Administratzailearen oharrak',
- 'admin_case_investigation_prompt': 'Prompt-a',
- 'admin_case_investigation_prompt_input': 'Prompt-a',
- 'admin_case_investigation_response': 'IAren erantzuna',
- 'admin_case_investigation_response_input': 'IAren erantzuna',
- 'admin_case_investigation_save': '💾 Ikerketa gorde',
- 'admin_case_investigation_save_failed': 'Ezin izan da gorde -- saiatu berriro.',
- 'admin_case_investigation_saved': 'Ikerketa gordeta.',
- 'admin_case_investigation_tool': 'Erabilitako tresna',
- 'admin_case_investigations_caption': 'Hausnarketa Gunek ez du inoiz IA bat automatikoki deitzen '
-                                      'hemen -- hau, besterik gabe, beste nonbait (ChatGPT, '
-                                      'Claude, Gemini, edo eskuzko ikerketa bat) egindako '
-                                      'ikerketak gordetzeko lekua da, hurrengo pertsonak lana '
-                                      'errepikatu behar ez izateko.',
- 'admin_case_investigations_empty': 'Oraindik ez dago gordetako ikerketarik.',
- 'admin_case_investigations_header': '🧠 IA Ikerketaren Historia',
- 'admin_case_knowledge_no_issue_id': 'Erregistro hau erreferentzia egonkorrak baino lehenagokoa '
-                                     'da, beraz kasuaren ezagutza (ebazpen-jarraipena, IA '
-                                     'ikerketaren historia, antzeko arazoak, esportazioa) ez dago '
-                                     'eskuragarri honentzat.',
- 'admin_case_knowledge_subheader': 'Kasuaren ezagutza (guztia aukerakoa)',
- 'admin_case_resolution_header': '✅ Ebazpena eta Kasuaren Ezagutza',
- 'admin_case_resolution_history_caption': 'Arazo hau lehen Konponduta edo Itxita gisa markatu zen '
-                                          'eta ordutik berriro agertu da. Errepikapen bakoitzaren '
-                                          'aurretik erregistratutako ebazpena behean gordeta dago, '
-                                          'goiko formularioak uneko ikerketa erakusten badu ere.',
- 'admin_case_resolution_history_header': '📜 Aurreko ebazpenen historia ({n} gordeta)',
- 'admin_case_resolution_history_occurrence': 'gertaera',
- 'admin_case_resolution_history_reopened_at': 'Berrirekita:',
- 'admin_case_resolution_last_updated': 'Azken eguneraketa: {when}, {who}',
- 'admin_case_resolution_save': '💾 Ebazpena eta kasuaren ezagutza gorde',
- 'admin_case_resolution_save_failed': 'Ezin izan da gorde -- saiatu berriro.',
- 'admin_case_resolution_saved': 'Gordeta.',
- 'admin_case_search_ai_tool': 'Erabilitako IA tresna',
- 'admin_case_search_button': 'Bilatu',
- 'admin_case_search_caption': 'Bilatu ebatzitako eta ebatzi gabeko kasuak haiei buruz dakizunaren '
-                              'arabera, ez soilik noiz gertatu ziren. Bete edozein eremu '
-                              'konbinazio -- emaitzek emandako eremu GUZTIAK betetzen dituzte.',
- 'admin_case_search_exception': 'Salbuespen mota',
- 'admin_case_search_find_hint': 'Ireki goiko kasu bat datorren IA Diagnostiko Gunean (bere # '
-                                'erreferentziaren bidez) erregistro osoa ikusteko.',
- 'admin_case_search_header': '🔎 Kasuen Ezagutza Bilaketa',
- 'admin_case_search_lesson': 'Ikasitako lezioak hau dauka',
- 'admin_case_search_min_occurrences': 'Gertaera kopuru minimoa',
- 'admin_case_search_no_results': 'Ez dago iragazki horiekin bat datorren kasurik. Saiatu eremu '
-                                 'gutxiagorekin.',
- 'admin_case_search_page': 'Orria',
- 'admin_case_search_resolution': 'Ebazpenak hau dauka',
- 'admin_case_search_resolution_label': 'Ebazpena',
- 'admin_case_search_result_count': '{n} kasu aurkituta.',
- 'admin_case_search_root_cause': 'Erro-kausak hau dauka',
- 'admin_case_search_root_cause_label': 'Erro-kausa',
- 'admin_case_search_status': 'Egoera',
- 'admin_case_search_user': 'Erabiltzailea',
- 'admin_case_search_version_fixed': 'Konpondutako bertsioa',
- 'admin_case_similar_empty': 'Ez da antzeko arazo aurrekorik aurkitu.',
- 'admin_case_similar_header': 'Antzeko Arazo Aurrekoak',
- 'admin_error_log_caption': 'Aplikazioan erregistratutako arazo guztiak -- hutsegiteak, IA '
-                            'laguntzailearen dei hutsak, edo pertsonek jakinarazitako arazoak -- '
-                            'diagnostiko-espazio oso gisa erakutsita: zer gertatu den, zein larria '
-                            'den, eta Claude-rekin elkarrizketa batean zuzenean itsatsi dezakezun '
-                            'prest dagoen prompt bat, diagnostikatu eta konpontzeko.',
- 'admin_error_log_category_label': 'Kategoria',
- 'admin_error_log_context_label': 'Testuingurua',
- 'admin_error_log_copy_hint': 'Pasatu kurtsorea beheko koadroaren gainetik eta klik egin goiko '
-                              'eskuineko kopiatzeko ikonoan.',
- 'admin_error_log_count_caption': '{total} arazotik {n} erakusten.',
- 'admin_error_log_empty': 'Ez dago errorerik erregistratuta. Dena garbi dago.',
- 'admin_error_log_env_app_version': 'Aplikazioaren bertsioa',
- 'admin_error_log_env_browser': 'Nabigatzailea',
- 'admin_error_log_env_os': 'Sistema eragilea',
- 'admin_error_log_env_python': 'Python bertsioa',
- 'admin_error_log_environment_label': '💻 Ingurunea',
- 'admin_error_log_evidence_label': '📋 Bildutako Ebidentzia',
- 'admin_error_log_exception_message_label': 'Salbuespen-mezua',
- 'admin_error_log_exception_type_label': 'Salbuespen mota',
- 'admin_error_log_explanation_label': '🗣️ Zer gertatu den, hizkuntza arruntean',
+ 'admin_error_log_caption': 'Aplikazioan erregistratutako arazoen zerrenda (hutsegiteak, IAren '
+                            'dei hutsak edo erabiltzaileek jakinarazitako arazoak): zer gertatu '
+                            'den, noiz eta zein egoeratan dagoen. IAren diagnostikoa alerta-mezu '
+                            'elektronikoan iristen da.',
+ 'admin_problem_what_label': 'Zer gertatu da',
+ 'admin_problem_open_header': 'Arazo irekiak ({n})',
+ 'admin_problem_solved_header': 'Konpondutako arazoak ({n})',
+ 'admin_problem_none_open': 'Ez dago arazo irekirik.',
+ 'admin_reset_header': '🧹 Ezabatu datu guztiak',
+ 'admin_reset_intro': 'Aplikazioan gordetako guztia behin betiko ezabatzen du: hausnarketak eta '
+                      'haien testuak, behaketak eta oharrak, balorazioak, patroien berrikuspenak, '
+                      'dokumentu zaharrak, jardueraren historia, erregistratutako arazoak eta '
+                      'erabilera- eta kostu-erregistroak. Aplikazioko zenbatzaile guztiak 0ra '
+                      'itzultzen dira.',
+ 'admin_reset_kept_note': 'Erabiltzaile-kontuak eta konfigurazioa mantentzen dira. Inork ez du '
+                          'saioa berriro hasi beharko.',
+ 'admin_reset_warning': 'Ekintza hau ezin da desegin.',
+ 'admin_reset_confirm_word': 'EZABATU',
+ 'admin_reset_confirm_label': 'Berresteko, idatzi {word}',
+ 'admin_reset_button': 'Ezabatu datu guztiak',
+ 'admin_reset_done': 'Datu guztiak ezabatu dira. Aplikazioa zerotik hasten da.',
+ 'admin_reset_refused': 'Sistemaren administratzaileak bakarrik egin dezake hau.',
+ 'admin_reset_failed': 'Ezin izan da ezabaketa osatu. Ez da ezer ezabatu. Saiatu berriro.',
+ 'admin_error_log_empty': 'Ez dago arazorik erregistratuta. Dena ondo dago.',
  'admin_error_log_first_seen_label': 'Lehen aldiz ikusia',
- 'admin_error_log_header': '🩺 IA Diagnostiko Gunea',
+ 'admin_error_log_header': '🩺 Diagnostiko Gunea',
  'admin_translation_health_header': '🌐 Itzulpen-sistemaren egoera',
  'admin_translation_health_caption': 'Español / Euskera / English itzulpen-sistemaren egoera '
                                      'zuzenean.',
@@ -496,70 +324,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_translation_runtime_gaps': '⚠️ Saio honetan exekuzio-denboran falta izan diren gakoak '
                                    '({count})',
  'admin_translation_panel_error': 'Une honetan ezin izan da itzulpen-egoeraren panela kargatu.',
- 'admin_error_log_last_seen_label': 'Azken aldiz ikusia',
- 'admin_error_log_no_matches': 'Ez dago uneko iragazkiekin bat datorren errorerik.',
- 'admin_error_log_no_package': 'Ez zen IA Diagnostiko Paketerik sortu erregistro honentzat -- '
-                               'Diagnostiko Motorra existitu baino lehen erregistratu zen. '
-                               'Xehetasun teknikoak oraindik eskuragarri daude behean.',
- 'admin_error_log_no_traceback': 'Traceback-ik gabe -- hau pertsona batek bidalitako txosten bat '
-                                 'izan zen, ez salbuespen automatiko bat.',
- 'admin_error_log_not_available': 'ez dago eskuragarri',
  'admin_error_log_occurrences_label': 'Gertaerak',
  'admin_error_log_page_label': 'Orria',
- 'admin_error_log_prompt_label': '🤖 IA Prompt-a',
- 'admin_error_log_readiness_explainer': 'IA Prestutasun puntuazioa ez dago IAk sortuta -- '
-                                        'erregistro honetarako beheko 7 ebidentzia-kategorietatik '
-                                        'zenbat dauden aurkeztuta zenbatzen duen kontaketa sinplea '
-                                        'da.',
- 'admin_error_log_readiness_label': 'IA Prestutasuna',
- 'admin_error_log_screenshot_error': '(ezin izan da pantaila-argazkia erakutsi)',
- 'admin_error_log_screenshot_label': 'Pantaila-argazkia',
- 'admin_error_log_search_label': '🔍 Bilatu (orria, errore mota edo mezua)',
- 'admin_error_log_session_label': '🧭 Saioaren testuingurua',
- 'admin_error_log_severity_filter_label': 'Larritasunaren arabera iragazi',
- 'admin_error_log_severity_label': 'Larritasuna',
- 'admin_error_log_status_filter_label': 'Egoeraren arabera iragazi',
  'admin_error_log_status_label': 'Egoera',
- 'admin_error_log_summary_label': 'Laburpena',
- 'admin_error_log_technical_label': '🔧 Xehetasun teknikoak',
- 'admin_error_log_timeline_label': '🕒 Ebidentziaren denbora-lerroa',
- 'admin_error_log_traceback_label': 'Traceback tekniko osoa',
- 'admin_error_log_user_label': 'Erabiltzailea',
  'admin_error_log_when_label': 'Noiz',
- 'admin_error_log_who_experienced_label': '👥 Nork bizi izan zuen ({n} erakutsita)',
- 'admin_error_log_who_experienced_partial': 'Une honetan kargatutako gertaerak erakusten ari da; '
-                                            'goiko kontaketa osoak erregistratutako gertaera '
-                                            'guztiak islatzen ditu.',
- 'admin_diag_filters_header': '🔍 Iragazkiak',
- 'admin_diag_filter_page': 'Orrialdeak hau izan behar du',
- 'admin_diag_filter_root_cause': 'Jatorrizko kausak hau izan behar du',
- 'admin_diag_filter_user': 'Erabiltzaileak hau izan behar du',
- 'admin_diag_filter_date_from': 'Data honetatik',
- 'admin_diag_filter_date_to': 'Data honetara',
- 'admin_diag_metric_total': 'Guztizko intzidentziak',
- 'admin_diag_metric_open': '🟥 Irekiak',
- 'admin_diag_metric_fixed': '✅ Konponduta',
- 'admin_diag_metric_warnings': '⚠️ Abisuak',
- 'admin_diag_section_selector': 'Ikusi',
- 'admin_diag_tab_open': '🟥 Intzidentzia irekiak ({n})',
- 'admin_diag_tab_fixed': '✅ Konpondutako intzidentziak ({n})',
- 'admin_diag_tab_warnings': '⚠️ Abisuak ({n})',
- 'admin_diag_tab_trends': '📈 Joeren analisia',
- 'admin_diag_open_empty': 'Ez dago uneko iragazkiekin bat datorren intzidentzia irekirik.',
- 'admin_diag_fixed_empty': 'Ez dago uneko iragazkiekin bat datorren konpondutako intzidentziarik.',
- 'admin_diag_warnings_empty': 'Ez dago uneko iragazkiekin bat datorren abisurik.',
- 'admin_diag_trends_empty': 'Oraindik ez dago nahikoa daturik joeren analisirako.',
- 'admin_diag_trends_caption': 'Goian jadanik kargatutako gorabeherekin osorik eraikia: bolumena, '
-                              'arazo-guneak eta arazo ohikoenak, begi-kolpe batean.',
- 'admin_diag_warnings_caption': 'Abisuak ez dira kritikoak baina jakitea komeni da -- adibidez, '
-                                'hausnarketa baten sorrera partziala -- eta goiko '
-                                'aplikazio-erroreetatik bereizita mantentzen dira.',
- 'admin_diag_trends_volume_header': '📅 Gertaerak denboran zehar',
- 'admin_diag_trends_pages_header': '📍 Orrialde eraginenak',
- 'admin_diag_trends_category_header': '🗂️ Gertaerak kategoriaka',
- 'admin_diag_trends_uncategorized': 'Kategoriarik gabe',
- 'admin_diag_trends_top_issues_header': '🔁 Intzidentzia ohikoenak',
- 'admin_diag_trends_no_issues': 'Oraindik ez dago intzidentziarik erregistratuta.',
  'error_boundary_body': 'Hau {ref} errore gisa erregistratu da. Saiatu berriro -- gertatzen '
                         'jarraitzen badu, esan zure administratzaileari goiko erreferentzia '
                         'zenbakia.',
@@ -661,30 +429,20 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                   'inorekiko konparaziorik gabe. Zure oharrak eta aztertzen duzuna zureak '
                                   'bakarrik dira; gordetako behaketak arduradunek ere ikus ditzakete.',
           'manager_title': 'Zuzendaritza-taldearen area',
-          'learning_section_title': '📚 Ikaskuntza',
-          'learning_section_body': 'Ikaskuntzak lau fitxa ditu: Taldearen presentzia (nor dagoen '
-                                   'aktibo), Ezagutza-laguntzailea (egin galdera bat eta jaso '
-                                   'erakundearen gordetako hausnarketetan oinarritutako '
-                                   'erantzuna), Ikaskuntzak (zein dimentsio agertu diren maizen) '
-                                   'eta Taldearen ikaskuntza (azken sei hilabeteetako gai '
-                                   'bateratuak). Hemen dena da bateratua eta anonimoa -- ezin da '
-                                   'inoren lana bereiz seinalatu.',
           'case_history_section_title': '🗂️ Hausnarketen historia',
-          'case_history_section_body': 'Hausnarketen historiak jasotako feedbacka '
-                                       '(erabilgarritasun-balorazioak eta iruzkinak) eta gordetako '
-                                       'hausnarketak erakusten ditu, bakoitza bere kode '
-                                       'neutroarekin, gaiekin eta IAren behaketekin. Data eta '
-                                       'gaiaren arabera iragazi daiteke. Ez du inoiz kasuaren '
-                                       'testua edo profesionalen ohar pribatuak erakusten.',
-          'research_metrics_section_title': '📊 Ikerketa-metrikak',
-          'research_metrics_section_body': 'Ikerketa-metrikek (Sistemaren administratzailea '
-                                           'bakarrik) piloto-mailako ikuspegi bateratua eskaintzen '
-                                           'dute: hausnarketa-saioak eta gordetako behaketak '
-                                           'guztira, dimentsio bakoitza zenbatetan seinalatu den '
-                                           'eta zenbatetan arakatu den, feedback-balorazioak eta '
-                                           'CSV esportazio bat.',
+          'case_history_section_body': 'Hausnarketen historiak erabilgarritasunaren batez besteko '
+                                       'balorazioa erakusten du (inoiz ez banakako balorazioak, '
+                                       'ezta nork eman dituen ere) eta gordetako hausnarketak, '
+                                       'bakoitza bere kode neutroarekin, gaiekin eta IAren '
+                                       'behaketekin. Data eta gaiaren arabera iragazi daiteke. Ez '
+                                       'ditu inoiz profesionalen ohar pribatuak erakusten.',
           'admin_title': '🛠️ Sistemaren administrazioa',
-          'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen kudeaketa, sistemaren osasun-egoera, konfigurazioa, itzulpenen osasun-egiaztapenak, IA Diagnostiko Zentroa (errore-erregistroa) eta kasuen ezagutzan bilaketa. «Hausnarketak bakarrik» aldaketaren aurretik gordetako dokumentu zaharrak behin betiko ezabatzeko aukera ere ematen du.',
+          'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen zerrenda, '
+                                'sistemaren egoera, anonimizazio-proba, itzulpenen '
+                                'osasun-egiaztapenak, Diagnostiko Gunea (erregistratutako arazoen '
+                                'zerrenda) eta zerbitzuen erabilera eta kostuak. Gordetako datu '
+                                'guztiak behin betiko ezabatzeko aukera ere ematen du, zerotik '
+                                'hasteko.',
           'report_problem_title': '🚩 Arazo bat jakinaraztea',
           'report_problem_body': 'Orri bakoitzak 🚩 Arazo bat jakinarazi kontrol bat du alboko '
                                  'barran, edonorentzat eskuragarri. Deskribatu gertatutakoa zure '
@@ -965,271 +723,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'report_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta sakatu Ctrl+P (edo '
                         'Inprimatu) inprimatzeko edo PDF gisa gordetzeko.',
  'report_outdated': 'Bilaketa, egoerak edo aukerak aldatu dituzu: prestatu txostena berriro.',
- 'nav_corpus': '📚 Testuen azterketa',
- 'corpus_title': '📚 Testuen azterketa',
- 'corpus_no_access': 'Orri hau gainbegiratzerako eta programaren koordinaziorako soilik da.',
- 'corpus_intro': 'Hemen kudeaketa-taldeak lehendik dauden testuak (adibidez, EDEren testu '
-                 'gordinak) kargatu ditzake, eta hainbat dokumentutan errepikatzen diren esanahi '
-                 'antzeko pasarteak bilatu. Agertzen direnak hausnarketarako eredu hautagaiak '
-                 'dira, ez ondorioak: esamolde errepikatu batek ez du alborapenik edo jardun '
-                 'txarrik frogatzen, eta dokumentu motagatik edo txantiloi batengatik izan '
-                 'daiteke.',
- 'corpus_privacy_note': 'Gorde aurretik, testu bakoitzari izenak eta datu pertsonalak kentzen '
-                        'zaizkio aplikazioaren sistema automatikoarekin, eta baliteke dena ez '
-                        'detektatzea: kargatu anonimizatuta dauden testuak soilik. Testuak zenbaki '
-                        'batekin identifikatzen dira (T-001, T-002…); fitxategien izenak ez dira '
-                        'gordetzen. Bilduma hau profesionalen hausnarketetatik bereizita dago, eta '
-                        'gainbegiratzeak eta koordinazioak soilik ikusten dute.',
- 'corpus_collection_header': 'Testu-bilduma',
- 'corpus_create_header': 'Sortu bilduma berri bat',
- 'corpus_create_name_label': 'Bildumaren izena',
- 'corpus_create_button': 'Sortu bilduma',
- 'corpus_created_ok': 'Bilduma sortu da.',
- 'corpus_name_needed': 'Idatzi izen bat. (Gehienez {max} bilduma izan daitezke.)',
- 'corpus_none_yet': 'Oraindik ez dago bildumarik. Sortu bat hasteko.',
- 'corpus_select_label': 'Bilduma',
- 'corpus_option': '{name} ({documents} testu)',
- 'corpus_add_header': 'Gehitu testuak',
- 'corpus_add_intro': 'Testuak banan-banan, batera edo guztiak aldi berean gehi ditzakezu. Testu '
-                     'bera bi aldiz gehitzen baduzu, aplikazioak antzematen du eta ez du '
-                     'bikoizten.',
- 'corpus_upload_label': 'Igo fitxategiak (Word, PDF edo testua)',
- 'corpus_too_many_files': 'Fitxategi gehiegi hautatu dituzu aldi berean: lehenengo {max} soilik '
-                          'gehituko dira. Igo gainerakoak gero.',
- 'corpus_add_files_button': 'Gehitu hautatutako fitxategiak',
- 'corpus_adding': 'Testuak gehitzen…',
- 'corpus_paste_label': 'Edo itsatsi testu bat hemen',
- 'corpus_add_paste_button': 'Gehitu itsatsitako testua',
- 'corpus_paste_empty': 'Itsatsi lehenik testu bat.',
- 'corpus_pasted_name': 'Itsatsitako testua',
- 'corpus_added_summary': '{total} testutik {added} gehitu dira.',
- 'corpus_result_added': '{name}: {label} gisa gehitu da ({passages} pasarte).',
- 'corpus_result_duplicate': '{name}: dagoeneko bildumako {label} da; ez da bikoiztu.',
- 'corpus_result_empty': '{name}: ezin izan da pasarte erabilgarririk atera (testu laburregia).',
- 'corpus_result_full': '{name}: bilduma beteta dago (gehienez {max} testu).',
- 'corpus_result_refused': '{name}: {reason}',
- 'corpus_result_error': '{name}: ezin izan da gehitu. Saiatu berriro.',
- 'corpus_docs_header': 'Bildumako testuak',
- 'corpus_docs_empty': 'Bilduma honek ez du testurik oraindik.',
- 'corpus_docs_counts': 'Bildumak {documents} testu ditu, {passages} pasartetan banatuta.',
- 'corpus_docs_list_header': 'Ikusi eta ezabatu testuak',
- 'corpus_doc_line': '{label} — {chars} karaktere — {passages} pasarte',
- 'corpus_doc_delete': 'Ezabatu',
- 'corpus_doc_deleted_ok': 'Testua ezabatu da, bere pasarteekin eta ereduetan zuen lekuarekin.',
- 'corpus_docs_more': 'Eta {count} testu gehiago.',
- 'corpus_delete_collection': 'Ezabatu bilduma osoa',
- 'corpus_delete_collection_help': 'Bilduma honetako testu, pasarte eta eredu guztiak ezabatzen '
-                                  'dira. Ezin da desegin.',
- 'corpus_delete_collection_confirm': 'Ulertzen dut dena ezabatuko dela eta ezin dela desegin',
- 'corpus_delete_collection_button': 'Ezabatu bilduma',
- 'corpus_deleted_ok': 'Bilduma ezabatu da.',
- 'corpus_generate_header': 'Bilatu errepikatzen diren pasarteak',
- 'corpus_settings_header': 'Bilaketaren doikuntzak',
- 'corpus_settings_intro': 'Doikuntza hauek abiapuntuak dira, ez balio frogatuak. Aldatu itzazu eta '
-                          'alderatu emaitzak.',
- 'corpus_similarity_label': 'Pasarteen artean eskatutako antzekotasuna',
- 'corpus_similarity_help': 'Zabalak antzekotasun ahulagoa duten pasarteak multzokatzen ditu '
-                           '(multzo gehiago, zarata gehiago). Zorrotzak antzekotasun handiagoa '
-                           'eskatzen du (multzo gutxiago, fidagarriagoak).',
- 'corpus_min_passages_label': 'Gutxieneko pasarte kopurua ereduko',
- 'corpus_min_documents_label': 'Gutxieneko testu desberdinen kopurua ereduko',
- 'corpus_questions_switch': 'Sartu AAk idatzitako galderak',
- 'corpus_questions_help': 'Desaktibatzen baduzu, AAk ez du galderarik idatziko eta ez da bat ere '
-                          'erakutsiko. Gainerako azalpenak idatziko dira.',
- 'corpus_cost_note': 'Bilatzeak AA erabiltzen du gehienez {max_patterns} azalpen idazteko (zentimo '
-                     'gutxi batzuk guztira) eta pasarte berriei esanahia emateko (oso merkea, eta '
-                     'pasarte bakoitzeko behin bakarrik). Botoia berriro sakatzen baduzu soilik '
-                     'ordaintzen da berriro.',
- 'corpus_truncated': 'Bildumak bilaketa batean sartzen direnak baino pasarte gehiago ditu; '
-                     'lehenengo {max} erabiliko dira (testuen ordenaren arabera).',
- 'corpus_not_enough': 'Bilatzeko gutxienez {minimum} testu behar dira bilduman.',
- 'corpus_generate_button': 'Bilatu errepikatzen diren pasarteak',
- 'corpus_generating': 'Lanean… minutu bat behar izan dezake.',
- 'corpus_busy': 'Bilaketa bat martxan dago jada. Itxaron amaitu arte.',
- 'corpus_unavailable': 'Esanahiak alderatzen dituen zerbitzua ez dago konfiguratuta, beraz ezin da '
-                       'bilatu orain.',
- 'corpus_none_found': 'Ez da testu desberdin nahikotan agertzen den multzorik aurkitu ({documents} '
-                      'testu, {passages} pasarte aztertuta). Probatu antzekotasun zabalagoarekin '
-                      'edo gutxieneko txikiagoekin.',
- 'corpus_generated_ok': '{patterns} eredu hautagai aurkitu dira {documents} testutan.',
- 'corpus_not_embedded': '{count} pasarte ezin izan dira alderatu oraingoan eta kanpoan geratu '
-                        'dira.',
- 'corpus_fallback_notice': '{count} eredutan ezin izan da azalpen automatikoa idatzi; testu sinple '
-                           'bat erakusten da eta berriro saia zaitezke.',
- 'corpus_review_header': 'Berrikusi eredu hautagaiak',
- 'corpus_no_runs': 'Oraindik ez da bilaketarik egin bilduma honetan.',
- 'corpus_run_select': 'Bilaketa',
- 'corpus_run_option': '{date} — {documents} testu — {patterns} eredu',
- 'corpus_run_caption': 'Antzekotasuna: {level} · gutxieneko pasarteak: {min_passages} · gutxieneko '
-                       'testuak: {min_documents} · AAren galderak: {questions}',
- 'corpus_yes': 'bai',
- 'corpus_no': 'ez',
- 'corpus_none_in_view': 'Hautatutako egoeretan ez dago eredurik.',
- 'corpus_no_groups_note': 'Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori '
-                          'buruzkoak diren), beraz orri honek ezin du ezer esan talde desberdinak '
-                          'berdin ala desberdin tratatzen diren. Zer errepikatzen den eta zenbat '
-                          'testutan bakarrik erakusten du.',
- 'corpus_item_header': '{title} — {status} — testuak: {documents} / {total}',
- 'corpus_counts_line': 'Agertzen den testu kopurua: {documents} / {total} (% {percent}) · '
-                       '{passages} pasarte',
- 'corpus_documents_line': 'Testuak: {labels}',
- 'corpus_lost_members': 'Eredu honetako {count} pasarte ez daude eskuragarri jada (testua ezabatu '
-                        'da). Idatzitako azalpenak oraindik haiek islatu ditzake: bilatu berriro '
-                        'fidatu aurretik.',
- 'corpus_below_minimum': 'Oraingo testuekin, multzo honek ez ditu jada aurkitu zenean zituen '
-                         'gutxienekoak betetzen.',
- 'corpus_passages_header': 'Pasarte zehatzak',
- 'corpus_more_passages': 'Eta {count} pasarte gehiago ez dira hemen erakusten.',
- 'corpus_exclude_button': 'Pasarte hau ez dagokio eredu honi',
- 'corpus_excluded_ok': 'Pasartea ereduatik kendu da.',
- 'corpus_restored_ok': 'Pasartea berriro sartu da.',
- 'corpus_read_header': 'Irakurri testu bakoitza hausnarketa-lenteekin',
- 'corpus_read_intro': 'AAk testu bakoitza bereizita irakurtzen du profesionalek erabiltzen '
-                      'dituzten zortzi hausnarketa-lente berberekin (pertsonaren ahotsa, behaketa '
-                      'eta interpretazioa, etiketak eta hizkuntza, alborapen posiblea, etab.) eta '
-                      'testuan benetan agertzen diren aipuak soilik gordetzen ditu. Ez ditu '
-                      'testuak elkarren artean alderatzen: kontaketak aplikazioak kalkulatzen '
-                      'ditu.',
- 'corpus_read_no_texts': 'Gehitu testuak irakurri ahal izateko.',
- 'corpus_read_status': '{documents} testutik {read} irakurrita; {unread} falta dira.',
- 'corpus_read_nothing': 'Testu guztiak irakurrita daude.',
- 'corpus_read_cost_note': 'Testu bakoitza AAri egindako zortzi deirekin irakurtzen da: gutxi '
-                          'gorabehera {per_text} $ testuko. Sorta honek (gehienez {batch} testu) '
-                          '{cost} $ inguru kostatuko du. Testuak sortetan irakurtzen dira, klik '
-                          'bakoitzak asko ez luzatzeko; sakatu berriro hurrengoekin jarraitzeko.',
- 'corpus_read_button': 'Irakurri hurrengo {count} testuak',
- 'corpus_reading': 'Testuak irakurtzen…',
- 'corpus_read_progress': '{total} testutik {done} irakurrita',
- 'corpus_read_busy': 'Irakurketa bat martxan dago jada. Itxaron amaitu arte.',
- 'corpus_read_unavailable': 'AA zerbitzua ez dago konfiguratuta, beraz ezin da irakurri orain.',
- 'corpus_read_done': '{count} testu irakurri dira. {remaining} falta dira.',
- 'corpus_read_failed_lenses': '{count} irakurketa ezin izan dira osatu; hurrengoan berriro '
-                              'saiatuko dira.',
- 'corpus_read_caveat': '"Aipatua" esan nahi du AAk testu horretan lente horrekin behaketa bat '
-                       'planteatu duela. Ez du neurtzen zerbait zenbatetan gertatzen den, eta ezer '
-                       'aipatzen ez duenean horrek ez du esan nahi testua horretatik libre '
-                       'dagoenik.',
- 'corpus_lens_counts_header': 'Zein lente aipatu diren, testuka',
- 'corpus_lens_item': '{lens} — aipatutako testuak: {raised} / {considered}',
- 'corpus_lens_failed_note': '{count} testutan lente hau ezin izan da irakurri.',
- 'corpus_lens_none': 'AAk ez du ezer planteatu lente honekin.',
- 'corpus_lens_no_quote': 'Aipu zehatzik gabe (behaketa testuan falta den zerbaiti buruzkoa izan '
-                         'daiteke).',
- 'corpus_lens_unverified': 'Proposatutako {count} pasarte ezin izan dira testuan egiaztatu eta ez '
-                           'dira erakusten.',
- 'corpus_text_view_header': 'Ikusi testu baten irakurketa',
- 'corpus_text_select': 'Testua',
- 'corpus_text_no_reading': 'Testu hau ez da oraindik irakurri.',
- 'corpus_text_lens_failed': 'Lente hau ezin izan da irakurri.',
- 'corpus_text_lens_none': 'AAk ez du ezer planteatu.',
- 'corpus_read_again_header': 'Irakurri berriro testu guztiak',
- 'corpus_read_again_help': 'Bilduma honen irakurketa guztiak ezabatzen ditu hutsetik berriro '
-                           'irakurri ahal izateko (berriro ordaintzen da).',
- 'corpus_read_again_confirm': 'Ulertzen dut irakurketak ezabatuko direla eta berriro irakurtzeak '
-                              'berriro kostatzen duela',
- 'corpus_read_again_button': 'Ezabatu irakurketak',
- 'corpus_read_cleared_ok': 'Irakurketak ezabatu dira.',
- 'corpus_terms_header': 'Hitzen eta esamoldeen zerrenda',
- 'corpus_terms_intro': 'Zerrendako hitz edo esamolde bakoitza zenbat testutan agertzen den '
-                       'zenbatzen du. Idatzitako hitzen zenbaketa soila da: ez du esanahia '
-                       'interpretatzen, eta hitz bat ez agertzeak ez du esan nahi ideia testuan '
-                       'beste hitz batzuekin ez dagoenik.',
- 'corpus_terms_how': 'Idatzi hitz edo esamolde bat lerroko. Maiuskulek eta azentuek ez dute '
-                     'axolarik. Gehitu * hitz baten amaieran bere bukaerak barne hartzeko: «etxe*» '
-                     'hitzak etxea, etxeak, etxean… aurkitzen ditu. Batez ere euskaraz '
-                     'erabilgarria da, hitzek amaieran aldatzen baitira; gaztelaniaz, «agresiv*» '
-                     'hitzak agresivo, agresiva, agresivos… aurkitzen ditu.',
- 'corpus_terms_add_label': 'Hitzak edo esamoldeak (bat lerroko)',
- 'corpus_terms_add_button': 'Gehitu zerrendara',
- 'corpus_terms_empty_input': 'Idatzi gutxienez hitz edo esamolde bat.',
- 'corpus_terms_added': 'Gehituta: {added}. Zerrendan zeuden: {duplicates}. Baliogabeak: {invalid}.',
- 'corpus_terms_invalid_lines': 'Lerro hauek ezin izan dira erabili: {lines}. Letrak eta zenbakiak '
-                               'bakarrik onartzen dira (eta * hitzaren amaieran, gutxienez hiru '
-                               'letraren ondoren), gehienez {words} hitz esamolde bakoitzeko.',
- 'corpus_terms_full': 'Zerrendak gehienezko mugara iritsi da: {max} hitz edo esamolde.',
- 'corpus_terms_starter_help': 'Abiapuntu bat: kasu-oharretan batzuetan pertsonak modu negatibo edo '
-                              'itxian deskribatzeko agertzen diren hitz eta esamoldeak. '
-                              'Adibide-zerrenda bat da: editatu, kendu balio ez duena eta gehitu '
-                              'zurea. Euskarazko zatia euskaraz dakien pertsona batek berrikusi '
-                              'behar du benetan erabili aurretik.',
- 'corpus_terms_starter_button': 'Gehitu hasierako zerrenda (gaztelania eta euskara)',
- 'corpus_terms_starter_done': 'Hasierako zerrenda gehituta: {added} berri ({duplicates} bazeuden).',
- 'corpus_terms_basque_review': 'Hasierako zerrendako euskarazko hitzak lehen proposamen bat dira: '
-                               'euskaraz dakien pertsona batek berrikusi behar ditu.',
- 'corpus_terms_none_yet': 'Zerrenda hutsik dago. Gehitu hitzak edo erabili hasierako zerrenda.',
- 'corpus_terms_no_texts': 'Gehitu testuak bildumara zenbatzeko zerbait egon dadin.',
- 'corpus_terms_counts_header': 'Emaitzak',
- 'corpus_terms_caveat': '«Testuak» zutabeak hitza gutxienez behin duten testuak zenbatzen ditu. Ez '
-                        'du neurtzen zerbait ohikoa den, ezta on edo txarra den ere: hitz bat '
-                        'zerbait ukatzeko ere erabil daiteke («ez da oldarkorra»). Begiratu beti '
-                        'testuingurua.',
- 'corpus_terms_col_term': 'Hitza edo esamoldea',
- 'corpus_terms_col_texts': 'Testuak',
- 'corpus_terms_col_times': 'Aldiak',
- 'corpus_terms_texts_cell': '{documents} / {total}',
- 'corpus_terms_remove_label': 'Kendu zerrendatik',
- 'corpus_terms_remove_button': 'Kendu hautatutakoak',
- 'corpus_terms_removed_ok': 'Hitzak zerrendatik kendu dira.',
- 'corpus_terms_context_header': 'Non agertzen den',
- 'corpus_terms_context_select': 'Aukeratu hitz edo esamolde bat',
- 'corpus_terms_context_none': 'Ez da testu batean ere agertzen.',
- 'corpus_terms_context_caption': 'Parentesi artean, testu horretan zenbat aldiz agertzen den.',
- 'corpus_terms_context_line': '{label} ({times})',
- 'corpus_terms_context_more': '… eta {count} testu gehiago.',
- 'corpus_terms_text_header': 'Zerrendako hitzak testu batean',
- 'corpus_terms_text_select': 'Aukeratu testu bat',
- 'corpus_terms_text_none': 'Zerrendako hitzik ez da agertzen testu honetan.',
- 'corpus_terms_text_line': '{term}: {times}',
- 'corpus_terms_download': 'Deskargatu taula osoa (CSV)',
- 'corpus_report_header': 'Inprimatzeko txostena',
- 'corpus_report_intro': 'Inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du, hautatzen '
-                        'dituzun zatiekin. Testuak zenbakiarekin bakarrik agertzen dira (T-001…).',
- 'corpus_report_opt_patterns': 'Sartu bilaketa bateko ereduak',
- 'corpus_report_run_label': 'Sartu beharreko eredu-bilaketa',
- 'corpus_report_opt_readings': 'Sartu lenteekin egindako irakurketa',
- 'corpus_report_opt_terms': 'Sartu hitzen zerrenda',
- 'corpus_report_opt_passages': 'Sartu pasarteak eta aipu zehatzak (hautatu gabe: zenbaketak eta '
-                               'azalpenak bakarrik)',
- 'corpus_report_nothing_selected': 'Hautatu txostenaren zati bat gutxienez.',
- 'corpus_report_no_run': 'Oraindik ez dago eredu-bilaketarik: ez da eredurik sartuko.',
- 'corpus_report_doc_title': 'Testuen azterketaren txostena',
- 'corpus_report_how_to_read': 'Txosten honek lehendik idatzita dauden testu-multzo batean zer '
-                              'errepikatzen den biltzen du. Ereduak hausnarketarako hautagaiak '
-                              'dira, ez ondorioak: gai bat errepikatzeak ez du alborapenik edo '
-                              'jardun txarrik frogatzen. Aurkikuntza bakoitzaren indarra beti '
-                              '«testuen zenbatetan agertzen den» gisa adierazten da. Taldeak '
-                              'erabakitzen du zer esan nahi duen, esan nahi badu.',
- 'corpus_report_collection_title': 'Bilduma',
- 'corpus_report_collection_line': '«{name}» bilduma: {documents} testu eta {passages} pasarte.',
- 'corpus_report_search_title': 'Eredu-bilaketa',
- 'corpus_report_search_line': '{date}(e)ko bilaketa: {documents} testu eta {passages} pasarte '
-                              'alderatu dira; eredu hautagai {patterns} aurkitu dira.',
- 'corpus_report_col_texts': 'Zenbat testutan',
- 'corpus_report_col_passages': 'Pasarteak',
- 'corpus_report_passages_omitted': 'Pasarteak eta aipuak ez dira txosten honetan sartzen.',
- 'corpus_report_readings_title': 'Testu bakoitzaren irakurketa lenteekin',
- 'corpus_report_readings_omitted': 'Behaketak eta aipu zehatzak ez dira txosten honetan sartzen; '
-                                   'behean, AAk zerbait planteatu duen testuak.',
- 'corpus_report_terms_title': 'Hitzen eta esamoldeen zerrenda',
- 'corpus_report_col_where': 'Agertzen den testuak',
- 'corpus_report_more_texts': '(eta {count} gehiago)',
- 'corpus_report_limits_list': ['Testuek ez daramate etiketarik (ez nork idatzi dituen, ez nori '
-                               'buruzkoak diren): txosten honek ezin du ezer esan talde '
-                               'desberdinak berdin ala desberdin tratatzen diren.',
-                               'Ereduen multzokatzea automatikoa da, esanahiaren antzagatik; '
-                               'erlazionatu gabeko pasarteak elkartu ditzake edo erlazionatuak '
-                               'bereizi.',
-                               'Lenteekin egindako irakurketa AAk egiten du, testuz testu: '
-                               '«aipatua» ez du neurtzen zerbait zenbatetan gertatzen den, eta '
-                               'ezer aipatzen ez duenean horrek ez du esan nahi testua horretatik '
-                               'libre dagoenik.',
-                               'Hitzen zenbaketak idatzitako hitzak soilik hartzen ditu kontuan: '
-                               'ez ditu testuingurua ez sinonimoak ulertzen.',
-                               'Bildumako testuak taldeak kargatzea erabaki dituenak dira; ez dira '
-                               'nahitaez dokumentazio osoaren adierazgarri.',
-                               'Anonimizazio automatikoak baliteke datu pertsonal guztiak ez '
-                               'detektatzea: berrikusi txosten hau partekatu aurretik.'],
- 'corpus_report_footer': 'Konfidentziala · Hausnarketarako hautagaiak, ez ondorioak · {date}',
  'rs_intro': 'Idatzi, itsatsi edo igo hausnartu nahi duzun kasua eta hausnartu une berean. AAri zure testuaren bertsio anonimizatu bat bakarrik bidaltzen zaio. Jatorrizko testua modu seguruan gordetzen da hausnarketarekin batera, geroago ereduak aztertzeko.',
  'rs_code_label': 'Hausnarketa honen kodea:',
  'rs_code_help': 'Aplikazioak sortutako kode neutroa. Ez du inor identifikatzen. Idatzi ezazu '
@@ -1290,23 +783,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                       'oharrak ezabatuko dira. Ekintza hau ezin da desegin.',
  'ch_deleted_success': '✔ Hausnarketa ezabatuta.',
  'ch_delete_failed': '⚠ Ezin izan da hausnarketa ezabatu.',
- 'research_observations_label': 'Gordetako behaketak',
- 'admin_legacy_docs_header': '🗑️ Ezabatu gordetako dokumentu zaharrak',
- 'admin_legacy_docs_none': 'Ez da gordetako dokumentu zaharrik geratzen. Reflection Spacek '
-                           'hausnarketak bakarrik gordetzen ditu.',
- 'admin_legacy_docs_count': '«Hausnarketak bakarrik» aldaketaren aurretik gordetako {count} '
-                            'dokumentu geratzen dira.',
- 'admin_legacy_docs_caption': 'Betiko ezabatuko dira: dokumentu zahar guztiak, haien aldaketen '
-                              'historia, haietatik sortutako hausnarketak (behaketa eta oharrekin) '
-                              'eta haien bilaketa-kopiak. Hausnarketa berriak ez dira ukitzen. '
-                              'Ekintza hau ezin da desegin.',
- 'admin_legacy_docs_confirm_word': 'EZABATU',
- 'admin_legacy_docs_confirm_label': 'Berresteko, idatzi {word}',
- 'admin_legacy_docs_button': 'Ezabatu dokumentu zahar guztiak',
- 'admin_legacy_docs_done': '✔ {count} dokumentu zahar ezabatu dira.',
- 'admin_legacy_docs_refused': 'Sistemaren administratzaileak bakarrik egin dezake hau.',
- 'admin_legacy_docs_count_failed': 'Ezin izan da kontsultatu zenbat dokumentu zahar geratzen '
-                                   'diren.',
  'case_tag_labels': {'housing': 'Etxebizitza / etxegabetasuna',
                      'employment_training': 'Enplegua eta prestakuntza',
                      'income_benefits': 'Diru-sarrerak eta prestazioak',

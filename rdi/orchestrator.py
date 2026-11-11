@@ -518,7 +518,7 @@ def run_reflection(text, lang="Español", context_description=""):
         )
 
     # Merge into the same flat shape generate_reflection() used to
-    # return, so log_reflection() (and the Learning page) keep working
+    # return, so log_reflection() keeps working
     # exactly as before. Failed companions are logged as empty/not
     # flagged, same as a dimension the model found nothing notable in.
     raw_result = {}

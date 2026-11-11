@@ -139,40 +139,6 @@ class TestRateLimitersUnderConcurrency(unittest.TestCase):
         summary = report.summary()
         self.assertEqual(summary["successes"], 30, "check_and_record() itself should never raise")
 
-    def test_ka_rate_limiter_never_exceeds_its_cap(self):
-        """
-        The same concurrency race test as above, but for the Knowledge
-        Assistant rate limiter -- this is the specific behavior the
-        Phase 3 load-testing pass found was UNPROTECTED and fixed (see
-        services/ka_rate_limiter.py's Phase 3 note). This test verifies
-        the fix actually holds under real concurrent access to the
-        fake database, using real threads and the real advisory-lock
-        code path.
-        """
-        from services import ka_rate_limiter
-
-        allowed_count = {"n": 0}
-        lock = threading.Lock()
-
-        def scenario(call_index):
-            allowed, _count = ka_rate_limiter.check_and_record("same_ka_user", max_per_hour=10)
-            if allowed:
-                with lock:
-                    allowed_count["n"] += 1
-
-        with fake_database_environment(pool_max=10, query_latency_seconds=0.01):
-            report = run_load_test(scenario, "ka rate limit race", num_users=30, calls_per_user=1)
-
-        summary = report.summary()
-        self.assertEqual(summary["successes"], 30, "check_and_record() itself should never raise")
-        self.assertEqual(
-            allowed_count["n"], 10,
-            f"Expected the advisory-lock serialization to allow exactly 10 of 30 concurrent "
-            f"Knowledge Assistant requests through; {allowed_count['n']} were allowed. This is "
-            f"the exact race condition the Phase 3 fix in services/ka_rate_limiter.py closes.",
-        )
-
-
 class TestRequestDedupUnderConcurrency(unittest.TestCase):
 
     def test_dedup_allows_exactly_one_concurrent_identical_request(self):

@@ -93,8 +93,8 @@ class NavigationTests(unittest.TestCase):
         self.assertEqual(landing_page_for_workspace("Practitioner"), "pages/reflection_space.py")
         self.assertNotIn("Documentation", PRACTITIONER_PAGES)
         self.assertNotIn('page_link("pages/documentation.py"', _read("navigation", "menus.py"))
-        # Old links still work: the retired page only redirects.
-        self.assertIn('st.switch_page("pages/reflection_space.py")', _read("pages", "documentation.py"))
+        # November 2026: the retired redirect page itself was removed.
+        self.assertFalse(ROOT.joinpath("pages", "documentation.py").exists())
 
 
 class TranslationTests(unittest.TestCase):
@@ -102,7 +102,7 @@ class TranslationTests(unittest.TestCase):
         from services.locales.es import LANG_ES
         from services.locales.eu import LANG_EU
         from services.locales.en import LANG_EN
-        prefixes = ("rs_", "ch_", "admin_legacy_docs_")
+        prefixes = ("rs_", "ch_")
         keys = [k for k in LANG_ES if k.startswith(prefixes)]
         self.assertGreaterEqual(len(keys), 50)
         for name, lang in (("es", LANG_ES), ("eu", LANG_EU), ("en", LANG_EN)):
@@ -112,9 +112,7 @@ class TranslationTests(unittest.TestCase):
 
     def test_every_key_used_by_the_changed_screens_exists(self):
         from services.locales.es import LANG_ES
-        for rel in (("pages", "reflection_space.py"), ("pages", "case_history.py"),
-                    ("pages", "admin_sections", "legacy_documents.py"),
-                    ("pages", "research_metrics_page.py")):
+        for rel in (("pages", "reflection_space.py"), ("pages", "case_history.py")):
             for key in re.findall(r'T\["([a-zA-Z0-9_]+)"\]', _read(*rel)):
                 self.assertIn(key, LANG_ES, f"{key} used in {'/'.join(rel)}")
 

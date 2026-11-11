@@ -85,7 +85,7 @@ def log_exploration(case_ref, trigger, turn_count, explored_by="", explored_by_r
     `trigger` is one of the 8 dimension keys already used everywhere
     else (see rdi.reflection_objects.ReflectiveOpportunity.trigger /
     services.reflection_log.THEME_KEYS), so this can be joined against
-    the same theme vocabulary the Learning page already uses.
+    the same theme vocabulary used across the app.
 
     `turn_count` is how many messages the professional sent in this
     opportunity's conversation before the session ended -- a simple

@@ -3,7 +3,7 @@ Realistic concurrent-usage scenarios for Phase 3 load testing.
 
 Every scenario function below calls this application's REAL code
 (services/db_pool.py, services/rate_limiter.py,
-services/ka_rate_limiter.py, services/request_dedup.py,
+services/request_dedup.py,
 services/login_rate_limiter.py, rdi/orchestrator.py). Nothing here
 re-implements or simplifies that logic -- the whole point is to find
 out how the actual production code behaves under concurrency.
@@ -145,14 +145,6 @@ def reflection_rate_limit_scenario(call_index: int, users=("wave_user_1", "wave_
 
     user_name = users[call_index % len(users)]
     rate_limiter.check_and_record(user_name, max_per_hour=rate_limiter.DEFAULT_MAX_PER_HOUR)
-
-
-def ka_rate_limit_scenario(call_index: int, users=("wave_user_1", "wave_user_2", "wave_user_3")):
-    """Same idea as above, for the Knowledge Assistant's rate limiter."""
-    from services import ka_rate_limiter
-
-    user_name = users[call_index % len(users)]
-    ka_rate_limiter.check_and_record(user_name, max_per_hour=30)
 
 
 def request_dedup_scenario(call_index: int, shared_fingerprint: bool = True):

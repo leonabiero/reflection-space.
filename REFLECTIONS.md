@@ -87,11 +87,8 @@ reflection.**
   (`services/reflection_service.continue_companion_conversation`). If that
   fails, nothing is sent and the practitioner sees a plain message. They still
   see their own words on screen; only the AI receives the protected version.
-  The same protection now covers the question typed into the **Knowledge
-  Assistant** (`services/knowledge_assistant.ask`), and stored document-analysis
-  texts are re-checked just before they are read
-  (`services/corpus_reading_service.read_texts`), so texts saved before age
-  protection existed do not send exact ages.
+  (The Knowledge Assistant and Text analysis, which had the same protection,
+  were removed later in November 2026.)
 - **My Reflection is grouped by reflection (November 2026).** "Saved
   observations and your notes" used to list every observation on its own line
   (up to eight per reflection). It now shows one line per reflection — code,
@@ -136,7 +133,7 @@ Status comes from `ReflectionSession.status_of()`.
 On **My Reflection → Your saved reflections**, each reflection has a
 **Delete** button (with an "are you sure?" step). Deleting hides it
 **everywhere at once** — the author's journal and timeline, managers'
-Reflection History, pattern analysis, the Knowledge Assistant and the counts
+Reflection History, pattern analysis and the counts
 — through the shared rule `findings_store.NOT_IN_DELETION_WINDOW`
 (`reflection_runs.deleted_at`). For `DELETION_WINDOW_HOURS` (48) it is listed
 under **Recently deleted** with **Restore**; after that
@@ -280,20 +277,16 @@ Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
 ## Where the code lives
 
 - `pages/reflection_space.py` — the single screen (three stages).
-- `pages/documentation.py` — retired; only redirects old links to Reflection Space.
 - `services/reflection_records.py` — codes, case themes, similar-reflection
-  matching, the management listing, Knowledge Assistant evidence, counts.
+  matching, the management listing, counts.
 - `rdi/reflection_context.py` — holds the case text (session only) and the
   chosen earlier reflections before generating.
 - `services/findings_store.py` — saves the reflection with its identifiers.
 - `pages/case_history.py` — managers' **Reflection History** (codes, themes,
   observations; never case text or private notes; System Administrator can
   delete a reflection).
-- `services/knowledge_assistant.py` — now answers from saved reflections.
-- `services/research_metrics_service.py` — "documents completed" became
-  "observations saved".
-- `pages/admin_sections/legacy_documents.py` — System Administration →
-  **Erase old stored documents**.
+- `services/data_reset.py` and `pages/admin_sections/data_reset.py` — System
+  Administration → **Erase all data** (November 2026).
 
 ## Privacy rules
 
@@ -307,13 +300,15 @@ Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
 
 ## Old stored documents
 
-Documents saved before this change are still in the database until a System
-Administrator erases them from **System Administration → Erase old stored
-documents** (type the confirmation word, then press the button). This
-permanently removes every old document, its edit history, the reflections that
-were generated from those documents, and their search copies. Reflections made
-with the new screen are not touched. Nothing is ever erased automatically on
-start-up.
+Documents saved before this change stay in the database until a System
+Administrator uses **System Administration → Erase all data** (type the
+confirmation word, then press the button). Since November 2026 this single
+action replaces the earlier "Erase old stored documents" panel: because
+everything saved up to then was synthetic test data, it erases *all* saved
+data — old documents, reflections, observations, notes, feedback, patterns,
+recorded problems and cost records — so the pilot starts from zero. User
+accounts, sign-in sessions and settings are kept. Nothing is ever erased
+automatically on start-up.
 
 A full copy of the project as it was before this change is kept on GitHub in
 the branch **`master-version`**.
