@@ -123,6 +123,15 @@ class AdminPageCleanupTests(unittest.TestCase):
             for forbidden in ("st.dataframe(", "st.tabs(", "st.columns("):
                 self.assertNotIn(forbidden, code)
 
+    def test_service_usage_screen_is_the_overview_table_only(self):
+        source = _read("pages", "admin_sections", "service_usage.py")
+        for removed in ("admin_usage_claude_detail_header", "admin_usage_gemini_detail_header",
+                        "admin_usage_per_reflection_header", "admin_usage_pricing_header",
+                        "admin_usage_forecast_header", "number_input(", "get_pricing_table",
+                        "forecast_scenario", "get_cost_per_reflection"):
+            self.assertNotIn(removed, source)
+        self.assertIn("admin_usage_overview_header", source)
+
     def test_diagnostic_centre_is_the_bare_minimum(self):
         source = _read("pages", "admin_sections", "ai_diagnostic_centre.py")
         for removed in ("build_ai_prompt", "from services import case_knowledge", "download_button", "text_area(", "text_input(",

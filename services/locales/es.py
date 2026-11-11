@@ -476,54 +476,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_usage_provider_billing_unavailable': 'Datos de facturación del proveedor no disponibles',
  'admin_usage_active_users': 'usuarios activos',
  'admin_usage_emails_sent': 'correos enviados',
- 'admin_usage_claude_detail_header': 'Detalle de Claude (Anthropic)',
- 'admin_usage_cost_today': 'Coste estimado hoy',
- 'admin_usage_cost_month': 'Coste estimado este mes',
- 'admin_usage_cost_projected': 'Coste proyectado a fin de mes',
- 'admin_usage_input_tokens': 'Tokens de entrada (mes)',
- 'admin_usage_output_tokens': 'Tokens de salida (mes)',
- 'admin_usage_model_unrecognized': '⚠️ Algunas llamadas usaron un modelo que no está en la tabla '
-                                   'de precios; su coste es una estimación de respaldo.',
- 'admin_usage_anthropic_not_configured': 'La clave de la API de Anthropic no está configurada.',
- 'admin_usage_per_reflection_header': 'Coste por reflexión completada',
- 'admin_usage_avg_cost_reflection': 'Coste medio de Claude por reflexión',
- 'admin_usage_reflections_generated': 'Reflexiones generadas (30 días)',
- 'admin_usage_companion_calls': 'Llamadas de acompañantes (30 días, incl. reintentos)',
- 'admin_usage_retry_rate': 'Tasa de reintentos',
- 'admin_usage_no_median_note': 'No hay mediana disponible: las llamadas de cada acompañante no '
-                               'están actualmente etiquetadas con la reflexión a la que '
-                               'pertenecen, así que solo se puede calcular el promedio general.',
- 'admin_usage_gemini_detail_header': 'Detalle de Gemini Embeddings',
- 'admin_usage_embeddings_month': 'Embeddings este mes',
- 'admin_usage_embeddings_failed': 'Solicitudes de embedding fallidas (mes)',
- 'admin_usage_gemini_estimate_note': '⚠️ Algunas llamadas de embedding no devolvieron un recuento '
-                                     'exacto de tokens del proveedor; su coste se marca como '
-                                     'estimación.',
- 'admin_usage_gemini_not_configured': 'La clave de la API de Gemini no está configurada.',
- 'admin_usage_pricing_header': 'Configuración de precios y presupuestos',
- 'admin_usage_pricing_caption': 'Los precios de los proveedores están centralizados en un solo '
-                                'lugar (services/cost_pricing.py) para no tener que buscarlos por '
-                                'todo el código cuando un proveedor cambia sus tarifas. Los '
-                                'presupuestos mensuales usados para los colores de estado se '
-                                'configuran en config.py (MONTHLY_BUDGET_ANTHROPIC_USD, '
-                                'MONTHLY_BUDGET_GEMINI_USD).',
- 'admin_usage_forecast_header': 'Previsión según volumen de usuarios (estimación)',
- 'admin_usage_forecast_caption': 'Proyecta el coste mensual con un número hipotético de usuarios, '
-                                 'basándose en el coste medio por reflexión medido en este '
-                                 'proyecto piloto. Ajusta los números a continuación.',
- 'admin_usage_forecast_users': 'Número de usuarios',
- 'admin_usage_forecast_reflections': 'Reflexiones por usuario y mes',
- 'admin_usage_forecast_total_reflections': 'Total de reflexiones/mes',
- 'admin_usage_forecast_claude_cost': 'Coste de Claude proyectado/mes',
- 'admin_usage_forecast_gemini_cost': 'Coste de Gemini proyectado/mes',
- 'admin_usage_forecast_presets_header': 'Escenarios habituales',
- 'admin_usage_forecast_current': 'Actual',
- 'admin_usage_forecast_col_users': 'Usuarios',
- 'admin_usage_forecast_col_reflections': 'Reflexiones/mes',
- 'admin_usage_forecast_col_claude_cost': 'Coste de Claude estimado/mes',
- 'admin_usage_forecast_estimate_disclaimer': '⚠️ Todas las proyecciones anteriores son '
-                                             'ESTIMACIONES basadas en promedios observados '
-                                             'actualmente, no costes garantizados.',
  'findings_evidence_caption': 'Pasaje del texto del caso en el que se basa esta observación:',
  'findings_unverified_notice': '{count} pasaje(s) propuesto(s) por la IA no coincidía(n) '
                                'exactamente con el texto y no se muestra(n).',

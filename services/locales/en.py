@@ -457,52 +457,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_usage_provider_billing_unavailable': 'Provider billing data unavailable',
  'admin_usage_active_users': 'active users',
  'admin_usage_emails_sent': 'emails sent',
- 'admin_usage_claude_detail_header': 'Claude (Anthropic) detail',
- 'admin_usage_cost_today': 'Est. cost today',
- 'admin_usage_cost_month': 'Est. cost this month',
- 'admin_usage_cost_projected': 'Projected month-end cost',
- 'admin_usage_input_tokens': 'Input tokens (month)',
- 'admin_usage_output_tokens': 'Output tokens (month)',
- 'admin_usage_model_unrecognized': '⚠️ Some calls used a model not in the pricing table -- their '
-                                   'cost is a fallback estimate.',
- 'admin_usage_anthropic_not_configured': 'Anthropic API key is not configured.',
- 'admin_usage_per_reflection_header': 'Cost per successful reflection',
- 'admin_usage_avg_cost_reflection': 'Average Claude cost per reflection',
- 'admin_usage_reflections_generated': 'Reflections generated (30 days)',
- 'admin_usage_companion_calls': 'Companion calls (30 days, incl. retries)',
- 'admin_usage_retry_rate': 'Retry rate',
- 'admin_usage_no_median_note': "A median isn't available: individual companion calls aren't "
-                               'currently tagged with which reflection they belong to, so only the '
-                               'overall average can be computed.',
- 'admin_usage_gemini_detail_header': 'Gemini Embeddings detail',
- 'admin_usage_embeddings_month': 'Embeddings this month',
- 'admin_usage_embeddings_failed': 'Failed embedding requests (month)',
- 'admin_usage_gemini_estimate_note': '⚠️ Some embedding calls did not return an exact token count '
-                                     'from the provider; their cost is marked as an estimate.',
- 'admin_usage_gemini_not_configured': 'Gemini API key is not configured.',
- 'admin_usage_pricing_header': 'Pricing & budget configuration',
- 'admin_usage_pricing_caption': 'Provider prices are centralized in one place '
-                                '(services/cost_pricing.py) so they never have to be hunted down '
-                                'across the codebase when a provider changes its rates. Monthly '
-                                'budgets used for the status colours above are configured in '
-                                'config.py (MONTHLY_BUDGET_ANTHROPIC_USD, '
-                                'MONTHLY_BUDGET_GEMINI_USD).',
- 'admin_usage_forecast_header': 'User volume forecast (estimate)',
- 'admin_usage_forecast_caption': 'Projects monthly cost at a hypothetical number of users, based '
-                                 "on this pilot's own measured average cost per reflection. Adjust "
-                                 'the numbers below.',
- 'admin_usage_forecast_users': 'Number of users',
- 'admin_usage_forecast_reflections': 'Reflections per user per month',
- 'admin_usage_forecast_total_reflections': 'Total reflections/month',
- 'admin_usage_forecast_claude_cost': 'Projected Claude cost/month',
- 'admin_usage_forecast_gemini_cost': 'Projected Gemini cost/month',
- 'admin_usage_forecast_presets_header': 'Common scenarios',
- 'admin_usage_forecast_current': 'Current',
- 'admin_usage_forecast_col_users': 'Users',
- 'admin_usage_forecast_col_reflections': 'Reflections/month',
- 'admin_usage_forecast_col_claude_cost': 'Est. Claude cost/month',
- 'admin_usage_forecast_estimate_disclaimer': '⚠️ All projections above are ESTIMATES based on '
-                                             'currently observed averages, not guaranteed costs.',
  'findings_evidence_caption': 'Passage from the case text this observation is based on:',
  'findings_unverified_notice': '{count} passage(s) proposed by the AI did not match the text '
                                'exactly and are not shown.',

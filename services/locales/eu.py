@@ -476,55 +476,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                              'eskuragarri',
  'admin_usage_active_users': 'erabiltzaile aktibo',
  'admin_usage_emails_sent': 'posta elektroniko bidalita',
- 'admin_usage_claude_detail_header': 'Claude-ren (Anthropic) xehetasuna',
- 'admin_usage_cost_today': 'Gaurko kostu estimatua',
- 'admin_usage_cost_month': 'Hilabete honetako kostu estimatua',
- 'admin_usage_cost_projected': 'Hilabete amaierarako kostu proiektatua',
- 'admin_usage_input_tokens': 'Sarrerako token-ak (hilabetea)',
- 'admin_usage_output_tokens': 'Irteerako token-ak (hilabetea)',
- 'admin_usage_model_unrecognized': '⚠️ Deialdi batzuek prezio-taulan ez dagoen eredu bat erabili '
-                                   'dute; horien kostua babeseko estimazio bat da.',
- 'admin_usage_anthropic_not_configured': 'Anthropic APIaren gakoa ez dago konfiguratuta.',
- 'admin_usage_per_reflection_header': 'Hausnarketa bakoitzeko kostua',
- 'admin_usage_avg_cost_reflection': 'Claude-ren batez besteko kostua hausnarketa bakoitzeko',
- 'admin_usage_reflections_generated': 'Sortutako hausnarketak (30 egun)',
- 'admin_usage_companion_calls': 'Laguntzaileen deiak (30 egun, saiakerak barne)',
- 'admin_usage_retry_rate': 'Berrsaiatze-tasa',
- 'admin_usage_no_median_note': 'Ez dago medianarik eskuragarri: laguntzaile bakoitzaren deiak ez '
-                               'daude oraindik dagokien hausnarketarekin etiketatuta, beraz batez '
-                               'besteko orokorra bakarrik kalkula daiteke.',
- 'admin_usage_gemini_detail_header': 'Gemini Embeddings-en xehetasuna',
- 'admin_usage_embeddings_month': 'Embedding-ak hilabete honetan',
- 'admin_usage_embeddings_failed': 'Huts egindako embedding eskaerak (hilabetea)',
- 'admin_usage_gemini_estimate_note': '⚠️ Embedding dei batzuek ez dute hornitzailearen '
-                                     'token-kopuru zehatzik itzuli; horien kostua estimazio gisa '
-                                     'markatzen da.',
- 'admin_usage_gemini_not_configured': 'Gemini APIaren gakoa ez dago konfiguratuta.',
- 'admin_usage_pricing_header': 'Prezioen eta aurrekontuen konfigurazioa',
- 'admin_usage_pricing_caption': 'Hornitzaileen prezioak leku bakarrean daude zentralizatuta '
-                                '(services/cost_pricing.py), hornitzaile batek tarifak aldatzean '
-                                'kodean zehar bilatu behar ez izateko. Goiko egoera-koloreetarako '
-                                'erabiltzen diren hileko aurrekontuak config.py fitxategian '
-                                'konfiguratzen dira (MONTHLY_BUDGET_ANTHROPIC_USD, '
-                                'MONTHLY_BUDGET_GEMINI_USD).',
- 'admin_usage_forecast_header': 'Erabiltzaile-bolumenaren aurreikuspena (estimazioa)',
- 'admin_usage_forecast_caption': 'Hileko kostua proiektatzen du erabiltzaile-kopuru hipotetiko '
-                                 'baterako, proiektu pilotu honetan neurtutako hausnarketa '
-                                 'bakoitzeko batez besteko kostuan oinarrituta. Doitu beheko '
-                                 'zenbakiak.',
- 'admin_usage_forecast_users': 'Erabiltzaile kopurua',
- 'admin_usage_forecast_reflections': 'Hausnarketak erabiltzaileko eta hilabeteko',
- 'admin_usage_forecast_total_reflections': 'Hausnarketa guztiak/hilabete',
- 'admin_usage_forecast_claude_cost': 'Claude-ren kostu proiektatua/hilabete',
- 'admin_usage_forecast_gemini_cost': 'Gemini-ren kostu proiektatua/hilabete',
- 'admin_usage_forecast_presets_header': 'Ohiko eszenatokiak',
- 'admin_usage_forecast_current': 'Uneko',
- 'admin_usage_forecast_col_users': 'Erabiltzaileak',
- 'admin_usage_forecast_col_reflections': 'Hausnarketak/hilabete',
- 'admin_usage_forecast_col_claude_cost': 'Claude-ren kostu estimatua/hilabete',
- 'admin_usage_forecast_estimate_disclaimer': '⚠️ Goiko proiekzio guztiak ESTIMAZIOAK dira, gaur '
-                                             'egun behatutako batez bestekoetan oinarrituta, ez '
-                                             'bermatutako kosteak.',
  'findings_evidence_caption': 'Behaketa honen oinarri den kasuaren testuko pasartea:',
  'findings_unverified_notice': 'IAk proposatutako {count} pasarte ez datoz testuarekin zehazki '
                                'bat, eta ez dira erakusten.',

@@ -1,6 +1,15 @@
-"""System Administration -- Section 10: Service Usage & Costs (Service Cost & Usage Monitor).
+"""System Administration -- Service Usage & Costs (Service Cost & Usage Monitor).
 
-Extracted unchanged from the original system_administration.py file.
+November 2026 simplification (product owner's decision): the screen now
+shows only the overview table (one row per external service: usage,
+budget, % used, estimated cost, status) and its two informational
+notes. The detailed breakdowns that used to sit below it -- Claude
+cost detail, cost-per-reflection, Gemini embeddings detail, the pricing
+table, and the user-volume forecast with its preset scenarios -- were
+removed as more detail than the pilot needs here. The underlying
+calculations (services/cost_dashboard_service.py) are unchanged and
+still covered by tests, so a fuller view could be brought back later
+without losing anything.
 """
 import pandas as pd
 import streamlit as st
@@ -99,106 +108,3 @@ def render(T):
             st.caption(f"ℹ️ {p['provider_billing_note']}")
         if s.get("note"):
             st.caption(f"ℹ️ {s['note']}")
-
-        # --- Claude cost detail -------------------------------------------------
-        st.markdown(f"### {T.get('admin_usage_claude_detail_header', 'Claude (Anthropic) detail')}")
-        st.metric(T.get("admin_usage_cost_today", "Est. cost today"), _money(a["cost_today_usd"]))
-        st.metric(T.get("admin_usage_cost_month", "Est. cost this month"), _money(a["cost_month_usd"]))
-        st.metric(T.get("admin_usage_cost_projected", "Projected month-end cost"), _money(a["projected_month_usd"]))
-        st.metric(T.get("admin_usage_input_tokens", "Input tokens (month)"), f"{a['input_tokens_month']:,}")
-        st.metric(T.get("admin_usage_output_tokens", "Output tokens (month)"), f"{a['output_tokens_month']:,}")
-        if a["cost_is_estimate"]:
-            st.caption(T.get("admin_usage_model_unrecognized",
-                              "⚠️ Some calls used a model not in the pricing table -- their cost is a fallback estimate."))
-        if not a["configured"]:
-            st.warning(T.get("admin_usage_anthropic_not_configured", "Anthropic API key is not configured."))
-
-        # --- Cost per reflection (Phase 12) -------------------------------------
-        st.markdown(f"### {T.get('admin_usage_per_reflection_header', 'Cost per successful reflection')}")
-        cpr = usage_dashboard.get_cost_per_reflection(window_days=30)
-        if cpr["note"]:
-            st.info(cpr["note"])
-        else:
-            st.metric(T.get("admin_usage_avg_cost_reflection", "Average Claude cost per reflection"),
-                       _money(cpr["avg_cost_per_reflection_usd"]))
-            st.metric(T.get("admin_usage_reflections_generated", "Reflections generated (30 days)"),
-                       cpr["reflections_generated"])
-            st.metric(T.get("admin_usage_companion_calls", "Companion calls (30 days, incl. retries)"),
-                       cpr["companion_calls"])
-            if cpr["retry_rate_pct"] is not None:
-                st.metric(T.get("admin_usage_retry_rate", "Retry rate"), f"{cpr['retry_rate_pct']:.1f}%")
-        st.caption(T.get("admin_usage_no_median_note",
-                          "A median isn't available: individual companion calls aren't currently "
-                          "tagged with which reflection they belong to, so only the overall average "
-                          "can be computed."))
-
-        # --- Gemini embeddings detail -------------------------------------------
-        st.markdown(f"### {T.get('admin_usage_gemini_detail_header', 'Gemini Embeddings detail')}")
-        st.metric(T.get("admin_usage_cost_month", "Est. cost this month"), _money(g["cost_month_usd"]))
-        st.metric(T.get("admin_usage_embeddings_month", "Embeddings this month"), g["requests_month"])
-        st.metric(T.get("admin_usage_embeddings_failed", "Failed embedding requests (month)"), g["fail_count_month"])
-        if g["cost_is_estimate"] and g["requests_month"]:
-            st.caption(T.get("admin_usage_gemini_estimate_note",
-                              "⚠️ Some embedding calls did not return an exact token count from the "
-                              "provider; their cost is marked as an estimate."))
-        if not g["configured"]:
-            st.warning(T.get("admin_usage_gemini_not_configured", "Gemini API key is not configured."))
-
-        # --- Alerts / budgets configuration note ----------------------------------
-        with st.expander(T.get("admin_usage_pricing_header", "Pricing & budget configuration"), expanded=False):
-            st.caption(T.get(
-                "admin_usage_pricing_caption",
-                "Provider prices are centralized in one place (services/cost_pricing.py) so "
-                "they never have to be hunted down across the codebase when a provider changes "
-                "its rates. Monthly budgets used for the status colours above are configured "
-                "in config.py (MONTHLY_BUDGET_ANTHROPIC_USD, MONTHLY_BUDGET_GEMINI_USD).",
-            ))
-            pricing_rows = usage_dashboard.get_pricing_table()
-            st.table(pd.DataFrame(pricing_rows).set_index("provider"))
-
-        # --- Phase 13: user-volume scenario forecast -------------------------------
-        st.markdown(f"### {T.get('admin_usage_forecast_header', 'User volume forecast (estimate)')}")
-        st.caption(T.get(
-            "admin_usage_forecast_caption",
-            "Projects monthly cost at a hypothetical number of users, based on this pilot's "
-            "own measured average cost per reflection. Adjust the numbers below.",
-        ))
-        forecast_users = st.number_input(
-            T.get("admin_usage_forecast_users", "Number of users"),
-            min_value=0, value=100, step=50, key="admin_usage_forecast_users",
-        )
-        forecast_reflections = st.number_input(
-            T.get("admin_usage_forecast_reflections", "Reflections per user per month"),
-            min_value=0, value=4, step=1, key="admin_usage_forecast_reflections",
-        )
-        forecast = usage_dashboard.forecast_scenario(int(forecast_users), int(forecast_reflections))
-        st.metric(T.get("admin_usage_forecast_total_reflections", "Total reflections/month"),
-                   forecast["total_reflections_per_month"])
-        st.metric(T.get("admin_usage_forecast_claude_cost", "Projected Claude cost/month"),
-                   _money(forecast["projected_claude_cost_usd"]))
-        st.metric(T.get("admin_usage_forecast_gemini_cost", "Projected Gemini cost/month"),
-                   _money(forecast["projected_gemini_cost_usd"]))
-        st.caption(f"ℹ️ {forecast['basis_note']}")
-
-        # --- Preset scenario table --------------------------------------------------
-        st.markdown(f"#### {T.get('admin_usage_forecast_presets_header', 'Common scenarios')}")
-        preset_rows = []
-        for preset_users in [0, 100, 250, 500, 1000]:
-            label = T.get("admin_usage_forecast_current", "Current") if preset_users == 0 else str(preset_users)
-            if preset_users == 0:
-                fc = usage_dashboard.get_cost_per_reflection(window_days=30)
-                claude_cost = fc["companion_cost_usd"]
-                refl = fc["reflections_generated"]
-            else:
-                fc = usage_dashboard.forecast_scenario(preset_users, int(forecast_reflections))
-                claude_cost = fc["projected_claude_cost_usd"]
-                refl = fc["total_reflections_per_month"]
-            preset_rows.append({
-                T.get("admin_usage_forecast_col_users", "Users"): label,
-                T.get("admin_usage_forecast_col_reflections", "Reflections/month"): refl,
-                T.get("admin_usage_forecast_col_claude_cost", "Est. Claude cost/month"): _money(claude_cost),
-            })
-        st.table(pd.DataFrame(preset_rows).set_index(T.get("admin_usage_forecast_col_users", "Users")))
-        st.caption(T.get("admin_usage_forecast_estimate_disclaimer",
-                          "⚠️ All projections above are ESTIMATES based on currently observed "
-                          "averages, not guaranteed costs."))
