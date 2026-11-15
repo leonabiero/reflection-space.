@@ -11,8 +11,8 @@ keep it accurate as providers change their prices. It complements
 
 | Service | What's tracked | Cost shown? |
 |---|---|---|
-| Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Pattern Review explanation | Yes — from actual token usage |
-| Gemini Embeddings (Google) | Every embedding made for the pattern features | Yes — from actual token usage |
+| Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Pattern Review call (`pattern_text_batch`, `pattern_text_report`) | Yes — from actual token usage |
+| Gemini Embeddings (Google) | Every embedding made (none since 15 November 2026: no feature sends text to Gemini any more) | Yes — from actual token usage |
 | PostgreSQL (Neon) | This app's own connection-pool usage | No — this is an *application* metric, not Neon's bill (see below) |
 | Streamlit | Active sessions, where reliably measurable | No — hosting cost isn't available from this deployment |
 | SMTP | Alert emails sent/failed | No — depends on whatever email provider is configured |
@@ -23,7 +23,7 @@ Every dollar figure on the panel comes from the same two steps:
 
 1. **Record actual usage.** Every Claude and Gemini call is
    instrumented at its call site (`services/reflection_service.py`,
-   `services/pattern_explainer.py`, `services/embedding_service.py`)
+   `services/pattern_text_analysis.py`, `services/embedding_service.py`)
    to capture the token counts the *provider itself* reports back —
    `message.usage.input_tokens` / `output_tokens` for Claude, and the
    Google GenAI SDK's `statistics.token_count` for Gemini. **The
@@ -78,15 +78,14 @@ currently tagged with which specific reflection they belong to, so
 only the aggregate mean can be computed honestly. Retry rate is shown
 alongside it (failed companion attempts ÷ total companion attempts).
 
-**Reflection History summary (November 2026).** Each new reflection also
-gets ONE extra Claude call that writes the short summary managers read in
-Reflection History (`services/reflection_summary.py`). It is logged as the
-operation `reflection_summary` — not as `companion_reflection`, so the
-per-reflection figure above does not include it. It is small: about
-1,500 input and 250 output tokens, roughly **$0.005 per reflection**
-(about $0.50 a month at the expected pilot volume of 70–100
-reflections). Reflections without a summary get one only when a manager
-presses "Create summary", so there is no extra cost for opening the page.
+**Pattern Review reports (15 November 2026).** The per-reflection AI
+summary (`reflection_summary`) was removed, so a reflection no longer costs
+anything beyond its companion calls. Pattern Review costs money only when a
+manager presses "Identify patterns": one Claude call per group of up to 40
+texts (`pattern_text_batch`) plus one final call (`pattern_text_report`).
+With texts of about 2,000 characters, a 12-month report on about 1,200 texts
+is roughly **$1.50–$3.50**; a 3-month report on about 250 texts roughly
+**$0.40–$0.80**. See `services/pattern_text_analysis.py`.
 
 ## User-volume forecast
 

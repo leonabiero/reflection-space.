@@ -5,39 +5,36 @@ from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, require_work_mode
 from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
-from services import pattern_store, pattern_service
-from services.pattern_engine import (
-    SIMILARITY_LEVELS, DEFAULT_SIMILARITY_LEVEL, DEFAULT_MIN_OBSERVATIONS,
-    DEFAULT_MIN_REFLECTIONS, MAX_PATTERNS_PER_RUN, MAX_OBSERVATIONS_PER_RUN,
-)
-from services.findings_store import FINDING_MODULES
-from services.findings_ui import render_evidence
-from services.report_builder import build_pattern_report
-from services import reflection_records
-from config import ORIGINAL_TEXT_RETENTION_MONTHS
-from datetime import date
+from services import pattern_text_store, pattern_text_analysis
+from services.pattern_report_html import build_report_html
+from services.db_time import display_datetime, now_utc
+from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, PATTERN_TEXT_RETENTION_MONTHS
 
-# Pattern Explorer
-# ==================
+# Pattern Review
+# ================
 #
-# Stage 2 of the saved-findings work (see PATTERNS.md). For EDE's
-# management team (Supervisors and Programme Managers) ONLY.
+# Redesigned 15 November 2026 (product owner's decision -- see
+# PATTERNS.md). For EDE's management team (Supervisors and Programme
+# Managers) ONLY.
+#
+# Patterns are looked for in what social workers WROTE (the anonymised
+# copy saved straight after anonymisation), not in what the AI said back
+# to them. A manager picks a period -- 3, 6, 9 or 12 months -- and presses
+# "Identify patterns"; the AI reads that period's texts and writes one
+# report, which is saved with its date and period.
 #
 # Hard rules this page must never break:
-#   - It shows "candidate patterns for reflection", never conclusions. No
-#     wording on this page may say that bias or poor practice has been
-#     found. The team records its own judgement (status), and the AI's
-#     original suggestion is never overwritten.
-#   - It reads every saved observation (November 2026; before, only those
-#     their authors chose to share), and it never shows who wrote them or
-#     their notes (services/pattern_store.py enforces this in the database
-#     layer, not just here).
-#   - Counts of observations, reflections and cases are always shown
-#     separately, and "across cases" is only claimed when case references
-#     are recorded.
-#   - Saved ORIGINAL texts (November 2026) are shown without author names,
-#     reflection codes or exact times (services/reflection_records.py:
-#     list_original_texts enforces this, and the role check, in SQL).
+#   - Managers see the REPORT only: never a text, a quotation, a
+#     reflection code or who wrote anything (the texts go to the AI only --
+#     services/pattern_text_store.py has no function that returns them for
+#     display, and services/pattern_text_analysis.py removes any part of
+#     the report that repeats a passage).
+#   - It speaks of candidate patterns for reflection, never conclusions.
+#   - Nothing runs with fewer than PATTERN_MIN_TEXTS texts.
+
+GENERATING_KEY = "_pr_generating"
+FLASH_KEY = "_pr_flash"
+SELECTED_KEY = "_pr_selected_report"
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -55,339 +52,137 @@ with error_boundary(
         st.info(T["patterns_no_access"])
         st.stop()
 
-    st.info(T["patterns_intro"])
+    st.info(T["pr_intro"])
 
-    lens_labels = {k: T["section_labels"].get(k, k.replace("_", " ").title()) for k in FINDING_MODULES}
+    flash = st.session_state.pop(FLASH_KEY, None)
+    if flash:
+        kind, message = flash
+        getattr(st, kind)(message)
 
-    flash_key = st.session_state.pop("_patterns_flash", None)
-    if flash_key:
-        st.success(T[flash_key])
+    # Texts past their time limit are deleted here too (best effort).
+    try:
+        pattern_text_store.purge_expired_pattern_texts()
+    except Exception:
+        pass
 
     # ------------------------------------------------------------------
-    # 1. What is available to look at
+    # 1. Identify patterns
     # ------------------------------------------------------------------
-    st.subheader(T["patterns_pool_header"])
-    st.caption(T["patterns_pool_caption"])
+    st.subheader(T["pr_new_header"])
+    st.caption(T["pr_texts_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS))
 
-    selected_lenses = st.multiselect(
-        T["patterns_filter_lenses"],
-        options=list(FINDING_MODULES),
-        format_func=lambda k: lens_labels[k],
-        key="patterns_filter_lenses",
+    period = st.radio(
+        T["pr_period_label"],
+        list(PATTERN_PERIOD_CHOICES),
+        format_func=lambda m: T["pr_period_option"].format(months=m),
+        horizontal=True,
+        key="pr_period",
     )
-    date_from = st.date_input(T["patterns_filter_from"], value=None, key="patterns_filter_from")
-    date_to = st.date_input(T["patterns_filter_to"], value=None, key="patterns_filter_to")
 
-    pool = pattern_store.get_pool_counts(
-        user_role, modules=selected_lenses or None, date_from=date_from, date_to=date_to,
-    )
+    available = pattern_text_store.count_texts_for_period(user_role, period)
+    st.write(T["pr_available"].format(count=available, months=period))
+    enough = available >= PATTERN_MIN_TEXTS
+    if not enough:
+        st.caption(T["pr_not_enough"].format(minimum=PATTERN_MIN_TEXTS))
+    st.caption(T["pr_cost_note"])
 
-    if pool["observations"] == 0:
-        st.info(T["patterns_pool_empty"])
-    else:
-        st.write(T["patterns_pool_counts"].format(
-            observations=pool["observations"], reflections=pool["reflections"],
-            cases=pool["cases"],
-        ))
-        if pool["reflections_without_case"]:
-            st.caption(T["patterns_pool_no_case"].format(count=pool["reflections_without_case"]))
-
-    # ------------------------------------------------------------------
-    # 2. Generate
-    # ------------------------------------------------------------------
-    st.subheader(T["patterns_generate_header"])
-    with st.expander(T["patterns_settings_header"], expanded=False):
-        st.caption(T["patterns_settings_intro"])
-        level = st.select_slider(
-            T["patterns_similarity_label"],
-            options=list(SIMILARITY_LEVELS),
-            value=DEFAULT_SIMILARITY_LEVEL,
-            format_func=lambda k: T["patterns_similarity_levels"][k],
-            key="patterns_similarity",
-        )
-        st.caption(T["patterns_similarity_help"])
-        min_observations = st.number_input(
-            T["patterns_min_observations_label"], min_value=2, max_value=50,
-            value=DEFAULT_MIN_OBSERVATIONS, step=1, key="patterns_min_obs",
-        )
-        min_reflections = st.number_input(
-            T["patterns_min_reflections_label"], min_value=1, max_value=50,
-            value=DEFAULT_MIN_REFLECTIONS, step=1, key="patterns_min_refl",
-        )
-        st.caption(T["patterns_threshold_not_proof"])
-
-    st.caption(T["patterns_cost_note"].format(max_patterns=MAX_PATTERNS_PER_RUN))
-    if pool["observations"] > MAX_OBSERVATIONS_PER_RUN:
-        st.caption(T["patterns_pool_truncated"].format(max=MAX_OBSERVATIONS_PER_RUN))
-
-    can_generate = pool["observations"] >= int(min_observations)
-    if not can_generate and pool["observations"] > 0:
-        st.caption(T["patterns_not_enough"].format(minimum=int(min_observations)))
-
-    if st.button(T["patterns_generate_button"], type="primary", disabled=not can_generate,
-                 key="patterns_generate_btn"):
-        with st.spinner(T["patterns_generating"]):
-            outcome = pattern_service.generate_patterns(
-                user_role, user_name, st.session_state.lang, lens_labels,
-                similarity_level=level, min_observations=int(min_observations),
-                min_reflections=int(min_reflections),
-                modules=selected_lenses or None, date_from=date_from, date_to=date_to,
-            )
-        if outcome["status"] == "busy":
-            st.warning(T["patterns_busy"])
-        elif outcome["status"] == "unavailable":
-            st.error(T["patterns_unavailable"])
-        else:
-            st.session_state["patterns_run_id"] = outcome["run_id"]
-            if outcome["patterns_created"] == 0:
-                st.info(T["patterns_none_found"].format(
-                    observations=outcome["observations_considered"]))
-            else:
-                st.success(T["patterns_generated_ok"].format(
-                    patterns=outcome["patterns_created"],
-                    observations=outcome["observations_considered"]))
-            if outcome["not_embedded"]:
-                st.warning(T["patterns_not_embedded"].format(count=outcome["not_embedded"]))
-            if outcome["fallback_count"]:
-                st.warning(T["patterns_fallback_notice"].format(count=outcome["fallback_count"]))
-
-    # ------------------------------------------------------------------
-    # 2b. Saved original texts (November 2026, agreed with EDE)
-    # ------------------------------------------------------------------
-    # The original texts reflections were made from, for studying
-    # patterns in how cases are written. Loaded only when switched on, so
-    # opening this page does not read every text. Never shown with the
-    # author's name, the reflection code or an exact time.
-    TEXTS_PAGE_SIZE = 50
-    st.divider()
-    if st.toggle(T["patterns_texts_header"], value=False, key="patterns_show_texts"):
-        st.caption(T["patterns_texts_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+    is_generating = st.session_state.get(GENERATING_KEY, False)
+    if st.button(T["pr_run_button"], type="primary", disabled=(not enough) or is_generating,
+                 key="pr_run_btn"):
+        st.session_state[GENERATING_KEY] = True
         try:
-            # Retention first, so an expired text is never displayed.
-            reflection_records.purge_expired_original_text()
-        except Exception:
-            pass
-        saved_texts = reflection_records.list_original_texts(user_role, limit=TEXTS_PAGE_SIZE)
-        total_texts = reflection_records.count_original_texts(user_role)
-        if not saved_texts:
-            st.info(T["patterns_texts_empty"])
+            with st.spinner(T["pr_running"]):
+                outcome = pattern_text_analysis.run_report(
+                    user_role, user_name, period, st.session_state.get("lang", "Español"),
+                )
+        finally:
+            st.session_state[GENERATING_KEY] = False
+
+        status = outcome["status"]
+        if status == "ok":
+            st.session_state[SELECTED_KEY] = outcome["report_id"]
+            st.session_state[FLASH_KEY] = ("success", T["pr_done"].format(
+                patterns=outcome["patterns"], texts=outcome["texts_read"]))
+        elif status == "not_enough":
+            st.session_state[FLASH_KEY] = ("info", T["pr_not_enough"].format(minimum=outcome["minimum"]))
+        elif status == "busy":
+            st.session_state[FLASH_KEY] = ("warning", T["pr_busy"])
+        elif status == "recent":
+            st.session_state[FLASH_KEY] = ("info", T["pr_recent"])
         else:
-            if total_texts > len(saved_texts):
-                st.caption(T["patterns_texts_showing"].format(shown=len(saved_texts), total=total_texts))
-            for item in saved_texts:
-                with st.expander(T["patterns_texts_item"].format(
-                        date=item["date"], language=item["language"] or "—")):
-                    st.write(item["text"])
+            st.session_state[FLASH_KEY] = ("error", T["pr_failed"])
+        st.rerun()
 
     # ------------------------------------------------------------------
-    # 3. Review
+    # 2. Saved reports
     # ------------------------------------------------------------------
     st.divider()
-    st.subheader(T["patterns_review_header"])
+    st.subheader(T["pr_saved_header"])
 
-    runs = pattern_store.list_runs(user_role, limit=10)
-    if not runs:
-        st.info(T["patterns_no_runs"])
+    reports = pattern_text_store.list_reports(user_role)
+    if not reports:
+        st.info(T["pr_no_reports"])
         st.stop()
 
-    run_ids = [r["id"] for r in runs]
-    current = st.session_state.get("patterns_run_id")
-    default_index = run_ids.index(current) if current in run_ids else 0
-    run_by_id = {r["id"]: r for r in runs}
-    run_id = st.selectbox(
-        T["patterns_run_select"], options=run_ids, index=default_index,
-        format_func=lambda i: T["patterns_run_option"].format(
-            date=(run_by_id[i]["created_at"] or "")[:16],
-            observations=run_by_id[i]["observations_considered"],
-            patterns=run_by_id[i]["patterns_created"],
+    by_id = {r["id"]: r for r in reports}
+    ids = list(by_id)
+    wanted = st.session_state.get(SELECTED_KEY)
+    chosen_id = st.selectbox(
+        T["pr_report_select"],
+        options=ids,
+        index=ids.index(wanted) if wanted in by_id else 0,
+        format_func=lambda i: T["pr_report_option"].format(
+            date=display_datetime(by_id[i]["created_at"]),
+            months=by_id[i]["period_months"],
+            texts=by_id[i]["texts_count"],
         ),
-        key="patterns_run_select_box",
+        key="pr_report_select_box",
     )
-    run = run_by_id[run_id]
-    params = run["parameters"] or {}
-    st.caption(T["patterns_run_caption"].format(
-        level=T["patterns_similarity_levels"].get(params.get("similarity_level"), "—"),
-        min_obs=params.get("min_observations", "—"),
-        min_refl=params.get("min_reflections", "—"),
-    ))
+    saved = by_id[chosen_id]
+    report = saved["report"]
+    texts_read = report.get("texts_read", saved["texts_count"])
+    created_on = display_datetime(saved["created_at"])
 
-    status_choices = list(pattern_store.PATTERN_STATUSES)
-    shown_statuses = st.multiselect(
-        T["patterns_filter_status"], options=status_choices,
-        default=[s for s in status_choices if s != "archived"],
-        format_func=lambda s: T["patterns_statuses"][s], key="patterns_filter_status",
+    with st.container(border=True):
+        st.caption(T["pr_report_meta"].format(
+            date=created_on, months=saved["period_months"],
+            texts=saved["texts_count"], read=texts_read,
+        ))
+        if report.get("groups_failed"):
+            st.warning(T["pr_some_unread"])
+        st.caption(T["pr_candidate_note"])
+
+        if report.get("overview"):
+            st.markdown(f"**{T['pr_overview_header']}**")
+            st.write(report["overview"])
+
+        st.markdown(f"**{T['pr_patterns_header']}**")
+        patterns = report.get("patterns") or []
+        if not patterns:
+            st.info(T["pr_no_patterns"])
+        for n, pattern in enumerate(patterns, start=1):
+            with st.container(border=True):
+                st.markdown(f"**{n}. {pattern.get('title', '')}**")
+                st.caption(T["pr_seen_in"].format(count=pattern.get("texts_count", 0), total=texts_read))
+                st.write(pattern.get("description", ""))
+                if pattern.get("why_it_may_matter"):
+                    st.markdown(f"*{T['pr_why_header']}*")
+                    st.write(pattern["why_it_may_matter"])
+                if pattern.get("questions"):
+                    st.markdown(f"*{T['pr_questions_header']}*")
+                    for question in pattern["questions"]:
+                        st.markdown(f"- {question}")
+
+        st.markdown(f"**{T['pr_limits_header']}**")
+        for item in list(report.get("limitations") or []) + list(T["pr_standing_limits"]):
+            st.markdown(f"- {item}")
+
+    # Printable copy of the report shown above (nothing else is added).
+    prepared_on = display_datetime(now_utc(), with_time=False)
+    page = build_report_html(T, st.session_state.get("lang", "Español"), saved, prepared_on, created_on)
+    st.download_button(
+        T["pr_download_button"], data=page.encode("utf-8"),
+        file_name=f"pattern-report-{saved['id']}.html", mime="text/html",
+        key=f"pr_download_{saved['id']}",
     )
-
-    patterns = pattern_store.list_patterns(user_role, run_id, statuses=shown_statuses or None)
-    patterns.sort(key=lambda p: (-p["counts"]["reflections"], -p["counts"]["observations"], p["id"]))
-
-    if not patterns:
-        st.info(T["patterns_none_in_view"])
-        st.stop()
-
-    # ------------------------------------------------------------------
-    # Printable report (Stage 3): built only from what is shown here.
-    # ------------------------------------------------------------------
-    with st.expander(T["report_section_header"], expanded=False):
-        st.caption(T["report_section_intro"])
-        opt_obs = st.checkbox(T["report_opt_observations"], value=True, key="rep_opt_obs")
-        opt_cases = st.checkbox(T["report_opt_case_refs"], value=False, key="rep_opt_cases")
-        opt_comments = st.checkbox(T["report_opt_comments"], value=True, key="rep_opt_comments")
-        signature = (run_id, tuple(sorted(shown_statuses)), tuple(p["id"] for p in patterns),
-                     opt_obs, opt_cases, opt_comments, st.session_state.lang)
-        if st.button(T["report_prepare_button"], key="rep_prepare"):
-            events = ({p["id"]: pattern_store.get_pattern_events(user_role, p["id"]) for p in patterns}
-                      if opt_comments else {})
-            st.session_state["_patterns_report"] = {
-                "signature": signature,
-                "html": build_pattern_report(
-                    T, st.session_state.lang, lens_labels, run, patterns, events,
-                    prepared_on=date.today().isoformat(), include_observations=opt_obs,
-                    include_case_refs=opt_cases, include_comments=opt_comments),
-            }
-        prepared = st.session_state.get("_patterns_report")
-        if prepared and prepared["signature"] == signature:
-            st.success(T["report_ready"])
-            st.download_button(
-                T["report_download_button"], data=prepared["html"].encode("utf-8"),
-                file_name=f"pattern-report-{run_id}-{date.today().isoformat()}.html",
-                mime="text/html", key="rep_download",
-            )
-            st.caption(T["report_how_to_print"])
-        elif prepared:
-            st.info(T["report_outdated"])
-
-    MAX_MEMBERS_SHOWN = 15
-
-    def _case_message(counts):
-        if counts["cases"] == 0:
-            return T["patterns_cases_none"]
-        if not counts["case_recurrence_known"]:
-            return T["patterns_cases_incomplete"].format(
-                missing=counts["reflections_without_case"], total=counts["reflections"])
-        if counts["cases"] == 1:
-            return T["patterns_cases_single"]
-        return T["patterns_cases_multiple"].format(cases=counts["cases"])
-
-    for pattern in patterns:
-        counts = pattern["counts"]
-        status_label = T["patterns_statuses"].get(pattern["status"], pattern["status"])
-        header = T["patterns_item_header"].format(
-            title=pattern["title"], status=status_label,
-            observations=counts["observations"], reflections=counts["reflections"],
-        )
-        with st.expander(header, expanded=False):
-            st.caption(T["patterns_candidate_label"])
-            st.write(T["patterns_counts_line"].format(
-                observations=counts["observations"], reflections=counts["reflections"],
-                cases=counts["cases"],
-            ))
-            st.caption(_case_message(counts))
-            st.caption(T["patterns_case_ref_caveat"])
-            if counts["date_first"]:
-                st.caption(T["patterns_dates_line"].format(
-                    first=counts["date_first"], last=counts["date_last"]))
-            lens_text = ", ".join(
-                f"{lens_labels.get(k, k)} ({counts['modules'][k]})"
-                for k in sorted(counts["modules"], key=lambda k: (-counts["modules"][k], k))
-            )
-            st.caption(T["patterns_lenses_line"].format(lenses=lens_text))
-
-            if pattern["lost_members"]:
-                st.warning(T["patterns_lost_members"].format(count=pattern["lost_members"]))
-            if pattern["below_minimum"]:
-                st.warning(T["patterns_below_minimum"])
-
-            if pattern["explanation_status"] == "fallback":
-                st.warning(T["patterns_explanation_failed"])
-                if st.button(T["patterns_explanation_retry"], key=f"pe_retry_{pattern['id']}"):
-                    with st.spinner(T["patterns_generating"]):
-                        ok = pattern_service.retry_explanation(
-                            user_role, user_name, pattern["id"], pattern["members"],
-                            lens_labels, st.session_state.lang,
-                        )
-                    st.session_state["_patterns_flash"] = (
-                        "patterns_retry_ok" if ok else "patterns_retry_failed")
-                    st.rerun()
-
-            st.markdown(f"**{T['patterns_what_in_common']}**")
-            st.write(pattern["description"])
-            st.markdown(f"**{T['patterns_why_it_matters']}**")
-            st.write(pattern["why_it_matters"])
-            st.markdown(f"**{T['patterns_alternatives']}**")
-            for item in pattern["alternative_explanations"]:
-                st.markdown(f"- {item}")
-            st.markdown(f"**{T['patterns_limitations']}**")
-            for item in pattern["limitations"]:
-                st.markdown(f"- {item}")
-            st.markdown(f"**{T['patterns_questions']}**")
-            for item in pattern["questions"]:
-                st.markdown(f"- {item}")
-
-            st.divider()
-            st.markdown(f"**{T['patterns_observations_header']}**")
-            for member in pattern["members"][:MAX_MEMBERS_SHOWN]:
-                case_text = member["case_ref"] or T["reflection_no_case_ref"]
-                st.markdown(f"**{lens_labels.get(member['module'], member['module'])}** — "
-                            f"{case_text} — {(member['created_at'] or '')[:10]}")
-                st.write(member["observation"])
-                render_evidence(T, member["evidence"], 0)
-                if st.button(T["patterns_exclude_button"],
-                             key=f"pe_ex_{pattern['id']}_{member['id']}"):
-                    pattern_store.set_member_excluded(
-                        user_role, user_name, pattern["id"], member["id"], True)
-                    st.session_state["_patterns_flash"] = "patterns_excluded_ok"
-                    st.rerun()
-            hidden = len(pattern["members"]) - MAX_MEMBERS_SHOWN
-            if hidden > 0:
-                st.caption(T["patterns_more_observations"].format(count=hidden))
-
-            if pattern["excluded_members"]:
-                st.markdown(f"**{T['patterns_excluded_header']}**")
-                for member in pattern["excluded_members"]:
-                    st.write(member["observation"])
-                    if st.button(T["patterns_restore_button"],
-                                 key=f"pe_rs_{pattern['id']}_{member['id']}"):
-                        pattern_store.set_member_excluded(
-                            user_role, user_name, pattern["id"], member["id"], False)
-                        st.session_state["_patterns_flash"] = "patterns_restored_ok"
-                        st.rerun()
-
-            st.divider()
-            st.markdown(f"**{T['patterns_review_status_header']}**")
-            st.caption(T["patterns_review_help"])
-            with st.form(key=f"pe_form_{pattern['id']}"):
-                new_status = st.selectbox(
-                    T["patterns_status_label"], options=status_choices,
-                    index=status_choices.index(pattern["status"]),
-                    format_func=lambda s: T["patterns_statuses"][s],
-                    key=f"pe_status_{pattern['id']}",
-                )
-                comment = st.text_area(
-                    T["patterns_comment_label"], max_chars=pattern_store.MAX_COMMENT_CHARS,
-                    key=f"pe_comment_{pattern['id']}",
-                )
-                saved = st.form_submit_button(T["patterns_save_review"])
-            if saved:
-                changed = pattern_store.set_pattern_status(
-                    user_role, user_name, pattern["id"], new_status, comment)
-                if changed:
-                    st.session_state["_patterns_flash"] = "patterns_review_saved"
-                    st.rerun()
-                st.info(T["patterns_review_nothing"])
-
-            events = pattern_store.get_pattern_events(user_role, pattern["id"])
-            if events:
-                st.markdown(f"**{T['patterns_history_header']}**")
-                for event in events[-20:]:
-                    kind = T["patterns_event_kinds"].get(event["kind"], event["kind"])
-                    detail = ""
-                    if event["kind"] == "status_changed":
-                        detail = " " + T["patterns_event_status_change"].format(
-                            old=T["patterns_statuses"].get(event["old_value"], event["old_value"]),
-                            new=T["patterns_statuses"].get(event["new_value"], event["new_value"]))
-                    who = event["actor"] if event["actor"] not in ("", "system") else T["patterns_event_system"]
-                    line = f"{(event['created_at'] or '')[:16]} — {who} — {kind}{detail}"
-                    st.caption(line)
-                    if event["comment"]:
-                        st.caption("“" + event["comment"] + "”")
+    st.caption(T["pr_how_to_print"])

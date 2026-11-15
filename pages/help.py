@@ -4,7 +4,11 @@ from navigation.router import render_nav
 from navigation.permissions import can_access_workspace
 from services.identity import init_identity, render_identity_footer
 from services.error_log import error_boundary
-from config import SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
+from services.pattern_access import can_review_patterns
+from config import (
+    SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS,
+    SAVE_PATTERN_TEXT, PATTERN_TEXT_RETENTION_MONTHS, PATTERN_MIN_TEXTS,
+)
 
 # In-app Help / Quick Guide
 # ============================
@@ -63,6 +67,8 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
             st.write(H["doc_section_body"])
             if SAVE_ORIGINAL_TEXT:
                 st.write(H["original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+            if SAVE_PATTERN_TEXT:
+                st.write(H["pattern_copy_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS))
 
         with st.expander(H["reflection_section_title"], expanded=False):
             st.write(H["reflection_section_body"])
@@ -84,6 +90,12 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
 
         with st.expander(H["case_history_section_title"], expanded=False):
             st.write(H["case_history_section_body"])
+
+        # Pattern Review is for Supervisors and Programme Managers only
+        # (services/pattern_access.py), so only they see this section.
+        if can_review_patterns(user_role):
+            with st.expander(H["pattern_review_section_title"], expanded=False):
+                st.write(H["pattern_review_section_body"].format(minimum=PATTERN_MIN_TEXTS))
 
         st.divider()
 

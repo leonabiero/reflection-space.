@@ -186,10 +186,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                        'araberakoa da.',
  'nav_growth': '🌱 Nire Hausnarketa',
  'growth_title': '🌱 Zure Hausnarketa Bidea',
- 'growth_intro': 'Hau zure gune pertsonala da. Ez da zure jardunaren ebaluazioa eta ez da inoiz '
-                 'beste profesional batzuekin konparatzen. Elkarrizketetan aztertzen duzuna eta '
-                 'zure oharrak zureak bakarrik dira. Zure hausnarketen gordetako behaketak (eta '
-                 'haien testu anonimizatua) arduradunek ere ikus ditzakete Hausnarketen historian.',
+ 'growth_intro': 'Hau zure gune pertsonala da. Ez da zure jardunaren ebaluazioa eta ez da inoiz beste profesional batzuekin konparatzen. Elkarrizketetan aztertzen duzuna zurea bakarrik da. Gordetako testuak zuk bakarrik irakur ditzakezu, hemen; arduradunek zure hausnarketak kodearen eta dataren arabera ikusten dituzte, inoiz ez zure testuak.',
  'growth_no_data': 'Oraindik ez duzu hausnarketarik aztertu. Hausnarketa Gunean «Aztertu '
                    'laguntzailearekin» botoia erabili ahala, zure bidea hemen agertuko da.',
  'growth_themes_header': 'Gehien aztertu dituzun arloak',
@@ -295,11 +292,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_problem_solved_header': 'Konpondutako arazoak ({n})',
  'admin_problem_none_open': 'Ez dago arazo irekirik.',
  'admin_reset_header': '🧹 Ezabatu datu guztiak',
- 'admin_reset_intro': 'Aplikazioan gordetako guztia behin betiko ezabatzen du: hausnarketak eta '
-                      'haien testuak, behaketak eta oharrak, balorazioak, patroien berrikuspenak, '
-                      'dokumentu zaharrak, jardueraren historia, erregistratutako arazoak eta '
-                      'erabilera- eta kostu-erregistroak. Aplikazioko zenbatzaile guztiak 0ra '
-                      'itzultzen dira.',
+ 'admin_reset_intro': 'Aplikazioan gordetako guztia behin betiko ezabatzen du: hausnarketak eta haien testuak, Patroien berrikuspeneko kopia anonimizatuak eta txostenak, behaketa eta ohar zaharrak, balorazioak, dokumentu zaharrak, jardueraren historia, erregistratutako arazoak eta erabilera- eta kostu-erregistroak. Aplikazioko zenbatzaile guztiak 0ra itzultzen dira.',
  'admin_reset_kept_note': 'Erabiltzaile-kontuak eta konfigurazioa mantentzen dira. Inork ez du '
                           'saioa berriro hasi beharko.',
  'admin_reset_warning': 'Ekintza hau ezin da desegin.',
@@ -360,29 +353,18 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'help': {'nav_label': '❓ Laguntza',
           'page_title': 'Reflection Spaceren gida azkarra',
           'intro_title': 'Zer da Reflection Space?',
-          'intro_body': 'Reflection Spacek kasu bati buruz une berean hausnartzen laguntzen dizu: '
-                        'kasua idatzi, itsatsi edo igotzen duzu eta hausnarketarako galderak '
-                        'eskaintzen dizkizu zortzi dimentsio profesionaletan -- adibidez, '
-                        'erabiltzailearen ahotsa agertzen den, edo zailtasunen ondoan haren '
-                        'indarguneak ahazten ari diren. Ez da dokumentuak gordetzeko lekua: '
-                        'hausnarketa bakarrik gordetzen da.',
+          'intro_body': 'Reflection Spacek kasu bati buruz une berean hausnartzen laguntzen dizu: kasua idatzi, itsatsi edo igotzen duzu eta hausnarketarako galderak eskaintzen dizkizu zortzi dimentsio profesionaletan -- adibidez, erabiltzailearen ahotsa agertzen den, edo zailtasunen ondoan haren indarguneak ahazten ari diren. Ez da dokumentuak gordetzeko lekua: AAren behaketak eta galderak ez dira gordetzen.',
           'guardrail_note': 'Tresnak ez du inoiz ezer kalifikatzen, puntuatzen edo zure ordez '
                             'erabakitzen. Zuk erabakitzen duzu zer egin, ezer egitekotan, '
                             'pentsarazi dizunarekin.',
           'journey_title': 'Nola dabilen',
-          'journey_steps': ['1. Hausnar dezagun -- idatzi edo itsatsi zure testua, edo igo dokumentu bat (Word, PDF edo testua). Ez da erreferentziarik, testu motarik edo gairik behar.', '2. Aukeratu hausnarketaren hizkuntza (Español, Euskara edo English) eta sakatu Hausnartu. Testua automatikoki anonimizatzen da AAk jaso aurretik.', '3. Hausnarketa profesionala -- arakatu zortzi dimentsio erreflexiboak, hitz egin labur haietako bati buruz nahi baduzu, gehitu zure oharrak eta amaitu. Ondoren, kasuaren testua pantailatik kentzen da.'],
+          'journey_steps': ['1. Hausnar dezagun -- idatzi edo itsatsi zure testua, edo igo dokumentu bat (Word, PDF edo testua). Ez da erreferentziarik, testu motarik edo gairik behar.', '2. Aukeratu hausnarketaren hizkuntza (Español, Euskara edo English) eta sakatu Hausnartu. Testua automatikoki anonimizatzen da AAk jaso aurretik.', '3. Hausnarketa profesionala -- arakatu zortzi dimentsio erreflexiboak, hitz egin labur haietako bati buruz nahi baduzu, eta amaitu. Ondoren, kasuaren testua pantailatik kentzen da; AAren behaketak eta galderak ez dira gordetzen.'],
           'practitioner_title': 'Profesionalaren area',
           'doc_section_title': '📝 Zure kasua -- idatzi, itsatsi edo igo',
-          'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Jatorrizko testua modu seguruan gordetzen da, geroago ereduak aztertzeko (ikus behean).',
-          'original_saved_note': 'Jatorrizko testua modu seguruan gordetzen da EBko datu-base batean, gehienez {months} hilabetez, praktikako ereduak antzemateko. AAri bertsio anonimizatua bakarrik bidaltzen zaio. Zure testua Nire hausnarketan irakur dezakezu; gainbegiraleek eta programa-arduradunek testuak Patroien berrikuspenean irakur ditzakete, egilearen izenik gabe. Denbora hori igarotakoan automatikoki ezabatzen da; hausnarketak bere horretan jarraitzen du.',
+          'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Jatorrizko testua modu seguruan gordetzen da, eta kopia anonimizatu bat gordetzen da Patroien berrikuspenerako (ikus behean).',
+          'original_saved_note': 'Jatorrizko testua modu seguruan gordetzen da EBko datu-base batean, gehienez {months} hilabetez. AAri bertsio anonimizatua bakarrik bidaltzen zaio. Zure testua zuk bakarrik irakur dezakezu, Nire Hausnarketan. Denbora hori igarotakoan automatikoki ezabatzen da; hausnarketak bere horretan jarraitzen du.',
           'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
-          'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da '
-                                     '(izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio '
-                                     'babestu hori bakarrik bidaltzen zaio AAri. Anonimizazioak huts egingo '
-                                     'balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» '
-                                     'aukerak AAk jaso zuena erakusten dizu. Arakatu zortzi dimentsioetako '
-                                     'edozein, ireki elkarrizketa labur bat nahi baduzu, gehitu zure '
-                                     'oharrak eta sakatu Amaitu hausnarketa. Nahi baduzu, baloratu erabilgarritasuna goiko eskuineko izkinako «Baloratu» botoiarekin -- guztiz aukerakoa; ezer ez dago horren mende.',
+          'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da (izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio babestu hori bakarrik bidaltzen zaio AAri. Anonimizazioak huts egingo balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» aukerak AAk jaso zuena erakusten dizu. Arakatu zortzi dimentsioetako edozein, ireki elkarrizketa labur bat nahi baduzu, eta sakatu Amaitu hausnarketa. AAren behaketak eta galderak zuretzat bakarrik dira eta ez dira gordetzen. Nahi baduzu, baloratu erabilgarritasuna goiko eskuineko izkinako «Baloratu» botoiarekin -- guztiz aukerakoa; ezer ez dago horren mende.',
           'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
                          'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
                          'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
@@ -421,18 +403,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                           'guztietatik; {hours} orduz berreskura dezakezu eta ondoren behin betiko ezabatzen '
                           'da.',
           'growth_section_title': '🌱 Nire Gogoeta -- zure egunkari pertsonala',
-          'growth_section_body': 'Nire hausnarketa zure gune propioa da: gehien aztertu dituzun gaiak, zure '
-                                  'hausnarketa-uneen denbora-lerroa, gordetako behaketak zure oharrekin eta '
-                                  'zure hausnarketen zerrenda (ezaba ditzakezunak). Puntuaziorik eta '
-                                  'inorekiko konparaziorik gabe. Zure oharrak eta aztertzen duzuna zureak '
-                                  'bakarrik dira; gordetako behaketak arduradunek ere ikus ditzakete.',
+          'growth_section_body': 'Nire Hausnarketa zure gune propioa da: gehien aztertu dituzun gaiak, zure hausnarketa-uneen denbora-lerroa eta zure hausnarketen zerrenda, non zure gordetako testua irakur eta hausnarketa bat ezaba dezakezun. Puntuaziorik eta inorekiko konparaziorik gabe.',
           'manager_title': 'Zuzendaritza-taldearen area',
           'case_history_section_title': '🗂️ Hausnarketen historia',
-          'case_history_section_body': 'Hausnarketen historiak erabilgarritasunaren batez besteko '
-                                       'balorazioa erakusten du (inoiz ez banakako balorazioak, '
-                                       'ezta nork eman dituen ere) eta gordetako hausnarketak, '
-                                       'bakoitza bere kode neutroarekin, gaiekin eta IAk idatzitako laburpen labur batekin, begirada batean irakurtzeko; behaketa eta galdera osoak azpian zabaltzen dira. Data eta gaiaren arabera iragazi daiteke. Ez '
-                                       'ditu inoiz profesionalen ohar pribatuak erakusten.',
+          'case_history_section_body': 'Hausnarketen historiak erabilgarritasunaren batez besteko balorazioa erakusten du (inoiz ez banakako balorazioak, ezta nork eman dituen ere) eta gordetako hausnarketen zerrenda, bakoitza bere kode neutroarekin, datarekin eta nork egin zuen. Ez du inoiz testurik edo profesionalen ohar pribaturik erakusten. Dataren arabera iragazi daiteke.',
           'admin_title': '🛠️ Sistemaren administrazioa',
           'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen zerrenda, '
                                 'sistemaren egoera, anonimizazio-proba, itzulpenen '
@@ -446,7 +420,10 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, ereduak aztertzeko -- AAri bertsio anonimizatua bakarrik bidaltzen zaio, eta gainbegiraleek eta programa-arduradunek zure izenik gabe irakurtzen dute.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Behaketei buruzko zure oharrak pribatuak dira -- zuk bakarrik ikus ditzakezu. IAren behaketak kudeaketa-taldearen patroien berrikuspenean erabiltzen dira, zure izenik gabe.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.']},
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Testu bakoitzaren kopia anonimizatu bat, zure izenik eta rolik gabe, kudeaketa-taldearen Patroien berrikuspenean erabiltzen da; arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
+          'pattern_copy_note': 'Anonimizazioaren ondoren berehala, zure testuaren kopia anonimizatu bat ere gordetzen da, zure izenik eta rolik gabe, gehienez {months} hilabetez. Kudeaketa-taldearen Patroien berrikuspenean, AAk kopia horiek irakurtzen ditu kasuak nola idazten diren aztertzeko eta ereduak bilatzeko; arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua.',
+          'pattern_review_section_title': '🔎 Patroien berrikuspena',
+          'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Aukeratu aldi bat (azken 3, 6, 9 edo 12 hilabeteak) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Ereduak hausnartzeko aukerak dira, ez ondorioak.'},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -489,8 +466,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'findings_save_button': 'Gorde nire oharrak',
  'findings_save_success': 'Oharrak gorde dira.',
  'findings_save_error': 'Ezin izan dira zure oharrak gorde. Saiatu berriro une batean.',
- 'findings_not_saved_notice': 'Hausnarketa hau ezin izan da gorde; beraz, ezingo dituzu horri '
-                              'buruzko oharrak gorde. Normaltasunez jarrai dezakezu lanean.',
+ 'findings_not_saved_notice': 'Hausnarketa hau ezin izan da gorde; beraz, ez da zure hausnarketen zerrendan agertuko. Normaltasunez jarrai dezakezu lanean.',
  'findings_journal_header': 'Gordetako behaketak eta zure oharrak',
  'findings_journal_intro': 'Hemen zure hausnarketetako behaketetara itzul zaitezke, oinarri '
                            'dituzten pasarte zehatzekin, eta zure oharrak idatzi edo berrikusi. '
@@ -508,113 +484,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'findings_notes_privacy': 'Zure oharrak eta balorazioak pribatuak dira: zuk bakarrik ikus ditzakezu. IAk esandakotik bereizita gordetzen dira, eta hori ez da inoiz aldatzen. IAren behaketak (inoiz ez zure izena edo oharrak) kudeaketa-taldearen patroien berrikuspenean erabiltzen dira. Gordetzean, izenak, adin zehatzak eta beste datu pertsonal batzuk kentzen dira zure oharretatik.',
  'patterns_title': '🔎 Patroien berrikuspena',
  'patterns_no_access': 'Orri hau gainbegiratzerako eta programaren kudeaketarako bakarrik da.',
- 'patterns_intro': 'Orri honek profesionalen hausnarketetako behaketetan errepikatzen diren gaiak bilatzen laguntzen dio taldeari. Erakusten duena hausnarketarako patroi hautagaiak dira, ez ondorioak: behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta sortak ez du nahitaez erakundea ordezkatzen. Taldeak erabakitzen du patroi batek zer esan nahi duen, esan nahi badu.',
- 'patterns_pool_header': 'Zer dago berrikusteko',
- 'patterns_pool_caption': 'Profesionalen hausnarketetako behaketa guztiak agertzen dira hemen. Ez duzu inoiz ikusten nork idatzi dituen, ezta haien ohar pribatuak ere.',
- 'patterns_filter_lenses': 'Mugatu hausnarketa-puntu hauetara (hutsik = guztiak)',
- 'patterns_filter_from': 'Noiztik (aukerakoa)',
- 'patterns_filter_to': 'Noiz arte (aukerakoa)',
- 'patterns_pool_empty': 'Oraindik ez dago behaketarik iragazki hauekin.',
- 'patterns_pool_counts': '{observations} behaketa, {reflections} hausnarketatik eta {cases} kasu-erreferentzia desberdinetatik.',
- 'patterns_pool_no_case': '{count} hausnarketak ez dute kasu-erreferentziarik, beraz ez dira '
-                          'kasutzat kontatzen.',
- 'patterns_generate_header': 'Bilatu patroiak',
- 'patterns_settings_header': 'Bilaketaren ezarpenak',
- 'patterns_settings_intro': 'Ezarpen hauek abiapuntuak dira, ez frogatutako balioak. Aldatu itzazu '
-                            'eta alderatu emaitzak.',
- 'patterns_similarity_label': 'Zenbat antzeko izan behar diren behaketak',
- 'patterns_similarity_levels': {'broad': 'Zabala', 'balanced': 'Orekatua', 'strict': 'Zorrotza'},
- 'patterns_similarity_help': 'Zabalak antz lausoagoko behaketak multzokatzen ditu (multzo gehiago, '
-                             'zarata gehiago). Zorrotzak antz handiagoa eskatzen du (multzo '
-                             'gutxiago, fidagarriagoak).',
- 'patterns_min_observations_label': 'Gutxieneko behaketak multzoko',
- 'patterns_min_reflections_label': 'Gutxieneko hausnarketa desberdinak multzoko',
- 'patterns_threshold_not_proof': 'Gutxieneko hauek betetzeak ez du ezer frogatzen: multzo bat '
-                                 'eztabaidatzeko erakustea merezi duen ala ez erabakitzen du '
-                                 'soilik.',
- 'patterns_cost_note': 'Patroiak bilatzeak IA erabiltzen du {max_patterns} azalpen arte idazteko '
-                       '(zentimo gutxi guztira). Botoia berriro sakatzen baduzu bakarrik '
-                       'ordaintzen da berriro.',
- 'patterns_pool_truncated': 'Aldi berean alderatzen direnak baino behaketa gehiago daude; azkeneko {max} erabiltzen dira.',
- 'patterns_not_enough': 'Gutxienez {minimum} behaketa behar dira patroiak bilatzeko.',
- 'patterns_generate_button': 'Bilatu patroiak',
- 'patterns_generating': 'Patroiak bilatzen…',
- 'patterns_busy': 'Bilaketa bat martxan dago jada. Itxaron amaitu arte eta saiatu berriro.',
- 'patterns_unavailable': 'Esanahiaren araberako alderaketa-zerbitzua ez dago konfiguratuta; beraz, '
-                         'orain ezin dira patroiak bilatu.',
- 'patterns_none_found': 'Ez da gutxienekoak betetzen dituen multzorik aurkitu {observations} behaketen artean. Probatu ezarpen zabalago bat, edo itxaron hausnarketa gehiago egon arte.',
- 'patterns_generated_ok': '{patterns} patroi hautagai aurkitu dira {observations} behaketen '
-                          'artean.',
- 'patterns_not_embedded': '{count} behaketa ezin izan dira alderatu oraingoan, eta kanpoan geratu '
-                          'dira.',
- 'patterns_fallback_notice': '{count} patroiren azalpena ezin izan da idatzi; testu sinple bat '
-                             'erakusten da eta berriro saia zaitezke.',
- 'patterns_review_header': 'Berrikusi patroi hautagaiak',
- 'patterns_no_runs': 'Oraindik ez da patroirik bilatu.',
- 'patterns_run_select': 'Berrikusteko bilaketa',
- 'patterns_run_option': '{date} — {observations} behaketa — {patterns} patroi',
- 'patterns_run_caption': 'Bilaketa honen ezarpenak: antzekotasun {level}; gutxienez {min_obs} '
-                         'behaketa gutxienez {min_refl} hausnarketa desberdinetatik.',
- 'patterns_filter_status': 'Erakutsi egoerak',
- 'patterns_statuses': {'candidate': 'Hautagaia',
-                       'under_review': 'Berrikusten',
-                       'worth_discussing': 'Komentatzea merezi du',
-                       'not_supported': 'Berrikusi ondoren ez da babesten',
-                       'archived': 'Artxibatua'},
- 'patterns_none_in_view': 'Ez dago patroirik iragazki hauekin.',
- 'patterns_cases_none': 'Hausnarketa hauetako batek ere ez du kasu-erreferentziarik; beraz, ezin '
-                        'da kasuei buruz ezer esan.',
- 'patterns_cases_incomplete': '{total} hausnarketatik {missing}ek ez dute kasu-erreferentziarik; '
-                              'beraz, ezin da ezarri kasuen artean errepikatzen denik, hainbat '
-                              'hausnarketatan agertzen dela baino ezin da esan.',
- 'patterns_cases_single': 'Behaketa guztiak kasu-erreferentzia bati dagozkio: kasu baten barruko '
-                          'errepikapena da, ez kasuen artekoa.',
- 'patterns_cases_multiple': 'Behaketak {cases} kasu-erreferentzia desberdinetatik datoz.',
- 'patterns_item_header': '{title} — {status} — {observations} behaketa / {reflections} hausnarketa',
- 'patterns_candidate_label': 'Hausnarketarako patroi hautagaia — ez da ondorio bat.',
- 'patterns_counts_line': '{observations} behaketa · {reflections} hausnarketa desberdin · {cases} '
-                         'kasu desberdin',
- 'patterns_case_ref_caveat': 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi '
-                             'gisa kontatzea eragin dezake.',
- 'patterns_dates_line': 'Hausnarketak {first} eta {last} artean',
- 'patterns_lenses_line': 'Hausnarketa-puntuak: {lenses}',
- 'patterns_lost_members': 'Patroi honetako {count} behaketa ez daude eskuragarri jada (haien hausnarketa ezabatu da). Idatzitako azalpenak oraindik islatu ditzake: bilatu patroiak berriro horretan fidatu aurretik.',
- 'patterns_below_minimum': 'Oraingo behaketekin, multzo honek ez ditu jada aurkitu zenekoko '
-                           'gutxienekoak betetzen.',
- 'patterns_explanation_failed': 'Patroi honen azalpen automatikoa ezin izan da idatzi. Testu '
-                                'sinple bat erakusten da.',
- 'patterns_explanation_retry': 'Saiatu azalpena berriro',
- 'patterns_retry_ok': 'Azalpena idatzi da.',
- 'patterns_retry_failed': 'Azalpena oraindik ezin da idatzi. Saiatu berriro geroago.',
- 'patterns_what_in_common': 'Zer duten komunean',
- 'patterns_why_it_matters': 'Zergatik izan dezakeen garrantzia',
- 'patterns_alternatives': 'Beste azalpen posible batzuk',
- 'patterns_limitations': 'Honetatik zer ezin den jakin',
- 'patterns_questions': 'Komentatzeko galderak',
- 'patterns_observations_header': 'Multzoko behaketak (aipu zehatzarekin)',
- 'patterns_exclude_button': 'Behaketa hau ez da patroi honetakoa',
- 'patterns_excluded_ok': 'Behaketa patroitik kendu da.',
- 'patterns_more_observations': 'Eta {count} behaketa gehiago, hemen erakusten ez direnak.',
- 'patterns_excluded_header': 'Taldeak patroi honetatik kendutako behaketak',
- 'patterns_restore_button': 'Sartu berriro',
- 'patterns_restored_ok': 'Behaketa berriro sartu da.',
- 'patterns_review_status_header': 'Taldearen balorazioa',
- 'patterns_review_help': 'Erregistratu hemen zuen irizpidea. IAk proposatutakoa ez da inoiz '
-                         'ezabatzen edo aldatzen.',
- 'patterns_status_label': 'Egoera',
- 'patterns_comment_label': 'Iruzkina (aukerakoa)',
- 'patterns_save_review': 'Gorde balorazioa',
- 'patterns_review_saved': 'Balorazioa gorde da.',
- 'patterns_review_nothing': 'Ez dago gordetzeko aldaketarik.',
- 'patterns_history_header': 'Historia',
- 'patterns_event_kinds': {'generated': 'Patroia sortu da',
-                          'status_changed': 'Egoera aldatu da',
-                          'carried_over': 'Balorazioa aurreko bilaketa batetik heredatu da',
-                          'member_excluded': 'Behaketa patroitik kendu da',
-                          'member_restored': 'Behaketa berriro sartu da',
-                          'explanation_regenerated': 'Azalpena berriro idatzi da'},
- 'patterns_event_status_change': '({old} → {new})',
- 'patterns_event_system': 'Sistema',
  'doc_import_label': 'Edo igo dokumentu bat (Word, PDF edo testua)',
  'doc_import_help': 'Testua bakarrik irakurtzen da; fitxategia ez da gordetzen. {max_mb} MB, '
                     '{max_pages} orrialde eta {max_chars} karaktere inguru arte. Eskaneatutako '
@@ -634,43 +503,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                      'saiatu berriro gordetzen edo itsatsi testua.',
                        'unavailable': 'Fitxategi mota hau irakurtzea ez dago erabilgarri orain. '
                                       'Itsatsi testua zuzenean.'},
- 'report_doc_title': 'Hausnarketarako patroi hautagaien txostena',
- 'report_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
- 'report_prepared': '{date}(e)an prestatua',
- 'report_how_to_read_title': 'Nola irakurri txosten hau',
- 'report_how_to_read': 'Txosten honek patroi hautagaiak biltzen ditu: taldeak komentatu nahi ditzakeen behaketa antzeko multzoak. Ez dira ondorioak. Behaketa antzeko multzo batek ez du alborapenik edo jardun txarrik frogatzen, eta behaketak aplikazioan egindako hausnarketetatik datoz; beraz, ez dute nahitaez erakundea ordezkatzen. Taldeak erabakitzen du patroi bakoitzak zer esan nahi duen, esan nahi badu.',
- 'report_search_title': 'Zein bilaketatik datorren',
- 'report_search_line': '{date}(e)ko bilaketa: {observations} behaketa alderatu dira eta {patterns} patroi hautagai aurkitu dira.',
- 'report_filters_line': 'Bilaketaren iragazkiak: {filters}',
- 'report_no_filters': 'bat ere ez',
- 'report_statuses_line': 'Txosten honetan sartutako egoerak: {statuses}',
- 'report_summary_title': 'Laburpena',
- 'report_col_pattern': 'Patroi hautagaia',
- 'report_col_status': 'Egoera',
- 'report_col_obs': 'Behaketak',
- 'report_col_refl': 'Hausnarketa desberdinak',
- 'report_col_cases': 'Kasu desberdinak',
- 'report_pattern_heading': '{n}. patroia: {title}',
- 'report_no_patterns': 'Ez dago hautatutako egoerak dituen patroirik.',
- 'report_team_comments': 'Taldearen iruzkinak',
- 'report_observations_omitted': 'Behaketak eta aipuak ez dira txosten honetan sartzen.',
- 'report_quote_label': 'Aipu zehatza',
- 'report_limits_title': 'Txosten honen mugak',
- 'report_limits_list': ['Esanahiaren antzagatiko multzokatze automatikoa da; erlazionatu gabeko behaketak elkartu ditzake edo erlazionatuak bereizi.', 'Behaketak aplikazioan egindako IAren laguntzako hausnarketetatik datoz; ez dira erregistro osoa edo adierazgarria.', 'Kasu-erreferentziak eskuz idazten dira: akats batek kasu bera bi gisa kontatzea eragin dezake.', 'Azalpen-testua IAk idazten du behaketetatik abiatuta, eta bilaketaren ondoren kendutako behaketak islatu ditzake.', 'Txosten honetako ezerk ez du identifikatzen behaketa nork idatzi duen, ezta bere ohar pribatuak barne hartzen ere.'],
- 'report_footer': 'Konfidentziala · Hausnarketarako patroi hautagaiak, ez ondorioak · {date}',
- 'report_section_header': 'Inprimatzeko txostena',
- 'report_section_intro': 'Goian erakusten diren patroiekin (hautatutako egoeren arabera) '
-                         'inprimatzeko edo PDF gisa gordetzeko dokumentu bat sortzen du.',
- 'report_opt_observations': 'Sartu behaketak eta haien aipu zehatzak',
- 'report_opt_case_refs': 'Sartu kasu-erreferentziak (lehenespenez markatu gabe: paperak pantailak '
-                         'baino gehiago zirkulatzen du)',
- 'report_opt_comments': 'Sartu taldearen iruzkinak',
- 'report_prepare_button': 'Prestatu txostena',
- 'report_ready': 'Txostena prestatu da.',
- 'report_download_button': 'Deskargatu txostena',
- 'report_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta sakatu Ctrl+P (edo '
-                        'Inprimatu) inprimatzeko edo PDF gisa gordetzeko.',
- 'report_outdated': 'Bilaketa, egoerak edo aukerak aldatu dituzu: prestatu txostena berriro.',
  'rs_intro': 'Idatzi, itsatsi edo igo hausnartu nahi duzun kasua eta hausnartu une berean. AAri zure testuaren bertsio anonimizatu bat bakarrik bidaltzen zaio. Jatorrizko testua modu seguruan gordetzen da hausnarketarekin batera, geroago ereduak aztertzeko.',
  'rs_code_label': 'Hausnarketa honen kodea:',
  'rs_code_help': 'Aplikazioak sortutako kode neutroa. Ez du inor identifikatzen. Idatzi ezazu '
@@ -712,34 +544,24 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_similar_used_label': 'Barne hartutako aurreko hausnarketak',
  'rs_back_to_case_button': 'Itzuli kasura',
  'rs_finish_header': 'Amaitu hausnarketa',
- 'rs_finish_caption': 'Zure hausnarketa eta oharrak {code} kodearekin gordeta geratzen dira. Amaitzean, kasuaren testua pantaila honetatik kentzen da.',
+ 'rs_finish_caption': 'Zure hausnarketa {code} kodearekin gordeta geratzen da. AAren behaketak eta galderak ez dira gordetzen. Amaitzean, kasuaren testua pantaila honetatik kentzen da.',
  'rs_finish_caption_unsaved': 'Ezin izan da hausnarketa hau gorde. Amaitzean, kasuaren testua pantaila honetatik kentzen da.',
  'rs_finish_button': 'Amaitu hausnarketa',
  'rs_finished_success': '✔ Hausnarketa amaituta. Kasuaren testua pantaila honetatik kendu da.',
  'rs_start_over_button': 'Hasi berriro',
  'ch_reflections_header': 'Gordetako hausnarketak',
- 'ch_reflections_intro': 'Hausnarketa bakoitza bere kode neutroarekin eta gaiekin agertzen da. AAren behaketak erakusten dira; inoiz ez profesionalen ohar pribatuak. Jatorrizko testuak ez dira hemen erakusten: Patroien berrikuspenean irakur daitezke, egileen izenik gabe.',
+ 'ch_reflections_intro': 'Hausnarketa bakoitza bere kode neutroarekin, datarekin eta nork egin zuen agertzen da. Hemen ez da testurik erakusten, eta AAren behaketak eta galderak ez dira gordetzen. Testuen arteko ereduak bilatzeko, erabili Patroien berrikuspena.',
  'ch_tag_filter_label': 'Gaia',
  'ch_all_tags': 'Gai guztiak',
  'ch_showing_recent': '{total} hausnarketetatik azken {shown}ak erakusten dira. Aukeratu data edo '
                       'gai bat mugatzeko.',
  'ch_author_label': 'Egilea',
- 'ch_linked_label': 'Hausnarketa honen jarraipena',
- 'ch_no_observations': 'Hausnarketa honek ez du gordetako behaketarik.',
- 'rs_summary_status': 'Historialerako laburpena prestatzen…',
  'rs_feedback_popover_button': '💬 Baloratu',
  'rs_feedback_optional_note': 'Aukerakoa da. Zure balorazioak tresna hobetzen laguntzen digu.',
  'rs_feedback_already_sent': '✔ Hausnarketa hau baloratu duzu jada. Eskerrik asko!',
  'rs_feedback_failed': 'Ezin izan da zure balorazioa gorde. Saiatu berriro geroago.',
- 'ch_details_expander': 'Ikusi behaketak eta galderak ({count})',
- 'ch_summary_ai_note': 'IAk behaketetatik abiatuta idatzitako laburpena. Irakurtzeko laguntza da, ez ondorio bat.',
- 'ch_summary_missing': 'Hausnarketa honek oraindik ez du laburpenik.',
- 'ch_summary_create_button': 'Sortu laburpena',
- 'ch_summary_creating': 'Laburpena sortzen…',
- 'ch_summary_failed': 'Ezin izan da laburpena orain sortu. Saiatu berriro geroago.',
  'ch_delete_button': 'Ezabatu hausnarketa',
- 'ch_delete_confirm': 'Ziur zaude hausnarketa hau ezabatu nahi duzula? Bere behaketak eta lotutako '
-                      'oharrak ezabatuko dira. Ekintza hau ezin da desegin.',
+ 'ch_delete_confirm': 'Ziur zaude hausnarketa hau ezabatu nahi duzula? Bere gordetako testua eta Patroien berrikuspenerako kopia anonimizatua ezabatuko dira. Ekintza hau ezin da desegin.',
  'ch_deleted_success': '✔ Hausnarketa ezabatuta.',
  'ch_delete_failed': '⚠ Ezin izan da hausnarketa ezabatu.',
  'case_tag_labels': {'housing': 'Etxebizitza / etxegabetasuna',
@@ -789,20 +611,12 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_anonymised_preview_help': 'Egiaztatu zure materialaren bertsio babestua. Hau da, hain zuzen '
                                'ere, AAk jaso duena.',
  'rs_try_again_button': 'Saiatu berriro testu berarekin',
- 'rs_original_saved_note': '📁 Jatorrizko testua modu seguruan gordetzen da (EBko datu-basean) gehienez {months} hilabetez, praktikako ereduak antzemateko. Gainbegiraleek eta programa-arduradunek irakur dezakete helburu horretarako, zure izenik gabe. AAri bertsio anonimizatua bakarrik bidaltzen zaio.',
- 'ch_show_anonymised_text': 'Ikusi gordetako testu anonimizatua',
+ 'rs_original_saved_note': '📁 Jatorrizko testua modu seguruan gordetzen da (EBko datu-basean) gehienez {months} hilabetez. Zuk bakarrik irakur dezakezu, Nire Hausnarketan. AAri bertsio anonimizatua bakarrik bidaltzen zaio.',
  'ch_anonymised_text_caption': 'AAk jaso zuen bertsio babestua (inoiz ez jatorrizko testua). '
                                '{months} hilabete igarotakoan automatikoki ezabatzen da.',
- 'ch_anonymised_text_unavailable': 'Hausnarketa honen testu anonimizatua ez dago erabilgarri jada.',
  'ch_show_saved_text': 'Ikusi gordetako testua',
  'ch_original_text_caption': 'Jatorrizko testua, zuk idatzi bezala. Ez zaio inoiz AAri bidaltzen eta {months} hilabete igarotakoan automatikoki ezabatzen da.',
  'ch_saved_text_unavailable': 'Hausnarketa honen testua ez dago erabilgarri (ez zen gorde edo dagoeneko ezabatu da).',
- 'ch_original_text_in_patterns_note': '📄 Hausnarketa honen jatorrizko testua gordeta dago. Gainbegiraleek eta programa-arduradunek Patroien berrikuspenean irakur dezakete, egilearen izenik gabe.',
- 'patterns_texts_header': '📄 Gordetako jatorrizko testuak',
- 'patterns_texts_caption': 'Hausnarketak egiteko erabili ziren jatorrizko testuak, kasuak nola idazten diren aztertzeko. Ez dira inoiz erakusten egileen izenak, hausnarketa-kodeak edo ordu zehatzak. Testu bakoitza {months} hilabete igarotakoan automatikoki ezabatzen da. Testu hauek konfidentzialak dira: ez itzazu aplikaziotik kanpora kopiatu.',
- 'patterns_texts_empty': 'Oraindik ez da jatorrizko testurik gorde.',
- 'patterns_texts_showing': 'Gordetako {total} testuetatik azken {shown}ak erakusten dira.',
- 'patterns_texts_item': '{date}(e)ko testua · {language}',
  'rs_cards_hint': 'Aukeratu edozein txartel irekitzeko.',
  'rs_cards_choose': 'Aukeratu txartel bat bere hausnarketa ikusteko.',
  'rs_card_explored': '✓ Arakatua',
@@ -810,10 +624,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                     'none': 'Ez da ezer nabarmenik aurkitu',
                     'unavailable': 'Orain ez dago erabilgarri, berriro saia zaitezke'},
  'my_reflections_header': 'Zure gordetako hausnarketak',
- 'my_reflections_intro': 'Zure hausnarketetako edozein ezaba dezakezu. Leku guztietatik '
-                         'desagertzen da (arduradunentzat eta ereduen analisitik ere), bere '
-                         'behaketekin, zure oharrekin eta bere testu anonimizatuarekin. {hours} '
-                         'orduz berreskura dezakezu; ondoren behin betiko ezabatzen da.',
+ 'my_reflections_intro': 'Zure hausnarketetako edozein ezaba dezakezu. Leku guztietatik desagertzen da (arduradunentzat eta Patroien berrikuspenetik ere), bere gordetako testuarekin eta kopia anonimizatuarekin. {hours} orduz berreskura dezakezu; ondoren behin betiko ezabatzen da. Dagoeneko egindako Patroien berrikuspeneko txostenak ez dira aldatzen: ez dute inoiz zure testua jasotzen.',
  'my_reflections_empty': 'Oraindik ez duzu gordetako hausnarketarik.',
  'my_reflections_showing': '{total}etik azken {shown}ak erakusten dira.',
  'my_reflections_line': '{date} · {count} behaketa',
@@ -827,4 +638,40 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'my_reflections_failed': 'Ezin izan da osatu. Saiatu berriro.',
  'my_reflections_deleted_header': 'Duela gutxi ezabatuak',
  'my_reflections_restore': 'Berreskuratu',
- 'my_reflections_erase_on': 'Behin betiko ezabatuko da: {date} (UTC).'}
+ 'my_reflections_erase_on': 'Behin betiko ezabatuko da: {date} (UTC).',
+ 'rs_pattern_copy_note': '🔎 Zure testuaren kopia anonimizatu bat gordetzen da, zure izenik gabe, gehienez {months} hilabetez, kudeaketa-taldeak testu askoren artean ereduak bilatu ahal izateko. Arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua.',
+ 'pr_intro': 'Patroien berrikuspenak kasuak nola idazten diren aztertzen du, eta ereduak bilatzen ditu gizarte-langileek zuk aukeratutako aldian idatzitako testuetan. AAk testu anonimizatuak irakurtzen ditu eta txosten bat idazten du; zuk txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Erakusten duena hausnartzeko eredu posibleak dira, ez ondorioak: eredu bat ez da alborapenaren edo praktika txarraren froga, eta taldeak erabakitzen du zer esan nahi duen, ezer esan nahi badu.',
+ 'pr_new_header': 'Ereduak identifikatu',
+ 'pr_texts_note': 'Testu anonimizatu bakoitza {months} hilabetez gordetzen da eta gero automatikoki ezabatzen da. Ez da harekin batera egilearen izenik edo rolik gordetzen.',
+ 'pr_period_label': 'Aztertu beharreko aldia',
+ 'pr_period_option': 'Azken {months} hilabeteak',
+ 'pr_available': 'Azken {months} hilabeteetako testu erabilgarriak: {count}',
+ 'pr_not_enough': 'Gutxienez {minimum} testu behar dira ereduak identifikatzeko, eredu batek pertsona bakar bat seinala ez dezan.',
+ 'pr_cost_note': 'Ereduak identifikatzeko AA erabiltzen da eta kostu txiki bat du (zentimo batzuk aldi labur baterako, dolar gutxi batzuk arte 12 hilabeterako). Minutu batzuk iraun ditzake.',
+ 'pr_run_button': 'Identifikatu ereduak',
+ 'pr_running': 'Testuak irakurtzen eta ereduak identifikatzen… minutu batzuk iraun ditzake.',
+ 'pr_done': 'Txostena prest: {patterns} eredu aurkitu dira {texts} testutan. Behean erakusten da.',
+ 'pr_busy': 'Aldi honetarako txosten bat prestatzen ari da dagoeneko. Itxaron minutu batzuk eta begiratu behean.',
+ 'pr_recent': 'Duela minutu batzuk txosten bat egin zen aldi honetarako eta testu hauetarako. Behean aurkituko duzu.',
+ 'pr_failed': 'Ezin izan da txostena orain prestatu. Ez da ezer gorde. Saiatu berriro geroago.',
+ 'pr_saved_header': 'Gordetako txostenak',
+ 'pr_no_reports': 'Oraindik ez da txostenik egin.',
+ 'pr_report_select': 'Ikusi beharreko txostena',
+ 'pr_report_option': '{date} — azken {months} hilabeteak — {texts} testu',
+ 'pr_report_meta': 'Data: {date} · azken {months} hilabeteak · aldiko {texts} testu, horietatik {read} AAk irakurriak',
+ 'pr_some_unread': 'AAk ezin izan ditu testu batzuk irakurri oraingoan; beraz, txosten hau aldian dauden baino testu gutxiagotan oinarritzen da.',
+ 'pr_candidate_note': 'Hausnartzeko eredu posibleak, AAk idatziak; ez dira ondorioak. Eredu bat ez da alborapenaren edo praktika txarraren froga.',
+ 'pr_overview_header': 'Ikuspegi orokorra',
+ 'pr_patterns_header': 'Identifikatutako ereduak',
+ 'pr_no_patterns': 'Ez da eredurik agertu txostenean sartzeko adina testutan.',
+ 'pr_seen_in': '{total} testutik {count} testutan ikusia',
+ 'pr_why_header': 'Zergatik izan daitekeen garrantzitsua',
+ 'pr_questions_header': 'Taldeak eztabaida ditzakeen galderak',
+ 'pr_limits_header': 'Txosten honen mugak',
+ 'pr_standing_limits': ['AAk idatzi du testu anonimizatuetatik abiatuta eta oker egon daiteke; taldeak bere ezagutzarekin alderatu beharko luke.', 'Testuak aldian aplikazioan idatzitakoak dira; ez dute nahitaez erakundea ordezkatzen.', 'Anonimizazioak izenak eta datu pertsonalak automatikoki kentzen ditu, baina ez da perfektua.', 'Txostenak ez du inoiz testurik, aipurik edo nork zer idatzi zuen jasotzen.'],
+ 'pr_download_button': 'Deskargatu inprimatzeko txostena',
+ 'pr_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta aukeratu Inprimatu (edo Gorde PDF gisa).',
+ 'pr_print_title': 'Patroien berrikuspeneko txostena',
+ 'pr_print_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
+ 'pr_print_prepared': 'Inprimatze-data: {date}',
+ 'pr_print_footer': 'Konfidentziala · Hausnartzeko eredu posibleak, ez ondorioak · {date}'}

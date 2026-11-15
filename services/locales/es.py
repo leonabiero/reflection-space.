@@ -186,11 +186,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                        'profesional.',
  'nav_growth': '🌱 Mi Reflexión',
  'growth_title': '🌱 Tu Trayectoria Reflexiva',
- 'growth_intro': 'Este es tu espacio personal. No es una evaluación de tu desempeño y nunca se '
-                 'compara con otros profesionales. Lo que exploras en las conversaciones y tus '
-                 'notas son solo tuyos. Las observaciones guardadas de tus reflexiones (y su texto '
-                 'anonimizado) también las pueden ver los responsables en el Historial de '
-                 'reflexiones.',
+ 'growth_intro': 'Este es tu espacio personal. No es una evaluación de tu desempeño y nunca se compara con otros profesionales. Lo que exploras en las conversaciones es solo tuyo. Tus textos guardados solo los puedes leer tú, aquí; los responsables ven tus reflexiones por código y fecha, nunca tus textos.',
  'growth_no_data': 'Aún no has explorado ninguna reflexión. A medida que uses el botón «Explorar con el '
                    'acompañante» en el Espacio de Reflexión, tu trayectoria aparecerá aquí.',
  'growth_themes_header': 'Áreas que más has explorado',
@@ -296,11 +292,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_problem_solved_header': 'Problemas resueltos ({n})',
  'admin_problem_none_open': 'No hay problemas abiertos.',
  'admin_reset_header': '🧹 Borrar todos los datos',
- 'admin_reset_intro': 'Borra de forma definitiva todo lo guardado en la aplicación: las '
-                      'reflexiones y sus textos, las observaciones y las notas, las valoraciones, '
-                      'las revisiones de patrones, los documentos antiguos, el historial de '
-                      'actividad, los problemas registrados y los registros de uso y costes. '
-                      'Todos los contadores de la aplicación vuelven a 0.',
+ 'admin_reset_intro': 'Borra de forma definitiva todo lo guardado en la aplicación: las reflexiones y sus textos, las copias anonimizadas y los informes de la Revisión de patrones, las observaciones y notas antiguas, las valoraciones, los documentos antiguos, el historial de actividad, los problemas registrados y los registros de uso y costes. Todos los contadores de la aplicación vuelven a 0.',
  'admin_reset_kept_note': 'Se conservan las cuentas de usuario y la configuración. Nadie tendrá '
                           'que volver a iniciar sesión.',
  'admin_reset_warning': 'Esta acción no se puede deshacer.',
@@ -363,28 +355,17 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'help': {'nav_label': '❓ Ayuda',
           'page_title': 'Guía rápida de Reflection Space',
           'intro_title': '¿Qué es Reflection Space?',
-          'intro_body': 'Reflection Space te ayuda a reflexionar sobre un caso en el momento: '
-                        'escribes, pegas o subes el caso y te ofrece preguntas reflexivas en ocho '
-                        'dimensiones profesionales -- por ejemplo, si la voz de la persona usuaria '
-                        'está presente, o si se están pasando por alto sus fortalezas junto a las '
-                        'dificultades. No es un lugar para guardar documentos: solo se guarda la '
-                        'reflexión.',
+          'intro_body': 'Reflection Space te ayuda a reflexionar sobre un caso en el momento: escribes, pegas o subes el caso y te ofrece preguntas reflexivas en ocho dimensiones profesionales -- por ejemplo, si la voz de la persona usuaria está presente, o si se están pasando por alto sus fortalezas junto a las dificultades. No es un lugar para guardar documentos: las observaciones y preguntas de la IA no se conservan.',
           'guardrail_note': 'La herramienta nunca califica, puntúa ni decide nada por ti. Tú '
                             'decides qué hacer, si acaso, con lo que te haya hecho pensar.',
           'journey_title': 'Cómo funciona',
-          'journey_steps': ['1. Reflexionemos -- escribe o pega tu texto, o sube un documento (Word, PDF o texto). No hace falta ninguna referencia, tipo de texto ni tema.', '2. Elige el idioma de la reflexión (Español, Euskara o English) y pulsa Reflexionar. El texto se anonimiza automáticamente antes de que lo reciba la IA.', '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, conversa brevemente sobre alguna si quieres, añade tus notas y termina. Después, el texto del caso se retira de la pantalla.'],
+          'journey_steps': ['1. Reflexionemos -- escribe o pega tu texto, o sube un documento (Word, PDF o texto). No hace falta ninguna referencia, tipo de texto ni tema.', '2. Elige el idioma de la reflexión (Español, Euskara o English) y pulsa Reflexionar. El texto se anonimiza automáticamente antes de que lo reciba la IA.', '3. Reflexión profesional -- explora las ocho dimensiones reflexivas, conversa brevemente sobre alguna si quieres y termina. Después, el texto del caso se retira de la pantalla; las observaciones y preguntas de la IA no se conservan.'],
           'practitioner_title': 'Espacio del profesional',
           'doc_section_title': '📝 Tu caso -- escribir, pegar o subir',
-          'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si escribes un texto y además subes un documento, se te preguntará sobre cuál quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no identifica a nadie. El texto original se guarda de forma segura para analizar patrones más adelante (ver abajo).',
-          'original_saved_note': 'El texto original se guarda de forma segura en una base de datos de la UE, durante un máximo de {months} meses, para ayudar a detectar patrones en la práctica. A la IA solo se envía la versión anonimizada. Puedes leer tu propio texto en Mi reflexión; las personas supervisoras y responsables de programa pueden leer los textos en Revisión de patrones, sin el nombre de quien los escribió. Pasado ese tiempo se borra automáticamente; la reflexión se mantiene.',
+          'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si escribes un texto y además subes un documento, se te preguntará sobre cuál quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no identifica a nadie. El texto original se guarda de forma segura, y se conserva una copia anonimizada para la Revisión de patrones (ver abajo).',
+          'original_saved_note': 'El texto original se guarda de forma segura en una base de datos de la UE, durante un máximo de {months} meses. A la IA solo se envía la versión anonimizada. Solo tú puedes leer tu propio texto, en Mi Reflexión. Pasado ese tiempo se borra automáticamente; la reflexión se mantiene.',
           'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
-          'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se '
-                                     'quitan nombres y otros datos personales) y solo esa versión protegida '
-                                     'se envía a la IA. Si la anonimización fallara, no se envía nada. En '
-                                     'los resultados, «Ver texto anonimizado» te muestra exactamente lo que '
-                                     'recibió la IA. Explora cualquiera de las ocho dimensiones, abre una '
-                                     'breve conversación sobre alguna si quieres, añade tus notas y pulsa '
-                                     'Terminar reflexión. Si quieres, valora su utilidad con el botón «Valorar» de la esquina superior derecha -- totalmente opcional; nada depende de ello.',
+          'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se quitan nombres y otros datos personales) y solo esa versión protegida se envía a la IA. Si la anonimización fallara, no se envía nada. En los resultados, «Ver texto anonimizado» te muestra exactamente lo que recibió la IA. Explora cualquiera de las ocho dimensiones, abre una breve conversación sobre alguna si quieres y pulsa Terminar reflexión. Las observaciones y preguntas de la IA son solo para ti y no se conservan. Si quieres, valora su utilidad con el botón «Valorar» de la esquina superior derecha -- totalmente opcional; nada depende de ello.',
           'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
                          'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
                          'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
@@ -421,19 +402,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                           'final de Mi reflexión. Desaparece en todas partes al momento; durante {hours} '
                           'horas puedes recuperarla y después se borra definitivamente.',
           'growth_section_title': '🌱 Mi Reflexión -- tu diario personal',
-          'growth_section_body': 'Mi reflexión es tu propio espacio: los temas que más has explorado, una '
-                                  'línea de tiempo de tus momentos de reflexión, las observaciones guardadas '
-                                  'con tus notas y la lista de tus reflexiones (que puedes borrar). Sin '
-                                  'puntuaciones ni comparaciones con nadie. Tus notas y lo que exploras son '
-                                  'solo tuyos; las observaciones guardadas también las pueden ver los '
-                                  'responsables.',
+          'growth_section_body': 'Mi Reflexión es tu propio espacio: los temas que más has explorado, una línea de tiempo de tus momentos de reflexión y la lista de tus reflexiones, donde puedes leer tu texto guardado y borrar una reflexión. Sin puntuaciones ni comparaciones con nadie.',
           'manager_title': 'Espacio del equipo directivo',
           'case_history_section_title': '🗂️ Historial de reflexiones',
-          'case_history_section_body': 'Historial de reflexiones muestra la valoración media de '
-                                       'utilidad (nunca las valoraciones individuales ni quién '
-                                       'las dio) y las reflexiones guardadas, cada una con su código neutro, sus temas y un breve resumen escrito por la IA que se lee de un vistazo; las observaciones y preguntas completas se despliegan debajo. Se '
-                                       'puede filtrar por fecha y por tema. Nunca muestra las '
-                                       'notas privadas de los profesionales.',
+          'case_history_section_body': 'El Historial de reflexiones muestra la valoración media de utilidad (nunca las valoraciones individuales ni quién las dio) y la lista de reflexiones guardadas, cada una con su código neutro, la fecha y quién la hizo. Nunca muestra textos ni notas privadas de los profesionales. Se puede filtrar por fecha.',
           'admin_title': '🛠️ Administración del sistema',
           'admin_section_body': 'Administración del sistema reúne la lista de usuarios, el estado '
                                 'del sistema, la prueba de anonimización, las comprobaciones de '
@@ -447,7 +419,10 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado, para analizar patrones -- a la IA solo se envía la versión anonimizada, y las personas supervisoras y responsables de programa lo leen sin tu nombre.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tus notas sobre las observaciones son privadas -- solo tú puedes verlas. Las observaciones de la IA se usan en la revisión de patrones del equipo de gestión, sin tu nombre.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.']},
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Una copia anonimizada de cada texto, sin tu nombre ni tu rol, se usa en la Revisión de patrones del equipo de gestión; los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
+          'pattern_copy_note': 'Justo después de la anonimización, también se guarda una copia anonimizada de tu texto, sin tu nombre ni tu rol, durante un máximo de {months} meses. En la Revisión de patrones del equipo de gestión, la IA lee estas copias para buscar patrones en cómo se escriben los casos; los responsables solo ven el informe general de la IA, nunca tu texto.',
+          'pattern_review_section_title': '🔎 Revisión de patrones',
+          'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Elige un periodo (los últimos 3, 6, 9 o 12 meses) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Los patrones son posibilidades para la reflexión, no conclusiones.'},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
  'admin_usage_caption': 'Lo que cuesta cada servicio externo en este proyecto piloto, estimado a '
                         'partir del uso real registrado de las API. Las cifras marcadas como '
@@ -489,8 +464,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'findings_save_button': 'Guardar mis notas',
  'findings_save_success': 'Notas guardadas.',
  'findings_save_error': 'No se han podido guardar tus notas. Inténtalo de nuevo en un momento.',
- 'findings_not_saved_notice': 'Esta reflexión no se ha podido guardar, así que no podrás conservar '
-                              'notas sobre ella. Puedes seguir trabajando con normalidad.',
+ 'findings_not_saved_notice': 'Esta reflexión no se ha podido guardar, así que no aparecerá en tu lista de reflexiones. Puedes seguir trabajando con normalidad.',
  'findings_journal_header': 'Observaciones guardadas y tus notas',
  'findings_journal_intro': 'Aquí puedes volver a las observaciones de tus reflexiones, con el '
                            'pasaje exacto en el que se basan, y escribir o revisar tus propias '
@@ -508,112 +482,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'findings_notes_privacy': 'Tus notas y valoraciones son privadas: solo tú puedes verlas. Se guardan aparte de lo que dijo la IA, que nunca se modifica. Las observaciones de la IA (nunca tu nombre ni tus notas) se usan en la revisión de patrones del equipo de gestión. Al guardar, se quitan de tus notas los nombres, las edades exactas y otros datos personales.',
  'patterns_title': '🔎 Revisión de patrones',
  'patterns_no_access': 'Esta página es solo para supervisión y coordinación del programa.',
- 'patterns_intro': 'Esta página ayuda al equipo a buscar temas que se repiten en las observaciones de las reflexiones de los profesionales. Lo que muestra son patrones candidatos para la reflexión, no conclusiones: un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y el conjunto no representa necesariamente a la organización. El equipo decide qué significa, si es que significa algo.',
- 'patterns_pool_header': 'Qué hay para revisar',
- 'patterns_pool_caption': 'Aquí aparecen todas las observaciones de las reflexiones de los profesionales. Nunca ves quién las escribió ni sus notas privadas.',
- 'patterns_filter_lenses': 'Limitar a estos puntos de reflexión (vacío = todos)',
- 'patterns_filter_from': 'Desde (opcional)',
- 'patterns_filter_to': 'Hasta (opcional)',
- 'patterns_pool_empty': 'Todavía no hay observaciones con estos filtros.',
- 'patterns_pool_counts': '{observations} observación(es), de {reflections} reflexión(es) y {cases} referencia(s) de caso distinta(s).',
- 'patterns_pool_no_case': '{count} reflexión(es) no tienen referencia de caso, por lo que no '
-                          'cuentan como casos.',
- 'patterns_generate_header': 'Buscar patrones',
- 'patterns_settings_header': 'Ajustes de la búsqueda',
- 'patterns_settings_intro': 'Estos ajustes son puntos de partida, no valores demostrados. '
-                            'Cámbialos y compara los resultados.',
- 'patterns_similarity_label': 'Cuánto deben parecerse las observaciones',
- 'patterns_similarity_levels': {'broad': 'Amplio', 'balanced': 'Equilibrado', 'strict': 'Estricto'},
- 'patterns_similarity_help': 'Amplio agrupa observaciones con un parecido más flojo (más grupos, '
-                             'más ruido). Estricto exige un parecido mayor (menos grupos, más '
-                             'fiables).',
- 'patterns_min_observations_label': 'Mínimo de observaciones por grupo',
- 'patterns_min_reflections_label': 'Mínimo de reflexiones distintas por grupo',
- 'patterns_threshold_not_proof': 'Alcanzar estos mínimos no demuestra nada: solo decide si un '
-                                 'grupo merece mostrarse para su discusión.',
- 'patterns_cost_note': 'Buscar patrones usa IA para redactar hasta {max_patterns} explicaciones '
-                       '(unos pocos céntimos en total). Solo se vuelve a pagar si pulsas el botón '
-                       'de nuevo.',
- 'patterns_pool_truncated': 'Hay más observaciones de las que se comparan de una vez; se usan las {max} más recientes.',
- 'patterns_not_enough': 'Hacen falta al menos {minimum} observaciones para buscar patrones.',
- 'patterns_generate_button': 'Buscar patrones',
- 'patterns_generating': 'Buscando patrones…',
- 'patterns_busy': 'Ya hay una búsqueda en curso. Espera a que termine e inténtalo de nuevo.',
- 'patterns_unavailable': 'El servicio de comparación por significado no está configurado, así que '
-                         'ahora no se pueden buscar patrones.',
- 'patterns_none_found': 'No se ha encontrado ningún grupo que cumpla los mínimos entre {observations} observaciones. Prueba con un ajuste más amplio o espera a que haya más reflexiones.',
- 'patterns_generated_ok': 'Se han encontrado {patterns} patrón(es) candidato(s) entre '
-                          '{observations} observaciones.',
- 'patterns_not_embedded': '{count} observación(es) no se pudieron comparar esta vez y han quedado '
-                          'fuera.',
- 'patterns_fallback_notice': 'No se pudo redactar la explicación de {count} patrón(es); se muestra '
-                             'un texto sencillo y puedes reintentarlo.',
- 'patterns_review_header': 'Revisar patrones candidatos',
- 'patterns_no_runs': 'Todavía no se ha buscado ningún patrón.',
- 'patterns_run_select': 'Búsqueda a revisar',
- 'patterns_run_option': '{date} — {observations} observaciones — {patterns} patrón(es)',
- 'patterns_run_caption': 'Ajustes de esta búsqueda: parecido {level}; mínimo {min_obs} '
-                         'observaciones de al menos {min_refl} reflexiones distintas.',
- 'patterns_filter_status': 'Mostrar estados',
- 'patterns_statuses': {'candidate': 'Candidato',
-                       'under_review': 'En revisión',
-                       'worth_discussing': 'Merece comentarse',
-                       'not_supported': 'No respaldado tras revisar',
-                       'archived': 'Archivado'},
- 'patterns_none_in_view': 'No hay patrones con estos filtros.',
- 'patterns_cases_none': 'Ninguna de estas reflexiones tiene referencia de caso, así que no se '
-                        'puede decir nada sobre casos.',
- 'patterns_cases_incomplete': '{missing} de las {total} reflexiones no tienen referencia de caso, '
-                              'así que no se puede establecer que se repita entre casos; solo que '
-                              'aparece en varias reflexiones.',
- 'patterns_cases_single': 'Todas las observaciones corresponden a una misma referencia de caso: es '
-                          'una repetición dentro de un caso, no entre casos.',
- 'patterns_cases_multiple': 'Las observaciones proceden de {cases} referencias de caso distintas.',
- 'patterns_item_header': '{title} — {status} — {observations} obs. / {reflections} reflexiones',
- 'patterns_candidate_label': 'Patrón candidato para la reflexión — no es una conclusión.',
- 'patterns_counts_line': '{observations} observación(es) · {reflections} reflexión(es) distinta(s) '
-                         '· {cases} caso(s) distinto(s)',
- 'patterns_case_ref_caveat': 'Las referencias de caso se escriben a mano: una errata puede hacer '
-                             'que un mismo caso cuente como dos.',
- 'patterns_dates_line': 'Reflexiones entre {first} y {last}',
- 'patterns_lenses_line': 'Puntos de reflexión: {lenses}',
- 'patterns_lost_members': '{count} de las observaciones de este patrón ya no están disponibles (su reflexión fue eliminada). La explicación escrita puede seguir reflejándolas: conviene volver a buscar patrones antes de fiarse de ella.',
- 'patterns_below_minimum': 'Con las observaciones actuales, este grupo ya no alcanza los mínimos '
-                           'con los que se encontró.',
- 'patterns_explanation_failed': 'La explicación automática de este patrón no se pudo redactar. Se '
-                                'muestra un texto sencillo.',
- 'patterns_explanation_retry': 'Reintentar la explicación',
- 'patterns_retry_ok': 'Explicación redactada.',
- 'patterns_retry_failed': 'Sigue sin poder redactarse la explicación. Inténtalo más tarde.',
- 'patterns_what_in_common': 'Qué tienen en común',
- 'patterns_why_it_matters': 'Por qué puede importar',
- 'patterns_alternatives': 'Otras explicaciones posibles',
- 'patterns_limitations': 'Lo que no se puede saber a partir de esto',
- 'patterns_questions': 'Preguntas para comentar',
- 'patterns_observations_header': 'Observaciones del grupo (con la cita exacta)',
- 'patterns_exclude_button': 'Esta observación no pertenece a este patrón',
- 'patterns_excluded_ok': 'Observación retirada del patrón.',
- 'patterns_more_observations': 'Y {count} observación(es) más no se muestran aquí.',
- 'patterns_excluded_header': 'Observaciones retiradas del patrón por el equipo',
- 'patterns_restore_button': 'Volver a incluirla',
- 'patterns_restored_ok': 'Observación incluida de nuevo.',
- 'patterns_review_status_header': 'Valoración del equipo',
- 'patterns_review_help': 'Registra aquí vuestro propio juicio. Lo que propuso la IA no se borra ni '
-                         'se modifica.',
- 'patterns_status_label': 'Estado',
- 'patterns_comment_label': 'Comentario (opcional)',
- 'patterns_save_review': 'Guardar valoración',
- 'patterns_review_saved': 'Valoración guardada.',
- 'patterns_review_nothing': 'No hay ningún cambio que guardar.',
- 'patterns_history_header': 'Historial',
- 'patterns_event_kinds': {'generated': 'Patrón generado',
-                          'status_changed': 'Estado cambiado',
-                          'carried_over': 'Valoración heredada de una búsqueda anterior',
-                          'member_excluded': 'Observación retirada del patrón',
-                          'member_restored': 'Observación incluida de nuevo',
-                          'explanation_regenerated': 'Explicación redactada de nuevo'},
- 'patterns_event_status_change': '({old} → {new})',
- 'patterns_event_system': 'Sistema',
  'doc_import_label': 'O sube un documento (Word, PDF o texto)',
  'doc_import_help': 'Solo se lee el texto; el archivo no se guarda. Hasta {max_mb} MB, {max_pages} '
                     'páginas y unos {max_chars} caracteres. Los PDF escaneados (fotos de papel) no '
@@ -633,44 +501,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                      'a guardarlo de nuevo o pega el texto.',
                        'unavailable': 'La lectura de este tipo de archivo no está disponible ahora '
                                       'mismo. Pega el texto directamente.'},
- 'report_doc_title': 'Informe de patrones candidatos para la reflexión',
- 'report_confidential': 'Documento confidencial para el equipo de gestión',
- 'report_prepared': 'Preparado el {date}',
- 'report_how_to_read_title': 'Cómo leer este informe',
- 'report_how_to_read': 'Este informe recoge patrones candidatos: grupos de observaciones parecidas que el equipo puede querer comentar. No son conclusiones. Un grupo de observaciones parecidas no demuestra sesgo ni mala práctica, y las observaciones proceden de las reflexiones hechas en la aplicación, por lo que no representan necesariamente a la organización. El equipo decide qué significa cada patrón, si es que significa algo.',
- 'report_search_title': 'Búsqueda de la que procede',
- 'report_search_line': 'Búsqueda del {date}: {observations} observaciones comparadas y {patterns} patrón(es) candidato(s) encontrado(s).',
- 'report_filters_line': 'Filtros de la búsqueda: {filters}',
- 'report_no_filters': 'ninguno',
- 'report_statuses_line': 'Estados incluidos en este informe: {statuses}',
- 'report_summary_title': 'Resumen',
- 'report_col_pattern': 'Patrón candidato',
- 'report_col_status': 'Estado',
- 'report_col_obs': 'Observaciones',
- 'report_col_refl': 'Reflexiones distintas',
- 'report_col_cases': 'Casos distintos',
- 'report_pattern_heading': 'Patrón {n}: {title}',
- 'report_no_patterns': 'No hay patrones con los estados seleccionados.',
- 'report_team_comments': 'Comentarios del equipo',
- 'report_observations_omitted': 'Las observaciones y las citas no se incluyen en este informe.',
- 'report_quote_label': 'Cita exacta',
- 'report_limits_title': 'Límites de este informe',
- 'report_limits_list': ['Es una agrupación automática por parecido de significado; puede unir observaciones que no tienen relación o separar otras que sí la tienen.', 'Las observaciones proceden de reflexiones asistidas por IA hechas en la aplicación; no son un registro completo ni representativo.', 'Las referencias de caso se escriben a mano: una errata puede hacer que un mismo caso cuente como dos.', 'El texto explicativo lo redacta la IA a partir de las observaciones y puede reflejar observaciones retiradas después de la búsqueda.', 'Ningún elemento de este informe identifica a quien escribió una observación ni incluye sus notas privadas.'],
- 'report_footer': 'Confidencial · Patrones candidatos para la reflexión, no conclusiones · {date}',
- 'report_section_header': 'Informe imprimible',
- 'report_section_intro': 'Genera un documento para imprimir o guardar como PDF con los patrones '
-                         'que se muestran arriba (según el estado elegido).',
- 'report_opt_observations': 'Incluir las observaciones y sus citas exactas',
- 'report_opt_case_refs': 'Incluir las referencias de caso (desmarcado por defecto: el papel '
-                         'circula más que la pantalla)',
- 'report_opt_comments': 'Incluir los comentarios del equipo',
- 'report_prepare_button': 'Preparar informe',
- 'report_ready': 'Informe preparado.',
- 'report_download_button': 'Descargar informe',
- 'report_how_to_print': 'Abre el archivo descargado en tu navegador y pulsa Ctrl+P (o Imprimir) '
-                        'para imprimirlo o guardarlo como PDF.',
- 'report_outdated': 'Has cambiado la búsqueda, los estados o las opciones: vuelve a preparar el '
-                    'informe.',
  'rs_intro': 'Escribe, pega o sube el caso sobre el que quieres reflexionar y reflexiona en el momento. A la IA solo se envía una versión anonimizada de tu texto. El texto original se guarda de forma segura junto con la reflexión, para analizar patrones más adelante.',
  'rs_code_label': 'Código de esta reflexión:',
  'rs_code_help': 'Código neutro generado por la aplicación. No identifica a ninguna persona. '
@@ -712,34 +542,24 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_similar_used_label': 'Reflexiones anteriores incluidas',
  'rs_back_to_case_button': 'Volver al caso',
  'rs_finish_header': 'Terminar la reflexión',
- 'rs_finish_caption': 'Tu reflexión y tus notas quedan guardadas con el código {code}. Al terminar, el texto del caso se retira de esta pantalla.',
+ 'rs_finish_caption': 'Tu reflexión queda guardada con el código {code}. Las observaciones y preguntas de la IA no se conservan. Al terminar, el texto del caso se retira de esta pantalla.',
  'rs_finish_caption_unsaved': 'Esta reflexión no se ha podido guardar. Al terminar, el texto del caso se retira de esta pantalla.',
  'rs_finish_button': 'Terminar reflexión',
  'rs_finished_success': '✔ Reflexión terminada. El texto del caso se ha retirado de esta pantalla.',
  'rs_start_over_button': 'Empezar de nuevo',
  'ch_reflections_header': 'Reflexiones guardadas',
- 'ch_reflections_intro': 'Cada reflexión aparece con su código neutro y sus temas. Se muestran las observaciones de la IA; nunca las notas privadas de los profesionales. Los textos originales no se muestran aquí: pueden leerse en Revisión de patrones, sin el nombre de quien los escribió.',
+ 'ch_reflections_intro': 'Cada reflexión aparece con su código neutro, la fecha y quién la hizo. Aquí no se muestra ningún texto, y las observaciones y preguntas de la IA no se conservan. Para buscar patrones entre los textos, usa Revisión de patrones.',
  'ch_tag_filter_label': 'Tema',
  'ch_all_tags': 'Todos los temas',
  'ch_showing_recent': 'Mostrando las {shown} reflexiones más recientes de {total}. Elige una fecha '
                       'o un tema para acotar.',
  'ch_author_label': 'Realizada por',
- 'ch_linked_label': 'Continúa la reflexión',
- 'ch_no_observations': 'Esta reflexión no tiene observaciones guardadas.',
- 'rs_summary_status': 'Preparando el resumen para el historial…',
  'rs_feedback_popover_button': '💬 Valorar',
  'rs_feedback_optional_note': 'Es opcional. Tu valoración nos ayuda a mejorar la herramienta.',
  'rs_feedback_already_sent': '✔ Ya has valorado esta reflexión. ¡Gracias!',
  'rs_feedback_failed': 'No se ha podido guardar tu valoración. Inténtalo de nuevo más tarde.',
- 'ch_details_expander': 'Ver observaciones y preguntas ({count})',
- 'ch_summary_ai_note': 'Resumen escrito por la IA a partir de las observaciones. Es una ayuda para la lectura, no una conclusión.',
- 'ch_summary_missing': 'Esta reflexión todavía no tiene resumen.',
- 'ch_summary_create_button': 'Crear resumen',
- 'ch_summary_creating': 'Creando el resumen…',
- 'ch_summary_failed': 'No se ha podido crear el resumen ahora. Inténtalo de nuevo más tarde.',
  'ch_delete_button': 'Eliminar reflexión',
- 'ch_delete_confirm': '¿Confirmas que quieres eliminar esta reflexión? Se borrarán sus '
-                      'observaciones y las notas asociadas. Esta acción no se puede deshacer.',
+ 'ch_delete_confirm': '¿Confirmas que quieres eliminar esta reflexión? Se borrarán su texto guardado y su copia anonimizada para la Revisión de patrones. Esta acción no se puede deshacer.',
  'ch_deleted_success': '✔ Reflexión eliminada.',
  'ch_delete_failed': '⚠ No se pudo eliminar la reflexión.',
  'case_tag_labels': {'housing': 'Vivienda / sinhogarismo',
@@ -788,20 +608,12 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_anonymised_preview_help': 'Comprueba la versión protegida de tu material. Es exactamente lo '
                                'que ha recibido la IA.',
  'rs_try_again_button': 'Volver a intentarlo con el mismo texto',
- 'rs_original_saved_note': '📁 El texto original se guarda de forma segura (base de datos en la UE) durante un máximo de {months} meses, para ayudar a detectar patrones en la práctica. Las personas supervisoras y responsables de programa pueden leerlo con ese fin, sin tu nombre. A la IA solo se envía la versión anonimizada.',
- 'ch_show_anonymised_text': 'Ver el texto anonimizado guardado',
+ 'rs_original_saved_note': '📁 El texto original se guarda de forma segura (base de datos en la UE) durante un máximo de {months} meses. Solo tú puedes leerlo, en Mi Reflexión. A la IA solo se envía la versión anonimizada.',
  'ch_anonymised_text_caption': 'Versión protegida que recibió la IA (nunca el texto original). Se '
                                'borra automáticamente a los {months} meses.',
- 'ch_anonymised_text_unavailable': 'El texto anonimizado de esta reflexión ya no está disponible.',
  'ch_show_saved_text': 'Ver el texto guardado',
  'ch_original_text_caption': 'El texto original, tal como lo escribiste. Nunca se envía a la IA y se borra automáticamente a los {months} meses.',
  'ch_saved_text_unavailable': 'El texto de esta reflexión no está disponible (no se guardó o ya se ha borrado).',
- 'ch_original_text_in_patterns_note': '📄 El texto original de esta reflexión está guardado. Las personas supervisoras y responsables de programa pueden leerlo en Revisión de patrones, sin el nombre de quien lo escribió.',
- 'patterns_texts_header': '📄 Textos originales guardados',
- 'patterns_texts_caption': 'Los textos originales a partir de los que se hicieron las reflexiones, para estudiar patrones en cómo se escriben los casos. Nunca se muestran nombres de autores, códigos de reflexión ni horas exactas. Cada texto se borra automáticamente a los {months} meses. Estos textos son confidenciales: no los copies fuera de la aplicación.',
- 'patterns_texts_empty': 'Todavía no se ha guardado ningún texto original.',
- 'patterns_texts_showing': 'Se muestran los {shown} más recientes de {total} textos guardados.',
- 'patterns_texts_item': 'Texto del {date} · {language}',
  'rs_cards_hint': 'Elige cualquier tarjeta para abrirla.',
  'rs_cards_choose': 'Elige una tarjeta para ver su reflexión.',
  'rs_card_explored': '✓ Explorada',
@@ -809,10 +621,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                     'none': 'No se ha encontrado nada destacable',
                     'unavailable': 'No disponible ahora, puedes reintentar'},
  'my_reflections_header': 'Tus reflexiones guardadas',
- 'my_reflections_intro': 'Puedes borrar cualquiera de tus reflexiones. Desaparece en todas partes '
-                         '(también para los responsables y del análisis de patrones), con sus '
-                         'observaciones, tus notas y su texto anonimizado. Durante {hours} horas '
-                         'puedes recuperarla; después se borra definitivamente.',
+ 'my_reflections_intro': 'Puedes borrar cualquiera de tus reflexiones. Desaparece en todas partes (también para los responsables y de la Revisión de patrones), con su texto guardado y su copia anonimizada. Durante {hours} horas puedes recuperarla; después se borra definitivamente. Los informes de Revisión de patrones ya hechos no cambian: nunca contienen tu texto.',
  'my_reflections_empty': 'Todavía no tienes reflexiones guardadas.',
  'my_reflections_showing': 'Se muestran las {shown} más recientes de {total}.',
  'my_reflections_line': '{date} · {count} observación(es)',
@@ -826,4 +635,40 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'my_reflections_failed': 'No se ha podido completar. Inténtalo de nuevo.',
  'my_reflections_deleted_header': 'Borradas recientemente',
  'my_reflections_restore': 'Recuperar',
- 'my_reflections_erase_on': 'Se borrará definitivamente el {date} (UTC).'}
+ 'my_reflections_erase_on': 'Se borrará definitivamente el {date} (UTC).',
+ 'rs_pattern_copy_note': '🔎 Se guarda una copia anonimizada de tu texto, sin tu nombre, durante un máximo de {months} meses, para que el equipo de gestión pueda buscar patrones entre muchos textos. Los responsables solo ven el informe general de la IA, nunca tu texto.',
+ 'pr_intro': 'La Revisión de patrones busca patrones en cómo se escriben los casos, entre los textos que las y los trabajadores sociales escribieron en el periodo que elijas. La IA lee los textos anonimizados y redacta un informe; tú solo ves el informe, nunca los textos ni quién los escribió. Lo que muestra son posibles patrones para la reflexión, no conclusiones: un patrón no es una prueba de sesgo ni de mala práctica, y es el equipo quien decide qué significa, si es que significa algo.',
+ 'pr_new_header': 'Identificar patrones',
+ 'pr_texts_note': 'Cada texto anonimizado se guarda {months} meses y después se borra automáticamente. No se guarda con él el nombre ni el rol de quien lo escribió.',
+ 'pr_period_label': 'Periodo que analizar',
+ 'pr_period_option': 'Últimos {months} meses',
+ 'pr_available': 'Textos disponibles de los últimos {months} meses: {count}',
+ 'pr_not_enough': 'Hacen falta al menos {minimum} textos para identificar patrones, para que ningún patrón pueda señalar a una sola persona.',
+ 'pr_cost_note': 'Identificar patrones usa la IA y tiene un pequeño coste (unos céntimos para un periodo corto, hasta unos pocos dólares para 12 meses). Puede tardar unos minutos.',
+ 'pr_run_button': 'Identificar patrones',
+ 'pr_running': 'Leyendo los textos e identificando patrones… puede tardar unos minutos.',
+ 'pr_done': 'Informe listo: {patterns} patrón(es) encontrado(s) en {texts} textos. Se muestra abajo.',
+ 'pr_busy': 'Ya se está preparando un informe para este periodo. Espera unos minutos y míralo abajo.',
+ 'pr_recent': 'Hace unos minutos se hizo un informe para este periodo y estos textos. Lo encontrarás abajo.',
+ 'pr_failed': 'No se ha podido preparar el informe en este momento. No se ha guardado nada. Inténtalo de nuevo más tarde.',
+ 'pr_saved_header': 'Informes guardados',
+ 'pr_no_reports': 'Todavía no se ha hecho ningún informe.',
+ 'pr_report_select': 'Informe que ver',
+ 'pr_report_option': '{date} — últimos {months} meses — {texts} textos',
+ 'pr_report_meta': 'Hecho el {date} · abarca los últimos {months} meses · {texts} textos en el periodo, {read} leídos por la IA',
+ 'pr_some_unread': 'La IA no pudo leer algunos textos esta vez, así que este informe se basa en menos textos de los que hay en el periodo.',
+ 'pr_candidate_note': 'Posibles patrones para la reflexión, redactados por la IA; no son conclusiones. Un patrón no es una prueba de sesgo ni de mala práctica.',
+ 'pr_overview_header': 'Visión general',
+ 'pr_patterns_header': 'Patrones identificados',
+ 'pr_no_patterns': 'Ningún patrón apareció en suficientes textos como para incluirlo.',
+ 'pr_seen_in': 'Visto en {count} de {total} textos',
+ 'pr_why_header': 'Por qué puede importar',
+ 'pr_questions_header': 'Preguntas que el equipo podría comentar',
+ 'pr_limits_header': 'Límites de este informe',
+ 'pr_standing_limits': ['Lo ha redactado la IA a partir de textos anonimizados y puede equivocarse; el equipo debe contrastarlo con su propio conocimiento.', 'Los textos son los escritos en la aplicación durante el periodo; no son necesariamente representativos de la organización.', 'La anonimización quita automáticamente nombres y datos personales, pero no es perfecta.', 'El informe nunca contiene textos, citas ni quién escribió nada.'],
+ 'pr_download_button': 'Descargar informe para imprimir',
+ 'pr_how_to_print': 'Abre el archivo descargado en tu navegador y elige Imprimir (o Guardar como PDF).',
+ 'pr_print_title': 'Informe de Revisión de patrones',
+ 'pr_print_confidential': 'Documento confidencial para el equipo de gestión',
+ 'pr_print_prepared': 'Impreso el {date}',
+ 'pr_print_footer': 'Confidencial · Posibles patrones para la reflexión, no conclusiones · {date}'}

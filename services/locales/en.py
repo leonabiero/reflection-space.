@@ -183,10 +183,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                        'professional decision.',
  'nav_growth': '🌱 My Reflection',
  'growth_title': '🌱 Your Reflective Journey',
- 'growth_intro': 'This is your personal space. It is not an evaluation of your performance and it '
-                 'is never compared with other professionals. What you explore in conversations '
-                 'and your notes are yours alone. The saved observations from your reflections '
-                 '(and their anonymised text) can also be seen by managers in Reflection History.',
+ 'growth_intro': 'This is your personal space. It is not an evaluation of your performance and it is never compared with other professionals. What you explore in conversations is yours alone. Only you can read your saved texts, here; managers see your reflections listed by code and date, never your texts.',
  'growth_no_data': 'You haven\'t explored a reflection yet. As you use the "Explore this with the '
                    'companion" button in the '
                    'Reflection Space, your journey will appear here.',
@@ -288,10 +285,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'admin_problem_solved_header': 'Solved problems ({n})',
  'admin_problem_none_open': 'There are no open problems.',
  'admin_reset_header': '🧹 Erase all data',
- 'admin_reset_intro': 'Permanently erases everything saved in the app: reflections and their '
-                      'texts, observations and notes, ratings, pattern reviews, old documents, '
-                      'activity history, recorded problems, and usage and cost records. Every '
-                      'count in the app goes back to 0.',
+ 'admin_reset_intro': 'Permanently erases everything saved in the app: reflections and their texts, the anonymised copies and reports of Pattern Review, older observations and notes, ratings, old documents, activity history, recorded problems, and usage and cost records. Every count in the app goes back to 0.',
  'admin_reset_kept_note': 'User accounts and settings are kept. Nobody will have to sign in again.',
  'admin_reset_warning': 'This action cannot be undone.',
  'admin_reset_confirm_word': 'ERASE',
@@ -349,28 +343,17 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'help': {'nav_label': '❓ Help',
           'page_title': 'Reflection Space Quick Guide',
           'intro_title': 'What is Reflection Space?',
-          'intro_body': 'Reflection Space helps you reflect on a case on the spot: you write, '
-                        'paste or upload the case and it offers reflective questions across eight '
-                        "professional dimensions -- such as whether the client's own voice is "
-                        'present, or whether strengths are being overlooked alongside '
-                        'difficulties. It is not a place to store documents: only the reflection '
-                        'is saved.',
+          'intro_body': "Reflection Space helps you reflect on a case on the spot: you write, paste or upload the case and it offers reflective questions across eight professional dimensions -- such as whether the client's own voice is present, or whether strengths are being overlooked alongside difficulties. It is not a place to store documents: the AI's observations and questions are not kept.",
           'guardrail_note': 'The tool never grades, scores, or decides anything for you. You '
                             'decide what, if anything, to do with what it made you think about.',
           'journey_title': 'How it works',
-          'journey_steps': ["1. Let's reflect -- write or paste your text, or upload a document (Word, PDF or text). No reference, type of text or theme is needed.", '2. Choose the reflection language (Español, Euskara or English) and press Reflect. The text is anonymised automatically before the AI receives it.', '3. Professional Reflection -- explore the eight reflective dimensions, optionally have a short conversation about any of them, add your notes and finish. The case text is then cleared from the screen.'],
+          'journey_steps': ["1. Let's reflect -- write or paste your text, or upload a document (Word, PDF or text). No reference, type of text or theme is needed.", '2. Choose the reflection language (Español, Euskara or English) and press Reflect. The text is anonymised automatically before the AI receives it.', "3. Professional Reflection -- explore the eight reflective dimensions, optionally have a short conversation about any of them, and finish. The case text is then cleared from the screen; the AI's observations and questions are not kept."],
           'practitioner_title': 'Practitioner workspace',
           'doc_section_title': '📝 Your case -- write, paste or upload',
-          'doc_section_body': "On Reflection Space you write or paste your text into a single box, or upload a Word, PDF or text file (only the text is read; the file is never kept). If you both write text and upload a document, you'll be asked which one to reflect on. You don't have to give any case reference or details: the app creates a neutral code by itself (for example RS-7F3K2Q) that identifies no one. The original text is saved securely for later pattern analysis (see below).",
-          'original_saved_note': "The original text is kept securely in a database in the EU, for up to {months} months, to help identify patterns in practice. Only the anonymised version is ever sent to the AI. You can read your own text in My Reflection; supervisors and programme managers can read the texts in Pattern Review, without the author's name. After that time it is deleted automatically; the reflection itself stays.",
+          'doc_section_body': "On Reflection Space you write or paste your text into a single box, or upload a Word, PDF or text file (only the text is read; the file is never kept). If you both write text and upload a document, you'll be asked which one to reflect on. You don't have to give any case reference or details: the app creates a neutral code by itself (for example RS-7F3K2Q) that identifies no one. The original text is saved securely, and an anonymised copy is kept for Pattern Review (see below).",
+          'original_saved_note': 'The original text is kept securely in a database in the EU, for up to {months} months. Only the anonymised version is ever sent to the AI. Only you can read your own text, in My Reflection. After that time it is deleted automatically; the reflection itself stays.',
           'reflection_section_title': '🪞 Reflection Space -- reflecting on the spot',
-          'reflection_section_body': 'When you press Reflect, your text is anonymised automatically (names '
-                                     'and other personal details are removed) and only that protected '
-                                     'version is sent to the AI. If anonymisation fails, nothing is sent. '
-                                     'On the results, "View anonymised text" shows you exactly what the AI '
-                                     'received. Explore any of the eight dimensions, optionally open a '
-                                     'short conversation about one, add your notes and select Finish '
-                                     'reflection. If you like, rate how useful it was with the "Rate" button in the top-right corner -- entirely optional; nothing depends on it.',
+          'reflection_section_body': 'When you press Reflect, your text is anonymised automatically (names and other personal details are removed) and only that protected version is sent to the AI. If anonymisation fails, nothing is sent. On the results, "View anonymised text" shows you exactly what the AI received. Explore any of the eight dimensions, optionally open a short conversation about one, and select Finish reflection. The AI\'s observations and questions are for you only and are not kept. If you like, rate how useful it was with the "Rate" button in the top-right corner -- entirely optional; nothing depends on it.',
           'cards_note': 'The eight reflection opportunities are shown as cards in one view. The dot in the '
                          'corner shows what each one found: green, something to reflect on; grey, nothing '
                          'notable in this text; amber, not available right now (you can retry inside the '
@@ -406,17 +389,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
                           'bottom of My Reflection. It disappears everywhere at once; you can restore it for '
                           '{hours} hours, after which it is erased for good.',
           'growth_section_title': '🌱 My Reflection -- your personal journal',
-          'growth_section_body': "My Reflection is your own space: the themes you've explored most, a "
-                                  'timeline of your reflective moments, your saved observations with your '
-                                  'notes, and the list of your reflections (which you can delete). No '
-                                  'scores, no comparison to anyone else. Your notes and what you explore are '
-                                  'yours alone; the saved observations can also be seen by managers.',
+          'growth_section_body': "My Reflection is your own space: the themes you've explored most, a timeline of your reflective moments, and the list of your reflections, where you can read your saved text and delete a reflection. No scores, no comparison to anyone else.",
           'manager_title': 'Manager workspace',
           'case_history_section_title': '🗂️ Reflection History',
-          'case_history_section_body': 'Reflection History shows the average usefulness rating '
-                                       '(never individual ratings or who gave them) and the saved '
-                                       "reflections, each with its neutral code, themes and a short AI-written summary you can read at a glance; the full observations and questions fold out underneath. You can filter by date and theme. It "
-                                       "never shows professionals' private notes.",
+          'case_history_section_body': "Reflection History shows the average usefulness rating (never individual ratings or who gave them) and the list of saved reflections, each with its neutral code, date and who did it. It never shows texts or professionals' private notes. You can filter by date.",
           'admin_title': '🛠️ System Administration',
           'admin_section_body': 'System Administration brings together the user list, system '
                                 'health, the anonymisation test, translation health checks, the '
@@ -429,7 +405,10 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                  'and select Send -- the system automatically attaches page, '
                                  'session, and navigation context.',
           'privacy_title': '🔒 Privacy and data',
-          'privacy_points': ['The original case text is kept securely in an EU database for a limited time, for pattern analysis -- only the anonymised version is ever sent to the AI, and supervisors and programme managers read it without your name.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', "Your notes on the observations are private -- only you can see them. The AI's observations are used in the management team's pattern review, without your name.", 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.']},
+          'privacy_points': ['The original case text is kept securely in an EU database for a limited time and only you can read it. Only the anonymised version is ever sent to the AI.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', "An anonymised copy of each text, without your name or role, is used in the management team's Pattern Review; managers see only the AI's overall report, never your text. The AI's observations and questions are not kept.", 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.'],
+          'pattern_copy_note': "Straight after anonymisation, an anonymised copy of your text is also kept, without your name or role, for up to {months} months. The management team's Pattern Review has the AI read these copies to look for patterns in how cases are written; managers see only the AI's overall report, never your text.",
+          'pattern_review_section_title': '🔎 Pattern Review',
+          'pattern_review_section_body': 'For supervisors and programme managers. Choose a period (the last 3, 6, 9 or 12 months) and press Identify patterns: the AI reads the anonymised texts social workers wrote in that period and writes a report on recurring patterns in how cases are written. You see only the report, never the texts or who wrote them. At least {minimum} texts are needed, and a pattern is only reported if it appears in several texts. Every report is saved with its date and period, and can be downloaded to print. The patterns are candidates for reflection, not conclusions.'},
  'admin_usage_header': '💰 Service Usage & Costs',
  'admin_usage_caption': 'What each external service is costing this pilot, estimated from actual '
                         'recorded API usage. Figures marked "estimate" could not be tied to an '
@@ -470,8 +449,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'findings_save_button': 'Save my notes',
  'findings_save_success': 'Notes saved.',
  'findings_save_error': "Your notes couldn't be saved. Please try again in a moment.",
- 'findings_not_saved_notice': "This reflection couldn't be saved, so you won't be able to keep "
-                              'notes on it. You can carry on working as normal.',
+ 'findings_not_saved_notice': "This reflection couldn't be saved, so it won't appear in your list of reflections. You can carry on working as normal.",
  'findings_journal_header': 'Saved observations and your notes',
  'findings_journal_intro': 'Here you can return to the observations from your reflections, with '
                            'the exact passage each is based on, and write or review your own '
@@ -489,110 +467,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'findings_notes_privacy': "Your notes and ratings are private: only you can see them. They are saved separately from what the AI said, which is never changed. The AI's observations (never your name or your notes) are used in the management team's pattern review. When you save, names, exact ages and other personal details are removed from your notes.",
  'patterns_title': '🔎 Pattern Review',
  'patterns_no_access': 'This page is only for supervision and programme management.',
- 'patterns_intro': "This page helps the team look for themes that recur across the observations made in professionals' reflections. What it shows are candidate patterns for reflection, not conclusions: a group of similar observations is not evidence of bias or poor practice, and the set does not necessarily represent the organisation. The team decides what a pattern means, if anything.",
- 'patterns_pool_header': 'What is available to review',
- 'patterns_pool_caption': "All observations from professionals' reflections appear here. You never see who wrote them or their private notes.",
- 'patterns_filter_lenses': 'Limit to these reflection points (empty = all)',
- 'patterns_filter_from': 'From (optional)',
- 'patterns_filter_to': 'To (optional)',
- 'patterns_pool_empty': 'There are no observations with these filters yet.',
- 'patterns_pool_counts': '{observations} observation(s) from {reflections} reflection(s) and {cases} distinct case reference(s).',
- 'patterns_pool_no_case': '{count} reflection(s) have no case reference, so they do not count as '
-                          'cases.',
- 'patterns_generate_header': 'Look for patterns',
- 'patterns_settings_header': 'Search settings',
- 'patterns_settings_intro': 'These settings are starting points, not proven values. Change them '
-                            'and compare the results.',
- 'patterns_similarity_label': 'How alike observations must be',
- 'patterns_similarity_levels': {'broad': 'Broad', 'balanced': 'Balanced', 'strict': 'Strict'},
- 'patterns_similarity_help': 'Broad groups looser resemblances (more groups, more noise). Strict '
-                             'needs a closer resemblance (fewer, more reliable groups).',
- 'patterns_min_observations_label': 'Minimum observations per group',
- 'patterns_min_reflections_label': 'Minimum distinct reflections per group',
- 'patterns_threshold_not_proof': 'Reaching these minimums proves nothing: it only decides whether '
-                                 'a group is worth showing for discussion.',
- 'patterns_cost_note': 'Looking for patterns uses AI to write up to {max_patterns} explanations (a '
-                       'few cents in total). You only pay again if you press the button again.',
- 'patterns_pool_truncated': 'There are more observations than are compared at once; the {max} most recent are used.',
- 'patterns_not_enough': 'At least {minimum} observations are needed to look for patterns.',
- 'patterns_generate_button': 'Look for patterns',
- 'patterns_generating': 'Looking for patterns…',
- 'patterns_busy': 'A search is already running. Wait for it to finish and try again.',
- 'patterns_unavailable': 'The meaning-matching service is not configured, so patterns cannot be '
-                         'searched for right now.',
- 'patterns_none_found': 'No group met the minimums among {observations} observations. Try a broader setting, or wait for more reflections.',
- 'patterns_generated_ok': 'Found {patterns} candidate pattern(s) among {observations} '
-                          'observations.',
- 'patterns_not_embedded': '{count} observation(s) could not be compared this time and were left '
-                          'out.',
- 'patterns_fallback_notice': 'The explanation for {count} pattern(s) could not be written; a plain '
-                             'text is shown and you can retry it.',
- 'patterns_review_header': 'Review candidate patterns',
- 'patterns_no_runs': 'No patterns have been searched for yet.',
- 'patterns_run_select': 'Search to review',
- 'patterns_run_option': '{date} — {observations} observations — {patterns} pattern(s)',
- 'patterns_run_caption': 'Settings of this search: {level} similarity; at least {min_obs} '
-                         'observations from at least {min_refl} distinct reflections.',
- 'patterns_filter_status': 'Show statuses',
- 'patterns_statuses': {'candidate': 'Candidate',
-                       'under_review': 'Under review',
-                       'worth_discussing': 'Worth discussing',
-                       'not_supported': 'Not supported after review',
-                       'archived': 'Archived'},
- 'patterns_none_in_view': 'There are no patterns with these filters.',
- 'patterns_cases_none': 'None of these reflections has a case reference, so nothing can be said '
-                        'about cases.',
- 'patterns_cases_incomplete': '{missing} of the {total} reflections have no case reference, so '
-                              'recurrence across cases cannot be established; it can only be said '
-                              'to appear in several reflections.',
- 'patterns_cases_single': 'All the observations relate to one case reference: this is repetition '
-                          'within a case, not across cases.',
- 'patterns_cases_multiple': 'The observations come from {cases} distinct case references.',
- 'patterns_item_header': '{title} — {status} — {observations} obs. / {reflections} reflections',
- 'patterns_candidate_label': 'Candidate pattern for reflection — not a conclusion.',
- 'patterns_counts_line': '{observations} observation(s) · {reflections} distinct reflection(s) · '
-                         '{cases} distinct case(s)',
- 'patterns_case_ref_caveat': 'Case references are typed by hand: a typo can make one case count as '
-                             'two.',
- 'patterns_dates_line': 'Reflections between {first} and {last}',
- 'patterns_lenses_line': 'Reflection points: {lenses}',
- 'patterns_lost_members': '{count} of the observations in this pattern are no longer available (their reflection was deleted). The written explanation may still reflect them: look for patterns again before relying on it.',
- 'patterns_below_minimum': 'With the current observations, this group no longer reaches the '
-                           'minimums it was found with.',
- 'patterns_explanation_failed': 'The automatic explanation for this pattern could not be written. '
-                                'A plain text is shown.',
- 'patterns_explanation_retry': 'Retry the explanation',
- 'patterns_retry_ok': 'Explanation written.',
- 'patterns_retry_failed': 'The explanation still could not be written. Please try again later.',
- 'patterns_what_in_common': 'What they have in common',
- 'patterns_why_it_matters': 'Why it may matter',
- 'patterns_alternatives': 'Other possible explanations',
- 'patterns_limitations': 'What cannot be known from this',
- 'patterns_questions': 'Questions to discuss',
- 'patterns_observations_header': 'Observations in this group (with the exact quotation)',
- 'patterns_exclude_button': 'This observation does not belong in this pattern',
- 'patterns_excluded_ok': 'Observation removed from the pattern.',
- 'patterns_more_observations': 'And {count} more observation(s) not shown here.',
- 'patterns_excluded_header': 'Observations the team removed from this pattern',
- 'patterns_restore_button': 'Include it again',
- 'patterns_restored_ok': 'Observation included again.',
- 'patterns_review_status_header': "The team's assessment",
- 'patterns_review_help': 'Record your own judgement here. What the AI proposed is never deleted or '
-                         'changed.',
- 'patterns_status_label': 'Status',
- 'patterns_comment_label': 'Comment (optional)',
- 'patterns_save_review': 'Save assessment',
- 'patterns_review_saved': 'Assessment saved.',
- 'patterns_review_nothing': 'There is no change to save.',
- 'patterns_history_header': 'History',
- 'patterns_event_kinds': {'generated': 'Pattern generated',
-                          'status_changed': 'Status changed',
-                          'carried_over': 'Assessment carried over from an earlier search',
-                          'member_excluded': 'Observation removed from the pattern',
-                          'member_restored': 'Observation included again',
-                          'explanation_regenerated': 'Explanation written again'},
- 'patterns_event_status_change': '({old} → {new})',
- 'patterns_event_system': 'System',
  'doc_import_label': 'Or upload a document (Word, PDF or text)',
  'doc_import_help': 'Only the text is read; the file itself is not saved. Up to {max_mb} MB, '
                     '{max_pages} pages and about {max_chars} characters. Scanned PDFs (photos of '
@@ -613,44 +487,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                      'again or paste the text.',
                        'unavailable': 'Reading this type of file is not available right now. '
                                       'Please paste the text directly.'},
- 'report_doc_title': 'Report of candidate patterns for reflection',
- 'report_confidential': 'Confidential document for the management team',
- 'report_prepared': 'Prepared on {date}',
- 'report_how_to_read_title': 'How to read this report',
- 'report_how_to_read': 'This report lists candidate patterns: groups of similar observations the team may wish to discuss. They are not conclusions. A group of similar observations is not evidence of bias or poor practice, and the observations come from the reflections made in the app, so they do not necessarily represent the organisation. The team decides what each pattern means, if anything.',
- 'report_search_title': 'The search it comes from',
- 'report_search_line': 'Search of {date}: {observations} observations compared and {patterns} candidate pattern(s) found.',
- 'report_filters_line': 'Search filters: {filters}',
- 'report_no_filters': 'none',
- 'report_statuses_line': 'Statuses included in this report: {statuses}',
- 'report_summary_title': 'Summary',
- 'report_col_pattern': 'Candidate pattern',
- 'report_col_status': 'Status',
- 'report_col_obs': 'Observations',
- 'report_col_refl': 'Distinct reflections',
- 'report_col_cases': 'Distinct cases',
- 'report_pattern_heading': 'Pattern {n}: {title}',
- 'report_no_patterns': 'There are no patterns with the selected statuses.',
- 'report_team_comments': 'Team comments',
- 'report_observations_omitted': 'Observations and quotations are not included in this report.',
- 'report_quote_label': 'Exact quotation',
- 'report_limits_title': 'Limits of this report',
- 'report_limits_list': ['It is an automatic grouping by similarity of meaning; it may join unrelated observations or separate related ones.', 'The observations come from AI-assisted reflections made in the app; they are not a complete or representative record.', 'Case references are typed by hand: a typo can make one case count as two.', 'The explanatory text is written by AI from the observations and may reflect observations withdrawn after the search.', 'Nothing in this report identifies who wrote an observation or includes their private notes.'],
- 'report_footer': 'Confidential · Candidate patterns for reflection, not conclusions · {date}',
- 'report_section_header': 'Printable report',
- 'report_section_intro': 'Creates a document to print or save as PDF with the patterns shown above '
-                         '(according to the chosen statuses).',
- 'report_opt_observations': 'Include the observations and their exact quotations',
- 'report_opt_case_refs': 'Include case references (off by default: paper travels further than a '
-                         'screen)',
- 'report_opt_comments': 'Include the team comments',
- 'report_prepare_button': 'Prepare report',
- 'report_ready': 'Report prepared.',
- 'report_download_button': 'Download report',
- 'report_how_to_print': 'Open the downloaded file in your browser and press Ctrl+P (or Print) to '
-                        'print it or save it as a PDF.',
- 'report_outdated': 'You changed the search, the statuses or the options: prepare the report '
-                    'again.',
  'rs_intro': 'Write, paste or upload the case you want to reflect on, and reflect on it straight away. Only an anonymised version of your text is sent to the AI. The original text is saved securely together with the reflection, for later pattern analysis.',
  'rs_code_label': 'Code for this reflection:',
  'rs_code_help': 'A neutral code created by the app. It does not identify anyone. Note it down if '
@@ -692,34 +528,24 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_similar_used_label': 'Earlier reflections included',
  'rs_back_to_case_button': 'Back to the case',
  'rs_finish_header': 'Finish the reflection',
- 'rs_finish_caption': 'Your reflection and your notes are saved under the code {code}. When you finish, the case text is cleared from this screen.',
+ 'rs_finish_caption': "Your reflection is saved under the code {code}. The AI's observations and questions are not kept. When you finish, the case text is cleared from this screen.",
  'rs_finish_caption_unsaved': "This reflection couldn't be saved. When you finish, the case text is cleared from this screen.",
  'rs_finish_button': 'Finish reflection',
  'rs_finished_success': '✔ Reflection finished. The case text has been cleared from this screen.',
  'rs_start_over_button': 'Start again',
  'ch_reflections_header': 'Saved reflections',
- 'ch_reflections_intro': "Each reflection is shown with its neutral code and themes. The AI's observations are shown; never professionals' private notes. Original texts are not shown here: they can be read in Pattern Review, without author names.",
+ 'ch_reflections_intro': "Each reflection is shown with its neutral code, date and who did it. No texts are shown here, and the AI's observations and questions are not kept. To look for patterns across texts, use Pattern Review.",
  'ch_tag_filter_label': 'Theme',
  'ch_all_tags': 'All themes',
  'ch_showing_recent': 'Showing the {shown} most recent of {total} reflections. Pick a date or '
                       'theme to narrow it down.',
  'ch_author_label': 'Done by',
- 'ch_linked_label': 'Continues reflection',
- 'ch_no_observations': 'This reflection has no saved observations.',
- 'rs_summary_status': 'Preparing the summary for the history…',
  'rs_feedback_popover_button': '💬 Rate',
  'rs_feedback_optional_note': 'Optional. Your rating helps us improve the tool.',
  'rs_feedback_already_sent': '✔ You have already rated this reflection. Thank you!',
  'rs_feedback_failed': 'Your rating could not be saved. Please try again later.',
- 'ch_details_expander': 'See observations and questions ({count})',
- 'ch_summary_ai_note': 'Summary written by the AI from the observations. It is a reading aid, not a conclusion.',
- 'ch_summary_missing': 'This reflection does not have a summary yet.',
- 'ch_summary_create_button': 'Create summary',
- 'ch_summary_creating': 'Creating the summary…',
- 'ch_summary_failed': 'The summary could not be created right now. Please try again later.',
  'ch_delete_button': 'Delete reflection',
- 'ch_delete_confirm': 'Are you sure you want to delete this reflection? Its observations and the '
-                      'notes on them will be erased. This cannot be undone.',
+ 'ch_delete_confirm': 'Are you sure you want to delete this reflection? Its saved text and its anonymised copy for Pattern Review will be erased. This cannot be undone.',
  'ch_deleted_success': '✔ Reflection deleted.',
  'ch_delete_failed': '⚠ The reflection could not be deleted.',
  'case_tag_labels': {'housing': 'Housing / homelessness',
@@ -769,20 +595,12 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_anonymised_preview_help': 'Check the protected version of your material. This is exactly what '
                                'the AI received.',
  'rs_try_again_button': 'Try again with the same text',
- 'rs_original_saved_note': '📁 The original text is kept securely (database in the EU) for up to {months} months, to help identify patterns in practice. Supervisors and programme managers may read it for that purpose, without your name. Only the anonymised version is sent to the AI.',
- 'ch_show_anonymised_text': 'Show the saved anonymised text',
+ 'rs_original_saved_note': '📁 The original text is kept securely (database in the EU) for up to {months} months. Only you can read it, in My Reflection. Only the anonymised version is sent to the AI.',
  'ch_anonymised_text_caption': 'The protected version the AI received (never the original text). '
                                'Deleted automatically after {months} months.',
- 'ch_anonymised_text_unavailable': 'The anonymised text of this reflection is no longer available.',
  'ch_show_saved_text': 'Show the saved text',
  'ch_original_text_caption': 'The original text, as you wrote it. It is never sent to the AI and is deleted automatically after {months} months.',
  'ch_saved_text_unavailable': 'The text of this reflection is not available (it was not saved or has been deleted).',
- 'ch_original_text_in_patterns_note': "📄 The original text of this reflection is saved. Supervisors and programme managers can read it in Pattern Review, without the author's name.",
- 'patterns_texts_header': '📄 Saved original texts',
- 'patterns_texts_caption': 'The original texts the reflections were made from, for studying patterns in how cases are written. Author names, reflection codes and exact times are never shown. Each text is deleted automatically after {months} months. These texts are confidential: do not copy them outside the app.',
- 'patterns_texts_empty': 'No original texts have been saved yet.',
- 'patterns_texts_showing': 'Showing the {shown} most recent of {total} saved texts.',
- 'patterns_texts_item': 'Text from {date} · {language}',
  'rs_cards_hint': 'Choose any card to open it.',
  'rs_cards_choose': 'Choose a card to see its reflection.',
  'rs_card_explored': '✓ Explored',
@@ -790,10 +608,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                     'none': 'Nothing notable found',
                     'unavailable': 'Not available right now, you can retry'},
  'my_reflections_header': 'Your saved reflections',
- 'my_reflections_intro': 'You can delete any of your reflections. It disappears everywhere (for '
-                         'managers and from pattern analysis too), with its observations, your '
-                         'notes and its anonymised text. You can restore it for {hours} hours; '
-                         'after that it is erased for good.',
+ 'my_reflections_intro': 'You can delete any of your reflections. It disappears everywhere (for managers and from Pattern Review too), with its saved text and its anonymised copy. You can restore it for {hours} hours; after that it is erased for good. Pattern Review reports already made are not changed: they never contain your text.',
  'my_reflections_empty': "You don't have any saved reflections yet.",
  'my_reflections_showing': 'Showing the {shown} most recent of {total}.',
  'my_reflections_line': '{date} · {count} observation(s)',
@@ -807,4 +622,40 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'my_reflections_failed': "That didn't work. Please try again.",
  'my_reflections_deleted_header': 'Recently deleted',
  'my_reflections_restore': 'Restore',
- 'my_reflections_erase_on': 'Will be erased for good on {date} (UTC).'}
+ 'my_reflections_erase_on': 'Will be erased for good on {date} (UTC).',
+ 'rs_pattern_copy_note': "🔎 An anonymised copy of your text, without your name, is kept for up to {months} months so the management team can look for patterns across many texts. Managers only see the AI's overall report, never your text.",
+ 'pr_intro': 'Pattern Review looks for patterns in how cases are written, across the texts social workers wrote in a period you choose. The AI reads the anonymised texts and writes a report; you only ever see the report, never the texts or who wrote them. What it shows are candidate patterns for reflection, not conclusions: a pattern is not evidence of bias or poor practice, and the team decides what it means, if anything.',
+ 'pr_new_header': 'Identify patterns',
+ 'pr_texts_note': 'Each anonymised text is kept for {months} months and then deleted automatically. No author name or role is kept with it.',
+ 'pr_period_label': 'Period to analyse',
+ 'pr_period_option': 'Last {months} months',
+ 'pr_available': 'Texts available from the last {months} months: {count}',
+ 'pr_not_enough': 'At least {minimum} texts are needed to identify patterns, so that no pattern can point to one person.',
+ 'pr_cost_note': 'Identifying patterns uses AI and has a small cost (a few cents for a short period, up to a few dollars for 12 months). It can take a few minutes.',
+ 'pr_run_button': 'Identify patterns',
+ 'pr_running': 'Reading the texts and identifying patterns… this can take a few minutes.',
+ 'pr_done': 'Report ready: {patterns} pattern(s) found in {texts} texts. It is shown below.',
+ 'pr_busy': 'A report for this period is already being prepared. Wait a few minutes and look below.',
+ 'pr_recent': 'A report for this period and these texts was made a few minutes ago. You can find it below.',
+ 'pr_failed': 'The report could not be prepared right now. Nothing was saved. Please try again later.',
+ 'pr_saved_header': 'Saved reports',
+ 'pr_no_reports': 'No reports have been made yet.',
+ 'pr_report_select': 'Report to view',
+ 'pr_report_option': '{date} — last {months} months — {texts} texts',
+ 'pr_report_meta': 'Made on {date} · covers the last {months} months · {texts} texts in the period, {read} read by the AI',
+ 'pr_some_unread': 'Some texts could not be read by the AI this time, so this report is based on fewer texts than the period holds.',
+ 'pr_candidate_note': 'Candidate patterns for reflection, written by AI — not conclusions. A pattern is not evidence of bias or poor practice.',
+ 'pr_overview_header': 'Overview',
+ 'pr_patterns_header': 'Patterns identified',
+ 'pr_no_patterns': 'No pattern appeared in enough texts to be reported.',
+ 'pr_seen_in': 'Seen in {count} of {total} texts',
+ 'pr_why_header': 'Why it may matter',
+ 'pr_questions_header': 'Questions the team could discuss',
+ 'pr_limits_header': 'Limits of this report',
+ 'pr_standing_limits': ['It was written by AI from anonymised texts and can be wrong; the team should check it against its own knowledge.', 'The texts are those written in the app during the period; they are not necessarily representative of the organisation.', 'Anonymisation removes names and personal details automatically, but it is not perfect.', 'The report never contains texts, quotations or who wrote anything.'],
+ 'pr_download_button': 'Download printable report',
+ 'pr_how_to_print': 'Open the downloaded file in your browser and choose Print (or Save as PDF).',
+ 'pr_print_title': 'Pattern Review report',
+ 'pr_print_confidential': 'Confidential document for the management team',
+ 'pr_print_prepared': 'Printed on {date}',
+ 'pr_print_footer': 'Confidential · Candidate patterns for reflection, not conclusions · {date}'}

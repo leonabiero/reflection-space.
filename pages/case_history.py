@@ -4,14 +4,13 @@ from services.draft_storage import (
 )
 from services.feedback_store import get_feedback_summary
 from services import reflection_records
-from services import reflection_summary
-from services.findings_ui import render_evidence
+from services.db_time import display_datetime
 from services.language import init_language
 from navigation.router import render_nav
 from services.identity import init_identity, render_identity_footer, can_see_case_history, require_work_mode
 from services.error_log import error_boundary
 from services.confirm_state import is_confirming, start_confirming, clear_confirming
-from config import CASE_HISTORY_MAX_RESULTS, ANONYMISED_TEXT_RETENTION_MONTHS
+from config import CASE_HISTORY_MAX_RESULTS
 
 # =====================================================================
 # Case History -- now a history of REFLECTIONS
@@ -19,15 +18,17 @@ from config import CASE_HISTORY_MAX_RESULTS, ANONYMISED_TEXT_RETENTION_MONTHS
 #
 # Reflection-only redesign (October 2026, agreed with the EDE team --
 # see REFLECTIONS.md): Reflection Space no longer stores case documents,
-# so this management screen shows saved reflections instead: each one by
-# its neutral code, case tags, note type and date. Since the November 2026
-# redesign each one shows a short AI summary first (readable in one go;
-# services/reflection_summary.py), with the AI's observations, questions
-# and verified anonymised passages folded underneath.
+# so this management screen shows saved reflections instead.
 #
-# It NEVER shows case text (none is stored) and NEVER shows a
-# professional's private notes on an observation. Access is limited to
-# management roles here AND inside services/reflection_records.py.
+# 15 November 2026 (product owner's decision): the AI's observations and
+# questions are no longer saved, so each reflection is now one short line:
+# its neutral code, the date (Bilbao time), its themes if it has any, and
+# who did it. The AI summary and the folded observations were removed.
+#
+# It NEVER shows any text (original or anonymised) and NEVER shows a
+# professional's private notes. Managers look for patterns in Pattern
+# Review, which shows a report only. Access is limited to management
+# roles here AND inside services/reflection_records.py.
 # =====================================================================
 
 T = init_language()
@@ -112,7 +113,7 @@ with error_boundary(
     st.caption(T["ch_reflections_intro"])
 
     flash = st.session_state.pop("_ch_flash", None)
-    if flash in (T["ch_delete_failed"], T["ch_summary_failed"]):
+    if flash == T["ch_delete_failed"]:
         st.error(flash)
     elif flash:
         st.success(flash)
@@ -151,84 +152,17 @@ with error_boundary(
         st.info(T["case_history_no_items_for_filter"])
         st.stop()
 
-    findings_by_run = reflection_records.get_findings_for_reflections(
-        user_role, [r["run_id"] for r in reflections],
-    )
-
-    # Reflection History redesign (November 2026, product owner's
-    # decision): each reflection shows a short AI summary that can be
-    # read in one go; the full observations, passages and questions are
-    # folded underneath. (Streamlit cannot put a fold inside a fold, so
-    # each reflection is a bordered box rather than an expander.)
-    def _render_summary(record, findings):
-        if record["summary"]:
-            st.write(record["summary"])
-            st.caption(T["ch_summary_ai_note"])
-            return
-        if not reflection_summary.has_observations(findings):
-            return
-        st.caption(T["ch_summary_missing"])
-        if st.button(T["ch_summary_create_button"], key=f"ch_summary_create_{record['run_id']}"):
-            with st.spinner(T["ch_summary_creating"]):
-                created = reflection_summary.create_and_save(
-                    record["run_id"], findings, T["section_labels"],
-                    record["language"] or st.session_state.get("lang", "Español"),
-                )
-            if not created:
-                st.session_state["_ch_flash"] = T["ch_summary_failed"]
-            st.rerun()
-
     for record in reflections:
-        tags_text = ", ".join(_tag_label(t) for t in record["case_tags"]) or T["rs_no_tags"]
-        date_part = (record["created_at"] or "")[:16]
-        header = f"🪞 {record['code'] or T['reflection_no_case_ref']} — {date_part} — {tags_text}"
-        findings = findings_by_run.get(record["run_id"], [])
+        parts = [record["code"] or T["reflection_no_case_ref"], display_datetime(record["created_at"])]
+        # Themes only exist on reflections made before November 2026.
+        if record["case_tags"]:
+            parts.append(", ".join(_tag_label(t) for t in record["case_tags"]))
+        header = "🪞 " + " — ".join(parts)
 
         with st.container(border=True):
             st.markdown(f"**{header}**")
             role_label = T.get("role_labels", {}).get(record["created_by_role"], record["created_by_role"])
             st.caption(f"{T['ch_author_label']}: {record['created_by'] or T['unknown_label']}, {role_label}")
-
-            _render_summary(record, findings)
-
-            with st.expander(T["ch_details_expander"].format(count=len(findings))):
-                if record["note_type"]:
-                    st.caption(f"{T['rs_note_type_label']}: {record['note_type']}")
-                if record["previous_code"]:
-                    st.caption(f"🔗 {T['ch_linked_label']}: {record['previous_code']}")
-
-                # The ORIGINAL text is never shown here, because this page
-                # shows the author's name: Supervisors and Programme
-                # Managers read it in Pattern Review, without names
-                # (agreed November 2026).
-                if record.get("has_original_text"):
-                    st.caption(T["ch_original_text_in_patterns_note"])
-
-                # Reflections from 4-10 November 2026 kept the ANONYMISED
-                # text instead; it stays readable here until it expires.
-                if record.get("has_anonymised_text") and st.toggle(
-                    T["ch_show_anonymised_text"], key=f"show_anon_text_{record['run_id']}",
-                ):
-                    saved_text = reflection_records.get_anonymised_text(
-                        record["run_id"], user_name, user_role,
-                    )
-                    with st.container(border=True):
-                        st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
-                        if saved_text:
-                            st.write(saved_text)
-                        else:
-                            st.info(T["ch_anonymised_text_unavailable"])
-
-                if not findings:
-                    st.info(T["ch_no_observations"])
-                for finding in findings:
-                    label = T["section_labels"].get(finding["module"], finding["module"].replace("_", " ").title())
-                    st.markdown(f"**{label}**")
-                    if finding["observation"]:
-                        st.write(finding["observation"])
-                    render_evidence(T, finding["evidence"], finding["unverified_quote_count"])
-                    for q in finding["questions"]:
-                        st.markdown(f"- {q}")
 
             if is_admin:
                 st.divider()

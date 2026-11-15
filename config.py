@@ -434,13 +434,12 @@ MONTHLY_BUDGET_GEMINI_USD = float(os.getenv("MONTHLY_BUDGET_GEMINI_USD", "10"))
 #
 #   - The AI still only ever receives the ANONYMISED version: saving the
 #     original changes nothing about what is sent to Claude.
-#   - The author can read their own text (My Reflection). Supervisors and
-#     Programme Managers can read the texts WITHOUT author names, in
-#     Pattern Review (services/reflection_records.list_original_texts).
+#   - Only the author can read their own text (My Reflection). Since
+#     15 November 2026 managers no longer read the texts at all: Pattern
+#     Review works from a separate ANONYMISED copy and shows managers
+#     only the AI's report (see "Pattern Review" below).
 #   - Each text is deleted automatically after
 #     ORIGINAL_TEXT_RETENTION_MONTHS (the reflection itself stays).
-#     Deleting it as soon as it has been used for pattern analysis will
-#     be added together with that future feature.
 #
 # Set SAVE_ORIGINAL_TEXT to "false" to stop saving new texts (already
 # saved ones then simply age out).
@@ -474,3 +473,45 @@ ANONYMISED_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ANONYMISED_TEXT_RETENTI
 # safeguarding -- is always exact. If the value is missing or invalid the
 # defaults below are used, so a typo can never switch age protection off.
 AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
+
+
+# ---------------------------------------------------------------------
+# Pattern Review from the social workers' own texts (15 November 2026,
+# product owner's decision -- see PATTERNS.md)
+# ---------------------------------------------------------------------
+# Patterns are looked for in what social workers WRITE, not in what the
+# AI says back to them. So:
+#
+#   - Straight after a text is anonymised, an ANONYMISED copy is saved
+#     on its own (services/pattern_text_store.py), with only the date,
+#     the language and the reflection code (used only so that deleting a
+#     reflection also deletes its copy). No author name and no role.
+#   - The AI's observations and questions are NOT saved
+#     (SAVE_OBSERVATIONS below). They are shown to the social worker and
+#     then forgotten.
+#   - Supervisors and Programme Managers choose a period
+#     (PATTERN_PERIOD_CHOICES months) and the AI reads the saved copies
+#     from that period and writes a report. Managers see the report only,
+#     never the texts. Reports are saved with their date and period.
+#   - Nothing is looked for with fewer than PATTERN_MIN_TEXTS texts, and a
+#     pattern is only reported when it appears in at least
+#     PATTERN_MIN_TEXTS_PER_PATTERN texts, so a "pattern" can never point
+#     at one person's single text.
+#   - Each copy is deleted automatically after
+#     PATTERN_TEXT_RETENTION_MONTHS (13: one month more than the longest
+#     period that can be analysed).
+SAVE_PATTERN_TEXT = os.getenv("SAVE_PATTERN_TEXT", "true").strip().lower() not in (
+    "0", "false", "no", "off",
+)
+PATTERN_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("PATTERN_TEXT_RETENTION_MONTHS", "13")))
+PATTERN_PERIOD_CHOICES = (3, 6, 9, 12)
+PATTERN_MIN_TEXTS = max(2, int(os.getenv("PATTERN_MIN_TEXTS", "5")))
+PATTERN_MIN_TEXTS_PER_PATTERN = max(2, int(os.getenv("PATTERN_MIN_TEXTS_PER_PATTERN", "3")))
+
+# The AI's observations and questions are not kept (decision above).
+# Switching this on brings back the earlier behaviour -- saved
+# observations, the professional's notes on them and the "Saved
+# observations" section of My Reflection -- without any other change.
+SAVE_OBSERVATIONS = os.getenv("SAVE_OBSERVATIONS", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)

@@ -9,9 +9,10 @@ the system does not require reading practitioners' shared reflections.
 To widen access later, change PATTERN_REVIEW_ROLES here; every check in
 the app reads this one set.
 
-The check is enforced in the DATA layer (services/pattern_store.py calls
-require_pattern_role() at the top of every function), not just by hiding
-the page link, so a direct URL or a manipulated request cannot bypass it.
+The check is enforced in the DATA layer (services/pattern_text_store.py
+checks the role in every function that reads texts or reports), not just
+by hiding the page link, so a direct URL or a manipulated request cannot
+bypass it.
 """
 
 PATTERN_REVIEW_ROLES = frozenset({"Supervisor", "Programme Manager"})

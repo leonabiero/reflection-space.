@@ -291,23 +291,22 @@ class SavedOriginalTextStaticTests(unittest.TestCase):
         self.assertIn("make_interval(months", captured["sql"])
         self.assertEqual(captured["params"][:2], (5, "ana"))
 
-    def test_management_list_has_no_names_codes_or_times(self):
+    def test_managers_can_no_longer_list_original_texts(self):
+        # 15 November 2026: managers see Pattern Review reports only, never
+        # texts. The functions that listed original texts for them are gone,
+        # and the Pattern Review page reads no text for display.
         from services import reflection_records as rr
-        with patch.object(rr, "_get_conn", side_effect=AssertionError("no DB for these roles")):
-            for role in ("Social Worker", "System Administrator", ""):
-                self.assertEqual(rr.list_original_texts(role), [])
-                self.assertEqual(rr.count_original_texts(role), 0)
-        captured = self._capture(rr, lambda: rr.list_original_texts("Supervisor"))
-        select_part = captured["sql"].split("FROM", 1)[0]
-        for forbidden in ("created_by", "reflection_code", "case_ref", "r.created_at,"):
-            self.assertNotIn(forbidden, select_part)
-        self.assertIn("r.created_at::date", select_part)
+        self.assertFalse(hasattr(rr, "list_original_texts"))
+        self.assertFalse(hasattr(rr, "count_original_texts"))
+        page = _read("pages", "pattern_explorer.py")
+        for forbidden in ("get_original_text", "original_text", "pattern_text_store.texts_for_period(", "anonymised_text"):
+            self.assertNotIn(forbidden, page)
 
     def test_case_history_never_shows_the_original_text(self):
         page = _read("pages", "case_history.py")
         self.assertNotIn("get_original_text", page)
         self.assertNotIn("list_original_texts", page)
-        self.assertIn('T["ch_original_text_in_patterns_note"]', page)
+        self.assertNotIn("ch_original_text_in_patterns_note", page)
 
     def test_older_anonymised_text_is_still_limited_to_author_or_managers(self):
         from services import reflection_records as rr
@@ -333,10 +332,8 @@ class TranslationTests(unittest.TestCase):
         "rs_language_names", "rs_privacy_note", "rs_reflect_button", "rs_anonymised_status",
         "rs_preparing_status", "rs_anonymise_failed", "rs_anonymised_preview_label",
         "rs_anonymised_preview_help", "rs_try_again_button", "rs_original_saved_note",
-        "ch_show_anonymised_text", "ch_anonymised_text_caption", "ch_anonymised_text_unavailable",
+        "rs_pattern_copy_note", "ch_anonymised_text_caption",
         "ch_show_saved_text", "ch_original_text_caption", "ch_saved_text_unavailable",
-        "ch_original_text_in_patterns_note", "patterns_texts_header", "patterns_texts_caption",
-        "patterns_texts_empty", "patterns_texts_showing", "patterns_texts_item",
     )
 
     def test_every_new_text_exists_in_all_three_languages(self):
@@ -355,9 +352,8 @@ class TranslationTests(unittest.TestCase):
             self.assertIn("{months}", lang["rs_original_saved_note"])
             self.assertIn("{months}", lang["help"]["original_saved_note"])
             self.assertIn("{months}", lang["ch_original_text_caption"])
-            self.assertIn("{months}", lang["patterns_texts_caption"])
-            self.assertIn("{shown}", lang["patterns_texts_showing"])
-            self.assertIn("{date}", lang["patterns_texts_item"])
+            self.assertIn("{months}", lang["rs_pattern_copy_note"])
+            self.assertIn("{months}", lang["help"]["pattern_copy_note"])
         self.assertEqual(LANG_EN["rs_heading"], "Let's reflect.")
         self.assertEqual(LANG_EN["rs_reflect_button"], "Reflect")
         self.assertEqual(LANG_EN["rs_anonymised_preview_label"], "View anonymised text")

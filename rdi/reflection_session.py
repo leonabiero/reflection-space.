@@ -28,6 +28,7 @@ from rdi.reflection_objects import ReflectiveOpportunity
 from rdi.companion_retry import retry_companion_once
 from services.evidence import verify_quotes
 from services.findings_store import add_finding_to_run
+from config import SAVE_OBSERVATIONS
 from services.db_time import get_logger
 
 logger = get_logger(__name__)
@@ -105,7 +106,10 @@ class _RetryInvitation:
                         evidence=evidence,
                         unverified_quote_count=unverified_count,
                     )
-                    if self.session.run_id:
+                    # Since 15 November 2026 the AI's observations and
+                    # questions are not saved (config.SAVE_OBSERVATIONS),
+                    # so a retried card is only shown, never stored.
+                    if self.session.run_id and SAVE_OBSERVATIONS:
                         try:
                             replacement.finding_id = add_finding_to_run(
                                 self.session.run_id,

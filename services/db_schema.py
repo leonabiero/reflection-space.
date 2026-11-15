@@ -705,10 +705,10 @@ def ensure_schema():
                 # Never sent to an AI provider and never logged.
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS original_text TEXT")
                 # November 2026 (Reflection History redesign): a short AI
-                # summary of the reflection's observations, shown to
-                # management roles above the folded observations. Written
-                # only from the observations (services/reflection_summary.py),
-                # never from the case text. Erased with the reflection.
+                # summary of the reflection's observations. No longer
+                # written since 15 November 2026 (observations are not
+                # saved); the column is kept so existing databases are
+                # unchanged. Erased with the reflection.
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS summary_text TEXT")
                 # November 2026: a practitioner can delete their own
                 # reflection. It is hidden everywhere at once (deleted_at
@@ -881,6 +881,58 @@ def ensure_schema():
                 c.execute("""
                     CREATE INDEX IF NOT EXISTS idx_pattern_events_pattern
                     ON pattern_events (pattern_id, id)
+                """)
+
+                # --- Pattern Review from the social workers' own texts
+                # (15 November 2026, see PATTERNS.md) ---
+                #
+                # pattern_texts: an ANONYMISED copy of each text, saved
+                # straight after anonymisation. Deliberately NO author
+                # name and NO role: only the date, the language and the
+                # reflection code. The code is used for one thing only --
+                # so that deleting a reflection also deletes its copy
+                # (services/reflection_records.py:_erase_runs); it is
+                # never selected for the analysis or shown to anyone.
+                # Cleared automatically after
+                # config.PATTERN_TEXT_RETENTION_MONTHS. Never logged.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS pattern_texts (
+                    id SERIAL PRIMARY KEY,
+                    reflection_code TEXT,
+                    language TEXT,
+                    anonymised_text TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_pattern_texts_reflection_code
+                    ON pattern_texts (reflection_code)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pattern_texts_created_at
+                    ON pattern_texts (created_at DESC)
+                """)
+                # pattern_reports: each report a manager asked for, with
+                # the period it covered and how many texts were read. The
+                # report holds the AI's written findings only -- never a
+                # text, a quotation, a code or a name of a text's author.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS pattern_reports (
+                    id SERIAL PRIMARY KEY,
+                    period_months INTEGER NOT NULL,
+                    texts_count INTEGER NOT NULL,
+                    language TEXT,
+                    report TEXT NOT NULL,
+                    model TEXT,
+                    prompt_version TEXT,
+                    created_by TEXT NOT NULL,
+                    created_by_role TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pattern_reports_created_at
+                    ON pattern_reports (created_at DESC)
                 """)
 
                 # November 2026: the Text analysis (corpus) feature, the

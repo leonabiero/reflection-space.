@@ -6,10 +6,13 @@ Thin wrapper around Google's Gemini Embedding API. This is the single place
 in the app that turns text into a vector; callers should not import the
 Google GenAI SDK directly.
 
-Used by Pattern Review (services/pattern_service.py), which stores the resulting vectors in
-PostgreSQL. Document text is embedded with a retrieval-document task, query
-text with a retrieval-query task, and provider failures return None rather
-than breaking the calling feature.
+Since 15 November 2026 no feature sends text to Gemini: Pattern Review now
+uses Claude to read anonymised texts (services/pattern_text_analysis.py),
+replacing the observation grouping that used this module. It is kept for
+the System Health and cost screens (is_available) and so the provider can
+be brought back without new code. Document text is embedded with a
+retrieval-document task, query text with a retrieval-query task, and
+provider failures return None rather than breaking the calling feature.
 
 Privacy boundary
 ----------------

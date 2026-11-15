@@ -45,10 +45,9 @@ Privacy rules
   this module.
 - Management functions require a management role (checked here, not
   only in the page) and return the AI's observations only -- never
-  anyone's notes. The saved ORIGINAL text is never returned next to an
-  author's name to anyone but the author: Supervisors and Programme
-  Managers read it only through list_original_texts(), which carries no
-  name, no reflection code and no exact time.
+  anyone's notes. The saved ORIGINAL text is returned to its author only
+  (since 15 November 2026 managers see Pattern Review reports, never the
+  texts -- services/pattern_text_store.py).
 - Nothing in this module writes observation text, quotes, tags or notes
   to logs -- only ids and counts.
 """
@@ -60,7 +59,6 @@ import secrets
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import iso, get_logger
 from services.access_control import require_management_role
-from services.pattern_access import can_review_patterns
 from services.findings_store import NOT_IN_DELETION_WINDOW
 
 logger = get_logger(__name__)
@@ -398,9 +396,9 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
     otherwise). Each item: run_id, code, case_tags, note_type,
     created_by, created_by_role, created_at, finding_count,
     previous_code, has_anonymised_text, has_original_text, summary (the
-    short AI summary of the observations, "" if none yet -- see
-    services/reflection_summary.py) and language (the reflection
-    language). The case texts themselves are never included here.
+    short AI summary written for reflections made before 15 November
+    2026, "" otherwise) and language (the reflection language). The case
+    texts themselves are never included here.
     """
     if not require_management_role(actor_role):
         return []
@@ -602,14 +600,12 @@ def purge_expired_anonymised_text():
 # Saved original text (November 2026, agreed with EDE -- REFLECTIONS.md)
 # ---------------------------------------------------------------------
 # The ORIGINAL text each reflection was made from, kept in the EU
-# database for later pattern analysis. Rules, enforced here in SQL and
-# not only in the pages:
-#   - the AUTHOR can read their own text (get_original_text);
-#   - Supervisors and Programme Managers (services/pattern_access.py) can
-#     read the texts WITHOUT any author name, reflection code or exact
-#     time (list_original_texts) -- so a text is never shown next to the
-#     name of the person who wrote it;
-#   - nobody else (other professionals, the System Administrator);
+# database (agreed with EDE). Rules, enforced here in SQL and not only in
+# the pages:
+#   - only the AUTHOR can read their own text (get_original_text);
+#   - since 15 November 2026 managers no longer read the texts: Pattern
+#     Review uses a separate ANONYMISED copy and shows managers only the
+#     AI's report (services/pattern_text_store.py);
 #   - a text older than config.ORIGINAL_TEXT_RETENTION_MONTHS is never
 #     returned and is cleared by purge_expired_original_text();
 #   - a reflection its author deleted is never returned, and is erased
@@ -651,80 +647,6 @@ def get_original_text(run_id, actor_name):
     return row[0] if row else None
 
 
-def _original_text_filters(date_from, date_to):
-    conditions = [
-        NOT_IN_DELETION_WINDOW,
-        "r.original_text IS NOT NULL",
-        _ORIGINAL_NOT_EXPIRED,
-    ]
-    params = [_original_retention_months()]
-    if date_from:
-        conditions.append("r.created_at::date >= %s")
-        params.append(date_from)
-    if date_to:
-        conditions.append("r.created_at::date <= %s")
-        params.append(date_to)
-    return " AND ".join(conditions), params
-
-
-def list_original_texts(actor_role, date_from=None, date_to=None, limit=50, offset=0):
-    """
-    Saved original texts for pattern analysis, newest first. Supervisors
-    and Programme Managers only (returns [] otherwise).
-
-    Deliberately carries NO author name, NO reflection code and NO exact
-    time -- only the day, the reflection language and the text -- so a
-    manager can study the writing without seeing who wrote it. Each item:
-    {"run_id", "date", "language", "text"}; run_id is for screen keys
-    only and must not be displayed.
-    """
-    if not can_review_patterns(actor_role):
-        return []
-    limit = max(1, min(int(limit), 200))
-    offset = max(0, int(offset))
-    where, params = _original_text_filters(date_from, date_to)
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute(
-                f"""
-                SELECT r.id, r.created_at::date, r.language, r.original_text
-                FROM reflection_runs r
-                WHERE {where}
-                ORDER BY r.created_at DESC, r.id DESC
-                LIMIT %s OFFSET %s
-                """,
-                (*params, limit, offset),
-            )
-            rows = c.fetchall()
-    finally:
-        conn.close()
-    return [
-        {
-            "run_id": r[0],
-            "date": r[1].isoformat() if r[1] else "",
-            "language": r[2] or "",
-            "text": r[3] or "",
-        }
-        for r in rows
-    ]
-
-
-def count_original_texts(actor_role, date_from=None, date_to=None):
-    """How many texts list_original_texts() could show. Supervisors and
-    Programme Managers only (0 otherwise)."""
-    if not can_review_patterns(actor_role):
-        return 0
-    where, params = _original_text_filters(date_from, date_to)
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute(f"SELECT COUNT(*) FROM reflection_runs r WHERE {where}", tuple(params))
-            return c.fetchone()[0]
-    finally:
-        conn.close()
-
-
 def purge_expired_original_text():
     """Clear saved original text older than the retention period. The
     reflection itself (code, observations, notes) is kept. Returns how
@@ -759,33 +681,6 @@ def get_reflection_findings(actor_role, run_id):
     if not run_id:
         return []
     return get_findings_for_reflections(actor_role, [run_id]).get(int(run_id), [])
-
-
-def save_summary(run_id, summary):
-    """Store the short AI summary of one reflection's observations
-    (services/reflection_summary.py). Written once: an existing summary
-    is never overwritten, so two people opening Reflection History at the
-    same moment cannot both pay for and save one. Returns True if this
-    call stored it."""
-    text = (summary or "").strip()
-    if not run_id or not text:
-        return False
-    conn = _get_conn()
-    try:
-        with conn.cursor() as c:
-            c.execute(
-                "UPDATE reflection_runs SET summary_text = %s WHERE id = %s AND summary_text IS NULL",
-                (text, int(run_id)),
-            )
-            stored = c.rowcount == 1
-        conn.commit()
-        return stored
-    except Exception:
-        conn.rollback()
-        logger.exception("save_summary FAILED: run_id=%r", run_id)
-        raise
-    finally:
-        conn.close()
 
 
 def delete_reflection(run_id, actor_name, actor_role):
@@ -830,8 +725,9 @@ def delete_reflection(run_id, actor_name, actor_role):
 def _erase_runs(cursor, run_ids):
     """Erase reflections for good, inside the caller's transaction: the
     run, its observations and the professional's notes on them (ON DELETE
-    CASCADE), its saved anonymised text, the journal entries recorded
-    under its code, and any pattern left with no observations at all.
+    CASCADE), its saved texts, the anonymised copy kept for Pattern Review,
+    the journal entries recorded under its code, and any old pattern left
+    with no observations at all.
     Returns the codes erased."""
     ids = [int(i) for i in run_ids if i]
     if not ids:
@@ -846,6 +742,10 @@ def _erase_runs(cursor, run_ids):
         if cursor.fetchone()[0] is not None:
             cursor.execute("DELETE FROM reflection_explorations WHERE case_ref = ANY(%s)", (codes,))
     cursor.execute("DELETE FROM reflection_runs WHERE id = ANY(%s)", (ids,))
+    # The anonymised copy kept for Pattern Review goes with it (15
+    # November 2026; services/pattern_text_store.py).
+    from services.pattern_text_store import delete_for_codes
+    delete_for_codes(cursor, codes)
     # A pattern left with no observations at all loses its explanation
     # too (same rule as findings_store.delete_runs_for_drafts).
     cursor.execute("SELECT to_regclass('patterns')")

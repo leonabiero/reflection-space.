@@ -37,15 +37,13 @@ Privacy rules this module enforces
   and get_my_findings filter by the person's own name IN SQL, and
   upsert_feedback refuses to write on someone else's findings. Nothing
   here lets one professional read another's notes.
-- November 2026: EVERY observation is used in the management team's
-  pattern review (services/pattern_store.py), without the author's name;
-  the per-observation share choice described next is no longer read.
-- Stage 2 (until November 2026): an author may choose to SHARE an observation with the
-  management team's pattern explorer (upsert_feedback(shared_with_team=
-  True)). Only the observation and its exact quote are then readable by
-  management (services/pattern_store.py) -- never the author's name, notes,
-  ratings or alternative explanations. Sharing can be withdrawn at any
-  time and takes effect immediately.
+- 15 November 2026: the AI's observations and questions are no longer
+  saved by the reflection screen (config.SAVE_OBSERVATIONS, off), and
+  Pattern Review no longer uses observations at all -- it reads an
+  anonymised copy of what social workers wrote
+  (services/pattern_text_store.py). The functions here keep working for
+  observations saved earlier, and for saving again if the setting is
+  switched back on. The old "share with the team" flag is no longer read.
 - No finding text, quote or note is ever written to logs -- logging in
   this module uses ids and counts only.
 - Deleting a document permanently deletes every run that used it,
@@ -729,7 +727,8 @@ def delete_runs_for_drafts(cursor, draft_ids):
     # all has nothing left to stand on, so its written explanation -- which
     # was derived from the erased observations -- is erased too. (A pattern
     # that keeps some observations stays, flagged on screen as needing to
-    # be regenerated; see services/pattern_store.py:list_patterns.)
+    # be regenerated. (That observation-based Pattern Review was replaced
+    # on 15 November 2026; this keeps old data consistent.)
     # Skipped on a database that does not have the pattern tables yet.
     cursor.execute("SELECT to_regclass('patterns')")
     if cursor.fetchone()[0] is not None:

@@ -37,18 +37,20 @@ mistake in one place doesn't expose data it shouldn't.
 |---|---|---|
 | Streamlit | The web app itself (all the screens) | `app.py`, `pages/` |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
-| Google Gemini | Turns text into numerical "fingerprints" for Pattern Review; the results are stored in Postgres | `services/embedding_service.py` |
-| Claude (Anthropic) | Powers the reflection companion and the Pattern Review explanations | `rdi/`, `services/reflection_service.py`, `services/pattern_explainer.py` |
+| Google Gemini | Since 15 November 2026 no text is sent to Gemini; only its availability is still checked on the System Health and cost screens | `services/embedding_service.py` |
+| Claude (Anthropic) | Powers the reflection companion and writes the Pattern Review reports | `rdi/`, `services/reflection_service.py`, `services/pattern_text_analysis.py` |
 
 **Data flow, in short:** a social worker writes, pastes or uploads a case on
 the Reflection Space screen and presses **Reflect** → the text is anonymised
 first (if that fails, nothing is sent anywhere) → only the anonymised text
 goes to the RDI ("Reflective Decision Intelligence") layer in `rdi/`, which
 uses Claude to generate reflective prompts (never directive advice) in the
-language the worker chose → only the **reflection** is saved to Postgres,
-with a neutral, automatically created code, together with the **original**
-text (since 10 November 2026, agreed with EDE, for later pattern analysis —
-it is stored in the EU database and never sent to the AI). Messages typed into follow-up conversations
+language the worker chose. What is saved to Postgres: the reflection record
+with a neutral, automatically created code and the **original** text (since
+10 November 2026, agreed with EDE — stored in the EU database, readable only
+by its author, never sent to the AI), and — since 15 November 2026 — an
+**anonymised copy** of the text, with no name or role, for Pattern Review
+(see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
 go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
 are replaced by life stages (see `REFLECTIONS.md`). The Qdrant search service,
@@ -63,11 +65,16 @@ At the product owner's request the app was trimmed to what the pilot needs:
   Documentation redirect page.
 - **Reflection History** shows only the *average* usefulness rating — never
   individual ratings, comments or who gave them.
-- **15 November 2026:** Reflection History shows a short AI summary for each
-  reflection, with the full observations and questions folded underneath
-  (one extra small AI call per reflection, about $0.005). Rating a
-  reflection is now optional, through a small "Rate" button in the corner of
-  the results; "Finish reflection" no longer leads to a feedback step.
+- **15 November 2026:** Rating a reflection is optional, through a small
+  "Rate" button in the corner of the results; "Finish reflection" no longer
+  leads to a feedback step.
+- **15 November 2026 (later the same day): Pattern Review redesigned.**
+  Patterns are looked for in what social workers write, not in the AI's
+  output. An anonymised copy of each text is kept for 13 months; managers
+  pick 3, 6, 9 or 12 months and get an AI report (never the texts). The AI's
+  observations and questions are no longer saved, so Reflection History is
+  one line per reflection and the per-reflection AI summary was removed.
+  See `PATTERNS.md`.
 - **System Administration** lost "Erase old stored documents", "Configuration"
   and "Case Knowledge Search". The Diagnostic Centre is now a plain list of
   recorded problems (what happened, when, status); the AI diagnosis still

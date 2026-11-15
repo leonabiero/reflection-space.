@@ -76,6 +76,35 @@ def iso(value):
     return value.isoformat()
 
 
+# Dates shown on screen are in Bilbao time, written the way people in
+# Spain read them ("15/11/2026 16:26"), instead of the stored computer
+# format ("2026-11-15T15:26:00+00:00"). Added 15 November 2026.
+DISPLAY_TIMEZONE = "Europe/Madrid"
+
+
+def display_datetime(value, with_time=True):
+    """A stored date (datetime or ISO text) as "DD/MM/YYYY HH:MM" in Bilbao
+    time ("DD/MM/YYYY" with with_time=False). "" for an empty value. If the
+    time-zone data is unavailable the time is shown in UTC rather than
+    failing; text that cannot be read is returned as it was."""
+    if not value:
+        return ""
+    moment = value
+    if isinstance(value, str):
+        try:
+            moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        moment = moment.astimezone(ZoneInfo(DISPLAY_TIMEZONE))
+    except Exception:
+        moment = moment.astimezone(timezone.utc)
+    return moment.strftime("%d/%m/%Y %H:%M" if with_time else "%d/%m/%Y")
+
+
 def iso_row(row, date_indexes):
     """Apply iso() to selected positions in a fetched row tuple."""
     row = list(row)

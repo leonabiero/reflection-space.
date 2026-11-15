@@ -11,7 +11,11 @@ from services.findings_ui import render_evidence, render_notes_form
 from services.reflection_records import get_anonymised_text, get_original_text
 from services import reflection_records
 from services.confirm_state import is_confirming, start_confirming, clear_confirming
-from config import ORIGINAL_TEXT_RETENTION_MONTHS, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS
+from config import (
+    ORIGINAL_TEXT_RETENTION_MONTHS, ANONYMISED_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS,
+    SAVE_OBSERVATIONS,
+)
+from services.db_time import display_datetime
 
 # Professional Growth Dashboard
 # ================================
@@ -109,113 +113,118 @@ with error_boundary(
             ))
 
 
-    # ---------------------------------------------------------------
-    # Saved observations and your own notes (saved-findings Stage 1)
-    # ---------------------------------------------------------------
-    # Everything the AI observed in YOUR reflections, with the exact
-    # passages it was based on, next to your own notes. Only the
-    # logged-in professional's own findings are ever loaded (filtered in
-    # SQL by name -- see services/findings_store.py), and notes are
-    # private to their author. Nothing here is a score or an evaluation
-    # of the professional.
-    st.divider()
-    st.subheader(T["findings_journal_header"])
-    st.caption(T["findings_journal_intro"])
+    # Since 15 November 2026 the AI's observations and questions are not
+    # saved (config.SAVE_OBSERVATIONS), so this section only appears if
+    # saving is switched back on. The saved text of each reflection is
+    # now shown in "Your saved reflections" below instead.
+    if SAVE_OBSERVATIONS:
+        # ---------------------------------------------------------------
+        # Saved observations and your own notes (saved-findings Stage 1)
+        # ---------------------------------------------------------------
+        # Everything the AI observed in YOUR reflections, with the exact
+        # passages it was based on, next to your own notes. Only the
+        # logged-in professional's own findings are ever loaded (filtered in
+        # SQL by name -- see services/findings_store.py), and notes are
+        # private to their author. Nothing here is a score or an evaluation
+        # of the professional.
+        st.divider()
+        st.subheader(T["findings_journal_header"])
+        st.caption(T["findings_journal_intro"])
 
-    # November 2026 -- grouped by reflection: ONE line per reflection
-    # (code, date, how many observations, how many have notes), with its
-    # observations inside. The person picks one observation at a time, in
-    # the same fixed order as the cards on the Reflection Space screen.
-    REFLECTIONS_PAGE_SIZE = 5
-    total_reflections = count_my_reflections_with_findings(user_name)
+        # November 2026 -- grouped by reflection: ONE line per reflection
+        # (code, date, how many observations, how many have notes), with its
+        # observations inside. The person picks one observation at a time, in
+        # the same fixed order as the cards on the Reflection Space screen.
+        REFLECTIONS_PAGE_SIZE = 5
+        total_reflections = count_my_reflections_with_findings(user_name)
 
-    if total_reflections == 0:
-        st.info(T["findings_journal_empty"])
-    else:
-        last_page = (total_reflections - 1) // REFLECTIONS_PAGE_SIZE
-        page = min(max(st.session_state.get("findings_journal_page", 0), 0), last_page)
+        if total_reflections == 0:
+            st.info(T["findings_journal_empty"])
+        else:
+            last_page = (total_reflections - 1) // REFLECTIONS_PAGE_SIZE
+            page = min(max(st.session_state.get("findings_journal_page", 0), 0), last_page)
 
-        reflections = get_my_findings_by_reflection(
-            user_name, limit=REFLECTIONS_PAGE_SIZE, offset=page * REFLECTIONS_PAGE_SIZE,
-        )
-
-        st.caption(T["findings_journal_count_reflections"].format(
-            total=total_reflections, page=page + 1, pages=last_page + 1,
-        ))
-
-        card_order = {key: i for i, key in enumerate(CONVERSATION_ORDER)}
-
-        def _lens_label(module):
-            return T["section_labels"].get(module, module.replace("_", " ").title())
-
-        for reflection in reflections:
-            findings = sorted(
-                reflection["findings"],
-                key=lambda f: (card_order.get(f["module"], len(card_order)), f["id"]),
+            reflections = get_my_findings_by_reflection(
+                user_name, limit=REFLECTIONS_PAGE_SIZE, offset=page * REFLECTIONS_PAGE_SIZE,
             )
-            with_notes = sum(1 for f in findings if f["feedback"])
-            header = T["findings_reflection_line"].format(
-                code=reflection["case_ref"] or T["reflection_no_case_ref"],
-                date=(reflection["created_at"] or "")[:16].replace("T", " "),
-                count=len(findings),
-            )
-            if with_notes:
-                header += " " + T["findings_reflection_notes_suffix"].format(count=with_notes)
 
-            with st.expander(header):
-                # The saved text of this reflection. Only the author can
-                # load it here. Since November 2026 that is the ORIGINAL
-                # text; reflections from 4-10 November 2026 kept the
-                # anonymised version instead, shown until it expires.
-                if reflection["run_id"] and st.toggle(
-                    T["ch_show_saved_text"], key=f"jr_anon_text_run_{reflection['run_id']}",
-                ):
-                    try:
-                        original = get_original_text(reflection["run_id"], user_name)
-                        anonymised = None if original else get_anonymised_text(
-                            reflection["run_id"], user_name, user_role,
-                        )
-                    except Exception:
-                        original = anonymised = None
-                    with st.container(border=True):
-                        if original:
-                            st.caption(T["ch_original_text_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
-                            st.write(original)
-                        elif anonymised:
-                            st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
-                            st.write(anonymised)
-                        else:
-                            st.info(T["ch_saved_text_unavailable"])
+            st.caption(T["findings_journal_count_reflections"].format(
+                total=total_reflections, page=page + 1, pages=last_page + 1,
+            ))
 
-                by_id = {f["id"]: f for f in findings}
-                chosen_id = st.radio(
-                    T["findings_pick_observation"],
-                    options=list(by_id),
-                    format_func=lambda fid: _lens_label(by_id[fid]["module"])
-                    + (" ✔" if by_id[fid]["feedback"] else ""),
-                    horizontal=True,
-                    key=f"jr_pick_{reflection['run_id']}",
+            card_order = {key: i for i, key in enumerate(CONVERSATION_ORDER)}
+
+            def _lens_label(module):
+                return T["section_labels"].get(module, module.replace("_", " ").title())
+
+            for reflection in reflections:
+                findings = sorted(
+                    reflection["findings"],
+                    key=lambda f: (card_order.get(f["module"], len(card_order)), f["id"]),
                 )
-                f = by_id[chosen_id]
-                with st.container(border=True):
-                    st.markdown(f"**{_lens_label(f['module'])}**")
-                    st.write(f["observation"])
-                    render_evidence(T, f["evidence"], f["unverified_quote_count"])
-                    for q in f["questions"]:
-                        st.markdown(f"- {q}")
-                    st.divider()
-                    render_notes_form(
-                        T, f["id"], user_name, f["feedback"], key_prefix="jr",
-                    )
+                with_notes = sum(1 for f in findings if f["feedback"])
+                header = T["findings_reflection_line"].format(
+                    code=reflection["case_ref"] or T["reflection_no_case_ref"],
+                    date=(reflection["created_at"] or "")[:16].replace("T", " "),
+                    count=len(findings),
+                )
+                if with_notes:
+                    header += " " + T["findings_reflection_notes_suffix"].format(count=with_notes)
 
-        if page > 0:
-            if st.button(T["findings_journal_newer"], key="findings_journal_newer_btn"):
-                st.session_state["findings_journal_page"] = page - 1
-                st.rerun()
-        if page < last_page:
-            if st.button(T["findings_journal_older"], key="findings_journal_older_btn"):
-                st.session_state["findings_journal_page"] = page + 1
-                st.rerun()
+                with st.expander(header):
+                    # The saved text of this reflection. Only the author can
+                    # load it here. Since November 2026 that is the ORIGINAL
+                    # text; reflections from 4-10 November 2026 kept the
+                    # anonymised version instead, shown until it expires.
+                    if reflection["run_id"] and st.toggle(
+                        T["ch_show_saved_text"], key=f"jr_anon_text_run_{reflection['run_id']}",
+                    ):
+                        try:
+                            original = get_original_text(reflection["run_id"], user_name)
+                            anonymised = None if original else get_anonymised_text(
+                                reflection["run_id"], user_name, user_role,
+                            )
+                        except Exception:
+                            original = anonymised = None
+                        with st.container(border=True):
+                            if original:
+                                st.caption(T["ch_original_text_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+                                st.write(original)
+                            elif anonymised:
+                                st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                                st.write(anonymised)
+                            else:
+                                st.info(T["ch_saved_text_unavailable"])
+
+                    by_id = {f["id"]: f for f in findings}
+                    chosen_id = st.radio(
+                        T["findings_pick_observation"],
+                        options=list(by_id),
+                        format_func=lambda fid: _lens_label(by_id[fid]["module"])
+                        + (" ✔" if by_id[fid]["feedback"] else ""),
+                        horizontal=True,
+                        key=f"jr_pick_{reflection['run_id']}",
+                    )
+                    f = by_id[chosen_id]
+                    with st.container(border=True):
+                        st.markdown(f"**{_lens_label(f['module'])}**")
+                        st.write(f["observation"])
+                        render_evidence(T, f["evidence"], f["unverified_quote_count"])
+                        for q in f["questions"]:
+                            st.markdown(f"- {q}")
+                        st.divider()
+                        render_notes_form(
+                            T, f["id"], user_name, f["feedback"], key_prefix="jr",
+                        )
+
+            if page > 0:
+                if st.button(T["findings_journal_newer"], key="findings_journal_newer_btn"):
+                    st.session_state["findings_journal_page"] = page - 1
+                    st.rerun()
+            if page < last_page:
+                if st.button(T["findings_journal_older"], key="findings_journal_older_btn"):
+                    st.session_state["findings_journal_page"] = page + 1
+                    st.rerun()
 
     # ---------------------------------------------------------------
     # Your saved reflections -- delete and restore (November 2026)
@@ -243,9 +252,12 @@ with error_boundary(
                 info_col, action_col = st.columns([4, 1])
                 with info_col:
                     st.markdown(f"**{record['code']}**")
-                    st.caption(T["my_reflections_line"].format(
-                        date=(record["created_at"] or "")[:16].replace("T", " "), count=record["finding_count"],
-                    ))
+                    if SAVE_OBSERVATIONS:
+                        st.caption(T["my_reflections_line"].format(
+                            date=display_datetime(record["created_at"]), count=record["finding_count"],
+                        ))
+                    else:
+                        st.caption(display_datetime(record["created_at"]))
                 with action_col:
                     if not is_confirming(confirm_key):
                         if st.button(T["my_reflections_delete"], key=f"delete_own_{record['run_id']}"):
@@ -278,6 +290,27 @@ with error_boundary(
                             clear_confirming(confirm_key)
                             st.rerun()
 
+                # The saved text of this reflection, for its author only.
+                # Since November 2026 that is the ORIGINAL text; reflections
+                # from 4-10 November 2026 kept the anonymised version
+                # instead, shown until it expires.
+                if st.toggle(T["ch_show_saved_text"], key=f"my_saved_text_{record['run_id']}"):
+                    try:
+                        original = get_original_text(record["run_id"], user_name)
+                        anonymised = None if original else get_anonymised_text(
+                            record["run_id"], user_name, user_role,
+                        )
+                    except Exception:
+                        original = anonymised = None
+                    if original:
+                        st.caption(T["ch_original_text_caption"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+                        st.write(original)
+                    elif anonymised:
+                        st.caption(T["ch_anonymised_text_caption"].format(months=ANONYMISED_TEXT_RETENTION_MONTHS))
+                        st.write(anonymised)
+                    else:
+                        st.info(T["ch_saved_text_unavailable"])
+
     deleted = reflection_records.list_own_deleted_reflections(user_name)
     if deleted:
         st.markdown(f"**{T['my_reflections_deleted_header']}**")
@@ -286,7 +319,7 @@ with error_boundary(
                 info_col, action_col = st.columns([4, 1])
                 with info_col:
                     st.markdown(f"~~{record['code']}~~")
-                    st.caption(T["my_reflections_erase_on"].format(date=(record["erase_at"] or "")[:16].replace("T", " ")))
+                    st.caption(T["my_reflections_erase_on"].format(date=display_datetime(record["erase_at"])))
                 with action_col:
                     if st.button(T["my_reflections_restore"], key=f"restore_own_{record['run_id']}"):
                         try:
