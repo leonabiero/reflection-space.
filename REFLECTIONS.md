@@ -197,7 +197,8 @@ each new reflection keeps the **original** text instead of the anonymised copy.
   once and erased for good, text included, after the deletion window.
 - **On/off:** `SAVE_ORIGINAL_TEXT` (default on). Turning it off stops saving;
   text already saved ages out.
-- Practitioners are told on the reflection screen and in Help that the text is
+- Practitioners are told in Help (the notice on the reflection screen was
+  removed on 15 November 2026 at the product owner's request) that the text is
   saved and may be read by supervisors and programme managers without their
   name.
 - Never logged.

@@ -329,10 +329,10 @@ class TranslationTests(unittest.TestCase):
         "rs_heading", "rs_subheading", "rs_material_label", "rs_material_placeholder",
         "rs_file_loaded", "rs_both_inputs_notice", "rs_source_label", "rs_source_options",
         "rs_choose_source_warning", "rs_need_material", "rs_language_label",
-        "rs_language_names", "rs_privacy_note", "rs_reflect_button", "rs_anonymised_status",
+        "rs_language_names", "rs_reflect_button", "rs_anonymised_status",
         "rs_preparing_status", "rs_anonymise_failed", "rs_anonymised_preview_label",
         "rs_anonymised_preview_help", "rs_try_again_button", "rs_original_saved_note",
-        "rs_pattern_copy_note", "ch_anonymised_text_caption",
+        "ch_anonymised_text_caption",
         "ch_show_saved_text", "ch_original_text_caption", "ch_saved_text_unavailable",
     )
 
@@ -352,7 +352,6 @@ class TranslationTests(unittest.TestCase):
             self.assertIn("{months}", lang["rs_original_saved_note"])
             self.assertIn("{months}", lang["help"]["original_saved_note"])
             self.assertIn("{months}", lang["ch_original_text_caption"])
-            self.assertIn("{months}", lang["rs_pattern_copy_note"])
             self.assertIn("{months}", lang["help"]["pattern_copy_note"])
         self.assertEqual(LANG_EN["rs_heading"], "Let's reflect.")
         self.assertEqual(LANG_EN["rs_reflect_button"], "Reflect")

@@ -28,8 +28,10 @@ not in what the AI says back to them. So:
    never who wrote anything. Reports are saved with their date and period and
    can be downloaded to print.
 
-The social worker is told, in one line on the writing screen, that an
-anonymised copy is kept without their name.
+Social workers are told about the anonymised copy in **Help** (Privacy and
+"Your case" sections), in all three languages. The notices that were on the
+writing screen were removed on 15 November 2026 at the product owner's
+request.
 
 ## Decisions (product owner, 15 November 2026)
 
@@ -40,7 +42,7 @@ anonymised copy is kept without their name.
 | How long are copies kept? | 13 months, then deleted automatically |
 | Minimum number of texts before patterns can be identified | 5 |
 | Are reports saved? | Yes, with their date and period |
-| Are social workers told? | Yes, one line on the writing screen (and in Help) |
+| Are social workers told? | Yes, in Help (the writing-screen notices were removed at the product owner's request) |
 | Does every text count, or only ones the author chooses? | Every text (the earlier per-observation "share" choice no longer exists) |
 | The original text, as agreed with EDE | Still saved for 15 months, readable only by its author |
 

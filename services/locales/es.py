@@ -593,8 +593,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'rs_need_material': 'Escribe, pega o sube un texto antes de pulsar Reflexionar.',
  'rs_language_label': 'Idioma de la reflexión',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ Antes de enviar nada a la IA, se quitan automáticamente los nombres, '
-                    'las edades exactas y otros datos personales.',
  'privacy_message_blocked': 'No hemos podido proteger tu mensaje, así que no se ha enviado nada a '
                             'la IA. Inténtalo de nuevo; si el problema continúa, avisa al equipo '
                             'de soporte.',
@@ -636,7 +634,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'my_reflections_deleted_header': 'Borradas recientemente',
  'my_reflections_restore': 'Recuperar',
  'my_reflections_erase_on': 'Se borrará definitivamente el {date} (UTC).',
- 'rs_pattern_copy_note': '🔎 Se guarda una copia anonimizada de tu texto, sin tu nombre, durante un máximo de {months} meses, para que el equipo de gestión pueda buscar patrones entre muchos textos. Los responsables solo ven el informe general de la IA, nunca tu texto.',
  'pr_intro': 'La Revisión de patrones busca patrones en cómo se escriben los casos, entre los textos que las y los trabajadores sociales escribieron en el periodo que elijas. La IA lee los textos anonimizados y redacta un informe; tú solo ves el informe, nunca los textos ni quién los escribió. Lo que muestra son posibles patrones para la reflexión, no conclusiones: un patrón no es una prueba de sesgo ni de mala práctica, y es el equipo quien decide qué significa, si es que significa algo.',
  'pr_new_header': 'Identificar patrones',
  'pr_texts_note': 'Cada texto anonimizado se guarda {months} meses y después se borra automáticamente. No se guarda con él el nombre ni el rol de quien lo escribió.',

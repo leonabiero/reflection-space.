@@ -16,7 +16,7 @@ from services import reflection_records
 from services import pattern_text_store
 from config import (
     REQUEST_DEDUP_TTL_MINUTES, SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS,
-    SAVE_PATTERN_TEXT, PATTERN_TEXT_RETENTION_MONTHS, SAVE_OBSERVATIONS,
+    SAVE_PATTERN_TEXT, SAVE_OBSERVATIONS,
 )
 from rdi.orchestrator import run_reflection
 from services.anonymizer import anonymize
@@ -769,18 +769,11 @@ with error_boundary(
         key=lang_key,
     )
 
-    # Notice to practitioners. The AI only ever receives the anonymised
-    # text. The original text is kept for its author (agreed with EDE),
-    # and -- since 15 November 2026 -- one clear line says that an
-    # anonymised copy, without the author's name, is kept for Pattern
-    # Review.
-    if SAVE_ORIGINAL_TEXT:
-        st.caption(T["rs_privacy_note"])
-        st.caption(T["rs_original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
-    else:
-        st.caption(f"{T['rs_privacy_note']} {T['rs_case_text_not_saved_note']}")
-    if SAVE_PATTERN_TEXT:
-        st.caption(T["rs_pattern_copy_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS))
+    # The three notices that used to sit here (personal details removed
+    # before the AI; the original text kept for its author; an anonymised
+    # copy kept for Pattern Review) were removed from this screen on
+    # 15 November 2026 at the product owner's request. The same
+    # information stays in Help (pages/help.py), in all three languages.
 
     # -------------------------------------------------------------------
     # Cost-safety guard (unchanged)

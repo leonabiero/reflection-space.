@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PR_KEYS = (
-    "rs_pattern_copy_note", "pr_intro", "pr_new_header", "pr_texts_note", "pr_period_label",
+    "pr_intro", "pr_new_header", "pr_texts_note", "pr_period_label",
     "pr_period_option", "pr_available", "pr_not_enough", "pr_cost_note", "pr_run_button",
     "pr_running", "pr_done", "pr_busy", "pr_recent", "pr_failed", "pr_saved_header",
     "pr_no_reports", "pr_report_select", "pr_report_option", "pr_report_meta", "pr_some_unread",
@@ -30,7 +30,7 @@ PR_KEYS = (
 )
 
 PLACEHOLDERS = {
-    "rs_pattern_copy_note": ("{months}",), "pr_texts_note": ("{months}",),
+    "pr_texts_note": ("{months}",),
     "pr_period_option": ("{months}",), "pr_available": ("{count}", "{months}"),
     "pr_not_enough": ("{minimum}",), "pr_done": ("{patterns}", "{texts}"),
     "pr_report_option": ("{date}", "{months}", "{texts}"),
@@ -73,8 +73,18 @@ class ReflectionScreenTests(unittest.TestCase):
         import config
         self.assertFalse(config.SAVE_OBSERVATIONS)
 
-    def test_practitioners_are_told_in_one_line(self):
-        self.assertIn('T["rs_pattern_copy_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS)', self.page)
+    def test_notices_are_not_on_the_writing_screen_but_stay_in_help(self):
+        # Product owner, 15 November 2026: the three notices were removed
+        # from the writing screen; Help keeps the same information.
+        for gone in ("rs_privacy_note", "rs_pattern_copy_note"):
+            self.assertNotIn(gone, self.page)
+        help_page = _read("pages", "help.py")
+        self.assertIn('H["pattern_copy_note"]', help_page)
+        self.assertIn('H["original_saved_note"]', help_page)
+        for lang in ("es", "eu", "en"):
+            texts = _load_locale(lang)
+            self.assertNotIn("rs_privacy_note", texts)
+            self.assertNotIn("rs_pattern_copy_note", texts)
 
 
 class PatternReviewScreenTests(unittest.TestCase):

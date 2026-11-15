@@ -596,8 +596,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'rs_need_material': 'Idatzi, itsatsi edo igo testu bat Hausnartu sakatu aurretik.',
  'rs_language_label': 'Hausnarketaren hizkuntza',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ AAri ezer bidali aurretik, izenak, adin zehatzak eta beste datu '
-                    'pertsonal batzuk automatikoki kentzen dira.',
  'privacy_message_blocked': 'Ezin izan dugu zure mezua babestu, beraz ez da ezer bidali AAra. '
                             'Saiatu berriro; arazoak jarraitzen badu, jakinarazi '
                             'laguntza-taldeari.',
@@ -639,7 +637,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'my_reflections_deleted_header': 'Duela gutxi ezabatuak',
  'my_reflections_restore': 'Berreskuratu',
  'my_reflections_erase_on': 'Behin betiko ezabatuko da: {date} (UTC).',
- 'rs_pattern_copy_note': '🔎 Zure testuaren kopia anonimizatu bat gordetzen da, zure izenik gabe, gehienez {months} hilabetez, kudeaketa-taldeak testu askoren artean ereduak bilatu ahal izateko. Arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua.',
  'pr_intro': 'Patroien berrikuspenak kasuak nola idazten diren aztertzen du, eta ereduak bilatzen ditu gizarte-langileek zuk aukeratutako aldian idatzitako testuetan. AAk testu anonimizatuak irakurtzen ditu eta txosten bat idazten du; zuk txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Erakusten duena hausnartzeko eredu posibleak dira, ez ondorioak: eredu bat ez da alborapenaren edo praktika txarraren froga, eta taldeak erabakitzen du zer esan nahi duen, ezer esan nahi badu.',
  'pr_new_header': 'Ereduak identifikatu',
  'pr_texts_note': 'Testu anonimizatu bakoitza {months} hilabetez gordetzen da eta gero automatikoki ezabatzen da. Ez da harekin batera egilearen izenik edo rolik gordetzen.',

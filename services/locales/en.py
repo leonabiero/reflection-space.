@@ -580,8 +580,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'rs_need_material': 'Please write, paste or upload some text before pressing Reflect.',
  'rs_language_label': 'Reflection language',
  'rs_language_names': {'Español': 'Español', 'Euskera': 'Euskara', 'English': 'English'},
- 'rs_privacy_note': '🛡️ Before anything is sent to the AI, names, exact ages and other personal '
-                    'details are removed automatically.',
  'privacy_message_blocked': "We couldn't protect your message, so nothing was sent to the AI. "
                             'Please try again; if the problem continues, let the support team '
                             'know.',
@@ -623,7 +621,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'my_reflections_deleted_header': 'Recently deleted',
  'my_reflections_restore': 'Restore',
  'my_reflections_erase_on': 'Will be erased for good on {date} (UTC).',
- 'rs_pattern_copy_note': "🔎 An anonymised copy of your text, without your name, is kept for up to {months} months so the management team can look for patterns across many texts. Managers only see the AI's overall report, never your text.",
  'pr_intro': 'Pattern Review looks for patterns in how cases are written, across the texts social workers wrote in a period you choose. The AI reads the anonymised texts and writes a report; you only ever see the report, never the texts or who wrote them. What it shows are candidate patterns for reflection, not conclusions: a pattern is not evidence of bias or poor practice, and the team decides what it means, if anything.',
  'pr_new_header': 'Identify patterns',
  'pr_texts_note': 'Each anonymised text is kept for {months} months and then deleted automatically. No author name or role is kept with it.',
