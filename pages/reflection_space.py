@@ -13,6 +13,7 @@ from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from services import request_dedup
 from services import document_import
 from services import reflection_records
+from services import reflection_summary
 from config import (
     REQUEST_DEDUP_TTL_MINUTES, SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS,
 )
@@ -165,7 +166,7 @@ with error_boundary(
 
         _reset_ephemeral_widget_state([
             "ctx_sim_", "workspace_open_", "convo_input_", "convo_error_",
-            "rs_info_show_",
+            "rs_info_show_", "rs_feedback_",
         ])
 
 
@@ -186,6 +187,38 @@ with error_boundary(
         reflection code (created automatically -- the practitioner never
         has to type or choose it)."""
         st.caption(f"{T['reflection_active_case_prefix']} **{code}**")
+
+
+    def _render_feedback_popover(session):
+        """The optional usefulness rating, folded into a small pop-up
+        button. Sending it once per reflection is enough; afterwards the
+        pop-up only says thank you."""
+        sent_key = f"rs_feedback_sent_{session.case_ref}"
+        with st.popover(T["rs_feedback_popover_button"], use_container_width=True):
+            if st.session_state.get(sent_key):
+                st.success(T["rs_feedback_already_sent"])
+                return
+            st.markdown(f"**{T['feedback_prompt_title']}**")
+            st.caption(T["rs_feedback_optional_note"])
+            rating = st.slider(
+                T["feedback_rating_label"], min_value=1, max_value=5, value=3,
+                key=f"rs_feedback_rating_{session.case_ref}",
+            )
+            comment = st.text_area(
+                T["feedback_comment_label"], value="", height=80,
+                key=f"rs_feedback_comment_{session.case_ref}",
+            )
+            if st.button(T["feedback_submit_button"], key=f"rs_feedback_send_{session.case_ref}"):
+                try:
+                    # The feedback row records the reflection code it is
+                    # about (the column kept its historical name).
+                    save_feedback([session.case_ref], rating, comment, user_name, user_role)
+                except Exception:
+                    st.error(T["rs_feedback_failed"])
+                    return
+                st.session_state[sent_key] = True
+                st.toast(T["feedback_thanks"])
+                st.rerun()
 
 
     # ---------------------------------------------------------------------
@@ -465,6 +498,14 @@ with error_boundary(
         if session.findings_save_failed:
             st.info(T["findings_not_saved_notice"])
 
+        # Optional feedback (November 2026, product owner's decision): a
+        # small "Rate" button in the top-right corner. It opens a pop-up
+        # with the rating and an optional comment. It is never required
+        # and nothing else on the screen depends on it.
+        _, feedback_corner = st.columns([4, 1])
+        with feedback_corner:
+            _render_feedback_popover(session)
+
         # Simpler screen (November 2026): the reflection code, the
         # language, the anonymised text and the case text are folded into
         # ONE band. Streamlit cannot put a fold inside a fold, so the two
@@ -596,35 +637,18 @@ with error_boundary(
 
         st.divider()
 
-        if not session.awaiting_feedback:
-            st.subheader(T["rs_finish_header"])
-            if session.run_id:
-                st.caption(T["rs_finish_caption"].format(code=session.case_ref))
-            else:
-                st.caption(T["rs_finish_caption_unsaved"])
-            if st.button(T["rs_finish_button"], type="primary", key="rs_finish_btn"):
-                session.awaiting_feedback = True
-                session.save()
-                st.rerun()
-
-        if session.awaiting_feedback:
-            st.subheader(T["feedback_prompt_title"])
-
-            rating = st.slider(T["feedback_rating_label"], min_value=1, max_value=5, value=3)
-            comment = st.text_area(T["feedback_comment_label"], value="", height=80)
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(T["feedback_submit_button"]):
-                    # The feedback row records the reflection code(s) it
-                    # is about (the column kept its historical name).
-                    save_feedback([session.case_ref], rating, comment, user_name, user_role)
-                    _start_fresh(flash=T["feedback_thanks"])
-                    st.rerun()
-            with col2:
-                if st.button(T["feedback_skip_button"]):
-                    _start_fresh(flash=T["rs_finished_success"])
-                    st.rerun()
+        # Finishing is ONE click (November 2026, product owner's
+        # decision): there is no feedback step any more. Rating the
+        # reflection is optional and lives in the small "Rate" button in
+        # the top-right corner of this screen; nothing depends on it.
+        st.subheader(T["rs_finish_header"])
+        if session.run_id:
+            st.caption(T["rs_finish_caption"].format(code=session.case_ref))
+        else:
+            st.caption(T["rs_finish_caption_unsaved"])
+        if st.button(T["rs_finish_button"], type="primary", key="rs_finish_btn"):
+            _start_fresh(flash=T["rs_finished_success"])
+            st.rerun()
 
         st.stop()
 
@@ -907,6 +931,25 @@ with error_boundary(
                             )
                         except Exception:
                             session.findings_save_failed = True
+
+                        # Reflection History redesign (November 2026): a
+                        # short AI summary of the observations, for
+                        # management roles. Written only from the
+                        # observations, never from the case text (see
+                        # services/reflection_summary.py). Best effort --
+                        # if it fails, Reflection History offers to
+                        # create it later; the reflection is unaffected.
+                        if session.run_id:
+                            try:
+                                with st.spinner(T["rs_summary_status"]):
+                                    reflection_summary.create_and_save(
+                                        session.run_id,
+                                        result.get("findings", []),
+                                        T["section_labels"],
+                                        reflect_lang,
+                                    )
+                            except Exception:
+                                pass
 
                         # Retention: clear saved texts that have passed
                         # their time limit. Best effort -- never blocks the

@@ -78,6 +78,16 @@ currently tagged with which specific reflection they belong to, so
 only the aggregate mean can be computed honestly. Retry rate is shown
 alongside it (failed companion attempts ÷ total companion attempts).
 
+**Reflection History summary (November 2026).** Each new reflection also
+gets ONE extra Claude call that writes the short summary managers read in
+Reflection History (`services/reflection_summary.py`). It is logged as the
+operation `reflection_summary` — not as `companion_reflection`, so the
+per-reflection figure above does not include it. It is small: about
+1,500 input and 250 output tokens, roughly **$0.005 per reflection**
+(about $0.50 a month at the expected pilot volume of 70–100
+reflections). Reflections without a summary get one only when a manager
+presses "Create summary", so there is no extra cost for opening the page.
+
 ## User-volume forecast
 
 The "Common scenarios" table (Current / 100 / 250 / 500 / 1,000 users)

@@ -143,7 +143,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'feedback_rating_label': 'Valoración (1 = poco útil, 5 = muy útil)',
  'feedback_comment_label': 'Comentario (opcional)',
  'feedback_submit_button': 'Enviar valoración',
- 'feedback_skip_button': 'Omitir',
  'feedback_thanks': '✔ Gracias por tu valoración',
  'feedback_section_header': 'Comentarios de los profesionales',
  'feedback_average_label': 'Valoración media',
@@ -385,8 +384,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                      'los resultados, «Ver texto anonimizado» te muestra exactamente lo que '
                                      'recibió la IA. Explora cualquiera de las ocho dimensiones, abre una '
                                      'breve conversación sobre alguna si quieres, añade tus notas y pulsa '
-                                     'Terminar reflexión. Después puedes valorar la utilidad de la sesión '
-                                     '-- totalmente opcional.',
+                                     'Terminar reflexión. Si quieres, valora su utilidad con el botón «Valorar» de la esquina superior derecha -- totalmente opcional; nada depende de ello.',
           'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
                          'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
                          'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
@@ -433,8 +431,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'case_history_section_title': '🗂️ Historial de reflexiones',
           'case_history_section_body': 'Historial de reflexiones muestra la valoración media de '
                                        'utilidad (nunca las valoraciones individuales ni quién '
-                                       'las dio) y las reflexiones guardadas, cada una con su '
-                                       'código neutro, sus temas y las observaciones de la IA. Se '
+                                       'las dio) y las reflexiones guardadas, cada una con su código neutro, sus temas y un breve resumen escrito por la IA que se lee de un vistazo; las observaciones y preguntas completas se despliegan debajo. Se '
                                        'puede filtrar por fecha y por tema. Nunca muestra las '
                                        'notas privadas de los profesionales.',
           'admin_title': '🛠️ Administración del sistema',
@@ -729,6 +726,17 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'ch_author_label': 'Realizada por',
  'ch_linked_label': 'Continúa la reflexión',
  'ch_no_observations': 'Esta reflexión no tiene observaciones guardadas.',
+ 'rs_summary_status': 'Preparando el resumen para el historial…',
+ 'rs_feedback_popover_button': '💬 Valorar',
+ 'rs_feedback_optional_note': 'Es opcional. Tu valoración nos ayuda a mejorar la herramienta.',
+ 'rs_feedback_already_sent': '✔ Ya has valorado esta reflexión. ¡Gracias!',
+ 'rs_feedback_failed': 'No se ha podido guardar tu valoración. Inténtalo de nuevo más tarde.',
+ 'ch_details_expander': 'Ver observaciones y preguntas ({count})',
+ 'ch_summary_ai_note': 'Resumen escrito por la IA a partir de las observaciones. Es una ayuda para la lectura, no una conclusión.',
+ 'ch_summary_missing': 'Esta reflexión todavía no tiene resumen.',
+ 'ch_summary_create_button': 'Crear resumen',
+ 'ch_summary_creating': 'Creando el resumen…',
+ 'ch_summary_failed': 'No se ha podido crear el resumen ahora. Inténtalo de nuevo más tarde.',
  'ch_delete_button': 'Eliminar reflexión',
  'ch_delete_confirm': '¿Confirmas que quieres eliminar esta reflexión? Se borrarán sus '
                       'observaciones y las notas asociadas. Esta acción no se puede deshacer.',

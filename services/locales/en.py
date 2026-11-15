@@ -140,7 +140,6 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'feedback_rating_label': 'Rating (1 = not useful, 5 = very useful)',
  'feedback_comment_label': 'Comment (optional)',
  'feedback_submit_button': 'Submit rating',
- 'feedback_skip_button': 'Skip',
  'feedback_thanks': '✔ Thanks for your feedback',
  'feedback_section_header': 'Practitioner Feedback',
  'feedback_average_label': 'Average rating',
@@ -371,8 +370,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                      'On the results, "View anonymised text" shows you exactly what the AI '
                                      'received. Explore any of the eight dimensions, optionally open a '
                                      'short conversation about one, add your notes and select Finish '
-                                     'reflection. Afterwards you can rate how useful the session was -- '
-                                     'entirely optional.',
+                                     'reflection. If you like, rate how useful it was with the "Rate" button in the top-right corner -- entirely optional; nothing depends on it.',
           'cards_note': 'The eight reflection opportunities are shown as cards in one view. The dot in the '
                          'corner shows what each one found: green, something to reflect on; grey, nothing '
                          'notable in this text; amber, not available right now (you can retry inside the '
@@ -417,8 +415,7 @@ LANG_EN = {'title': '🧠 Reflection Space',
           'case_history_section_title': '🗂️ Reflection History',
           'case_history_section_body': 'Reflection History shows the average usefulness rating '
                                        '(never individual ratings or who gave them) and the saved '
-                                       'reflections, each with its neutral code, themes and the '
-                                       "AI's observations. You can filter by date and theme. It "
+                                       "reflections, each with its neutral code, themes and a short AI-written summary you can read at a glance; the full observations and questions fold out underneath. You can filter by date and theme. It "
                                        "never shows professionals' private notes.",
           'admin_title': '🛠️ System Administration',
           'admin_section_body': 'System Administration brings together the user list, system '
@@ -709,6 +706,17 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'ch_author_label': 'Done by',
  'ch_linked_label': 'Continues reflection',
  'ch_no_observations': 'This reflection has no saved observations.',
+ 'rs_summary_status': 'Preparing the summary for the history…',
+ 'rs_feedback_popover_button': '💬 Rate',
+ 'rs_feedback_optional_note': 'Optional. Your rating helps us improve the tool.',
+ 'rs_feedback_already_sent': '✔ You have already rated this reflection. Thank you!',
+ 'rs_feedback_failed': 'Your rating could not be saved. Please try again later.',
+ 'ch_details_expander': 'See observations and questions ({count})',
+ 'ch_summary_ai_note': 'Summary written by the AI from the observations. It is a reading aid, not a conclusion.',
+ 'ch_summary_missing': 'This reflection does not have a summary yet.',
+ 'ch_summary_create_button': 'Create summary',
+ 'ch_summary_creating': 'Creating the summary…',
+ 'ch_summary_failed': 'The summary could not be created right now. Please try again later.',
  'ch_delete_button': 'Delete reflection',
  'ch_delete_confirm': 'Are you sure you want to delete this reflection? Its observations and the '
                       'notes on them will be erased. This cannot be undone.',

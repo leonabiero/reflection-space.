@@ -63,6 +63,11 @@ At the product owner's request the app was trimmed to what the pilot needs:
   Documentation redirect page.
 - **Reflection History** shows only the *average* usefulness rating — never
   individual ratings, comments or who gave them.
+- **15 November 2026:** Reflection History shows a short AI summary for each
+  reflection, with the full observations and questions folded underneath
+  (one extra small AI call per reflection, about $0.005). Rating a
+  reflection is now optional, through a small "Rate" button in the corner of
+  the results; "Finish reflection" no longer leads to a feedback step.
 - **System Administration** lost "Erase old stored documents", "Configuration"
   and "Case Knowledge Search". The Diagnostic Centre is now a plain list of
   recorded problems (what happened, when, status); the AI diagnosis still

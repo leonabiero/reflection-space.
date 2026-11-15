@@ -397,8 +397,10 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
     management Case History screen. Management roles only (returns []
     otherwise). Each item: run_id, code, case_tags, note_type,
     created_by, created_by_role, created_at, finding_count,
-    previous_code, has_anonymised_text, has_original_text. The texts
-    themselves are never included here.
+    previous_code, has_anonymised_text, has_original_text, summary (the
+    short AI summary of the observations, "" if none yet -- see
+    services/reflection_summary.py) and language (the reflection
+    language). The case texts themselves are never included here.
     """
     if not require_management_role(actor_role):
         return []
@@ -415,7 +417,8 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
                        (SELECT COUNT(*) FROM reflection_findings f WHERE f.run_id = r.id),
                        r.previous_code,
                        (r.anonymised_text IS NOT NULL AND {_TEXT_NOT_EXPIRED}),
-                       (r.original_text IS NOT NULL AND {_ORIGINAL_NOT_EXPIRED})
+                       (r.original_text IS NOT NULL AND {_ORIGINAL_NOT_EXPIRED}),
+                       r.summary_text, r.language
                 FROM reflection_runs r
                 WHERE {where}
                 ORDER BY r.created_at DESC, r.id DESC
@@ -439,6 +442,8 @@ def list_reflections(actor_role, date_filter=None, tag=None, limit=50, offset=0)
             "previous_code": r[8] or "",
             "has_anonymised_text": bool(r[9]),
             "has_original_text": bool(r[10]),
+            "summary": r[11] or "",
+            "language": r[12] or "",
         }
         for r in rows
     ]
@@ -754,6 +759,33 @@ def get_reflection_findings(actor_role, run_id):
     if not run_id:
         return []
     return get_findings_for_reflections(actor_role, [run_id]).get(int(run_id), [])
+
+
+def save_summary(run_id, summary):
+    """Store the short AI summary of one reflection's observations
+    (services/reflection_summary.py). Written once: an existing summary
+    is never overwritten, so two people opening Reflection History at the
+    same moment cannot both pay for and save one. Returns True if this
+    call stored it."""
+    text = (summary or "").strip()
+    if not run_id or not text:
+        return False
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "UPDATE reflection_runs SET summary_text = %s WHERE id = %s AND summary_text IS NULL",
+                (text, int(run_id)),
+            )
+            stored = c.rowcount == 1
+        conn.commit()
+        return stored
+    except Exception:
+        conn.rollback()
+        logger.exception("save_summary FAILED: run_id=%r", run_id)
+        raise
+    finally:
+        conn.close()
 
 
 def delete_reflection(run_id, actor_name, actor_role):

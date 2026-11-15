@@ -704,6 +704,12 @@ def ensure_schema():
                 # automatically after config.ORIGINAL_TEXT_RETENTION_MONTHS.
                 # Never sent to an AI provider and never logged.
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS original_text TEXT")
+                # November 2026 (Reflection History redesign): a short AI
+                # summary of the reflection's observations, shown to
+                # management roles above the folded observations. Written
+                # only from the observations (services/reflection_summary.py),
+                # never from the case text. Erased with the reflection.
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS summary_text TEXT")
                 # November 2026: a practitioner can delete their own
                 # reflection. It is hidden everywhere at once (deleted_at
                 # set), can be restored for DELETION_WINDOW_HOURS, and is

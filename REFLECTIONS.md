@@ -253,8 +253,10 @@ Agreed with the EDE Fundazioa team in October 2026. This replaces the earlier
    that are linked (by code) or share themes are offered as context. Each can
    be left out. Only the AI's observations are used — never quotes or notes.
 3. **Professional reflection** — unchanged: the eight reflective dimensions,
-   optional short conversations, private notes. "Finish reflection" ends it;
-   optional usefulness feedback follows.
+   optional short conversations, private notes. "Finish reflection" ends it
+   in one click. *(Since 15 November 2026 there is no feedback step: rating
+   the reflection is optional, through the small "Rate" button in the
+   top-right corner of the results, and nothing depends on it.)*
 
 When the professional finishes (or starts again, or logs out) the case text
 is cleared from the screen. *(Since 10 November 2026 the original text is also
@@ -268,6 +270,7 @@ saved with the reflection — see "Saved ORIGINAL text" above.)*
 | The AI's observations and questions for each dimension | Uploaded files |
 | Short verified passages the AI quoted (taken from the **anonymised** text) | Conversation text with the companion |
 | The professional's own private notes on observations | Names or real file numbers (codes are random) |
+| **Since 15 November 2026:** a short AI summary of the observations (shown in Reflection History) | |
 | **Since 10 November 2026:** the **original** text, for up to 15 months (see "Saved ORIGINAL text" above) | The anonymised copy (4–10 November 2026 only) |
 
 Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
@@ -284,7 +287,14 @@ Tables: `reflection_runs` (new columns `reflection_code`, `case_tags`,
 - `services/findings_store.py` — saves the reflection with its identifiers.
 - `pages/case_history.py` — managers' **Reflection History** (codes, themes,
   observations; never case text or private notes; System Administrator can
-  delete a reflection).
+  delete a reflection). Since 15 November 2026 each reflection shows a short
+  AI summary first, readable in one go, with the full observations,
+  passages and questions folded underneath.
+- `services/reflection_summary.py` — writes that summary with one Claude
+  call, from the saved **observations only** (never the case text, quoted
+  passages, code, dates or author). Written straight after a reflection is
+  saved; older reflections get a "Create summary" button. Stored in
+  `reflection_runs.summary_text`, so it is erased with the reflection.
 - `services/data_reset.py` and `pages/admin_sections/data_reset.py` — System
   Administration → **Erase all data** (November 2026).
 

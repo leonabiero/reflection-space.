@@ -143,7 +143,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'feedback_rating_label': 'Balorazioa (1 = ez oso baliagarria, 5 = oso baliagarria)',
  'feedback_comment_label': 'Iruzkina (aukerakoa)',
  'feedback_submit_button': 'Balorazioa bidali',
- 'feedback_skip_button': 'Saltatu',
  'feedback_thanks': '✔ Eskerrik asko zure balorazioagatik',
  'feedback_section_header': 'Profesionalen iruzkinak',
  'feedback_average_label': 'Batez besteko balorazioa',
@@ -383,8 +382,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                      'balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» '
                                      'aukerak AAk jaso zuena erakusten dizu. Arakatu zortzi dimentsioetako '
                                      'edozein, ireki elkarrizketa labur bat nahi baduzu, gehitu zure '
-                                     'oharrak eta sakatu Amaitu hausnarketa. Ondoren saioaren '
-                                     'erabilgarritasuna balora dezakezu -- guztiz aukerakoa.',
+                                     'oharrak eta sakatu Amaitu hausnarketa. Nahi baduzu, baloratu erabilgarritasuna goiko eskuineko izkinako «Baloratu» botoiarekin -- guztiz aukerakoa; ezer ez dago horren mende.',
           'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
                          'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
                          'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
@@ -433,8 +431,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'case_history_section_body': 'Hausnarketen historiak erabilgarritasunaren batez besteko '
                                        'balorazioa erakusten du (inoiz ez banakako balorazioak, '
                                        'ezta nork eman dituen ere) eta gordetako hausnarketak, '
-                                       'bakoitza bere kode neutroarekin, gaiekin eta IAren '
-                                       'behaketekin. Data eta gaiaren arabera iragazi daiteke. Ez '
+                                       'bakoitza bere kode neutroarekin, gaiekin eta IAk idatzitako laburpen labur batekin, begirada batean irakurtzeko; behaketa eta galdera osoak azpian zabaltzen dira. Data eta gaiaren arabera iragazi daiteke. Ez '
                                        'ditu inoiz profesionalen ohar pribatuak erakusten.',
           'admin_title': '🛠️ Sistemaren administrazioa',
           'admin_section_body': 'Sistemaren administrazioak biltzen ditu erabiltzaileen zerrenda, '
@@ -729,6 +726,17 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'ch_author_label': 'Egilea',
  'ch_linked_label': 'Hausnarketa honen jarraipena',
  'ch_no_observations': 'Hausnarketa honek ez du gordetako behaketarik.',
+ 'rs_summary_status': 'Historialerako laburpena prestatzen…',
+ 'rs_feedback_popover_button': '💬 Baloratu',
+ 'rs_feedback_optional_note': 'Aukerakoa da. Zure balorazioak tresna hobetzen laguntzen digu.',
+ 'rs_feedback_already_sent': '✔ Hausnarketa hau baloratu duzu jada. Eskerrik asko!',
+ 'rs_feedback_failed': 'Ezin izan da zure balorazioa gorde. Saiatu berriro geroago.',
+ 'ch_details_expander': 'Ikusi behaketak eta galderak ({count})',
+ 'ch_summary_ai_note': 'IAk behaketetatik abiatuta idatzitako laburpena. Irakurtzeko laguntza da, ez ondorio bat.',
+ 'ch_summary_missing': 'Hausnarketa honek oraindik ez du laburpenik.',
+ 'ch_summary_create_button': 'Sortu laburpena',
+ 'ch_summary_creating': 'Laburpena sortzen…',
+ 'ch_summary_failed': 'Ezin izan da laburpena orain sortu. Saiatu berriro geroago.',
  'ch_delete_button': 'Ezabatu hausnarketa',
  'ch_delete_confirm': 'Ziur zaude hausnarketa hau ezabatu nahi duzula? Bere behaketak eta lotutako '
                       'oharrak ezabatuko dira. Ekintza hau ezin da desegin.',
