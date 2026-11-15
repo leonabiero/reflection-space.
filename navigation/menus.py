@@ -21,8 +21,9 @@ def render_workspace_menu(T):
 
     November 2026: the Learning page (Team Presence, Knowledge
     Assistant, Learning Insights), Text analysis and Research Metrics
-    were removed at the product owner's request, so Manager mode now
-    holds Case History and Pattern Review only.
+    were removed at the product owner's request. On 15 November 2026
+    Case History was removed as well, so Manager mode holds Pattern
+    Review only.
     """
     workspace = st.session_state.get("active_work_mode", "Practitioner")
     role = st.session_state.get("user_role", "")
@@ -36,11 +37,11 @@ def render_workspace_menu(T):
         st.sidebar.page_link("pages/growth_dashboard.py", label=T.get("nav_growth", "My Reflection"))
     elif workspace == "Manager":
         render_workspace_badge(T.get("workmode_manager", "Manager"), "Manager")
-        st.sidebar.page_link("pages/case_history.py", label=T.get("nav_case_history", "Case History"))
-        # Pattern Review is for Supervisors and Programme Managers only
-        # (services/pattern_access.py). The page and the data layer
-        # enforce this themselves; hiding the link just avoids showing a
-        # System Administrator a link that would deny them.
+        # Since 15 November 2026 Manager mode holds Pattern Review only
+        # (Case History was removed). Only Supervisors and Programme
+        # Managers can be in Manager mode, and Pattern Review is for
+        # exactly those roles (services/pattern_access.py); the check is
+        # kept as a second safeguard.
         if can_review_patterns(role):
             st.sidebar.page_link("pages/pattern_explorer.py", label=T.get("nav_patterns", "Pattern Review"))
     elif workspace == "System Administration":

@@ -9,6 +9,7 @@ from services import pattern_text_store, pattern_text_analysis
 from services.pattern_report_html import build_report_html
 from services.db_time import display_datetime, now_utc
 from services import reflection_records
+from services.feedback_store import get_feedback_summary
 from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETENTION_MONTHS
 
 # Pattern Review
@@ -23,6 +24,9 @@ from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETE
 # in what the AI said back to them. A manager picks a period -- 3, 6, 9 or 12 months -- and presses
 # "Identify patterns"; the AI reads that period's texts and writes one
 # report, which is saved with its date and period.
+#
+# Since 15 November 2026 this is the only page in Manager mode (Case
+# History was removed), so it also shows the average usefulness rating.
 #
 # Hard rules this page must never break:
 #   - Managers see the REPORT only: never a text, a quotation, a
@@ -52,6 +56,19 @@ with error_boundary(
     if not can_review_patterns(user_role):
         st.info(T["patterns_no_access"])
         st.stop()
+
+    # Usefulness rating (moved here on 15 November 2026 when Case History
+    # was removed): the AVERAGE only, never individual ratings, comments or
+    # who gave them. Best effort -- never blocks the page.
+    try:
+        rating = get_feedback_summary()
+        rated = sum(rating["distribution"].values())
+    except Exception:
+        rating, rated = None, 0
+    if rated:
+        st.caption(T["pr_rating_line"].format(average=f"{rating['average']:.1f}", count=rated))
+    else:
+        st.caption(T["pr_rating_none"])
 
     st.info(T["pr_intro"])
 

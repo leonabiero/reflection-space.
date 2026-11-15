@@ -216,6 +216,8 @@ DEFAULT_PAGE_LIMIT = int(os.getenv("DEFAULT_PAGE_LIMIT", "100"))
 # ---------------------------------------------------------------------
 # Phase 3 (scalability): Case History page bounds
 # ---------------------------------------------------------------------
+# (15 November 2026: the Case History page itself was removed. These
+# limits are kept because the listing services they bound still exist.)
 # pages/case_history.py's "All dates" view is intentionally org-wide
 # (see that page's own comments) -- it is the one screen in the app
 # whose data volume grows continuously and without limit for as long

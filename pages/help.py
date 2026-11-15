@@ -81,16 +81,13 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
 
         st.divider()
 
-    # --- Manager workspace: Supervisor, Programme Manager, System
-    # Administrator. ---
+    # --- Manager workspace: Supervisor and Programme Manager. ---
     if can_access_workspace(user_role, "Manager"):
         st.header(H["manager_title"])
 
-        with st.expander(H["case_history_section_title"], expanded=False):
-            st.write(H["case_history_section_body"])
-
-        # Pattern Review is for Supervisors and Programme Managers only
-        # (services/pattern_access.py), so only they see this section.
+        # Since 15 November 2026 Manager mode holds Pattern Review only
+        # (Reflection History was removed). It is for Supervisors and
+        # Programme Managers (services/pattern_access.py).
         if can_review_patterns(user_role):
             with st.expander(H["pattern_review_section_title"], expanded=False):
                 st.write(H["pattern_review_section_body"].format(minimum=PATTERN_MIN_TEXTS))

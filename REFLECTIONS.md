@@ -16,6 +16,11 @@ Product owner's decision (see `PATTERNS.md` for the full detail):
   - the notes boxes under each card and My Reflection's "Saved observations
     and your notes" no longer appear (they need saved observations);
     "Show the saved text" moved to "Your saved reflections".
+- **Reflection History (`pages/case_history.py`) was removed** later the same
+  day: with observations no longer saved it had no job left. The average
+  usefulness rating moved to Pattern Review, and the System Administrator no
+  longer has Manager mode. Everything below about Reflection History is
+  history.
 - **The original text** (agreed with EDE) is still saved for 15 months, and
   is readable **only by its author**. Managers no longer read any texts; the
   "Saved original texts" section of Pattern Review was removed, and managers

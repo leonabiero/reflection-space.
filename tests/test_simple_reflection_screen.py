@@ -302,11 +302,9 @@ class SavedOriginalTextStaticTests(unittest.TestCase):
         for forbidden in ("get_original_text", "pattern_text_store.texts_for_period(", "anonymised_text"):
             self.assertNotIn(forbidden, page)
 
-    def test_case_history_never_shows_the_original_text(self):
-        page = _read("pages", "case_history.py")
-        self.assertNotIn("get_original_text", page)
-        self.assertNotIn("list_original_texts", page)
-        self.assertNotIn("ch_original_text_in_patterns_note", page)
+    def test_case_history_page_is_gone(self):
+        # Removed 15 November 2026: managers see Pattern Review reports only.
+        self.assertFalse(ROOT.joinpath("pages", "case_history.py").exists())
 
     def test_older_anonymised_text_is_still_limited_to_author_or_managers(self):
         from services import reflection_records as rr

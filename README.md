@@ -22,10 +22,11 @@ Four roles, each with different screens available to them:
 
 - **Social Worker** — reflects on cases on the spot, uses the AI reflection companion
 - **Supervisor** and **Programme Manager** — same as Social Worker, plus the
-  Manager area: Reflection History (saved reflections and the average
-  usefulness rating) and Pattern Review
-- **System Administrator** — user list, system health, the list of recorded
-  problems, service costs, and the "Erase all data" action
+  Manager area: Pattern Review (AI reports on patterns in how cases are
+  written, and the average usefulness rating)
+- **System Administrator** — same as Social Worker, plus user list, system
+  health, the list of recorded problems, service costs, and the "Erase all
+  data" action. No Manager area (since 15 November 2026)
 
 Access to each screen and each action is checked in two places: once in the
 screens themselves, and again inside the service layer underneath, so a
@@ -76,6 +77,12 @@ At the product owner's request the app was trimmed to what the pilot needs:
   observations and questions are no longer saved, so Reflection History is
   one line per reflection and the per-reflection AI summary was removed.
   See `PATTERNS.md`.
+- **15 November 2026 (evening): Reflection History removed.** With nothing
+  saved to show, the page had no job left. The average usefulness rating
+  moved to the top of Pattern Review; Manager mode opens on Pattern Review;
+  the System Administrator no longer has Manager mode (deleting a single
+  reflection is now done by its author; "Erase all data" still clears
+  everything).
 - **System Administration** lost "Erase old stored documents", "Configuration"
   and "Case Knowledge Search". The Diagnostic Centre is now a plain list of
   recorded problems (what happened, when, status); the AI diagnosis still

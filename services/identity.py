@@ -146,10 +146,6 @@ from services.session_cookie import (
 
 ROLES = ["Social Worker", "Supervisor", "Programme Manager", "System Administrator"]
 
-# FR-028: who can browse completed/reflected case history --
-# supervisory and administrative roles only.
-CASE_HISTORY_VISIBLE_ROLES = {"Supervisor", "Programme Manager", "System Administrator"}
-
 # --- Logout: explicit KEEP-list --------------------------------------------
 #
 # Everything in st.session_state is wiped on logout EXCEPT the keys listed
@@ -546,10 +542,6 @@ def get_current_user_context():
 
 def get_active_work_mode():
     return st.session_state.get("active_work_mode", "Practitioner")
-
-
-def can_see_case_history(role: str) -> bool:
-    return role in CASE_HISTORY_VISIBLE_ROLES
 
 
 def require_work_mode(T, workspace):

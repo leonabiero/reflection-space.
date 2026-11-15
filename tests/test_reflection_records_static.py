@@ -104,7 +104,7 @@ class TranslationTests(unittest.TestCase):
         from services.locales.en import LANG_EN
         prefixes = ("rs_", "ch_")
         keys = [k for k in LANG_ES if k.startswith(prefixes)]
-        self.assertGreaterEqual(len(keys), 50)
+        self.assertGreaterEqual(len(keys), 40)
         for name, lang in (("es", LANG_ES), ("eu", LANG_EU), ("en", LANG_EN)):
             for key in keys:
                 self.assertTrue(lang.get(key), f"{key} missing or empty in {name}")
@@ -112,7 +112,7 @@ class TranslationTests(unittest.TestCase):
 
     def test_every_key_used_by_the_changed_screens_exists(self):
         from services.locales.es import LANG_ES
-        for rel in (("pages", "reflection_space.py"), ("pages", "case_history.py")):
+        for rel in (("pages", "reflection_space.py"), ("pages", "pattern_explorer.py")):
             for key in re.findall(r'T\["([a-zA-Z0-9_]+)"\]', _read(*rel)):
                 self.assertIn(key, LANG_ES, f"{key} used in {'/'.join(rel)}")
 

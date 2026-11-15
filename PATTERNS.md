@@ -32,6 +32,11 @@ all three languages, that their original text is used this way. The notices
 that were on the writing screen were removed on 15 November 2026 at the
 product owner's request.
 
+Since Reflection History was removed (15 November 2026, evening), Pattern
+Review is the only page in Manager mode and Manager mode opens on it. It also
+shows the average usefulness rating of reflections in one small line at the
+top (the average only — never individual ratings, comments or who gave them).
+
 ## Decisions (product owner, 15 November 2026)
 
 | Question | Decision |

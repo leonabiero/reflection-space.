@@ -24,16 +24,18 @@ from typing import Dict
 # screen was merged into Reflection Space, so Practitioner mode now has
 # two pages and lands on Reflection Space.
 PRACTITIONER_PAGES = {"Reflection Space", "My Reflection"}
-# November 2026: Learning, Research Metrics and Text Analysis were removed,
-# so Manager mode lands on Case History.
-MANAGER_PAGES = {"Case History", "Pattern Review"}
+# November 2026: Learning, Research Metrics and Text Analysis were removed.
+# 15 November 2026: Case History (Reflection History) was removed too --
+# the AI's observations and questions are no longer saved, so it had no
+# job left. Manager mode is now Pattern Review only, and lands there.
+MANAGER_PAGES = {"Pattern Review"}
 
 WORKSPACE_ORDER = ["Practitioner", "Manager", "System Administration"]
 
 # Where switching INTO a work mode should land the user.
 WORKSPACE_LANDING_PAGE = {
     "Practitioner": "pages/reflection_space.py",
-    "Manager": "pages/case_history.py",
+    "Manager": "pages/pattern_explorer.py",
     "System Administration": "pages/system_administration.py",
 }
 
@@ -56,8 +58,11 @@ def can_access_workspace(role, workspace):
         return workspace == "Practitioner"
     if role in {"Supervisor", "Programme Manager"}:
         return workspace in {"Manager", "Practitioner"}
+    # 15 November 2026: Manager mode now holds only Pattern Review, which
+    # the System Administrator may not open (services/pattern_access.py),
+    # so the administrator no longer gets Manager mode at all.
     if role == "System Administrator":
-        return workspace in {"System Administration", "Manager", "Practitioner"}
+        return workspace in {"System Administration", "Practitioner"}
     return False
 
 

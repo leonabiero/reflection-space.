@@ -108,10 +108,17 @@ class AdminPageCleanupTests(unittest.TestCase):
             for target in pattern.findall(path.read_text(encoding="utf-8")):
                 self.assertTrue(ROOT.joinpath(target).exists(), f"{path.name} -> {target}")
 
-    def test_manager_mode_lands_on_case_history(self):
-        from navigation.permissions import landing_page_for_workspace, MANAGER_PAGES
-        self.assertEqual(landing_page_for_workspace("Manager"), "pages/case_history.py")
-        self.assertEqual(MANAGER_PAGES, {"Case History", "Pattern Review"})
+    def test_manager_mode_is_pattern_review_only(self):
+        # 15 November 2026: Case History was removed; Manager mode lands on
+        # Pattern Review, and the System Administrator no longer has it.
+        from navigation.permissions import landing_page_for_workspace, MANAGER_PAGES, available_workspaces
+        self.assertEqual(landing_page_for_workspace("Manager"), "pages/pattern_explorer.py")
+        self.assertEqual(MANAGER_PAGES, {"Pattern Review"})
+        self.assertFalse(ROOT.joinpath("pages", "case_history.py").exists())
+        self.assertEqual(available_workspaces("System Administrator"), ["Practitioner", "System Administration"])
+        self.assertEqual(available_workspaces("Supervisor"), ["Practitioner", "Manager"])
+        self.assertEqual(available_workspaces("Programme Manager"), ["Practitioner", "Manager"])
+        self.assertEqual(available_workspaces("Social Worker"), ["Practitioner"])
 
     def test_admin_page_keeps_the_no_tabs_no_columns_no_dataframe_rule(self):
         sources = [_read("pages", "system_administration.py")] + [
@@ -140,11 +147,12 @@ class AdminPageCleanupTests(unittest.TestCase):
         # Still lets the administrator change a problem's status.
         self.assertIn("update_issue_status", source)
 
-    def test_case_history_shows_only_the_average_rating(self):
-        source = _read("pages", "case_history.py")
+    def test_pattern_review_shows_only_the_average_rating(self):
+        source = _read("pages", "pattern_explorer.py")
         self.assertNotIn("get_all_feedback", source)
         self.assertNotIn("submitted_by", source)
-        self.assertIn('T[\'feedback_average_label\']', source)
+        self.assertIn("get_feedback_summary()", source)
+        self.assertIn('T["pr_rating_line"]', source)
 
 
 class CleanupTranslationTests(unittest.TestCase):
@@ -167,7 +175,7 @@ class CleanupTranslationTests(unittest.TestCase):
         for rel in (("pages", "admin_sections", "data_reset.py"),
                     ("pages", "admin_sections", "ai_diagnostic_centre.py"),
                     ("pages", "system_administration.py"),
-                    ("pages", "case_history.py")):
+                    ("pages", "pattern_explorer.py")):
             for key in re.findall(r'T\[["\']([a-zA-Z0-9_]+)["\']\]', _read(*rel)):
                 self.assertIn(key, spanish, f"{key} used in {'/'.join(rel)}")
         for key in re.findall(r'H\["([a-zA-Z0-9_]+)"\]', _read("pages", "help.py")):
