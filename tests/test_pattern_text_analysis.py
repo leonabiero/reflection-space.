@@ -181,6 +181,23 @@ class AnalysisTests(unittest.TestCase):
         self.assertIsNone(out["report"])
 
 
+class ProtectTextsTests(unittest.TestCase):
+    def test_names_are_removed_before_the_ai(self):
+        protected, skipped = pta.protect_texts(
+            ["Juan Pérez vive en Barakaldo con su madre Ana. Tiene 34 años.", "  "])
+        self.assertEqual(skipped, 0)
+        self.assertEqual(len(protected), 1)
+        for private in ("Juan", "Pérez", "Barakaldo", "34"):
+            self.assertNotIn(private, protected[0])
+
+    def test_a_text_that_cannot_be_anonymised_is_never_sent(self):
+        def broken(text):
+            raise RuntimeError("boom")
+        with patch.object(pta, "anonymize", broken):
+            protected, skipped = pta.protect_texts(["Juan Pérez vive en Bilbao."])
+        self.assertEqual((protected, skipped), ([], 1))
+
+
 class RunReportTests(unittest.TestCase):
     def setUp(self):
         self.saved = []
@@ -205,6 +222,18 @@ class RunReportTests(unittest.TestCase):
             out = pta.run_report("Supervisor", "boss", 3, "Español")
         self.assertEqual(out["status"], "not_enough")
         self.assertEqual(self.saved, [])
+
+    def test_original_texts_reach_the_ai_only_after_anonymisation(self):
+        client = FakeClient(_all_texts_pattern, REPORT)
+        originals = [f"Juan Pérez acude a la cita número {i} y se habla de vivienda." for i in range(6)]
+        with patch.object(pta.reflection_service, "client", client), \
+             patch.object(pta.pattern_text_store, "texts_for_period",
+                          lambda role, months: [{"language": "Español", "text": t} for t in originals]):
+            out = pta.run_report("Supervisor", "boss", 3, "Español")
+        self.assertEqual(out["status"], "ok")
+        sent = " ".join(c["user"] for c in client.calls)
+        self.assertNotIn("Juan", sent)
+        self.assertNotIn("Pérez", sent)
 
     def test_a_report_is_saved_with_its_period(self):
         with self._texts(6):

@@ -55,16 +55,13 @@ class ReflectionScreenTests(unittest.TestCase):
     def setUp(self):
         self.page = _read("pages", "reflection_space.py")
 
-    def test_copy_is_saved_after_anonymising_and_before_the_ai(self):
-        save = self.page.index("pattern_text_store.save_pattern_text(")
-        self.assertLess(self.page.index("safe_text = anonymize(material)"), save)
-        self.assertLess(save, self.page.index("result = run_reflection(safe_text"))
-        call = self.page[save:self.page.index(")", save) + 1]
-        self.assertIn("safe_text", call)
-        self.assertNotIn("material", call)
-
-    def test_copy_is_dropped_when_the_reflection_fails(self):
-        self.assertEqual(self.page.count("pattern_text_store.discard_pattern_text(reflection_code)"), 2)
+    def test_no_separate_copy_is_saved(self):
+        # Product owner, 15 November 2026: Pattern Review uses the saved
+        # ORIGINAL texts, so no anonymised copy is kept.
+        for gone in ("pattern_text_store", "save_pattern_text", "discard_pattern_text",
+                     "SAVE_PATTERN_TEXT"):
+            self.assertNotIn(gone, self.page)
+        self.assertIn("material if SAVE_ORIGINAL_TEXT else None", self.page)
 
     def test_observations_are_not_saved(self):
         self.assertIn('result.get("findings", []) if SAVE_OBSERVATIONS else []', self.page)
@@ -74,26 +71,35 @@ class ReflectionScreenTests(unittest.TestCase):
         self.assertFalse(config.SAVE_OBSERVATIONS)
 
     def test_notices_are_not_on_the_writing_screen_but_stay_in_help(self):
-        # Product owner, 15 November 2026: the three notices were removed
-        # from the writing screen; Help keeps the same information.
         for gone in ("rs_privacy_note", "rs_pattern_copy_note"):
             self.assertNotIn(gone, self.page)
         help_page = _read("pages", "help.py")
-        self.assertIn('H["pattern_copy_note"]', help_page)
         self.assertIn('H["original_saved_note"]', help_page)
-        for lang in ("es", "eu", "en"):
-            texts = _load_locale(lang)
-            self.assertNotIn("rs_privacy_note", texts)
-            self.assertNotIn("rs_pattern_copy_note", texts)
+        self.assertNotIn("pattern_copy_note", help_page)
 
+
+class AnalysisReadsOriginalTextsTests(unittest.TestCase):
+    def test_store_reads_original_texts_without_names(self):
+        source = _read("services", "pattern_text_store.py")
+        select = source[source.index("def texts_for_period("):]
+        select = select[select.index("SELECT"):select.index("FROM")]
+        self.assertIn("r.original_text", select)
+        for forbidden in ("created_by", "reflection_code", "created_at", "case_ref"):
+            self.assertNotIn(forbidden, select)
+        self.assertIn("NOT_IN_DELETION_WINDOW", source)
+
+    def test_every_text_is_anonymised_before_the_ai(self):
+        source = _read("services", "pattern_text_analysis.py")
+        run = source[source.index("def run_report("):]
+        self.assertLess(run.index("protect_texts(originals)"), run.index("analyse_texts(protected"))
 
 class PatternReviewScreenTests(unittest.TestCase):
     def setUp(self):
         self.page = _read("pages", "pattern_explorer.py")
 
     def test_page_shows_reports_never_texts(self):
-        for forbidden in (".texts_for_period(", "original_text", "anonymised_text", "render_evidence",
-                          "pattern_store.", "reflection_records"):
+        for forbidden in (".texts_for_period(", "get_original_text", "anonymised_text", "render_evidence",
+                          "pattern_store.", "list_reflections"):
             self.assertNotIn(forbidden, self.page)
         self.assertIn("pattern_text_store.list_reports(user_role)", self.page)
         self.assertIn("can_review_patterns(user_role)", self.page)
@@ -113,31 +119,24 @@ class SettingsTests(unittest.TestCase):
         import os
         import config
         self.assertEqual(config.PATTERN_PERIOD_CHOICES, (3, 6, 9, 12))
-        if "PATTERN_TEXT_RETENTION_MONTHS" not in os.environ:
-            self.assertEqual(config.PATTERN_TEXT_RETENTION_MONTHS, 13)
         if "PATTERN_MIN_TEXTS" not in os.environ:
             self.assertEqual(config.PATTERN_MIN_TEXTS, 5)
-        self.assertGreater(config.PATTERN_TEXT_RETENTION_MONTHS, max(config.PATTERN_PERIOD_CHOICES))
+        # Every period fits inside the time the original texts are kept.
+        self.assertGreater(config.ORIGINAL_TEXT_RETENTION_MONTHS, max(config.PATTERN_PERIOD_CHOICES))
         self.assertGreaterEqual(config.PATTERN_MIN_TEXTS_PER_PATTERN, 2)
-        self.assertIsInstance(config.SAVE_PATTERN_TEXT, bool)
+        self.assertFalse(hasattr(config, "SAVE_PATTERN_TEXT"))
+        self.assertFalse(hasattr(config, "PATTERN_TEXT_RETENTION_MONTHS"))
 
-    def test_schema_stores_no_author_with_the_copy(self):
+    def test_schema_no_longer_creates_a_copy_table(self):
         schema = _read("services", "db_schema.py")
-        table = schema[schema.index("CREATE TABLE IF NOT EXISTS pattern_texts"):]
-        table = table[:table.index(")\n")]
-        self.assertNotIn("created_by", table)
-        self.assertNotIn("role", table)
+        self.assertNotIn("CREATE TABLE IF NOT EXISTS pattern_texts", schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS pattern_reports", schema)
 
-    def test_erase_all_data_covers_the_new_tables(self):
-        from services.data_reset import DATA_TABLES
-        self.assertIn("pattern_texts", DATA_TABLES)
+    def test_erase_all_data_covers_reports_and_drops_the_old_copy_table(self):
+        from services.data_reset import DATA_TABLES, RETIRED_TABLES
         self.assertIn("pattern_reports", DATA_TABLES)
-
-    def test_deleting_a_reflection_deletes_its_copy(self):
-        source = _read("services", "reflection_records.py")
-        erase = source[source.index("def _erase_runs("):]
-        self.assertIn("delete_for_codes(cursor, codes)", erase[:erase.index("\ndef ")])
+        self.assertIn("pattern_texts", RETIRED_TABLES)
+        self.assertNotIn("pattern_texts", DATA_TABLES)
 
     def test_texts_are_never_logged(self):
         for name in ("pattern_text_store.py", "pattern_text_analysis.py"):
@@ -172,7 +171,7 @@ class TranslationTests(unittest.TestCase):
                     self.assertIn(mark, texts[key], f"{key} {mark} in {lang}")
             self.assertEqual(len(texts["pr_standing_limits"]), 4)
             self.assertIn("{minimum}", texts["help"]["pattern_review_section_body"])
-            self.assertIn("{months}", texts["help"]["pattern_copy_note"])
+            self.assertNotIn("pattern_copy_note", texts["help"])
             self.assertTrue(texts["help"]["pattern_review_section_title"])
             # Nothing tells practitioners any more that managers read their text.
             for word in ("supervisoras", "gainbegiraleek", "supervisors"):

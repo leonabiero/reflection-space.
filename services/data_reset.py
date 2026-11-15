@@ -8,8 +8,8 @@ real pilot must start from a clean slate, with every count across the
 app showing 0.
 
 `erase_all_data()` permanently empties EVERY data table in one database
-transaction: reflections and their original texts, the anonymised copies
-and reports of Pattern Review, observations and private notes, feedback, old stored documents, activity
+transaction: reflections and their original texts, Pattern Review reports,
+observations and private notes, feedback, old stored documents, activity
 history, recorded problems and their case knowledge, cost and usage
 records, and rate-limit / login-attempt counters. Number sequences are
 restarted, so the next reflection, problem or pattern starts again from
@@ -63,10 +63,8 @@ DATA_TABLES = (
     "reflection_explorations",
     # Usefulness feedback
     "feedback",
-    # Pattern Review (texts and reports since 15 November 2026; the
-    # earlier observation-based tables are kept here so old data is
-    # erased too)
-    "pattern_texts",
+    # Pattern Review (reports since 15 November 2026; the earlier
+    # observation-based tables are kept here so old data is erased too)
     "pattern_reports",
     "pattern_runs",
     "patterns",
@@ -108,6 +106,10 @@ RETIRED_TABLES = (
     "corpora",
     "ka_rate_log",
     "user_presence",
+    # Separate anonymised copies for Pattern Review, used for a few hours
+    # on 15 November 2026 before Pattern Review switched to the saved
+    # original texts.
+    "pattern_texts",
 )
 
 # Remembered cost-alert levels (services/usage_alerts.py).

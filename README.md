@@ -48,9 +48,9 @@ uses Claude to generate reflective prompts (never directive advice) in the
 language the worker chose. What is saved to Postgres: the reflection record
 with a neutral, automatically created code and the **original** text (since
 10 November 2026, agreed with EDE — stored in the EU database, readable only
-by its author, never sent to the AI), and — since 15 November 2026 — an
-**anonymised copy** of the text, with no name or role, for Pattern Review
-(see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
+by its author). Since 15 November 2026 Pattern Review has the AI read these
+original texts, each anonymised again first, and shows managers only the
+report (see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
 go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
 are replaced by life stages (see `REFLECTIONS.md`). The Qdrant search service,
@@ -70,8 +70,9 @@ At the product owner's request the app was trimmed to what the pilot needs:
   leads to a feedback step.
 - **15 November 2026 (later the same day): Pattern Review redesigned.**
   Patterns are looked for in what social workers write, not in the AI's
-  output. An anonymised copy of each text is kept for 13 months; managers
-  pick 3, 6, 9 or 12 months and get an AI report (never the texts). The AI's
+  output: the saved original texts, anonymised again before the AI reads
+  them. Managers pick 3, 6, 9 or 12 months and get an AI report (never the
+  texts). The AI's
   observations and questions are no longer saved, so Reflection History is
   one line per reflection and the per-reflection AI summary was removed.
   See `PATTERNS.md`.

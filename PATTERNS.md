@@ -11,68 +11,69 @@ We want to find patterns in **what social workers write** about their cases,
 not in what the AI says back to them. So:
 
 1. A social worker writes, pastes or uploads a text and presses **Reflect**.
-2. The text is anonymised (names, ages, places and other personal details
-   removed). If that fails, nothing happens and nothing is saved.
-3. Straight away, two things happen:
-   - an **anonymised copy** of the text is saved for Pattern Review, with
-     only the date and the language — **no name and no role**;
-   - the reflection carries on exactly as before: the social worker sees the
-     AI's observations and questions.
+2. The text is anonymised and the reflection carries on as before: the
+   social worker sees the AI's observations and questions.
+3. The **original text** is saved with the reflection, as agreed with EDE
+   (EU database, 15 months, readable only by its author). **No separate copy
+   is saved** — Pattern Review uses these original texts.
 4. The AI's **observations and questions are not saved**. They are shown to
    the social worker and then forgotten.
 5. A manager opens **Pattern Review**, chooses a period (**the last 3, 6, 9
-   or 12 months**) and presses **Identify patterns**. The AI reads the
-   anonymised texts from that period and writes **one report** on recurring
-   patterns in how cases are written.
+   or 12 months**) and presses **Identify patterns**. The app takes that
+   period's original texts, **anonymises each one again**, and only then
+   lets the AI read them. The AI writes **one report** on recurring patterns
+   in how cases are written.
 6. The manager sees **the report only — never the texts**, never quotations,
    never who wrote anything. Reports are saved with their date and period and
    can be downloaded to print.
 
-Social workers are told about the anonymised copy in **Help** (Privacy and
-"Your case" sections), in all three languages. The notices that were on the
-writing screen were removed on 15 November 2026 at the product owner's
-request.
+Social workers are told in **Help** (Privacy and "Your case" sections), in
+all three languages, that their original text is used this way. The notices
+that were on the writing screen were removed on 15 November 2026 at the
+product owner's request.
 
 ## Decisions (product owner, 15 November 2026)
 
 | Question | Decision |
 |---|---|
+| Which texts are analysed? | The saved original texts (no separate copy is kept) |
+| What does the AI receive? | Each text after anonymisation — never a name, role, code or date |
 | What do managers see? | The AI's report only, never the texts |
-| Is the author's name or role kept with a copy? | No. Only the date and the language |
-| How long are copies kept? | 13 months, then deleted automatically |
+| How long are texts kept? | 15 months (as agreed with EDE), then cleared automatically |
 | Minimum number of texts before patterns can be identified | 5 |
 | Are reports saved? | Yes, with their date and period |
 | Are social workers told? | Yes, in Help (the writing-screen notices were removed at the product owner's request) |
-| Does every text count, or only ones the author chooses? | Every text (the earlier per-observation "share" choice no longer exists) |
-| The original text, as agreed with EDE | Still saved for 15 months, readable only by its author |
+| Does every text count, or only ones the author chooses? | Every text |
+
+(For a few hours on 15 November 2026 a separate anonymised copy of each text
+was saved for 13 months. The product owner decided against keeping two
+copies; that table, `pattern_texts`, is removed by "Erase all data".)
 
 ## Privacy rules (enforced in code, not only on screen)
 
-- `services/pattern_text_store.py` is the only place that stores or reads the
-  copies. No function there returns a text for display; `texts_for_period()`
-  returns texts only for the AI and refuses anyone without a management role.
-- The table `pattern_texts` has no author or role column. It keeps the
-  reflection code for one purpose only: so that deleting a reflection also
-  deletes its copy. The code is never sent to the AI or shown.
-- A reflection waiting in its 48-hour bin is left out of any analysis at once;
-  when it is erased for good, its copy is erased too. A System Administrator
-  deleting a reflection also deletes its copy.
-- If a reflection fails completely, its copy is removed, so "Try again" does
-  not count the same text twice.
+- `services/pattern_text_store.py` reads the texts for the AI only. No
+  function there returns a text for display; `texts_for_period()` returns the
+  text and language only (no name, role, code or date) and refuses anyone
+  without a management role.
+- `services/pattern_text_analysis.py` anonymises every text again with the
+  same anonymiser as a reflection before the AI reads it. A text that cannot
+  be anonymised is left out — never sent as written.
+- Texts past their 15 months, and reflections waiting in their 48-hour bin or
+  erased, are never used.
 - Before a report is saved, any part of it that repeats 8 or more consecutive
-  words from a text is removed (`remove_copied_passages`), so a manager can
+  words from a text (original or anonymised) is removed, so a manager can
   never read a text through the report.
 - A pattern is only reported if it appears in at least 3 texts
   (`PATTERN_MIN_TEXTS_PER_PATTERN`), and nothing runs with fewer than 5 texts
   (`PATTERN_MIN_TEXTS`), so a "pattern" can never point at one person.
-- Texts are shuffled before the AI reads them, and the AI never receives a
-  date, code or name with a text.
-- Copies are never written to logs — only counts.
-- "Erase all data" erases the copies and the reports.
+- Texts are shuffled before the AI reads them.
+- Texts are never written to logs — only counts.
+- "Erase all data" erases the reports (and the texts, with the reflections).
 
 ## How a report is made (`services/pattern_text_analysis.py`)
 
-1. The period's texts are read (for the AI only) and shuffled.
+1. The period's original texts are read (for the AI only), anonymised one
+   by one, and shuffled.
 2. They are split into groups of up to 40 texts / about 40,000 characters.
    Up to 4 groups are read at the same time, one Claude call each. For each
    group the AI lists recurring patterns and the **numbers** of the texts in
@@ -98,8 +99,8 @@ Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `SAVE_PATTERN_TEXT` | on | Save the anonymised copy |
-| `PATTERN_TEXT_RETENTION_MONTHS` | 13 | How long a copy is kept |
+| `SAVE_ORIGINAL_TEXT` | on | Keep the original text (needed for Pattern Review) |
+| `ORIGINAL_TEXT_RETENTION_MONTHS` | 15 | How long a text is kept |
 | `PATTERN_PERIOD_CHOICES` | 3, 6, 9, 12 | Periods a manager can choose |
 | `PATTERN_MIN_TEXTS` | 5 | Fewest texts for a report |
 | `PATTERN_MIN_TEXTS_PER_PATTERN` | 3 | Fewest texts for a pattern to be reported |
@@ -116,8 +117,8 @@ Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
 - Reports already made are not changed when a reflection is deleted later
   (they never contain texts).
 - The Basque wording should be checked by a native speaker.
-- EDE should confirm in writing that keeping the anonymised copies for 13
-  months is acceptable.
+- EDE should confirm in writing that the original texts may be used this way
+  (read by the AI after anonymisation, for pattern reports).
 
 ## What was replaced
 
@@ -137,4 +138,4 @@ left untouched so existing databases keep working, and are emptied by
   database table has no author column, translations in all three languages,
   the printable report.
 - `tests/test_pattern_text_store_postgres.py` — real database (set
-  `TEST_DATABASE_URL`): saving, the 13-month limit, deletion, roles, reports.
+  `TEST_DATABASE_URL`): which texts are read, time limits, deletion, roles, reports.

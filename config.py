@@ -482,28 +482,23 @@ AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
 # Patterns are looked for in what social workers WRITE, not in what the
 # AI says back to them. So:
 #
-#   - Straight after a text is anonymised, an ANONYMISED copy is saved
-#     on its own (services/pattern_text_store.py), with only the date,
-#     the language and the reflection code (used only so that deleting a
-#     reflection also deletes its copy). No author name and no role.
+#   - Pattern Review reads the ORIGINAL texts the app already keeps
+#     (SAVE_ORIGINAL_TEXT / ORIGINAL_TEXT_RETENTION_MONTHS above). No
+#     separate copy is saved. Each text is ANONYMISED again just before the
+#     AI reads it, so the AI still only ever receives anonymised text.
 #   - The AI's observations and questions are NOT saved
 #     (SAVE_OBSERVATIONS below). They are shown to the social worker and
 #     then forgotten.
 #   - Supervisors and Programme Managers choose a period
-#     (PATTERN_PERIOD_CHOICES months) and the AI reads the saved copies
-#     from that period and writes a report. Managers see the report only,
-#     never the texts. Reports are saved with their date and period.
+#     (PATTERN_PERIOD_CHOICES months) and the AI reads that period's texts
+#     and writes a report. Managers see the report only, never the texts,
+#     and the AI never receives a name, role, code or date with a text.
+#     Reports are saved with their date and period.
 #   - Nothing is looked for with fewer than PATTERN_MIN_TEXTS texts, and a
 #     pattern is only reported when it appears in at least
 #     PATTERN_MIN_TEXTS_PER_PATTERN texts, so a "pattern" can never point
 #     at one person's single text.
-#   - Each copy is deleted automatically after
-#     PATTERN_TEXT_RETENTION_MONTHS (13: one month more than the longest
-#     period that can be analysed).
-SAVE_PATTERN_TEXT = os.getenv("SAVE_PATTERN_TEXT", "true").strip().lower() not in (
-    "0", "false", "no", "off",
-)
-PATTERN_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("PATTERN_TEXT_RETENTION_MONTHS", "13")))
+#   - Every period fits inside the 15 months the original texts are kept.
 PATTERN_PERIOD_CHOICES = (3, 6, 9, 12)
 PATTERN_MIN_TEXTS = max(2, int(os.getenv("PATTERN_MIN_TEXTS", "5")))
 PATTERN_MIN_TEXTS_PER_PATTERN = max(2, int(os.getenv("PATTERN_MIN_TEXTS_PER_PATTERN", "3")))

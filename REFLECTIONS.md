@@ -4,10 +4,9 @@
 
 Product owner's decision (see `PATTERNS.md` for the full detail):
 
-- **Straight after anonymisation**, an **anonymised copy** of the text is
-  saved for Pattern Review (`services/pattern_text_store.py`), with only the
-  date and language — no author name, no role. Kept 13 months. The reflection
-  then carries on as normal.
+- **Pattern Review reads the saved original texts**, each anonymised again
+  before the AI sees it (`services/pattern_text_store.py`,
+  `services/pattern_text_analysis.py`). No separate copy is saved.
 - **The AI's observations and questions are no longer saved**
   (`config.SAVE_OBSERVATIONS`, off). They are shown to the social worker and
   then forgotten. As a consequence:
@@ -17,9 +16,10 @@ Product owner's decision (see `PATTERNS.md` for the full detail):
   - the notes boxes under each card and My Reflection's "Saved observations
     and your notes" no longer appear (they need saved observations);
     "Show the saved text" moved to "Your saved reflections".
-- **The original text** (agreed with EDE) is still saved for 15 months, but is
-  now readable **only by its author**. Managers no longer read any texts; the
-  "Saved original texts" section of Pattern Review was removed.
+- **The original text** (agreed with EDE) is still saved for 15 months, and
+  is readable **only by its author**. Managers no longer read any texts; the
+  "Saved original texts" section of Pattern Review was removed, and managers
+  see only the AI's report.
 - The rest of this document is kept as a record. Where it says observations
   are saved, shown in Reflection History or read by managers, the update
   above replaces it.
@@ -189,7 +189,7 @@ each new reflection keeps the **original** text instead of the anonymised copy.
   - the **author** only: My Reflection → "Show the saved text"
     (`get_original_text`, author only);
   - since 15 November 2026 managers no longer read it (Pattern Review shows
-    an AI report made from a separate anonymised copy; see `PATTERNS.md`).
+    an AI report; the AI reads the texts anonymised again; see `PATTERNS.md`).
 - **How long:** `config.ORIGINAL_TEXT_RETENTION_MONTHS` (default **15**).
   Expired text is never shown, and `purge_expired_original_text()` clears it
   (after each new reflection and when the Pattern Review texts are opened).
@@ -287,7 +287,7 @@ saved with the reflection — see "Saved ORIGINAL text" above.)*
 | Stored | Not stored |
 |---|---|
 | Reflection code, case themes, type of text, optional link to an earlier code | Uploaded files |
-| **Since 15 November 2026:** an anonymised copy of the text for Pattern Review (no name or role, 13 months) | **Since 15 November 2026:** the AI's observations and questions |
+| | **Since 15 November 2026:** the AI's observations and questions |
 | *(Until 15 November 2026 only)* short verified passages the AI quoted, and the professional's private notes on observations | Conversation text with the companion |
 | | Names or real file numbers (codes are random) |
 | **Since 10 November 2026:** the **original** text, for up to 15 months (see "Saved ORIGINAL text" above) | The anonymised copy (4–10 November 2026 only) |

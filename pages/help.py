@@ -7,7 +7,7 @@ from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
 from config import (
     SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS,
-    SAVE_PATTERN_TEXT, PATTERN_TEXT_RETENTION_MONTHS, PATTERN_MIN_TEXTS,
+    PATTERN_MIN_TEXTS,
 )
 
 # In-app Help / Quick Guide
@@ -67,8 +67,6 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
             st.write(H["doc_section_body"])
             if SAVE_ORIGINAL_TEXT:
                 st.write(H["original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
-            if SAVE_PATTERN_TEXT:
-                st.write(H["pattern_copy_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS))
 
         with st.expander(H["reflection_section_title"], expanded=False):
             st.write(H["reflection_section_body"])

@@ -1,5 +1,8 @@
 """REAL-DATABASE tests for Pattern Review texts and reports (15 November 2026).
 
+Pattern Review reads the saved ORIGINAL texts (reflection_runs.original_text);
+no separate copy is kept.
+
 SKIPPED unless TEST_DATABASE_URL is set, e.g.
 
     TEST_DATABASE_URL=postgresql://user:pass@localhost/rs_test \\
@@ -61,45 +64,39 @@ class PatternTextStoreRealDatabaseTests(unittest.TestCase):
             conn.close()
 
     def _clean(self):
-        self._sql("DELETE FROM pattern_texts")
+        # Other test files may leave reflections; count only ours.
         self._sql("DELETE FROM pattern_reports WHERE created_by LIKE 'test_%'")
         self._sql("DELETE FROM reflection_runs WHERE created_by LIKE 'test_%'")
+        self._sql("UPDATE reflection_runs SET original_text = NULL")
 
-    def _copy(self, n, months_ago=0):
+    def _reflection(self, n, text=None, months_ago=0, owner="test_alice"):
         code = f"{CODE_PREFIX}{n:02d}"
-        self.assertTrue(self.st.save_pattern_text(code, "Español", f"Texto anonimizado {n} de [PERSON]."))
-        if months_ago:
-            self._sql("UPDATE pattern_texts SET created_at = now() - make_interval(months => %s) "
-                      "WHERE reflection_code = %s", (months_ago, code))
-        return code
-
-    def _run_for(self, code, owner="test_alice"):
-        return self.fs.save_reflection_run(
+        run_id = self.fs.save_reflection_run(
             case_ref=code, source_draft_ids=[], language="Español", prompt_version="v",
             model="m", module_status={}, findings=[], created_by=owner,
             created_by_role="Social Worker", reflection_code=code,
+            original_text=text if text is not None else f"Texto original {n} de Juan.",
         )["run_id"]
-
-    def test_copy_holds_no_author_and_is_saved_once(self):
-        code = self._copy(1)
-        self.assertFalse(self.st.save_pattern_text(code, "Español", "otra vez"))
-        columns = {r[0] for r in self._sql(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'pattern_texts'")}
-        self.assertEqual(columns, {"id", "reflection_code", "language", "anonymised_text", "created_at"})
-        self.assertFalse(self.st.save_pattern_text(code + "X", "Español", "   "))
+        if months_ago:
+            self._sql("UPDATE reflection_runs SET created_at = now() - make_interval(months => %s) WHERE id = %s",
+                      (months_ago, run_id))
+        return run_id
 
     def test_texts_for_period_carry_only_language_and_text(self):
         for n in range(3):
-            self._copy(n)
-        self._copy(7, months_ago=4)
+            self._reflection(n)
+        self._reflection(7, months_ago=4)
+        self._reflection(8, text="   ")
         texts = self.st.texts_for_period("Supervisor", 3)
         self.assertEqual(len(texts), 3)
         self.assertEqual(set(texts[0]), {"language", "text"})
+        self.assertNotIn("test_alice", str(texts))
+        self.assertNotIn(CODE_PREFIX, str(texts))
         self.assertEqual(self.st.count_texts_for_period("Programme Manager", 3), 3)
         self.assertEqual(self.st.count_texts_for_period("Supervisor", 6), 4)
 
     def test_only_management_roles_can_read(self):
-        self._copy(1)
+        self._reflection(1)
         for role in ("Social Worker", "System Administrator", ""):
             self.assertEqual(self.st.count_texts_for_period(role, 3), 0)
             with self.assertRaises(PermissionError):
@@ -108,40 +105,22 @@ class PatternTextStoreRealDatabaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.st.count_texts_for_period("Supervisor", 5)
 
-    def test_copies_older_than_13_months_are_never_used_then_deleted(self):
-        from config import PATTERN_TEXT_RETENTION_MONTHS as months
-        self._copy(1)
-        old = self._copy(2, months_ago=months + 1)
+    def test_texts_past_their_time_limit_are_never_used(self):
+        from config import ORIGINAL_TEXT_RETENTION_MONTHS as months
+        self._reflection(1)
+        self._reflection(2, months_ago=months + 1)
         self.assertEqual(self.st.count_texts_for_period("Supervisor", 12), 1)
-        self.assertGreaterEqual(self.st.purge_expired_pattern_texts(), 1)
-        self.assertEqual(self._sql("SELECT COUNT(*) FROM pattern_texts WHERE reflection_code = %s", (old,))[0][0], 0)
 
-    def test_deleted_reflection_is_left_out_at_once_and_its_copy_erased_later(self):
-        from config import DELETION_WINDOW_HOURS
-        code = self._copy(1)
-        self._copy(2)
-        run_id = self._run_for(code)
+    def test_deleted_reflection_is_left_out_at_once(self):
+        run_id = self._reflection(1)
+        self._reflection(2)
         self.assertEqual(self.st.count_texts_for_period("Supervisor", 3), 2)
         self.assertTrue(self.rr.delete_own_reflection(run_id, "test_alice"))
         self.assertEqual(self.st.count_texts_for_period("Supervisor", 3), 1)
         self.assertTrue(self.rr.restore_own_reflection(run_id, "test_alice"))
         self.assertEqual(self.st.count_texts_for_period("Supervisor", 3), 2)
-        self.assertTrue(self.rr.delete_own_reflection(run_id, "test_alice"))
-        self._sql("UPDATE reflection_runs SET deleted_at = now() - make_interval(hours => %s) WHERE id = %s",
-                  (DELETION_WINDOW_HOURS + 1, run_id))
-        self.rr.purge_expired_reflection_deletions()
-        self.assertEqual(self._sql("SELECT COUNT(*) FROM pattern_texts WHERE reflection_code = %s", (code,))[0][0], 0)
-
-    def test_administrator_deletion_erases_the_copy(self):
-        code = self._copy(1)
-        run_id = self._run_for(code)
         self.assertTrue(self.rr.delete_reflection(run_id, "test_admin", "System Administrator"))
-        self.assertEqual(self._sql("SELECT COUNT(*) FROM pattern_texts WHERE reflection_code = %s", (code,))[0][0], 0)
-
-    def test_failed_reflection_copy_can_be_discarded(self):
-        code = self._copy(1)
-        self.assertTrue(self.st.discard_pattern_text(code))
-        self.assertFalse(self.st.discard_pattern_text(code))
+        self.assertEqual(self.st.count_texts_for_period("Supervisor", 3), 1)
 
     def test_reports_are_saved_and_listed_newest_first(self):
         first = self.st.save_report("Supervisor", "test_boss", 3, 6, "Español",

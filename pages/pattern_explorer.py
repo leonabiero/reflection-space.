@@ -8,7 +8,8 @@ from services.pattern_access import can_review_patterns
 from services import pattern_text_store, pattern_text_analysis
 from services.pattern_report_html import build_report_html
 from services.db_time import display_datetime, now_utc
-from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, PATTERN_TEXT_RETENTION_MONTHS
+from services import reflection_records
+from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETENTION_MONTHS
 
 # Pattern Review
 # ================
@@ -17,9 +18,9 @@ from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, PATTERN_TEXT_RETEN
 # PATTERNS.md). For EDE's management team (Supervisors and Programme
 # Managers) ONLY.
 #
-# Patterns are looked for in what social workers WROTE (the anonymised
-# copy saved straight after anonymisation), not in what the AI said back
-# to them. A manager picks a period -- 3, 6, 9 or 12 months -- and presses
+# Patterns are looked for in what social workers WROTE (the original texts
+# the app already keeps, anonymised again before the AI reads them), not
+# in what the AI said back to them. A manager picks a period -- 3, 6, 9 or 12 months -- and presses
 # "Identify patterns"; the AI reads that period's texts and writes one
 # report, which is saved with its date and period.
 #
@@ -59,9 +60,10 @@ with error_boundary(
         kind, message = flash
         getattr(st, kind)(message)
 
-    # Texts past their time limit are deleted here too (best effort).
+    # Texts past their time limit are cleared here too (best effort; an
+    # expired text is never used either way).
     try:
-        pattern_text_store.purge_expired_pattern_texts()
+        reflection_records.purge_expired_original_text()
     except Exception:
         pass
 
@@ -69,7 +71,7 @@ with error_boundary(
     # 1. Identify patterns
     # ------------------------------------------------------------------
     st.subheader(T["pr_new_header"])
-    st.caption(T["pr_texts_note"].format(months=PATTERN_TEXT_RETENTION_MONTHS))
+    st.caption(T["pr_texts_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
 
     period = st.radio(
         T["pr_period_label"],

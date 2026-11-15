@@ -299,7 +299,7 @@ class SavedOriginalTextStaticTests(unittest.TestCase):
         self.assertFalse(hasattr(rr, "list_original_texts"))
         self.assertFalse(hasattr(rr, "count_original_texts"))
         page = _read("pages", "pattern_explorer.py")
-        for forbidden in ("get_original_text", "original_text", "pattern_text_store.texts_for_period(", "anonymised_text"):
+        for forbidden in ("get_original_text", "pattern_text_store.texts_for_period(", "anonymised_text"):
             self.assertNotIn(forbidden, page)
 
     def test_case_history_never_shows_the_original_text(self):
@@ -352,7 +352,6 @@ class TranslationTests(unittest.TestCase):
             self.assertIn("{months}", lang["rs_original_saved_note"])
             self.assertIn("{months}", lang["help"]["original_saved_note"])
             self.assertIn("{months}", lang["ch_original_text_caption"])
-            self.assertIn("{months}", lang["help"]["pattern_copy_note"])
         self.assertEqual(LANG_EN["rs_heading"], "Let's reflect.")
         self.assertEqual(LANG_EN["rs_reflect_button"], "Reflect")
         self.assertEqual(LANG_EN["rs_anonymised_preview_label"], "View anonymised text")

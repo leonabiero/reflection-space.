@@ -4,15 +4,20 @@ Pattern Review analysis (15 November 2026)
 
 Product owner's decision (see PATTERNS.md): when a Supervisor or
 Programme Manager presses "Identify patterns" and picks a period (3, 6,
-9 or 12 months), the AI reads the ANONYMISED texts social workers wrote
-in that period (services/pattern_text_store.py) and writes ONE report on
+9 or 12 months), the AI reads the texts social workers wrote in that
+period -- the ORIGINAL texts the app already keeps
+(services/pattern_text_store.py), each ANONYMISED again here before the AI
+sees it -- and writes ONE report on
 the patterns it finds in how cases are written. Managers see the report
 only -- never the texts.
 
 How it works
 ------------
-1. The texts are read for the AI (never for the screen) and shuffled, so
-   their order says nothing about when or by whom they were written.
+1. The texts are read for the AI (never for the screen), ANONYMISED one
+   by one with the same anonymiser as a reflection (services/anonymizer.py)
+   -- a text that cannot be anonymised is left out, never sent -- and
+   shuffled, so their order says nothing about when or by whom they were
+   written.
 2. They are split into groups that the AI can read in one go
    (MAX_BATCH_TEXTS texts / MAX_BATCH_CHARS characters). Each group is
    read by one Claude call, which lists the recurring patterns and the
@@ -30,8 +35,8 @@ How it works
 
 What the AI is and is not given
 ---------------------------------
-Only the anonymised texts (and, for the last step, the groups' own
-findings). Never a date, a reflection code, a language label tied to a
+Only the texts after anonymisation (and, for the last step, the groups'
+own findings). The original texts never leave the database unprotected. Never a date, a reflection code, a language label tied to a
 text, or anything about the author.
 
 Cost (Claude Sonnet 5.5: $2 per million input tokens, $10 per million
@@ -53,6 +58,7 @@ from services.db_time import get_logger
 from services import reflection_service
 from services.reflection_service import LANG_INSTRUCTIONS
 from services import pattern_text_store
+from services.anonymizer import anonymize
 from services import request_dedup
 
 logger = get_logger(__name__)
@@ -335,9 +341,30 @@ def remove_copied_passages(report, copy_index):
 # ---------------------------------------------------------------------
 # The whole analysis
 # ---------------------------------------------------------------------
-def analyse_texts(texts, lang="Español", min_per_pattern=None, rng=None):
+def protect_texts(texts):
+    """Anonymise each text before the AI may see it. Returns
+    (protected_texts, skipped): a text whose anonymisation fails or leaves
+    nothing is skipped -- it is never sent as it was."""
+    protected, skipped = [], 0
+    for text in texts:
+        if not (text or "").strip():
+            continue
+        try:
+            safe = anonymize(text)
+        except Exception:
+            safe = None
+        if (safe or "").strip():
+            protected.append(safe.strip())
+        else:
+            skipped += 1
+    return protected, skipped
+
+
+def analyse_texts(texts, lang="Español", min_per_pattern=None, rng=None, originals=()):
     """
-    Run the analysis on a list of text strings (already anonymised).
+    Run the analysis on a list of text strings that are ALREADY anonymised
+    (see protect_texts). `originals`: the texts as written, used only by
+    the privacy check that removes copied passages from the report.
 
     Returns {"report": dict | None, "texts_read": int, "groups": int,
     "groups_failed": int, "removed_for_privacy": int}. The report is None
@@ -405,7 +432,9 @@ def analyse_texts(texts, lang="Español", min_per_pattern=None, rng=None):
         (p for p in report["patterns"] if p["texts_count"] >= min_per_pattern),
         key=lambda p: -p["texts_count"],
     )
-    outcome["removed_for_privacy"] = remove_copied_passages(report, build_copy_index(prepared))
+    outcome["removed_for_privacy"] = remove_copied_passages(
+        report, build_copy_index(list(prepared) + [t for t in originals if t]),
+    )
     outcome["report"] = report
     return outcome
 
@@ -422,7 +451,8 @@ def run_report(actor_role, actor_name, period_months, lang="Español"):
     from config import PATTERN_MIN_TEXTS
     texts = pattern_text_store.texts_for_period(actor_role, period_months)
     result = {"status": "failed", "report_id": None, "texts_count": len(texts),
-              "texts_read": 0, "patterns": 0, "minimum": PATTERN_MIN_TEXTS}
+              "texts_read": 0, "patterns": 0, "minimum": PATTERN_MIN_TEXTS,
+              "texts_skipped": 0}
     if len(texts) < PATTERN_MIN_TEXTS:
         result["status"] = "not_enough"
         return result
@@ -442,11 +472,15 @@ def run_report(actor_role, actor_name, period_months, lang="Español"):
 
     succeeded = False
     try:
-        outcome = analyse_texts([t["text"] for t in texts], lang=lang)
+        originals = [t["text"] for t in texts]
+        protected, skipped = protect_texts(originals)
+        result["texts_skipped"] = skipped
+        outcome = analyse_texts(protected, lang=lang, originals=originals)
         result["texts_read"] = outcome["texts_read"]
         report = outcome["report"]
         if report is not None:
             report["texts_read"] = outcome["texts_read"]
+            report["texts_not_anonymised"] = skipped
             report["groups_failed"] = outcome["groups_failed"]
             report["removed_for_privacy"] = outcome["removed_for_privacy"]
             result["report_id"] = pattern_text_store.save_report(

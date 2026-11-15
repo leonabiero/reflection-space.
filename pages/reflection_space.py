@@ -13,10 +13,9 @@ from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from services import request_dedup
 from services import document_import
 from services import reflection_records
-from services import pattern_text_store
 from config import (
     REQUEST_DEDUP_TTL_MINUTES, SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS,
-    SAVE_PATTERN_TEXT, SAVE_OBSERVATIONS,
+    SAVE_OBSERVATIONS,
 )
 from rdi.orchestrator import run_reflection
 from services.anonymizer import anonymize
@@ -50,11 +49,10 @@ from rdi.companions import COMPANIONS
 #
 # What is saved (15 November 2026, product owner's decision -- see
 # PATTERNS.md and REFLECTIONS.md):
-#   - straight after anonymisation, an ANONYMISED copy of the text for
-#     Pattern Review (services/pattern_text_store.py), with no author name
-#     and no role;
 #   - the reflection record itself (neutral code, date, language, the
-#     ORIGINAL text agreed with EDE) -- services/findings_store.py;
+#     ORIGINAL text agreed with EDE) -- services/findings_store.py. The
+#     original text is also what Pattern Review reads (anonymised again
+#     before the AI sees it); no separate copy is saved;
 #   - NOT the AI's observations and questions (config.SAVE_OBSERVATIONS):
 #     they are shown to the professional and then forgotten.
 # The screen's copy of the case text exists only in this browser session
@@ -865,21 +863,6 @@ with error_boundary(
                         st.session_state["_reflection_duplicate_hit"] = True
                         st.rerun()
 
-                    # Pattern Review (15 November 2026): straight after
-                    # anonymisation, keep an ANONYMISED copy of the text
-                    # -- no author name, no role -- and carry on with the
-                    # reflection as normal. Best effort: if saving the copy
-                    # fails, the reflection is not affected. The copy is
-                    # never logged.
-                    pattern_copy_saved = False
-                    if SAVE_PATTERN_TEXT:
-                        try:
-                            pattern_copy_saved = pattern_text_store.save_pattern_text(
-                                reflection_code, reflect_lang, safe_text,
-                            )
-                        except Exception:
-                            pattern_copy_saved = False
-
                     # Codes and counts only -- never any text.
                     rag_log(
                         f"[RAG] Reflection started for code={reflection_code!r} "
@@ -900,20 +883,11 @@ with error_boundary(
                             request_dedup.complete(reflection_request_id)
                         else:
                             request_dedup.release(reflection_request_id)
-                            # Stopped part-way: drop the Pattern Review
-                            # copy, as for a failed reflection below.
-                            if pattern_copy_saved:
-                                pattern_text_store.discard_pattern_text(reflection_code)
 
                     st.session_state[GENERATING_KEY] = False
 
                     if "error" not in result:
                         log_reflection(reflection_code, result["raw"], user_name, user_role)
-                    elif pattern_copy_saved:
-                        # The whole reflection failed. "Try again" uses a
-                        # new code, so drop this copy -- otherwise the same
-                        # text would be counted twice in Pattern Review.
-                        pattern_text_store.discard_pattern_text(reflection_code)
 
                     session = ReflectionSession(
                         result,
@@ -926,8 +900,9 @@ with error_boundary(
 
                     # Save the reflection record, identified by the neutral
                     # code, together with the ORIGINAL text (EU database,
-                    # agreed with EDE -- never sent to the AI; see
-                    # REFLECTIONS.md). Since 15 November 2026 the AI's
+                    # agreed with EDE; used by Pattern Review, which
+                    # anonymises it again before any AI reads it -- see
+                    # PATTERNS.md). Since 15 November 2026 the AI's
                     # observations and questions are NOT saved
                     # (config.SAVE_OBSERVATIONS): an empty list is passed.
                     # Best-effort: if saving fails the reflection still
@@ -970,7 +945,6 @@ with error_boundary(
                         try:
                             reflection_records.purge_expired_original_text()
                             reflection_records.purge_expired_anonymised_text()
-                            pattern_text_store.purge_expired_pattern_texts()
                         except Exception:
                             pass
 

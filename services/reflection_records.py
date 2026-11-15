@@ -45,9 +45,10 @@ Privacy rules
   this module.
 - Management functions require a management role (checked here, not
   only in the page) and return the AI's observations only -- never
-  anyone's notes. The saved ORIGINAL text is returned to its author only
-  (since 15 November 2026 managers see Pattern Review reports, never the
-  texts -- services/pattern_text_store.py).
+  anyone's notes. The saved ORIGINAL text is returned to its author only.
+  Since 15 November 2026 Pattern Review reads it for the AI only
+  (services/pattern_text_store.py), anonymised again first, and managers
+  see the report, never the texts.
 - Nothing in this module writes observation text, quotes, tags or notes
   to logs -- only ids and counts.
 """
@@ -604,8 +605,8 @@ def purge_expired_anonymised_text():
 # the pages:
 #   - only the AUTHOR can read their own text (get_original_text);
 #   - since 15 November 2026 managers no longer read the texts: Pattern
-#     Review uses a separate ANONYMISED copy and shows managers only the
-#     AI's report (services/pattern_text_store.py);
+#     Review has the AI read them, anonymised again first, and shows
+#     managers only the AI's report (services/pattern_text_store.py);
 #   - a text older than config.ORIGINAL_TEXT_RETENTION_MONTHS is never
 #     returned and is cleared by purge_expired_original_text();
 #   - a reflection its author deleted is never returned, and is erased
@@ -725,8 +726,7 @@ def delete_reflection(run_id, actor_name, actor_role):
 def _erase_runs(cursor, run_ids):
     """Erase reflections for good, inside the caller's transaction: the
     run, its observations and the professional's notes on them (ON DELETE
-    CASCADE), its saved texts, the anonymised copy kept for Pattern Review,
-    the journal entries recorded under its code, and any old pattern left
+    CASCADE), its saved texts, the journal entries recorded under its code, and any old pattern left
     with no observations at all.
     Returns the codes erased."""
     ids = [int(i) for i in run_ids if i]
@@ -742,10 +742,6 @@ def _erase_runs(cursor, run_ids):
         if cursor.fetchone()[0] is not None:
             cursor.execute("DELETE FROM reflection_explorations WHERE case_ref = ANY(%s)", (codes,))
     cursor.execute("DELETE FROM reflection_runs WHERE id = ANY(%s)", (ids,))
-    # The anonymised copy kept for Pattern Review goes with it (15
-    # November 2026; services/pattern_text_store.py).
-    from services.pattern_text_store import delete_for_codes
-    delete_for_codes(cursor, codes)
     # A pattern left with no observations at all loses its explanation
     # too (same rule as findings_store.delete_runs_for_drafts).
     cursor.execute("SELECT to_regclass('patterns')")

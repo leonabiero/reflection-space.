@@ -884,34 +884,9 @@ def ensure_schema():
                 """)
 
                 # --- Pattern Review from the social workers' own texts
-                # (15 November 2026, see PATTERNS.md) ---
+                # (15 November 2026, see PATTERNS.md). The texts read are
+                # reflection_runs.original_text (no separate copy). ---
                 #
-                # pattern_texts: an ANONYMISED copy of each text, saved
-                # straight after anonymisation. Deliberately NO author
-                # name and NO role: only the date, the language and the
-                # reflection code. The code is used for one thing only --
-                # so that deleting a reflection also deletes its copy
-                # (services/reflection_records.py:_erase_runs); it is
-                # never selected for the analysis or shown to anyone.
-                # Cleared automatically after
-                # config.PATTERN_TEXT_RETENTION_MONTHS. Never logged.
-                c.execute("""
-                CREATE TABLE IF NOT EXISTS pattern_texts (
-                    id SERIAL PRIMARY KEY,
-                    reflection_code TEXT,
-                    language TEXT,
-                    anonymised_text TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """)
-                c.execute("""
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_pattern_texts_reflection_code
-                    ON pattern_texts (reflection_code)
-                """)
-                c.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_pattern_texts_created_at
-                    ON pattern_texts (created_at DESC)
-                """)
                 # pattern_reports: each report a manager asked for, with
                 # the period it covered and how many texts were read. The
                 # report holds the AI's written findings only -- never a
