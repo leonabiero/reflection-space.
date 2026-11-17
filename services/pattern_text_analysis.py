@@ -46,7 +46,10 @@ final step. With texts of about 2,000 characters (about 20 per group) and
 about 90 texts a month: 1 month ~$0.20, 3 months ~$0.60, 6 months ~$1.15,
 12 months ~$2.25, 15 months ~$2.80 (range $2-$4). Recorded in the Service Cost & Usage Monitor as
 "pattern_text_batch" and "pattern_text_report". Nothing is spent until a
-manager presses the button.
+manager presses the button. The model also "thinks" before answering
+(billed as output), which can add up to about $0.03 per group: roughly
+$0.05-$0.15 for a small report, possibly $1-$2 for a full year; see
+BATCH_MAX_TOKENS below and PATTERNS.md.
 """
 
 import json
@@ -73,8 +76,19 @@ MAX_BATCH_CHARS = 40_000
 MAX_TEXT_CHARS_FOR_AI = 8_000
 PARALLEL_CALLS = 4
 MAX_ATTEMPTS = 2
-CALL_TIMEOUT_SECONDS = 180
 BUSY_TTL_MINUTES = 15
+
+# Room for each reply (17 November 2026 fix). The model always "thinks"
+# before it answers, and that thinking counts against max_tokens. With the
+# old limits (2,500 per group, 4,000 for the final report) the thinking
+# could use up the room before the JSON was finished, so every reply was
+# cut off and the report failed ("reply was not valid JSON"). These are
+# ceilings, not prices: only the tokens actually written are billed.
+BATCH_MAX_TOKENS = 12_000
+REPORT_MAX_TOKENS = 12_000
+# A reply that used its whole room (12,000 tokens) must still finish
+# within the time limit, so this was raised from 180 to 300 seconds.
+CALL_TIMEOUT_SECONDS = 300
 
 MAX_PATTERNS_PER_BATCH = 8
 MAX_PATTERNS_IN_REPORT = 10
@@ -143,7 +157,40 @@ def _parse_json(raw):
     try:
         return json.loads(cleaned)
     except Exception:
+        pass
+    # A short sentence before or after the JSON: read only the part from
+    # the first "{" to the last "}".
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start == -1 or end <= start:
         return None
+    try:
+        return json.loads(cleaned[start:end + 1])
+    except Exception:
+        return None
+
+
+def _reply_shape(message, raw, max_tokens):
+    """A one-line description of a reply that could not be used, for the
+    log. Only its SHAPE (stop reason, sizes, kinds of blocks, how it
+    starts) -- never any of its text, so no note content or personal data
+    can ever reach the log."""
+    usage = getattr(message, "usage", None)
+    out_tokens = getattr(usage, "output_tokens", None) if usage is not None else None
+    blocks = ",".join(str(getattr(b, "type", "?")) for b in (getattr(message, "content", None) or []))
+    stripped = (raw or "").lstrip()
+    if not stripped:
+        starts = "empty"
+    elif stripped.startswith("{"):
+        starts = "brace"
+    elif stripped.startswith("```"):
+        starts = "fence"
+    else:
+        starts = "other"
+    return "stop=%s out_tokens=%s/%s blocks=%s len=%d starts=%s model=%s sdk=%s" % (
+        getattr(message, "stop_reason", None), out_tokens, max_tokens, blocks or "none",
+        len(raw or ""), starts, reflection_service.COMPANION_MODEL,
+        getattr(getattr(reflection_service, "anthropic", None), "__version__", "?"),
+    )
 
 
 def _clean_str(value, limit):
@@ -232,7 +279,8 @@ def _call(system, user, max_tokens, operation):
         parsed = _parse_json(raw)
         if parsed is not None:
             return parsed
-        logger.warning("%s reply was not valid JSON (attempt %d)", operation, attempt)
+        logger.warning("%s reply was not valid JSON (attempt %d): %s",
+                       operation, attempt, _reply_shape(message, raw, max_tokens))
     return None
 
 
@@ -242,7 +290,7 @@ def read_batch(batch, lang, min_per_pattern):
     system = BATCH_SYSTEM_PROMPT.format(
         minimum=min_per_pattern, max_patterns=MAX_PATTERNS_PER_BATCH,
     ) + "\n\n" + _lang_instruction(lang)
-    parsed = _call(system, build_batch_message(batch), 2500, BATCH_OPERATION)
+    parsed = _call(system, build_batch_message(batch), BATCH_MAX_TOKENS, BATCH_OPERATION)
     if parsed is None:
         return None
     return validate_batch_reply(parsed, len(batch))
@@ -415,7 +463,7 @@ def analyse_texts(texts, lang="Español", min_per_pattern=None, rng=None, origin
         system = REPORT_SYSTEM_PROMPT.format(
             max_questions=MAX_QUESTIONS, max_patterns=MAX_PATTERNS_IN_REPORT,
         ) + "\n\n" + _lang_instruction(lang)
-        parsed = _call(system, build_report_message(candidates), 4000, REPORT_OPERATION)
+        parsed = _call(system, build_report_message(candidates), REPORT_MAX_TOKENS, REPORT_OPERATION)
         report = validate_report_reply(parsed, set(text_ids)) if parsed is not None else None
         if report is None:
             return outcome

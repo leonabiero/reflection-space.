@@ -113,6 +113,19 @@ Long periods are also slow: with a full year of real texts a report may
 take 10–15 minutes (about 60 groups, read 4 at a time). The "already
 running" protection lasts 15 minutes (`BUSY_TTL_MINUTES`), so this should
 be watched once real volumes build up.
+
+The AI also "thinks" before it answers, and that thinking is billed as
+output. Since 17 November 2026 each AI call has room for 12,000 tokens
+(`BATCH_MAX_TOKENS`, `REPORT_MAX_TOKENS`; before: 2,500 per group and 4,000
+for the final step, which was too little and made reports fail with
+"reply was not valid JSON") and up to 300 seconds (`CALL_TIMEOUT_SECONDS`).
+This room is a ceiling, not a price, but the thinking can add up to about
+$0.03 per group: roughly $0.05–$0.15 for a small report (for example the
+demo's 70 texts) and possibly $1–$2 more for a full year of real texts.
+Thinking also makes each call slower, so long periods may take longer
+than the 15 minutes above. If a reply cannot be read, the log line shows
+only its shape (stop reason, tokens used, length, how it starts, library
+version) -- never its text.
 Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
 `pattern_text_report`. No text is sent to Google Gemini any more.
 

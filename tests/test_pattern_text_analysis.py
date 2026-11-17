@@ -181,6 +181,63 @@ class AnalysisTests(unittest.TestCase):
         self.assertIsNone(out["report"])
 
 
+class ReplyRoomAndLogTests(unittest.TestCase):
+    """17 November 2026 fix: replies were cut off because the model's
+    thinking used up the room (max_tokens) before the JSON was finished."""
+
+    def test_calls_ask_for_the_larger_room_and_time_limit(self):
+        self.assertGreaterEqual(pta.BATCH_MAX_TOKENS, 12_000)
+        self.assertGreaterEqual(pta.REPORT_MAX_TOKENS, 12_000)
+        self.assertGreaterEqual(pta.CALL_TIMEOUT_SECONDS, 300)
+        seen = []
+        client = FakeClient(_all_texts_pattern, REPORT)
+        original = client.create
+
+        def create(model, max_tokens, system, messages):
+            seen.append(max_tokens)
+            return original(model, max_tokens, system, messages)
+        client.create = create
+        ps = _patches(client)
+        for p in ps:
+            p.start()
+            self.addCleanup(p.stop)
+        pta.analyse_texts(TEXTS, min_per_pattern=3, rng=random.Random(1))
+        self.assertEqual(seen, [pta.BATCH_MAX_TOKENS, pta.REPORT_MAX_TOKENS])
+
+    def test_text_before_or_after_the_json_is_still_read(self):
+        self.assertEqual(pta._parse_json('Aquí está:\n{"patterns": []}\nGracias.'), {"patterns": []})
+        self.assertEqual(pta._parse_json('```json\n{"a": 1}\n```'), {"a": 1})
+        self.assertIsNone(pta._parse_json('{"patterns": [{"title": "cut off'))
+        self.assertIsNone(pta._parse_json(""))
+
+    def test_a_cut_off_reply_is_logged_by_shape_only(self):
+        secret = "Juan vive en Barakaldo"
+        cut = SimpleNamespace(
+            content=[SimpleNamespace(type="thinking", thinking=""),
+                     SimpleNamespace(type="text", text='{"patterns": [{"title": "' + secret)],
+            usage=SimpleNamespace(output_tokens=12_000), stop_reason="max_tokens")
+
+        class CutClient(FakeClient):
+            def create(self, model, max_tokens, system, messages):
+                self.calls.append({"system": system, "user": messages[0]["content"]})
+                return cut
+        client = CutClient(None)
+        ps = _patches(client)
+        for p in ps:
+            p.start()
+            self.addCleanup(p.stop)
+        with self.assertLogs(pta.logger, level="WARNING") as logs:
+            self.assertIsNone(pta.read_batch(["Texto de Juan en Barakaldo."], "Español", 3))
+        joined = "\n".join(logs.output)
+        self.assertEqual(len(client.calls), pta.MAX_ATTEMPTS)
+        self.assertIn("stop=max_tokens", joined)
+        self.assertIn("out_tokens=12000/12000", joined)
+        self.assertIn("blocks=thinking,text", joined)
+        self.assertIn("starts=brace", joined)
+        for private in ("Juan", "Barakaldo", "patterns"):
+            self.assertNotIn(private, joined)
+
+
 class ProtectTextsTests(unittest.TestCase):
     def test_names_are_removed_before_the_ai(self):
         protected, skipped = pta.protect_texts(
