@@ -15,6 +15,7 @@ So there are **two separate apps**, built from the same code:
 | | Real app | Demo app |
 |---|---|---|
 | Web address | the existing one | a second Streamlit app |
+| Start file ("Main file path" on Streamlit, branch `main`) | `app.py` | `demo_app.py` |
 | Database | the real Neon project | a separate Neon project, used only for demos (EU region) |
 | User accounts | real staff | demo-only accounts (one per role, demo passwords) |
 | `DEMO_MODE` secret | not set | `"true"` |
@@ -23,6 +24,13 @@ So there are **two separate apps**, built from the same code:
 You never switch one app between demo and real data: you open the demo
 app's address for a demo and the real app's address for real work. One
 push to GitHub updates both apps.
+
+**Why the demo app starts from `demo_app.py`:** Streamlit Community Cloud
+allows only one app per repository + branch + main file, and the real app
+already uses `app.py`. `demo_app.py` does nothing except hand over to
+`app.py`, so both apps always run exactly the same code. Whether an app is
+the demo app is decided **only** by the `DEMO_MODE` secret, never by the
+start file.
 
 ## What the demo data is
 
@@ -97,8 +105,9 @@ demo passwords. Passwords are stored as bcrypt hashes, like real accounts.
 
 1. Neon: create a new project for demos in the Frankfurt (EU) region and
    copy its connection address.
-2. Streamlit Community Cloud: create a second app from this repository
-   (`main` branch, `app.py`).
+2. Streamlit Community Cloud: create a second app from this repository,
+   branch `main`, **Main file path `demo_app.py`** (not `app.py`, which the
+   real app already uses).
 3. In the demo app's secrets: the demo database address, the Anthropic key,
    `DEMO_MODE = "true"` and the demo-only accounts.
 4. Sign in to the demo app as the demo System Administrator and press
@@ -113,3 +122,8 @@ demo passwords. Passwords are stored as bcrypt hashes, like real accounts.
 spread over 13 months, inside the 15-month limit), every lock, how a
 database is labelled, loading and removing, the banner and translations in
 all three languages, and that no password or password hash is in the code.
+
+`tests/test_demo_start_file.py` — `demo_app.py` only hands over to
+`app.py` (nothing else in it), runs it afresh every time, both start files
+show the same first screen, and nothing in the app looks at which start
+file was used.

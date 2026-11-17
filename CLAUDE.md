@@ -36,6 +36,16 @@ summary for GitHub Desktop:
 - All user-visible text must go through the translation system
   (`services/language.py`, with the texts in `services/locales/es.py`,
   `eu.py` and `en.py`). Never hardcode user-facing text in a page file.
+
+## Start files
+
+- `app.py` is the start file of the **real** app (Streamlit Community
+  Cloud, branch `main`). All app changes go there and in the folders it
+  uses.
+- `demo_app.py` is the start file of the separate **demo** app (see
+  `DEMO.md`). It only hands over to `app.py`; never put logic, page
+  configuration or text in it. Demo mode is controlled only by the
+  `DEMO_MODE` secret, never by the start file.
 - Add new text in all three languages. If a translation is missing, use the
   Spanish text temporarily.
 

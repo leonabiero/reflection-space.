@@ -36,7 +36,7 @@ mistake in one place doesn't expose data it shouldn't.
 
 | Piece | What it does | Where |
 |---|---|---|
-| Streamlit | The web app itself (all the screens) | `app.py`, `pages/` |
+| Streamlit | The web app itself (all the screens) | `app.py` (start file), `pages/`; `demo_app.py` is the demo app's start file and only hands over to `app.py` (see `DEMO.md`) |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
 | Google Gemini | Since 15 November 2026 no text is sent to Gemini; only its availability is still checked on the System Health and cost screens | `services/embedding_service.py` |
 | Claude (Anthropic) | Powers the reflection companion and writes the Pattern Review reports | `rdi/`, `services/reflection_service.py`, `services/pattern_text_analysis.py` |
