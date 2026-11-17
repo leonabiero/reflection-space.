@@ -25,6 +25,7 @@ GitHub.
 |---|---|---|
 | `GEMINI_API_KEY` | Turns text into numerical "fingerprints" for Pattern Review | Those features fall back to simpler grouping; reflections are not affected. Note: the free Gemini tier is not permitted by Google's terms for users in the EU — use a paid key (see `REFLECTIONS.md`). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `ALERT_EMAIL_TO` | Sends an email to an administrator when something breaks | No email alerts go out. Errors are still recorded inside the app's own Error Log screen. |
+| `DEMO_MODE` | Set to `"true"` **only in the separate demo app** (see `DEMO.md`). Shows the red DEMO banner and the "Demo data" section. **Never set it in the real app.** | Normal (real) app |
 | `ADMIN_PASSWORD` | Left over from an earlier design | Not used anywhere in the current code. Safe to leave unset — see note in Section 6. |
 | `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
 

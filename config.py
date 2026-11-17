@@ -491,8 +491,10 @@ AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
 #   - The AI's observations and questions are NOT saved
 #     (SAVE_OBSERVATIONS below). They are shown to the social worker and
 #     then forgotten.
-#   - Supervisors and Programme Managers choose a period
-#     (PATTERN_PERIOD_CHOICES months) and the AI reads that period's texts
+#   - Supervisors and Programme Managers type a period, in whole months,
+#     from PATTERN_MIN_MONTHS to PATTERN_MAX_MONTHS (17 November 2026,
+#     product owner's decision at EDE's request -- this replaced the fixed
+#     choice of 3, 6, 9 or 12 months), and the AI reads that period's texts
 #     and writes a report. Managers see the report only, never the texts,
 #     and the AI never receives a name, role, code or date with a text.
 #     Reports are saved with their date and period.
@@ -500,10 +502,34 @@ AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
 #     pattern is only reported when it appears in at least
 #     PATTERN_MIN_TEXTS_PER_PATTERN texts, so a "pattern" can never point
 #     at one person's single text.
-#   - Every period fits inside the 15 months the original texts are kept.
-PATTERN_PERIOD_CHOICES = (3, 6, 9, 12)
+#   - Every period fits inside the 15 months the original texts are kept:
+#     the longest period is always exactly ORIGINAL_TEXT_RETENTION_MONTHS,
+#     so the two can never drift apart.
+PATTERN_MIN_MONTHS = 1
+PATTERN_MAX_MONTHS = ORIGINAL_TEXT_RETENTION_MONTHS
+PATTERN_DEFAULT_MONTHS = min(3, PATTERN_MAX_MONTHS)
 PATTERN_MIN_TEXTS = max(2, int(os.getenv("PATTERN_MIN_TEXTS", "5")))
 PATTERN_MIN_TEXTS_PER_PATTERN = max(2, int(os.getenv("PATTERN_MIN_TEXTS_PER_PATTERN", "3")))
+
+# ---------------------------------------------------------------------
+# Demo mode (17 November 2026 -- see DEMO.md)
+# ---------------------------------------------------------------------
+# Demonstrations use a SEPARATE app (a second Streamlit app) connected to
+# a SEPARATE, empty database (a second Neon project), so fictional demo
+# texts can never mix with the real pilot's texts or appear in real
+# Pattern Review reports. Set DEMO_MODE = "true" ONLY in the secrets of
+# that demo app. It shows a "DEMO -- fictional data" banner on every page
+# and the "Demo data" section in System Administration (load / remove the
+# fictional texts). The real app never sets it.
+#
+# Extra lock (services/demo_data.py): each database is labelled "live" or
+# "demo" the first time an app connects to it, and demo texts can only be
+# loaded into a database labelled "demo". A demo app pointed at the real
+# database refuses to load anything; a real app pointed at the demo
+# database shows a warning.
+DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
 
 # The AI's observations and questions are not kept (decision above).
 # Switching this on brings back the earlier behaviour -- saved

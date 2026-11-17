@@ -72,8 +72,9 @@ At the product owner's request the app was trimmed to what the pilot needs:
 - **15 November 2026 (later the same day): Pattern Review redesigned.**
   Patterns are looked for in what social workers write, not in the AI's
   output: the saved original texts, anonymised again before the AI reads
-  them. Managers pick 3, 6, 9 or 12 months and get an AI report (never the
-  texts). The AI's
+  them. Managers pick a period and get an AI report (never the
+  texts) — since 17 November 2026 they type any number of months from 1
+  to 15 (it was 3, 6, 9 or 12). The AI's
   observations and questions are no longer saved, so Reflection History is
   one line per reflection and the per-reflection AI summary was removed.
   See `PATTERNS.md`.
@@ -91,6 +92,14 @@ At the product owner's request the app was trimmed to what the pilot needs:
   Administrator only) empties every data table so the real pilot starts from
   zero. User accounts, sign-in sessions and settings are kept. See
   `services/data_reset.py`. Nothing is ever erased automatically.
+
+## Demonstrations (17 November 2026)
+
+Demonstrations use a **separate demo app with its own empty database**,
+filled with about 70 fictional texts, so demo data can never mix with the
+real pilot's data. The demo app shows a red "DEMO" banner on every page.
+See `DEMO.md` for how it is set up, how demo data is loaded and removed,
+and the locks that stop demo texts reaching the real database.
 
 ## Where things live
 
@@ -147,6 +156,9 @@ Tests are organised by what they guard:
   concurrent users (Phase 3)
 - `test_reflection_records_*.py` — the reflection-only design: neutral codes,
   case themes, who may read the saved original text, similar-reflection matching
+- `test_demo_data.py` — the demo app: the fictional texts, the locks that
+  keep demo texts out of the real database, loading and removing, the
+  banner and translations, and no password in the code
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call

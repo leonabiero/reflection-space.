@@ -58,9 +58,20 @@ def _retention_months():
 
 
 def _clean_period(months):
-    from config import PATTERN_PERIOD_CHOICES
-    months = int(months)
-    if months not in PATTERN_PERIOD_CHOICES:
+    """A whole number of months from PATTERN_MIN_MONTHS to
+    PATTERN_MAX_MONTHS (1-15 by default; 17 November 2026). Anything else
+    -- 0, 16, a fraction, text -- is refused here, not only on screen."""
+    from config import PATTERN_MIN_MONTHS, PATTERN_MAX_MONTHS
+    if isinstance(months, bool):
+        raise ValueError("Unsupported period")
+    if isinstance(months, float):
+        if not months.is_integer():
+            raise ValueError("Unsupported period")
+    try:
+        months = int(months)
+    except (TypeError, ValueError):
+        raise ValueError("Unsupported period")
+    if not PATTERN_MIN_MONTHS <= months <= PATTERN_MAX_MONTHS:
         raise ValueError("Unsupported period")
     return months
 

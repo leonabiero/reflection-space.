@@ -6,7 +6,10 @@ Pattern Review redesign (15 November 2026) -- screens, settings and texts.
     drops it if the reflection fails completely.
   - The AI's observations and questions are not saved.
   - The Pattern Review screen shows reports only, never texts.
-  - Settings: 13 months, at least 5 texts, periods 3/6/9/12.
+  - Settings: at least 5 texts; since 17 November 2026 the manager types
+    any whole number of months from 1 to 15 (it used to be 3/6/9/12;
+    changed at the product owner's request, so the checks below were
+    updated with it).
   - Every new text exists in Spanish, Basque and English.
 """
 
@@ -19,8 +22,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PR_KEYS = (
-    "pr_intro", "pr_new_header", "pr_texts_note", "pr_period_label",
-    "pr_period_option", "pr_available", "pr_not_enough", "pr_cost_note", "pr_run_button",
+    "pr_intro", "pr_new_header", "pr_texts_note", "pr_period_label", "pr_period_help",
+    "pr_period_one", "pr_period_many", "pr_available", "pr_not_enough", "pr_cost_note", "pr_run_button",
     "pr_running", "pr_done", "pr_busy", "pr_recent", "pr_failed", "pr_saved_header",
     "pr_no_reports", "pr_report_select", "pr_report_option", "pr_report_meta", "pr_some_unread",
     "pr_candidate_note", "pr_overview_header", "pr_patterns_header", "pr_no_patterns",
@@ -31,10 +34,11 @@ PR_KEYS = (
 
 PLACEHOLDERS = {
     "pr_texts_note": ("{months}",),
-    "pr_period_option": ("{months}",), "pr_available": ("{count}", "{months}"),
+    "pr_period_label": ("{minimum}", "{maximum}"), "pr_period_help": ("{maximum}",),
+    "pr_period_many": ("{months}",), "pr_available": ("{count}", "{period}"),
     "pr_not_enough": ("{minimum}",), "pr_done": ("{patterns}", "{texts}"),
-    "pr_report_option": ("{date}", "{months}", "{texts}"),
-    "pr_report_meta": ("{date}", "{months}", "{texts}", "{read}"),
+    "pr_report_option": ("{date}", "{period}", "{texts}"),
+    "pr_report_meta": ("{date}", "{period}", "{texts}", "{read}"),
     "pr_seen_in": ("{count}", "{total}"), "pr_print_prepared": ("{date}",),
     "pr_print_footer": ("{date}",),
 }
@@ -104,8 +108,15 @@ class PatternReviewScreenTests(unittest.TestCase):
         self.assertIn("pattern_text_store.list_reports(user_role)", self.page)
         self.assertIn("can_review_patterns(user_role)", self.page)
 
-    def test_period_choices_and_minimum_come_from_settings(self):
-        self.assertIn("list(PATTERN_PERIOD_CHOICES)", self.page)
+    def test_period_box_and_minimum_come_from_settings(self):
+        # 17 November 2026: a box for the number of months replaced the
+        # fixed choice of 3, 6, 9 or 12.
+        self.assertIn("st.number_input(", self.page)
+        self.assertIn("min_value=PATTERN_MIN_MONTHS", self.page)
+        self.assertIn("max_value=PATTERN_MAX_MONTHS", self.page)
+        self.assertIn("step=1", self.page)
+        self.assertNotIn("PATTERN_PERIOD_CHOICES", self.page)
+        self.assertNotIn("st.radio(", self.page)
         self.assertIn("available >= PATTERN_MIN_TEXTS", self.page)
 
     def test_every_key_used_exists(self):
@@ -118,11 +129,16 @@ class SettingsTests(unittest.TestCase):
     def test_defaults(self):
         import os
         import config
-        self.assertEqual(config.PATTERN_PERIOD_CHOICES, (3, 6, 9, 12))
+        self.assertFalse(hasattr(config, "PATTERN_PERIOD_CHOICES"))
+        self.assertEqual(config.PATTERN_MIN_MONTHS, 1)
+        if "ORIGINAL_TEXT_RETENTION_MONTHS" not in os.environ:
+            self.assertEqual(config.PATTERN_MAX_MONTHS, 15)
+        self.assertTrue(config.PATTERN_MIN_MONTHS <= config.PATTERN_DEFAULT_MONTHS <= config.PATTERN_MAX_MONTHS)
         if "PATTERN_MIN_TEXTS" not in os.environ:
             self.assertEqual(config.PATTERN_MIN_TEXTS, 5)
-        # Every period fits inside the time the original texts are kept.
-        self.assertGreater(config.ORIGINAL_TEXT_RETENTION_MONTHS, max(config.PATTERN_PERIOD_CHOICES))
+        # Every period fits inside the time the original texts are kept:
+        # the longest period is exactly the time they are kept.
+        self.assertEqual(config.PATTERN_MAX_MONTHS, config.ORIGINAL_TEXT_RETENTION_MONTHS)
         self.assertGreaterEqual(config.PATTERN_MIN_TEXTS_PER_PATTERN, 2)
         self.assertFalse(hasattr(config, "SAVE_PATTERN_TEXT"))
         self.assertFalse(hasattr(config, "PATTERN_TEXT_RETENTION_MONTHS"))
@@ -171,6 +187,10 @@ class TranslationTests(unittest.TestCase):
                     self.assertIn(mark, texts[key], f"{key} {mark} in {lang}")
             self.assertEqual(len(texts["pr_standing_limits"]), 4)
             self.assertIn("{minimum}", texts["help"]["pattern_review_section_body"])
+            self.assertIn("{maximum}", texts["help"]["pattern_review_section_body"])
+            for old in ("3, 6, 9",):
+                self.assertNotIn(old, texts["help"]["pattern_review_section_body"])
+            self.assertNotIn("pr_period_option", texts)
             self.assertNotIn("pattern_copy_note", texts["help"])
             self.assertTrue(texts["help"]["pattern_review_section_title"])
             # Nothing tells practitioners any more that managers read their text.
@@ -199,6 +219,43 @@ class PrintableReportTests(unittest.TestCase):
         self.assertIn("A &amp; B", html)
         self.assertIn("Seen in 4 of 9 texts", html)
         self.assertIn("default-src 'none'", html)
+        self.assertIn("last 6 months", html)
+
+    def test_one_month_reads_correctly_in_every_language(self):
+        from services.pattern_report_html import period_phrase
+        expected = {"es": ("último mes", "últimos 7 meses"),
+                    "eu": ("azken hilabetea", "azken 7 hilabeteak"),
+                    "en": ("last 1 month", "last 7 months")}
+        for lang, (one, many) in expected.items():
+            T = _load_locale(lang)
+            self.assertEqual(period_phrase(T, 1), one)
+            self.assertEqual(period_phrase(T, 7), many)
+
+
+class PeriodLimitTests(unittest.TestCase):
+    """The service layer accepts any whole number of months from 1 to 15
+    and refuses everything else, whatever the screen sends."""
+
+    def test_limits(self):
+        from services.pattern_text_store import _clean_period
+        import config
+        for ok in range(config.PATTERN_MIN_MONTHS, config.PATTERN_MAX_MONTHS + 1):
+            self.assertEqual(_clean_period(ok), ok)
+        self.assertEqual(_clean_period("7"), 7)
+        self.assertEqual(_clean_period(4.0), 4)
+        for bad in (0, -1, config.PATTERN_MAX_MONTHS + 1, 100, 2.5, "abc", None, True):
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                _clean_period(bad)
+
+    def test_refused_period_never_reaches_the_database(self):
+        from unittest import mock
+        from services import pattern_text_store
+        with mock.patch.object(pattern_text_store, "_get_conn") as conn:
+            with self.assertRaises(ValueError):
+                pattern_text_store.texts_for_period("Supervisor", 16)
+            with self.assertRaises(ValueError):
+                pattern_text_store.count_texts_for_period("Programme Manager", 0)
+            conn.assert_not_called()
 
 
 if __name__ == "__main__":

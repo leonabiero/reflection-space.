@@ -7,7 +7,7 @@ from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
 from config import (
     SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS, DELETION_WINDOW_HOURS,
-    PATTERN_MIN_TEXTS,
+    PATTERN_MIN_TEXTS, PATTERN_MAX_MONTHS,
 )
 
 # In-app Help / Quick Guide
@@ -90,7 +90,8 @@ with error_boundary("help", T=T, user_name=user_name, user_role=user_role):
         # Programme Managers (services/pattern_access.py).
         if can_review_patterns(user_role):
             with st.expander(H["pattern_review_section_title"], expanded=False):
-                st.write(H["pattern_review_section_body"].format(minimum=PATTERN_MIN_TEXTS))
+                st.write(H["pattern_review_section_body"].format(
+                    minimum=PATTERN_MIN_TEXTS, maximum=PATTERN_MAX_MONTHS))
 
         st.divider()
 

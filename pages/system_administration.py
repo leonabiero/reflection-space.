@@ -12,6 +12,7 @@ from pages.admin_sections import (
     ai_diagnostic_centre,
     service_usage,
     data_reset,
+    demo_data,
 )
 
 # =============================================================================
@@ -37,6 +38,8 @@ from pages.admin_sections import (
 #     problems (what happened, when, status); the AI diagnosis travels
 #     in the alert email.
 #   - Added: "Erase all data", to start the real pilot from zero.
+#   - 17 November 2026: "Demo data" (load / remove fictional texts), shown
+#     ONLY in the separate demo app (DEMO_MODE on) -- see DEMO.md.
 
 T = init_language()
 init_identity(T)
@@ -55,6 +58,10 @@ with error_boundary(
 ):
     st.title(T.get("nav_system_admin", "🛠️ System Administration"))
     st.caption(T.get("admin_console_caption", "Administration console for Reflection Space -- system status, indexing, and diagnostic tools."))
+
+    # 0. Demo data -- only in the demo app (the section shows nothing
+    #    when DEMO_MODE is off).
+    demo_data.render(T)
 
     # 1. Users (view only)
     user_management.render(T)

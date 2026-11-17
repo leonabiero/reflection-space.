@@ -101,6 +101,24 @@ def _label(T, workspace):
 # ---------------------------------------------------------------------
 
 
+def render_database_banner(T):
+    """Demo mode (17 November 2026, see DEMO.md): a red banner on every
+    page of the demo app, so nobody mistakes fictional data for real
+    data -- and a clear error if an app is connected to the wrong kind of
+    database. Best effort: never breaks a page."""
+    try:
+        from services import demo_data
+        status = demo_data.check_status()
+    except Exception:
+        return
+    if status["problem"] == "demo_app_on_real_database":
+        st.error(T["demo_banner_wrong_database"])
+    elif status["problem"] == "real_app_on_demo_database":
+        st.error(T["demo_banner_real_app_on_demo"])
+    elif status["demo_mode"]:
+        st.error(T["demo_banner"])
+
+
 def render_nav(T, page_name="app"):
     """
     Renders the sidebar: the work-mode switcher (only when appropriate
@@ -154,6 +172,7 @@ def render_nav(T, page_name="app"):
     # this one call is enough to record "Opened page" / "Changed page"
     # events for every page in the app, with no per-page changes.
     record_page_visit(page_name)
+    render_database_banner(T)
 
     role = st.session_state.get("user_role", "")
     options = available_workspaces(role)

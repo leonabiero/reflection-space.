@@ -3,8 +3,8 @@ Pattern Review analysis (15 November 2026)
 ============================================
 
 Product owner's decision (see PATTERNS.md): when a Supervisor or
-Programme Manager presses "Identify patterns" and picks a period (3, 6,
-9 or 12 months), the AI reads the texts social workers wrote in that
+Programme Manager presses "Identify patterns" and types a period (1 to
+15 months since 17 November 2026), the AI reads the texts social workers wrote in that
 period -- the ORIGINAL texts the app already keeps
 (services/pattern_text_store.py), each ANONYMISED again here before the AI
 sees it -- and writes ONE report on
@@ -40,10 +40,11 @@ own findings). The original texts never leave the database unprotected. Never a 
 text, or anything about the author.
 
 Cost (Claude Sonnet 5.5: $2 per million input tokens, $10 per million
-output tokens): one call per group of up to 40 texts plus one final call.
-With texts of about 2,000 characters, a 12-month report on 1,200 texts
-is about 31 calls and roughly $1.50-$3.50; a 3-month report on 250 texts
-roughly $0.40-$0.80. Recorded in the Service Cost & Usage Monitor as
+output tokens): one call per group of up to 40 texts / 40,000 characters
+plus one final call -- roughly $0.002 per text plus $0.03-$0.10 for the
+final step. With texts of about 2,000 characters (about 20 per group) and
+about 90 texts a month: 1 month ~$0.20, 3 months ~$0.60, 6 months ~$1.15,
+12 months ~$2.25, 15 months ~$2.80 (range $2-$4). Recorded in the Service Cost & Usage Monitor as
 "pattern_text_batch" and "pattern_text_report". Nothing is spent until a
 manager presses the button.
 """

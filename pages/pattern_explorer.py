@@ -6,11 +6,14 @@ from services.identity import init_identity, render_identity_footer, require_wor
 from services.error_log import error_boundary
 from services.pattern_access import can_review_patterns
 from services import pattern_text_store, pattern_text_analysis
-from services.pattern_report_html import build_report_html
+from services.pattern_report_html import build_report_html, period_phrase
 from services.db_time import display_datetime, now_utc
 from services import reflection_records
 from services.feedback_store import get_feedback_summary
-from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETENTION_MONTHS
+from config import (
+    PATTERN_MIN_MONTHS, PATTERN_MAX_MONTHS, PATTERN_DEFAULT_MONTHS,
+    PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETENTION_MONTHS,
+)
 
 # Pattern Review
 # ================
@@ -21,7 +24,9 @@ from config import PATTERN_PERIOD_CHOICES, PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETE
 #
 # Patterns are looked for in what social workers WROTE (the original texts
 # the app already keeps, anonymised again before the AI reads them), not
-# in what the AI said back to them. A manager picks a period -- 3, 6, 9 or 12 months -- and presses
+# in what the AI said back to them. A manager types a period -- any whole
+# number of months from 1 to 15 (17 November 2026; it used to be a choice
+# of 3, 6, 9 or 12) -- and presses
 # "Identify patterns"; the AI reads that period's texts and writes one
 # report, which is saved with its date and period.
 #
@@ -90,16 +95,22 @@ with error_boundary(
     st.subheader(T["pr_new_header"])
     st.caption(T["pr_texts_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
 
-    period = st.radio(
-        T["pr_period_label"],
-        list(PATTERN_PERIOD_CHOICES),
-        format_func=lambda m: T["pr_period_option"].format(months=m),
-        horizontal=True,
-        key="pr_period",
-    )
+    # A box where the manager types the number of months (whole numbers
+    # only, PATTERN_MIN_MONTHS to PATTERN_MAX_MONTHS). The service layer
+    # checks the same limits again (pattern_text_store._clean_period).
+    period = int(st.number_input(
+        T["pr_period_label"].format(minimum=PATTERN_MIN_MONTHS, maximum=PATTERN_MAX_MONTHS),
+        min_value=PATTERN_MIN_MONTHS,
+        max_value=PATTERN_MAX_MONTHS,
+        value=PATTERN_DEFAULT_MONTHS,
+        step=1,
+        format="%d",
+        help=T["pr_period_help"].format(maximum=PATTERN_MAX_MONTHS),
+        key="pr_period_months",
+    ))
 
     available = pattern_text_store.count_texts_for_period(user_role, period)
-    st.write(T["pr_available"].format(count=available, months=period))
+    st.write(T["pr_available"].format(count=available, period=period_phrase(T, period)))
     enough = available >= PATTERN_MIN_TEXTS
     if not enough:
         st.caption(T["pr_not_enough"].format(minimum=PATTERN_MIN_TEXTS))
@@ -152,7 +163,7 @@ with error_boundary(
         index=ids.index(wanted) if wanted in by_id else 0,
         format_func=lambda i: T["pr_report_option"].format(
             date=display_datetime(by_id[i]["created_at"]),
-            months=by_id[i]["period_months"],
+            period=period_phrase(T, by_id[i]["period_months"]),
             texts=by_id[i]["texts_count"],
         ),
         key="pr_report_select_box",
@@ -164,7 +175,7 @@ with error_boundary(
 
     with st.container(border=True):
         st.caption(T["pr_report_meta"].format(
-            date=created_on, months=saved["period_months"],
+            date=created_on, period=period_phrase(T, saved["period_months"]),
             texts=saved["texts_count"], read=texts_read,
         ))
         if report.get("groups_failed"):

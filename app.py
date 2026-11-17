@@ -10,6 +10,16 @@ st.set_page_config(page_title="Reflection Space", layout="centered")
 # longer runs on every individual database call throughout the app.
 ensure_schema()
 
+# Demo mode (17 November 2026, see DEMO.md): label this database "live"
+# (real app) or "demo" (demo app) the first time an app connects to it,
+# so demo texts can never be loaded into the real database. Best effort:
+# an unlabelled database simply cannot receive demo texts.
+try:
+    from services.demo_data import label_database
+    label_database()
+except Exception:
+    pass
+
 T = init_language()
 user_name, user_role = init_identity(T)
 

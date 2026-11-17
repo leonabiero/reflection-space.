@@ -18,8 +18,9 @@ not in what the AI says back to them. So:
    is saved** — Pattern Review uses these original texts.
 4. The AI's **observations and questions are not saved**. They are shown to
    the social worker and then forgotten.
-5. A manager opens **Pattern Review**, chooses a period (**the last 3, 6, 9
-   or 12 months**) and presses **Identify patterns**. The app takes that
+5. A manager opens **Pattern Review**, types a period (**any whole number
+   of months from 1 to 15**; until 17 November 2026 it was a choice of 3,
+   6, 9 or 12) and presses **Identify patterns**. The app takes that
    period's original texts, **anonymises each one again**, and only then
    lets the AI read them. The AI writes **one report** on recurring patterns
    in how cases are written.
@@ -46,6 +47,7 @@ top (the average only — never individual ratings, comments or who gave them).
 | What do managers see? | The AI's report only, never the texts |
 | How long are texts kept? | 15 months (as agreed with EDE), then cleared automatically |
 | Minimum number of texts before patterns can be identified | 5 |
+| Which periods can a manager choose? (17 November 2026, at EDE's request) | Any whole number of months from 1 to 15 — never longer than the texts are kept |
 | Are reports saved? | Yes, with their date and period |
 | Are social workers told? | Yes, in Help (the writing-screen notices were removed at the product owner's request) |
 | Does every text count, or only ones the author chooses? | Every text |
@@ -94,9 +96,23 @@ copies; that table, `pattern_texts`, is removed by "Erase all data".)
 ## Cost
 
 Claude Sonnet 5.5 ($2 per million input tokens, $10 per million output
-tokens). Nothing is spent until someone presses the button. With texts of
-about 2,000 characters: a 3-month report on about 250 texts costs roughly
-$0.40–$0.80; a 12-month report on about 1,200 texts roughly $1.50–$3.50.
+tokens). Nothing is spent until someone presses the button. The cost grows
+roughly in line with the number of texts: about **$0.002 per text**, plus
+$0.03–$0.10 for the final step. With texts of about 2,000 characters
+(about 20 per group) and about 90 texts a month across the organisation:
+
+| Period | Texts (approx.) | Cost per report |
+|---|---|---|
+| 1 month | 90 | ~$0.20 |
+| 3 months | 270 | ~$0.60 |
+| 6 months | 540 | ~$1.15 |
+| 12 months | 1,080 | ~$2.25 |
+| 15 months | 1,350 | ~$2.80 (range $2–$4) |
+
+Long periods are also slow: with a full year of real texts a report may
+take 10–15 minutes (about 60 groups, read 4 at a time). The "already
+running" protection lasts 15 minutes (`BUSY_TTL_MINUTES`), so this should
+be watched once real volumes build up.
 Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
 `pattern_text_report`. No text is sent to Google Gemini any more.
 
@@ -106,7 +122,8 @@ Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
 |---|---|---|
 | `SAVE_ORIGINAL_TEXT` | on | Keep the original text (needed for Pattern Review) |
 | `ORIGINAL_TEXT_RETENTION_MONTHS` | 15 | How long a text is kept |
-| `PATTERN_PERIOD_CHOICES` | 3, 6, 9, 12 | Periods a manager can choose |
+| `PATTERN_MIN_MONTHS` / `PATTERN_MAX_MONTHS` | 1 / 15 | Shortest and longest period a manager can type. The longest is always `ORIGINAL_TEXT_RETENTION_MONTHS`. Checked on screen and again in `services/pattern_text_store.py` |
+| `PATTERN_DEFAULT_MONTHS` | 3 | The number already in the box when the page opens |
 | `PATTERN_MIN_TEXTS` | 5 | Fewest texts for a report |
 | `PATTERN_MIN_TEXTS_PER_PATTERN` | 3 | Fewest texts for a pattern to be reported |
 | `SAVE_OBSERVATIONS` | off | Switching it on brings back saved observations, notes and the "Saved observations" section of My Reflection |
@@ -141,6 +158,12 @@ left untouched so existing databases keep working, and are emptied by
   removal of copied passages, failures, duplicate protection, roles.
 - `tests/test_pattern_review_static.py` — the screens, settings, the
   database table has no author column, translations in all three languages,
-  the printable report.
+  the printable report, the 1–15 month limits (also enforced in the service
+  layer) and "1 month" written correctly in every language.
+
+## Demonstrations
+
+Pattern Review is demonstrated with fictional texts in a separate demo app
+and database, never in the real one. See `DEMO.md`.
 - `tests/test_pattern_text_store_postgres.py` — real database (set
   `TEST_DATABASE_URL`): which texts are read, time limits, deletion, roles, reports.

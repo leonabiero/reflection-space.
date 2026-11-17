@@ -59,6 +59,19 @@ def _ul(items):
     return "<ul>" + "".join(f"<li>{escape(i)}</li>" for i in items) + "</ul>"
 
 
+def period_phrase(T, months):
+    """The period in words, with the right grammar for one month:
+    "último mes" / "últimos 5 meses" (17 November 2026: managers type any
+    number of months, so "1" must read correctly too)."""
+    try:
+        months = int(months)
+    except (TypeError, ValueError):
+        return str(months or "")
+    if months == 1:
+        return T["pr_period_one"]
+    return T["pr_period_many"].format(months=months)
+
+
 def build_report_html(T, lang, saved, prepared_on, created_on):
     """
     `saved`: one item from pattern_text_store.list_reports().
@@ -78,7 +91,7 @@ def build_report_html(T, lang, saved, prepared_on, created_on):
         _p(T["pr_print_confidential"], "muted"),
         _p(T["pr_print_prepared"].format(date=prepared_on), "muted"),
         _p(T["pr_report_meta"].format(
-            date=created_on, months=saved.get("period_months", ""),
+            date=created_on, period=period_phrase(T, saved.get("period_months", "")),
             texts=saved.get("texts_count", 0), read=texts_read,
         ), "muted"),
         f'<div class="note">{escape(T["pr_candidate_note"])}</div>',
