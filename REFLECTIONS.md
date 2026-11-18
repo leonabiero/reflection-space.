@@ -117,7 +117,14 @@ reflection.**
   `[HEALTH]`, `[RELIGION_BELIEF]`, `[ETHNIC_ORIGIN]`, `[POLITICAL_OPINION]`,
   `[TRADE_UNION]`. Every AI instruction that receives anonymised text also
   says what the labels mean and that the AI must never guess what was hidden
-  (`anonymizer.SENSITIVE_LABELS_NOTE`).
+  (`anonymizer.SENSITIVE_LABELS_NOTE`). People are told what each label
+  means (including `[NATIONALITY]`, "only if switched on") in plain words, in
+  all three languages, in three places: the System Administration
+  anonymiser test, under "View anonymised text" on the reflection screen,
+  and the Help page's Privacy section (`anon_sensitive_labels_help` and
+  `help.privacy_points` in `services/locales/`). The saved text shown in My
+  Reflection does not get this explanation: the only anonymised texts it
+  can show are from 4–10 November 2026, before these labels existed.
   - *Product owner's decisions:* health — only **specific** diagnoses,
     treatments and medicine names are hidden ("esquizofrenia", "VIH",
     "sertralina"); general words ("enfermedad", "problema de salud", "salud

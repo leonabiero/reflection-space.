@@ -23,7 +23,10 @@ Four roles, each with different screens available to them:
 - **Social Worker** — reflects on cases on the spot, uses the AI reflection companion
 - **Supervisor** and **Programme Manager** — same as Social Worker, plus the
   Manager area: Pattern Review (AI reports on patterns in how cases are
-  written, and the average usefulness rating)
+  written, and the average usefulness rating). Since 18 November 2026 a
+  manager who has downloaded a report can delete it, or all saved reports,
+  after an "Are you sure?" step; reports are shared, so a deleted report is
+  gone for the whole management team (see `PATTERNS.md`)
 - **System Administrator** — same as Social Worker, plus user list, system
   health, the list of recorded problems, service costs, and the "Erase all
   data" action. No Manager area (since 15 November 2026)
@@ -55,7 +58,10 @@ go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
 are replaced by life stages, and (since 18 November 2026) sensitive personal
 details such as sexual orientation, specific diagnoses or religion are
-replaced by labels such as `[HEALTH]` (see `REFLECTIONS.md`). The Qdrant search service,
+replaced by labels such as `[HEALTH]` (see `REFLECTIONS.md`). What each
+label means is explained in plain words, in all three languages, on the
+System Administration anonymiser test, under "View anonymised text" and in
+Help. The Qdrant search service,
 which served the old document-based design, was removed in November 2026,
 and Google Gemini (which no longer received any text) on 18 November 2026:
 Claude is now the only AI service.
@@ -152,7 +158,8 @@ python -m pytest tests/ -v
 Tests are organised by what they guard:
 
 - `test_security_*.py` — access control, authentication, data anonymisation
-  (including sensitive personal details, `test_security_anonymizer_special_categories.py`),
+  (including sensitive personal details and where their labels are
+  explained, `test_security_anonymizer_special_categories.py`),
   deletion behaviour (Phase 1)
 - `test_reliability_*.py` — retries, rate limiting, error recovery
   (Phase 2)

@@ -227,6 +227,12 @@ LANG_EN = {'title': '🧠 Reflection Space',
                          '[DATE] = date · [AGE_…] = exact age replaced by a life stage (INFANT = '
                          'baby, CHILD = child, ADOLESCENT = teenager under 18, YOUNG_ADULT = young '
                          'adult, ADULT = adult, OLDER_ADULT = older adult).',
+ 'anon_sensitive_labels_help': 'Sensitive details: [SEXUAL_ORIENTATION] = sexual orientation · '
+                               '[GENDER_IDENTITY] = gender identity · [HEALTH] = a specific '
+                               'diagnosis, treatment or medicine · [RELIGION_BELIEF] = religion or '
+                               'beliefs · [ETHNIC_ORIGIN] = ethnic origin · [POLITICAL_OPINION] = '
+                               'political opinion · [TRADE_UNION] = trade union membership · '
+                               '[NATIONALITY] = nationality (only if switched on).',
  'admin_tools_anon_test_header': 'Anonymization Test',
  'admin_tools_future': 'Future administrator tools will appear here.',
  'admin_console_caption': 'Administration console for Reflection Space -- users, system status, '
@@ -365,9 +371,9 @@ LANG_EN = {'title': '🧠 Reflection Space',
                                  'and select Send -- the system automatically attaches page, '
                                  'session, and navigation context.',
           'privacy_title': '🔒 Privacy and data',
-          'privacy_points': ['The original case text is kept securely in an EU database for a limited time and only you can read it. Only the anonymised version is ever sent to the AI.', 'Anonymisation also replaces especially sensitive personal details (sexual orientation, gender identity, specific diagnoses, treatments and medicines, religion or beliefs, ethnic origin, political opinions and trade union membership) with a neutral label such as [HEALTH], so the AI knows something like that was mentioned but never what. Indirect hints are not always caught, so it is best not to write more detail than needed.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', "Your original text is used, without your name, in the management team's Pattern Review: it is anonymised again before the AI reads it, and managers see only the AI's overall report, never your text. The AI's observations and questions are not kept.", 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.'],
+          'privacy_points': ['The original case text is kept securely in an EU database for a limited time and only you can read it. Only the anonymised version is ever sent to the AI.', 'Anonymisation also replaces especially sensitive personal details (sexual orientation, gender identity, specific diagnoses, treatments and medicines, religion or beliefs, ethnic origin, political opinions and trade union membership) with a neutral label, so the AI knows something like that was mentioned but never what. The labels are: [SEXUAL_ORIENTATION] = sexual orientation, [GENDER_IDENTITY] = gender identity, [HEALTH] = a specific diagnosis, treatment or medicine, [RELIGION_BELIEF] = religion or beliefs, [ETHNIC_ORIGIN] = ethnic origin, [POLITICAL_OPINION] = political opinion, [TRADE_UNION] = trade union membership and [NATIONALITY] = nationality (only if switched on). Indirect hints are not always caught, so it is best not to write more detail than needed.', 'Each reflection is identified by a neutral code and themes with no personal details, never by names.', "Your original text is used, without your name, in the management team's Pattern Review: it is anonymised again before the AI reads it, and managers see only the AI's overall report, never your text. The AI's observations and questions are not kept.", 'Reflective conversation content is never stored beyond the session -- only which theme was explored, and when.', 'My Reflection is personal and comparison-free: no scores, no ranking, visible to no one but you.', 'Two-layer role-based access control is enforced throughout the app.'],
           'pattern_review_section_title': '🔎 Pattern Review',
-          'pattern_review_section_body': 'For supervisors and programme managers. Type how many months you want to analyse (1 to {maximum}) and press Identify patterns: the AI reads the anonymised texts social workers wrote in that period and writes a report on recurring patterns in how cases are written. You see only the report, never the texts or who wrote them. At least {minimum} texts are needed, and a pattern is only reported if it appears in several texts. Every report is saved with its date and period, and can be downloaded to print. The patterns are candidates for reflection, not conclusions.'},
+          'pattern_review_section_body': 'For supervisors and programme managers. Type how many months you want to analyse (1 to {maximum}) and press Identify patterns: the AI reads the anonymised texts social workers wrote in that period and writes a report on recurring patterns in how cases are written. You see only the report, never the texts or who wrote them. At least {minimum} texts are needed, and a pattern is only reported if it appears in several texts. Every report is saved with its date and period, and can be downloaded to print. Downloading deletes nothing; once you have the file, "I have the file: delete report" removes the report from the app for good, for the whole management team (you are asked to confirm first). The patterns are candidates for reflection, not conclusions.'},
  'admin_usage_header': '💰 Service Usage & Costs',
  'admin_usage_caption': 'What each external service is costing this pilot, estimated from actual '
                         'recorded API usage. Figures marked "estimate" could not be tied to an '
@@ -601,6 +607,16 @@ LANG_EN = {'title': '🧠 Reflection Space',
  'pr_standing_limits': ['It was written by AI from anonymised texts and can be wrong; the team should check it against its own knowledge.', 'The texts are those written in the app during the period; they are not necessarily representative of the organisation.', 'Anonymisation removes names and personal details automatically, but it is not perfect.', 'The report never contains texts, quotations or who wrote anything.'],
  'pr_download_button': 'Download printable report',
  'pr_how_to_print': 'Open the downloaded file in your browser and choose Print (or Save as PDF).',
+ 'pr_delete_button': 'I have the file: delete report',
+ 'pr_delete_confirm': 'Are you sure? The report will be permanently deleted from the app, for the rest of the management team too. Make sure you have saved the file.',
+ 'pr_delete_yes': 'Yes, delete',
+ 'pr_delete_cancel': 'Cancel',
+ 'pr_delete_done': 'Report deleted. You can now run a new review.',
+ 'pr_delete_already_gone': 'This report had already been deleted (perhaps by someone else in the management team).',
+ 'pr_delete_failed': 'The report could not be deleted. Nothing was removed; please try again in a moment.',
+ 'pr_delete_all_button': 'Delete all saved reports',
+ 'pr_delete_all_confirm': 'Are you sure? All {count} saved reports will be permanently deleted from the app, for the rest of the management team too. Make sure you have saved any files you need.',
+ 'pr_delete_all_done': 'Reports deleted: {count}. You can now run a new review.',
  'pr_print_title': 'Pattern Review report',
  'pr_print_confidential': 'Confidential document for the management team',
  'pr_print_prepared': 'Printed on {date}',

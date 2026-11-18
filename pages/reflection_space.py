@@ -531,6 +531,8 @@ with error_boundary(
                 if st.toggle(T["rs_anonymised_preview_label"], value=False, key="rs_info_show_anonymised"):
                     st.caption(T["rs_anonymised_preview_help"])
                     st.write(session.safe_text)
+                    # What the sensitive-detail labels mean (18 November 2026).
+                    st.caption(T["anon_sensitive_labels_help"])
 
             # What this reflection is grounded in. Since November 2026 the
             # original text is also saved (EU database) for later pattern

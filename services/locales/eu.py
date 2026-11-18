@@ -231,6 +231,12 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                          'zehatza, bizitzako etapa batekin ordezkatua (INFANT = haurtxoa, CHILD = '
                          'haurra, ADOLESCENT = nerabe adingabea, YOUNG_ADULT = heldu gaztea, ADULT = '
                          'heldua, OLDER_ADULT = adinekoa).',
+ 'anon_sensitive_labels_help': 'Datu sentikorrak: [SEXUAL_ORIENTATION] = sexu-orientazioa · '
+                               '[GENDER_IDENTITY] = genero-identitatea · [HEALTH] = diagnostiko, '
+                               'tratamendu edo botika zehatza · [RELIGION_BELIEF] = erlijioa edo '
+                               'sinesmenak · [ETHNIC_ORIGIN] = jatorri etnikoa · [POLITICAL_OPINION] = '
+                               'iritzi politikoa · [TRADE_UNION] = sindikatu-afiliazioa · '
+                               '[NATIONALITY] = nazionalitatea (aktibatzen bada bakarrik).',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
  'admin_tools_future': 'Etorkizuneko administrazio-tresnak hemen agertuko dira.',
  'admin_console_caption': 'Reflection Space-ren administrazio-kontsola -- erabiltzaileak, '
@@ -379,9 +385,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Anonimizazioak datu pertsonal bereziki sentikorrak ere ordezten ditu (sexu-orientazioa, genero-identitatea, diagnostiko, tratamendu eta botika zehatzak, erlijioa edo sinesmenak, jatorri etnikoa, iritzi politikoak eta sindikatu-afiliazioa) [HEALTH] bezalako etiketa neutro batekin, AAk horrelako zerbait aipatu zela jakin dezan, baina inoiz ez zer. Zeharkako aztarnak ez dira beti detektatzen; beraz, hobe da beharrezkoak baino xehetasun gehiago ez idaztea.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Anonimizazioak datu pertsonal bereziki sentikorrak ere ordezten ditu (sexu-orientazioa, genero-identitatea, diagnostiko, tratamendu eta botika zehatzak, erlijioa edo sinesmenak, jatorri etnikoa, iritzi politikoak eta sindikatu-afiliazioa) etiketa neutro batekin, AAk horrelako zerbait aipatu zela jakin dezan, baina inoiz ez zer. Etiketak hauek dira: [SEXUAL_ORIENTATION] = sexu-orientazioa, [GENDER_IDENTITY] = genero-identitatea, [HEALTH] = diagnostiko, tratamendu edo botika zehatza, [RELIGION_BELIEF] = erlijioa edo sinesmenak, [ETHNIC_ORIGIN] = jatorri etnikoa, [POLITICAL_OPINION] = iritzi politikoa, [TRADE_UNION] = sindikatu-afiliazioa eta [NATIONALITY] = nazionalitatea (aktibatzen bada bakarrik). Zeharkako aztarnak ez dira beti detektatzen; beraz, hobe da beharrezkoak baino xehetasun gehiago ez idaztea.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
           'pattern_review_section_title': '🔎 Patroien berrikuspena',
-          'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Idatzi zenbat hilabete aztertu nahi dituzun (1etik {maximum}era) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Ereduak hausnartzeko aukerak dira, ez ondorioak.'},
+          'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Idatzi zenbat hilabete aztertu nahi dituzun (1etik {maximum}era) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Deskargatzeak ez du ezer ezabatzen; fitxategia duzunean, «Badut fitxategia: ezabatu txostena» botoiak txostena betiko ezabatzen du aplikaziotik, kudeaketa-talde osoarentzat (lehenik berresteko eskatzen da). Ereduak hausnartzeko aukerak dira, ez ondorioak.'},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -616,6 +622,16 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'pr_standing_limits': ['AAk idatzi du testu anonimizatuetatik abiatuta eta oker egon daiteke; taldeak bere ezagutzarekin alderatu beharko luke.', 'Testuak aldian aplikazioan idatzitakoak dira; ez dute nahitaez erakundea ordezkatzen.', 'Anonimizazioak izenak eta datu pertsonalak automatikoki kentzen ditu, baina ez da perfektua.', 'Txostenak ez du inoiz testurik, aipurik edo nork zer idatzi zuen jasotzen.'],
  'pr_download_button': 'Deskargatu inprimatzeko txostena',
  'pr_how_to_print': 'Ireki deskargatutako fitxategia nabigatzailean eta aukeratu Inprimatu (edo Gorde PDF gisa).',
+ 'pr_delete_button': 'Badut fitxategia: ezabatu txostena',
+ 'pr_delete_confirm': 'Ziur zaude? Txostena betiko ezabatuko da aplikaziotik, kudeaketa-taldeko gainerakoentzat ere bai. Ziurtatu fitxategia gorde duzula.',
+ 'pr_delete_yes': 'Bai, ezabatu',
+ 'pr_delete_cancel': 'Utzi',
+ 'pr_delete_done': 'Txostena ezabatu da. Orain berrikuspen berri bat egin dezakezu.',
+ 'pr_delete_already_gone': 'Txosten hau lehendik ezabatuta zegoen (agian kudeaketa-taldeko beste norbaitek ezabatu zuen).',
+ 'pr_delete_failed': 'Ezin izan da ezabatu. Ez da ezer ezabatu; saiatu berriro pixka bat barru.',
+ 'pr_delete_all_button': 'Ezabatu gordetako txosten guztiak',
+ 'pr_delete_all_confirm': 'Ziur zaude? Gordetako {count} txostenak betiko ezabatuko dira aplikaziotik, kudeaketa-taldeko gainerakoentzat ere bai. Ziurtatu behar dituzun fitxategiak gorde dituzula.',
+ 'pr_delete_all_done': 'Ezabatutako txostenak: {count}. Orain berrikuspen berri bat egin dezakezu.',
  'pr_print_title': 'Patroien berrikuspeneko txostena',
  'pr_print_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
  'pr_print_prepared': 'Inprimatze-data: {date}',

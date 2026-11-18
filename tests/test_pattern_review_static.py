@@ -30,6 +30,10 @@ PR_KEYS = (
     "pr_seen_in", "pr_why_header", "pr_questions_header", "pr_limits_header",
     "pr_standing_limits", "pr_download_button", "pr_how_to_print", "pr_print_title",
     "pr_print_confidential", "pr_print_prepared", "pr_print_footer",
+    # 18 November 2026: deleting reports.
+    "pr_delete_button", "pr_delete_confirm", "pr_delete_yes", "pr_delete_cancel",
+    "pr_delete_done", "pr_delete_already_gone", "pr_delete_failed",
+    "pr_delete_all_button", "pr_delete_all_confirm", "pr_delete_all_done",
 )
 
 PLACEHOLDERS = {
@@ -41,6 +45,7 @@ PLACEHOLDERS = {
     "pr_report_meta": ("{date}", "{period}", "{texts}", "{read}"),
     "pr_seen_in": ("{count}", "{total}"), "pr_print_prepared": ("{date}",),
     "pr_print_footer": ("{date}",),
+    "pr_delete_all_confirm": ("{count}",), "pr_delete_all_done": ("{count}",),
 }
 
 
@@ -256,6 +261,135 @@ class PeriodLimitTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 pattern_text_store.count_texts_for_period("Programme Manager", 0)
             conn.assert_not_called()
+
+
+class DeleteReportTests(unittest.TestCase):
+    """18 November 2026 (product owner's decision): once a manager has the
+    downloaded file, they can delete the report -- after an "are you
+    sure?" step. Downloading never deletes. Any Supervisor or Programme
+    Manager may delete any report (reports are shared by the team)."""
+
+    def setUp(self):
+        self.page = _read("pages", "pattern_explorer.py")
+
+    def _fake_conn(self, rows):
+        from unittest import mock
+        conn = mock.MagicMock()
+        cursor = conn.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = rows
+        return conn, cursor
+
+    def test_page_asks_for_confirmation_before_deleting(self):
+        self.assertIn("from services.confirm_state import", self.page)
+        self.assertIn('st.button(T["pr_delete_button"]', self.page)
+        self.assertIn('st.warning(T["pr_delete_confirm"])', self.page)
+        self.assertIn('st.button(T["pr_delete_yes"]', self.page)
+        self.assertIn('st.button(T["pr_delete_cancel"]', self.page)
+        # The delete call only happens after "Yes".
+        yes = self.page.index('st.button(T["pr_delete_yes"], type="primary", key=f"pr_delete_yes_')
+        self.assertGreater(self.page.index("pattern_text_store.delete_report(user_role, user_name"), yes)
+        self.assertLess(self.page.index('st.button(T["pr_delete_button"]'), yes)
+        # Delete all: only with two or more reports, also confirmed first.
+        self.assertIn("if len(reports) > 1:", self.page)
+        self.assertIn('st.warning(T["pr_delete_all_confirm"]', self.page)
+        yes_all = self.page.index('key="pr_delete_all_yes"')
+        self.assertGreater(self.page.index("pattern_text_store.delete_all_reports(user_role, user_name)"), yes_all)
+
+    def test_download_is_unchanged_and_never_deletes(self):
+        download = self.page[self.page.index("st.download_button("):]
+        download = download[:download.index(")\n")]
+        self.assertIn("page.encode", download)
+        self.assertNotIn("delete", download.replace("pr_download", ""))
+        self.assertIn("build_report_html(T,", self.page)
+        # The download comes before the delete button on the page.
+        self.assertLess(self.page.index("st.download_button("), self.page.index('T["pr_delete_button"]'))
+
+    def test_refused_roles_never_reach_the_database(self):
+        from unittest import mock
+        from services import pattern_text_store
+        with mock.patch.object(pattern_text_store, "_get_conn") as conn:
+            for role in ("Social Worker", "System Administrator", "", None):
+                with self.assertRaises(PermissionError):
+                    pattern_text_store.delete_report(role, "someone", 1)
+                with self.assertRaises(PermissionError):
+                    pattern_text_store.delete_all_reports(role, "someone")
+            conn.assert_not_called()
+
+    def test_both_management_roles_may_delete(self):
+        from unittest import mock
+        from services import pattern_text_store
+        for role in ("Supervisor", "Programme Manager"):
+            conn, cursor = self._fake_conn([(3, 12, "Español")])
+            with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn), \
+                    mock.patch.object(pattern_text_store.request_dedup, "release"):
+                self.assertTrue(pattern_text_store.delete_report(role, "boss", 7))
+            sql, params = cursor.execute.call_args[0]
+            self.assertIn("DELETE FROM pattern_reports WHERE id = %s", sql)
+            self.assertEqual(params, (7,))
+            conn.commit.assert_called_once()
+
+    def test_already_deleted_report_returns_false(self):
+        from unittest import mock
+        from services import pattern_text_store
+        conn, _ = self._fake_conn([])
+        with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn), \
+                mock.patch.object(pattern_text_store.request_dedup, "release") as release:
+            self.assertFalse(pattern_text_store.delete_report("Supervisor", "boss", 7))
+        release.assert_not_called()
+
+    def test_delete_lifts_the_same_lock_run_report_uses(self):
+        # After a delete, the same review (same months, texts, language)
+        # can be run again at once -- no "made a few minutes ago" message.
+        from unittest import mock
+        from services import pattern_text_store, request_dedup
+        conn, _ = self._fake_conn([(3, 12, "Español")])
+        with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn), \
+                mock.patch.object(pattern_text_store.request_dedup, "release") as release:
+            pattern_text_store.delete_report("Supervisor", "boss", 7)
+        expected = request_dedup.fingerprint("pattern_text_report", 3, 12, "Español")
+        release.assert_called_once_with(expected)
+        analysis = _read("services", "pattern_text_analysis.py")
+        run = analysis[analysis.index("def run_report("):]
+        self.assertIn("pattern_text_store.report_fingerprint(int(period_months), len(texts), lang)", run)
+
+    def test_delete_all_deletes_every_report_and_lifts_every_lock(self):
+        from unittest import mock
+        from services import pattern_text_store
+        conn, cursor = self._fake_conn([(3, 12, "Español"), (6, 30, "English")])
+        with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn), \
+                mock.patch.object(pattern_text_store.request_dedup, "release") as release:
+            self.assertEqual(pattern_text_store.delete_all_reports("Programme Manager", "boss"), 2)
+        sql = cursor.execute.call_args[0][0]
+        self.assertIn("DELETE FROM pattern_reports", sql)
+        self.assertNotIn("WHERE", sql)
+        self.assertNotIn("LIMIT", sql)
+        self.assertEqual(release.call_count, 2)
+
+    def test_a_failed_lock_release_does_not_undo_the_delete(self):
+        from unittest import mock
+        from services import pattern_text_store
+        conn, _ = self._fake_conn([(3, 12, "Español")])
+        with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn), \
+                mock.patch.object(pattern_text_store.request_dedup, "release", side_effect=RuntimeError):
+            self.assertTrue(pattern_text_store.delete_report("Supervisor", "boss", 7))
+
+    def test_database_failure_deletes_nothing_and_is_reported(self):
+        from unittest import mock
+        from services import pattern_text_store
+        conn, cursor = self._fake_conn([])
+        cursor.execute.side_effect = RuntimeError("database down")
+        with mock.patch.object(pattern_text_store, "_get_conn", return_value=conn):
+            with self.assertRaises(RuntimeError):
+                pattern_text_store.delete_report("Supervisor", "boss", 7)
+        conn.rollback.assert_called_once()
+        conn.commit.assert_not_called()
+        # The page turns that into an error message, never a crash.
+        self.assertIn('_after_delete("error", T["pr_delete_failed"])', self.page)
+
+    def test_nothing_else_on_the_page_changed(self):
+        for kept in ('T["pr_rating_line"]', "st.number_input(", "available >= PATTERN_MIN_TEXTS",
+                     "st.download_button("):
+            self.assertIn(kept, self.page)
 
 
 if __name__ == "__main__":

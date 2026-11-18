@@ -135,6 +135,52 @@ class PatternTextStoreRealDatabaseTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             self.st.save_report("Social Worker", "test_x", 3, 6, "Español", {})
 
+    # --- Deleting reports (18 November 2026) ---------------------------
+    def _report(self, role="Supervisor", period=3, texts=6, lang="Español"):
+        return self.st.save_report(role, "test_boss", period, texts, lang,
+                                   {"overview": "x", "patterns": [], "limitations": []})
+
+    def _listed_ids(self, role="Supervisor"):
+        return {r["id"] for r in self.st.list_reports(role)}
+
+    def test_a_report_is_deleted_for_every_manager(self):
+        first, second = self._report(), self._report("Programme Manager", 6, 9)
+        # Made by a Programme Manager, deleted by a Supervisor: reports are shared.
+        self.assertTrue(self.st.delete_report("Supervisor", "test_other", second))
+        self.assertNotIn(second, self._listed_ids("Supervisor"))
+        self.assertNotIn(second, self._listed_ids("Programme Manager"))
+        self.assertIn(first, self._listed_ids())
+        # A second delete of the same report is not an error.
+        self.assertFalse(self.st.delete_report("Programme Manager", "test_boss", second))
+
+    def test_only_management_roles_can_delete(self):
+        report_id = self._report()
+        for role in ("Social Worker", "System Administrator", ""):
+            with self.assertRaises(PermissionError):
+                self.st.delete_report(role, "test_x", report_id)
+            with self.assertRaises(PermissionError):
+                self.st.delete_all_reports(role, "test_x")
+        self.assertIn(report_id, self._listed_ids())
+
+    def test_delete_all_removes_every_report(self):
+        for n in range(3):
+            self._report(period=n + 1)
+        self.assertGreaterEqual(self.st.delete_all_reports("Programme Manager", "test_boss"), 3)
+        self.assertEqual(self.st.list_reports("Supervisor"), [])
+
+    def test_deleting_lifts_the_just_made_lock(self):
+        from services import request_dedup
+        with patch.object(request_dedup, "_get_conn", self._connect):
+            key = self.st.report_fingerprint(4, 7, "Español")
+            request_dedup.release(key)
+            self.assertEqual(request_dedup.claim(key, "pattern_text_report"), "claimed")
+            request_dedup.complete(key)
+            self.assertEqual(request_dedup.claim(key, "pattern_text_report"), "completed")
+            report_id = self._report(period=4, texts=7)
+            self.assertTrue(self.st.delete_report("Supervisor", "test_boss", report_id))
+            self.assertEqual(request_dedup.claim(key, "pattern_text_report"), "claimed")
+            request_dedup.release(key)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -263,6 +263,46 @@ class AiInstructionTests(unittest.TestCase):
         self.assertIn(anonymizer.SENSITIVE_LABELS_NOTE, sent["system"])
 
 
+def _load_locale(lang):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(f"loc_labels_{lang}", ROOT / "services" / "locales" / f"{lang}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return next(v for v in vars(module).values() if isinstance(v, dict) and "rs_finish_button" in v)
+
+
+class LabelExplanationTests(unittest.TestCase):
+    """18 November 2026: every place that explains the labels to people
+    also explains the sensitive-detail labels, in all three languages."""
+
+    LABELS = sorted(set(anonymizer.SPECIAL_CATEGORY_LABELS.values()))
+
+    def test_all_eight_labels_are_known(self):
+        self.assertEqual(len(self.LABELS), 8)
+
+    def test_every_label_is_explained_in_every_language(self):
+        for lang in ("es", "eu", "en"):
+            texts = _load_locale(lang)
+            places = {
+                "anon_sensitive_labels_help": texts["anon_sensitive_labels_help"],
+                "help privacy point": texts["help"]["privacy_points"][1],
+            }
+            for where, text in places.items():
+                for label in self.LABELS:
+                    self.assertIn(f"{label} =", text, f"{label} missing from {where} in {lang}")
+            # The older labels are still explained on the admin screen.
+            self.assertIn("[PERSON] =", texts["admin_anon_tags_help"])
+
+    def test_labels_are_shown_where_anonymised_text_is_shown(self):
+        admin = (ROOT / "pages" / "admin_sections" / "admin_tools.py").read_text(encoding="utf-8")
+        self.assertIn('st.caption(T["admin_anon_tags_help"])', admin)
+        self.assertIn('st.caption(T["anon_sensitive_labels_help"])', admin)
+        page = (ROOT / "pages" / "reflection_space.py").read_text(encoding="utf-8")
+        start = page.index('st.toggle(T["rs_anonymised_preview_label"]')
+        block = page[start:start + 600]
+        self.assertIn('st.caption(T["anon_sensitive_labels_help"])', block)
+
+
 class DemoTextsTests(unittest.TestCase):
     def test_sensitive_words_in_the_demo_texts_are_replaced(self):
         from services.demo_texts import DEMO_TEXTS

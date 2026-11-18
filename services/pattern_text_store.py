@@ -28,7 +28,10 @@ pattern_reports -- the reports managers asked for
 - The period (months), the number of texts read, the language, and the
   AI's written report (JSON). Never a text, a quotation or a name of a
   text's author.
-- Kept until "Erase all data". Deleting a reflection later does not
+- Kept until a manager deletes it (delete_report / delete_all_reports,
+  18 November 2026: "I have the file: delete report") or "Erase all
+  data". Reports are shared by the whole management team, so a deleted
+  report is gone for every manager. Deleting a reflection later does not
   rewrite a report already made (the report never names texts).
 
 (A separate anonymised copy, table pattern_texts, was used for a few hours
@@ -42,10 +45,21 @@ from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import now_utc, iso, get_logger
 from services.pattern_access import can_review_patterns
 from services.findings_store import NOT_IN_DELETION_WINDOW
+from services import request_dedup
 
 logger = get_logger(__name__)
 
 MAX_REPORT_LIST = 50
+REPORT_REQUEST_KIND = "pattern_text_report"
+
+
+def report_fingerprint(period_months, texts_count, language):
+    """The "same report" key used to stop the same review running twice
+    (services/pattern_text_analysis.run_report). Kept here so deleting a
+    report can lift exactly the same lock."""
+    return request_dedup.fingerprint(
+        REPORT_REQUEST_KIND, int(period_months), int(texts_count), language,
+    )
 
 
 def _get_conn():
@@ -212,3 +226,81 @@ def list_reports(actor_role, limit=MAX_REPORT_LIST):
         }
         for r in rows
     ]
+
+
+# ---------------------------------------------------------------------
+# Deleting reports (18 November 2026, product owner's decision)
+# ---------------------------------------------------------------------
+# Any Supervisor or Programme Manager may delete any report (reports are
+# shared by the whole management team). Downloading never deletes: the
+# page has a separate button with an "are you sure?" step. Deleting also
+# lifts the "this report was just made" lock (run_report's duplicate
+# protection), so the same review can be run again straight away.
+def _release_locks(rows):
+    """Best effort: lift the duplicate-protection lock of each deleted
+    report. If this fails the lock simply runs out after 15 minutes."""
+    for period_months, texts_count, language in rows:
+        try:
+            request_dedup.release(report_fingerprint(period_months, texts_count, language))
+        except Exception:
+            logger.warning("Could not lift a Pattern Review lock (non-fatal)", exc_info=True)
+
+
+def delete_report(actor_role, actor_name, report_id):
+    """Permanently delete one report. True if it was deleted, False if it
+    no longer existed (for example another manager deleted it first).
+    Raises PermissionError for anyone who may not use Pattern Review."""
+    if not can_review_patterns(actor_role):
+        raise PermissionError("Not permitted to use Pattern Review")
+    if not actor_name:
+        raise ValueError("actor_name is required")
+    report_id = int(report_id)
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                """
+                DELETE FROM pattern_reports WHERE id = %s
+                RETURNING period_months, texts_count, language
+                """,
+                (report_id,),
+            )
+            rows = c.fetchall()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("delete_report FAILED")
+        raise
+    finally:
+        conn.close()
+    if rows:
+        logger.info("Pattern Review report %s deleted by %s (%s)", report_id, actor_name, actor_role)
+        _release_locks(rows)
+    return bool(rows)
+
+
+def delete_all_reports(actor_role, actor_name):
+    """Permanently delete every saved report (not only the ones listed on
+    screen). Returns how many were deleted. Raises PermissionError for
+    anyone who may not use Pattern Review."""
+    if not can_review_patterns(actor_role):
+        raise PermissionError("Not permitted to use Pattern Review")
+    if not actor_name:
+        raise ValueError("actor_name is required")
+    conn = _get_conn()
+    try:
+        with conn.cursor() as c:
+            c.execute(
+                "DELETE FROM pattern_reports RETURNING period_months, texts_count, language"
+            )
+            rows = c.fetchall()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("delete_all_reports FAILED")
+        raise
+    finally:
+        conn.close()
+    logger.info("All Pattern Review reports deleted (%d) by %s (%s)", len(rows), actor_name, actor_role)
+    _release_locks(rows)
+    return len(rows)

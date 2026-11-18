@@ -233,6 +233,12 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                          'etapa de la vida (INFANT = bebé, CHILD = niño/a, ADOLESCENT = adolescente '
                          'menor de edad, YOUNG_ADULT = adulto/a joven, ADULT = adulto/a, OLDER_ADULT = '
                          'persona mayor).',
+ 'anon_sensitive_labels_help': 'Datos sensibles: [SEXUAL_ORIENTATION] = orientación sexual · '
+                               '[GENDER_IDENTITY] = identidad de género · [HEALTH] = diagnóstico, '
+                               'tratamiento o medicamento concreto · [RELIGION_BELIEF] = religión o '
+                               'creencias · [ETHNIC_ORIGIN] = origen étnico · [POLITICAL_OPINION] = '
+                               'opinión política · [TRADE_UNION] = afiliación sindical · '
+                               '[NATIONALITY] = nacionalidad (solo si se activa).',
  'admin_tools_anon_test_header': 'Prueba de anonimización',
  'admin_tools_future': 'Las futuras herramientas de administración aparecerán aquí.',
  'admin_console_caption': 'Consola de administración de Reflection Space -- usuarios, estado del '
@@ -379,9 +385,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'La anonimización también sustituye los datos personales especialmente sensibles (orientación sexual, identidad de género, diagnósticos, tratamientos y medicamentos concretos, religión o creencias, origen étnico, opiniones políticas y afiliación sindical) por una etiqueta neutra como [HEALTH], para que la IA sepa que se mencionó algo así pero nunca qué. Las pistas indirectas no siempre se detectan, así que conviene no escribir más detalles de los necesarios.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'La anonimización también sustituye los datos personales especialmente sensibles (orientación sexual, identidad de género, diagnósticos, tratamientos y medicamentos concretos, religión o creencias, origen étnico, opiniones políticas y afiliación sindical) por una etiqueta neutra, para que la IA sepa que se mencionó algo así pero nunca qué. Las etiquetas son: [SEXUAL_ORIENTATION] = orientación sexual, [GENDER_IDENTITY] = identidad de género, [HEALTH] = diagnóstico, tratamiento o medicamento concreto, [RELIGION_BELIEF] = religión o creencias, [ETHNIC_ORIGIN] = origen étnico, [POLITICAL_OPINION] = opinión política, [TRADE_UNION] = afiliación sindical y [NATIONALITY] = nacionalidad (solo si se activa). Las pistas indirectas no siempre se detectan, así que conviene no escribir más detalles de los necesarios.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
           'pattern_review_section_title': '🔎 Revisión de patrones',
-          'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Escribe cuántos meses quieres analizar (de 1 a {maximum}) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Los patrones son posibilidades para la reflexión, no conclusiones.'},
+          'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Escribe cuántos meses quieres analizar (de 1 a {maximum}) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Descargarlo no borra nada; cuando ya tengas el archivo, «Ya tengo el archivo: eliminar informe» lo elimina de la aplicación de forma permanente, para todo el equipo de gestión (antes se pide confirmación). Los patrones son posibilidades para la reflexión, no conclusiones.'},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
  'admin_usage_caption': 'Lo que cuesta cada servicio externo en este proyecto piloto, estimado a '
                         'partir del uso real registrado de las API. Las cifras marcadas como '
@@ -614,6 +620,16 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'pr_standing_limits': ['Lo ha redactado la IA a partir de textos anonimizados y puede equivocarse; el equipo debe contrastarlo con su propio conocimiento.', 'Los textos son los escritos en la aplicación durante el periodo; no son necesariamente representativos de la organización.', 'La anonimización quita automáticamente nombres y datos personales, pero no es perfecta.', 'El informe nunca contiene textos, citas ni quién escribió nada.'],
  'pr_download_button': 'Descargar informe para imprimir',
  'pr_how_to_print': 'Abre el archivo descargado en tu navegador y elige Imprimir (o Guardar como PDF).',
+ 'pr_delete_button': 'Ya tengo el archivo: eliminar informe',
+ 'pr_delete_confirm': '¿Seguro? El informe se eliminará de la aplicación de forma permanente, también para el resto del equipo de gestión. Asegúrate de haber guardado el archivo.',
+ 'pr_delete_yes': 'Sí, eliminar',
+ 'pr_delete_cancel': 'Cancelar',
+ 'pr_delete_done': 'Informe eliminado. Ya puedes hacer una nueva revisión.',
+ 'pr_delete_already_gone': 'Este informe ya se había eliminado (quizá lo eliminó otra persona del equipo de gestión).',
+ 'pr_delete_failed': 'No se ha podido eliminar. No se ha borrado nada; inténtalo de nuevo dentro de un momento.',
+ 'pr_delete_all_button': 'Eliminar todos los informes guardados',
+ 'pr_delete_all_confirm': '¿Seguro? Se eliminarán de la aplicación de forma permanente los {count} informes guardados, también para el resto del equipo de gestión. Asegúrate de haber guardado los archivos que necesites.',
+ 'pr_delete_all_done': 'Informes eliminados: {count}. Ya puedes hacer una nueva revisión.',
  'pr_print_title': 'Informe de Revisión de patrones',
  'pr_print_confidential': 'Documento confidencial para el equipo de gestión',
  'pr_print_prepared': 'Impreso el {date}',

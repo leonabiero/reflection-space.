@@ -26,7 +26,8 @@ not in what the AI says back to them. So:
    in how cases are written.
 6. The manager sees **the report only — never the texts**, never quotations,
    never who wrote anything. Reports are saved with their date and period and
-   can be downloaded to print.
+   can be downloaded to print. Since 18 November 2026 a manager who has the
+   downloaded file can delete the report (see "Deleting reports" below).
 
 Social workers are told in **Help** (Privacy and "Your case" sections), in
 all three languages, that their original text is used this way. The notices
@@ -48,7 +49,8 @@ top (the average only — never individual ratings, comments or who gave them).
 | How long are texts kept? | 15 months (as agreed with EDE), then cleared automatically |
 | Minimum number of texts before patterns can be identified | 5 |
 | Which periods can a manager choose? (17 November 2026, at EDE's request) | Any whole number of months from 1 to 15 — never longer than the texts are kept |
-| Are reports saved? | Yes, with their date and period |
+| Are reports saved? | Yes, with their date and period, until a manager deletes them (18 November 2026) or "Erase all data" |
+| Who may delete a report? (18 November 2026) | Any Supervisor or Programme Manager, any report — reports are shared by the whole management team, so a deleted report is gone for everyone. One at a time, or all at once |
 | Are social workers told? | Yes, in Help (the writing-screen notices were removed at the product owner's request) |
 | Does every text count, or only ones the author chooses? | Every text |
 
@@ -76,6 +78,42 @@ copies; that table, `pattern_texts`, is removed by "Erase all data".)
 - Texts are shuffled before the AI reads them.
 - Texts are never written to logs — only counts.
 - "Erase all data" erases the reports (and the texts, with the reflections).
+- Deleting a report is checked twice: on the screen and again in
+  `services/pattern_text_store.py` (`delete_report`, `delete_all_reports`
+  refuse anyone without a management role).
+
+## Deleting reports (18 November 2026, product owner's decision)
+
+Safety first:
+
+- **Downloading never deletes anything.** The downloaded file is the full
+  report, exactly as before.
+- Below the download button: **"Ya tengo el archivo: eliminar informe"**
+  ("I have the file: delete report"). It first asks "Are you sure?" with
+  **Yes, delete** / **Cancel**, and says the report goes for the whole
+  management team.
+- After "Yes" the report is **permanently deleted from the database** and
+  disappears from the page, with the message "Report deleted. You can now
+  run a new review." If older reports are saved, the next one is shown;
+  when none are left the page shows "No report has been made yet".
+- With two or more saved reports, **"Delete all saved reports"** deletes
+  every saved report at once, with its own "Are you sure?".
+- Deleting also lifts the 15-minute "a report was made a few minutes ago"
+  lock for that report, so the same review can be run again straight away.
+- Nothing else changes: the rating line, the months box, the minimum of 5
+  texts, the saved original texts and "Erase all data".
+
+What can go wrong:
+
+- Two managers have the page open and one deletes a report: the other sees
+  it disappear on their next click; pressing delete on it shows "This report
+  had already been deleted" (not an error).
+- The database cannot be reached: nothing is deleted and the manager is
+  told to try again.
+- Deleted by mistake: a deleted report cannot be recovered, but the review
+  can be run again (small AI cost) while the texts are within their 15 months.
+- Older reports (made before this change) need nothing special: each can be
+  deleted the same way.
 
 ## How a report is made (`services/pattern_text_analysis.py`)
 
@@ -185,11 +223,14 @@ left untouched so existing databases keep working, and are emptied by
 - `tests/test_pattern_review_static.py` — the screens, settings, the
   database table has no author column, translations in all three languages,
   the printable report, the 1–15 month limits (also enforced in the service
-  layer) and "1 month" written correctly in every language.
+  layer), "1 month" written correctly in every language, and deleting
+  reports (confirmation first, download unchanged, roles checked in the
+  service layer, the "just made" lock lifted, database failures).
 
 ## Demonstrations
 
 Pattern Review is demonstrated with fictional texts in a separate demo app
 and database, never in the real one. See `DEMO.md`.
 - `tests/test_pattern_text_store_postgres.py` — real database (set
-  `TEST_DATABASE_URL`): which texts are read, time limits, deletion, roles, reports.
+  `TEST_DATABASE_URL`): which texts are read, time limits, deletion, roles,
+  reports, deleting one report or all of them.

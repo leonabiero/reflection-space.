@@ -34,6 +34,8 @@ def render(T):
             if result["input"] != sample:
                 st.caption(T["admin_anon_stale_note"])
             st.caption(T["admin_anon_tags_help"])
+            # 18 November 2026: the labels for sensitive personal details.
+            st.caption(T["anon_sensitive_labels_help"])
 
         st.divider()
         st.caption(T["admin_tools_future"])

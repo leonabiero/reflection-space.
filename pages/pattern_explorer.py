@@ -10,6 +10,7 @@ from services.pattern_report_html import build_report_html, period_phrase
 from services.db_time import display_datetime, now_utc
 from services import reflection_records
 from services.feedback_store import get_feedback_summary
+from services.confirm_state import is_confirming, start_confirming, clear_confirming
 from config import (
     PATTERN_MIN_MONTHS, PATTERN_MAX_MONTHS, PATTERN_DEFAULT_MONTHS,
     PATTERN_MIN_TEXTS, ORIGINAL_TEXT_RETENTION_MONTHS,
@@ -41,10 +42,24 @@ from config import (
 #     the report that repeats a passage).
 #   - It speaks of candidate patterns for reflection, never conclusions.
 #   - Nothing runs with fewer than PATTERN_MIN_TEXTS texts.
+#
+# Since 18 November 2026 a manager can delete a report once they have
+# downloaded it ("I have the file: delete report", with an "are you
+# sure?" step), or all saved reports at once. Downloading never deletes.
 
 GENERATING_KEY = "_pr_generating"
 FLASH_KEY = "_pr_flash"
 SELECTED_KEY = "_pr_selected_report"
+CONFIRM_DELETE_ALL_KEY = "_pr_confirm_delete_all"
+
+
+def _after_delete(message_kind, message):
+    """Forget which report was on screen (it may be gone) and show a
+    short message after the page reloads."""
+    st.session_state.pop(SELECTED_KEY, None)
+    st.session_state.pop("pr_report_select_box", None)
+    st.session_state[FLASH_KEY] = (message_kind, message)
+    st.rerun()
 
 T = init_language()
 user_name, user_role = init_identity(T)
@@ -216,3 +231,65 @@ with error_boundary(
         key=f"pr_download_{saved['id']}",
     )
     st.caption(T["pr_how_to_print"])
+
+    # ------------------------------------------------------------------
+    # 3. Deleting reports (18 November 2026, product owner's decision)
+    # ------------------------------------------------------------------
+    # Downloading never deletes anything. Once the manager has the file,
+    # a separate button deletes the report for good, after an "are you
+    # sure?" step. Reports are shared by the whole management team, so the
+    # warning says so. The service layer checks the role again
+    # (pattern_text_store.delete_report / delete_all_reports).
+    confirm_key = f"_pr_confirm_delete_{saved['id']}"
+    if not is_confirming(confirm_key):
+        if st.button(T["pr_delete_button"], key=f"pr_delete_{saved['id']}"):
+            clear_confirming(CONFIRM_DELETE_ALL_KEY)
+            start_confirming(confirm_key)
+            st.rerun()
+    else:
+        st.warning(T["pr_delete_confirm"])
+        yes_col, no_col = st.columns(2)
+        with yes_col:
+            if st.button(T["pr_delete_yes"], type="primary", key=f"pr_delete_yes_{saved['id']}"):
+                clear_confirming(confirm_key)
+                try:
+                    deleted = pattern_text_store.delete_report(user_role, user_name, saved["id"])
+                except Exception:
+                    deleted = None
+                if deleted:
+                    _after_delete("success", T["pr_delete_done"])
+                elif deleted is False:
+                    _after_delete("info", T["pr_delete_already_gone"])
+                else:
+                    _after_delete("error", T["pr_delete_failed"])
+        with no_col:
+            if st.button(T["pr_delete_cancel"], key=f"pr_delete_cancel_{saved['id']}"):
+                clear_confirming(confirm_key)
+                st.rerun()
+
+    # With two or more saved reports, all of them can be deleted at once.
+    if len(reports) > 1:
+        st.divider()
+        if not is_confirming(CONFIRM_DELETE_ALL_KEY):
+            if st.button(T["pr_delete_all_button"], key="pr_delete_all"):
+                clear_confirming(confirm_key)
+                start_confirming(CONFIRM_DELETE_ALL_KEY)
+                st.rerun()
+        else:
+            st.warning(T["pr_delete_all_confirm"].format(count=len(reports)))
+            yes_col, no_col = st.columns(2)
+            with yes_col:
+                if st.button(T["pr_delete_yes"], type="primary", key="pr_delete_all_yes"):
+                    clear_confirming(CONFIRM_DELETE_ALL_KEY)
+                    try:
+                        count = pattern_text_store.delete_all_reports(user_role, user_name)
+                    except Exception:
+                        count = None
+                    if count is None:
+                        _after_delete("error", T["pr_delete_failed"])
+                    else:
+                        _after_delete("success", T["pr_delete_all_done"].format(count=count))
+            with no_col:
+                if st.button(T["pr_delete_cancel"], key="pr_delete_all_cancel"):
+                    clear_confirming(CONFIRM_DELETE_ALL_KEY)
+                    st.rerun()

@@ -510,10 +510,12 @@ def run_report(actor_role, actor_name, period_months, lang="Español"):
 
     # The same report (same period, same number of texts, same language)
     # is never run twice at once -- e.g. two managers, or two tabs.
-    request_id = request_dedup.fingerprint(
-        "pattern_text_report", int(period_months), len(texts), lang,
+    # The key lives in pattern_text_store so deleting a report can lift
+    # exactly this lock (18 November 2026).
+    request_id = pattern_text_store.report_fingerprint(int(period_months), len(texts), lang)
+    claim = request_dedup.claim(
+        request_id, pattern_text_store.REPORT_REQUEST_KIND, ttl_minutes=BUSY_TTL_MINUTES,
     )
-    claim = request_dedup.claim(request_id, "pattern_text_report", ttl_minutes=BUSY_TTL_MINUTES)
     if claim == "in_progress":
         result["status"] = "busy"
         return result
