@@ -38,7 +38,6 @@ mistake in one place doesn't expose data it shouldn't.
 |---|---|---|
 | Streamlit | The web app itself (all the screens) | `app.py` (start file), `pages/`; `demo_app.py` is the demo app's start file and only hands over to `app.py` (see `DEMO.md`) |
 | PostgreSQL (hosted on Neon) | Stores accounts, reflections, logs | `services/db_*.py` |
-| Google Gemini | Since 15 November 2026 no text is sent to Gemini; only its availability is still checked on the System Health and cost screens | `services/embedding_service.py` |
 | Claude (Anthropic) | Powers the reflection companion and writes the Pattern Review reports | `rdi/`, `services/reflection_service.py`, `services/pattern_text_analysis.py` |
 
 **Data flow, in short:** a social worker writes, pastes or uploads a case on
@@ -54,8 +53,12 @@ original texts, each anonymised again first, and shows managers only the
 report (see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
 go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
-are replaced by life stages (see `REFLECTIONS.md`). The Qdrant search service,
-which served the old document-based design, was removed in November 2026.
+are replaced by life stages, and (since 18 November 2026) sensitive personal
+details such as sexual orientation, specific diagnoses or religion are
+replaced by labels such as `[HEALTH]` (see `REFLECTIONS.md`). The Qdrant search service,
+which served the old document-based design, was removed in November 2026,
+and Google Gemini (which no longer received any text) on 18 November 2026:
+Claude is now the only AI service.
 
 ## November 2026 clean-up
 
@@ -117,7 +120,7 @@ and the locks that stop demo texts reaching the real database.
   the database connection pool under load
 - `tests/` — automated tests, grouped by what they protect: security,
   reliability, scalability
-- Service Cost & Usage Monitor — tracks what Claude, Gemini, the
+- Service Cost & Usage Monitor — tracks what Claude, the
   database, and SMTP are actually costing/being used, shown on System
   Administration → "Service Usage & Costs". See `SERVICE_USAGE_MONITORING.md`.
 
@@ -148,7 +151,8 @@ python -m pytest tests/ -v
 
 Tests are organised by what they guard:
 
-- `test_security_*.py` — access control, authentication, data anonymisation,
+- `test_security_*.py` — access control, authentication, data anonymisation
+  (including sensitive personal details, `test_security_anonymizer_special_categories.py`),
   deletion behaviour (Phase 1)
 - `test_reliability_*.py` — retries, rate limiting, error recovery
   (Phase 2)

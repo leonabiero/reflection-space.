@@ -98,7 +98,7 @@ def check_and_alert():
     unless a real crossing just happened.
 
     Also checks: projected monthly cost exceeding the configured
-    budget (Anthropic, Gemini).
+    budget (Anthropic). (Gemini was removed on 18 November 2026.)
     Never raises.
     """
     try:
@@ -117,16 +117,6 @@ def check_and_alert():
         ],
     )
     _rearm_if_green("anthropic", anthropic["status"])
-
-    gemini = overviews["gemini"]
-    _maybe_alert(
-        "gemini", "Gemini Embeddings (Google)", gemini["status"],
-        [
-            f"Month-to-date cost: ${gemini['cost_month_usd']:.2f}",
-            f"Configured monthly budget: ${gemini['budget_usd']:.2f}" if gemini["budget_usd"] else "No budget configured.",
-        ],
-    )
-    _rearm_if_green("gemini", gemini["status"])
 
     postgres = overviews["postgres"]
     _maybe_alert(

@@ -127,7 +127,13 @@ than the 15 minutes above. If a reply cannot be read, the log line shows
 only its shape (stop reason, tokens used, length, how it starts, library
 version) -- never its text.
 Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
-`pattern_text_report`. No text is sent to Google Gemini any more.
+`pattern_text_report`. Google Gemini, which an earlier version used, was
+removed from the app on 18 November 2026.
+
+Since 18 November 2026 each group's instructions include one extra sentence
+explaining the anonymiser's labels (such as `[HEALTH]`): about 60 tokens per
+group, which adds roughly $0.0001 per group, about $0.008 for a full 15-month
+report.
 
 ## Settings (`config.py`)
 
@@ -148,7 +154,14 @@ Recorded in the Service Cost & Usage Monitor as `pattern_text_batch` and
   conclusions, and are not evidence of bias or poor practice.
 - The texts are only those written in the app during the period; they are
   not necessarily representative of the organisation.
-- Anonymisation is automatic and good, but not perfect.
+- Anonymisation is automatic and good, but not perfect. Since 18 November
+  2026 it also replaces words stating sensitive details (sexual orientation,
+  gender identity, specific diagnoses / treatments / medicines, religion,
+  ethnic origin, political opinions, trade union membership) with labels
+  such as `[HEALTH]`, and the AI is told never to guess what was hidden.
+  Indirect hints are not caught; see `REFLECTIONS.md`. Because every text is
+  anonymised again each time a report runs, this also protects texts saved
+  before that date.
 - Reports already made are not changed when a reflection is deleted later
   (they never contain texts).
 - The Basque wording should be checked by a native speaker.

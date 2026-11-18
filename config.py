@@ -3,25 +3,12 @@ import os
 # Claude API Key (set this in your environment OR paste directly for testing)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# --- Hybrid RAG: semantic retrieval layer -------------------------------
-#
-# Embeddings are generated with the Google Gemini API. This is a separate
-# API key from ANTHROPIC_API_KEY and is used only for semantic retrieval.
-#
-# If GEMINI_API_KEY is not set, semantic retrieval is automatically
-# disabled and the app falls back to the same recency-based historical
-# context it used before semantic retrieval was enabled.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-
-# Gemini embedding model used by the pattern features (Text analysis,
-# Pattern Review). gemini-embedding-001 supports
-# retrieval-specific task types (document/query) and configurable output
-# dimensionality, which maps cleanly to this app's existing architecture.
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
-
-# Gemini recommends 768, 1536, or 3072 dimensions for reduced/full output.
-# 768 is a good balance between quality and storage size.
-EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
+# Google Gemini -- REMOVED (18 November 2026). No text had been sent to
+# Gemini since 15 November 2026 (Pattern Review uses Claude), so the
+# embedding service, its settings (GEMINI_API_KEY, EMBEDDING_MODEL,
+# EMBEDDING_DIMENSIONS, MONTHLY_BUDGET_GEMINI_USD) and the google-genai
+# package were removed. Any of those left in the hosting secrets are
+# simply ignored and can be deleted.
 
 # Qdrant -- REMOVED (November 2026). The Qdrant search service served the
 # old document-based design and is no longer used. Any QDRANT_URL /
@@ -51,7 +38,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 # and other modules. Moving them here means every deployment-
 # tunable "how long/how many" knob for the storage layer lives in one
 # place, consistent with how every other environment-configurable
-# value in this app (ANTHROPIC_API_KEY, GEMINI_API_KEY,
+# value in this app (ANTHROPIC_API_KEY, DATABASE_URL,
 # etc.) is already defined here.
 #
 # Values are unchanged from their previous hard-coded defaults, so this
@@ -408,7 +395,6 @@ CLAUDE_REQUEST_TIMEOUT_SECONDS = int(os.getenv("CLAUDE_REQUEST_TIMEOUT_SECONDS",
 # budget configured for this service", which the dashboard shows as
 # "Limit unavailable" rather than a fabricated percentage.
 MONTHLY_BUDGET_ANTHROPIC_USD = float(os.getenv("MONTHLY_BUDGET_ANTHROPIC_USD", "50"))
-MONTHLY_BUDGET_GEMINI_USD = float(os.getenv("MONTHLY_BUDGET_GEMINI_USD", "10"))
 
 
 # ---------------------------------------------------------------------
@@ -475,6 +461,33 @@ ANONYMISED_TEXT_RETENTION_MONTHS = max(1, int(os.getenv("ANONYMISED_TEXT_RETENTI
 # safeguarding -- is always exact. If the value is missing or invalid the
 # defaults below are used, so a typo can never switch age protection off.
 AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
+
+# ---------------------------------------------------------------------
+# Sensitive personal details in the anonymizer (18 November 2026)
+# ---------------------------------------------------------------------
+# Words that state a GDPR "special category" detail are replaced by a
+# neutral label before any text reaches the AI (services/anonymizer.py):
+# [SEXUAL_ORIENTATION], [GENDER_IDENTITY], [HEALTH], [RELIGION_BELIEF],
+# [ETHNIC_ORIGIN], [POLITICAL_OPINION], [TRADE_UNION].
+#
+# This setting lists the categories that are switched on, separated by
+# commas. Available names:
+#   sexual_orientation, gender_identity, health_specific, religion_belief,
+#   ethnic_origin, political_opinion, trade_union   (on by default)
+#   health_general  -- general words such as "enfermedad", "problema de
+#                      salud", "salud mental" (OFF: product owner's
+#                      decision, only specific diagnoses, treatments and
+#                      medicines are hidden)
+#   nationality     -- "marroquí", "rumana", ... (OFF for now: product
+#                      owner's decision)
+# To switch one on, add its name (for example add ",nationality"). If the
+# value is missing or contains an unknown name, the default list is used,
+# so a typo can never switch the protection off.
+ANONYMISER_SPECIAL_CATEGORIES = os.getenv(
+    "ANONYMISER_SPECIAL_CATEGORIES",
+    "sexual_orientation,gender_identity,health_specific,religion_belief,"
+    "ethnic_origin,political_opinion,trade_union",
+)
 
 
 # ---------------------------------------------------------------------

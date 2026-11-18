@@ -27,7 +27,9 @@ the numbers are.
 
 Sources verified at the effective_date below:
   - Anthropic Claude Sonnet 5: https://platform.claude.com/docs/en/about-claude/pricing
-  - Google Gemini Embedding (gemini-embedding-001): https://ai.google.dev/gemini-api/docs/pricing
+
+(Google Gemini was removed from the app on 18 November 2026 -- it no
+longer received any text -- and with it its price list.)
 
 IMPORTANT: these numbers can and will go out of date. Always check the
 provider's own pricing page before trusting a dashboard figure for a
@@ -72,19 +74,6 @@ ANTHROPIC_PRICING = {
 # visible in the admin panel rather than silently wrong.
 _ANTHROPIC_FALLBACK_MODEL = "claude-sonnet-5-5"
 
-# Google Gemini -- embeddings only. gemini-embedding-001 has no output
-# token cost; billing is purely on input tokens.
-GEMINI_PRICING = {
-    "gemini-embedding-001": {
-        "input_per_mtok": 0.15,
-        "effective_date": "2026-08-24",
-        "currency": CURRENCY,
-    },
-}
-
-_GEMINI_FALLBACK_MODEL = "gemini-embedding-001"
-
-
 def get_anthropic_rate(model: str):
     """Returns the pricing dict for one Claude model, falling back to
     the default model (with a flag) if the model string is unrecognized."""
@@ -92,13 +81,6 @@ def get_anthropic_rate(model: str):
     if rate is not None:
         return rate, True
     return ANTHROPIC_PRICING[_ANTHROPIC_FALLBACK_MODEL], False
-
-
-def get_gemini_rate(model: str):
-    rate = GEMINI_PRICING.get(model)
-    if rate is not None:
-        return rate, True
-    return GEMINI_PRICING[_GEMINI_FALLBACK_MODEL], False
 
 
 def estimate_anthropic_cost(model, input_tokens=0, output_tokens=0,
@@ -120,17 +102,6 @@ def estimate_anthropic_cost(model, input_tokens=0, output_tokens=0,
     return cost, recognized
 
 
-def estimate_gemini_embedding_cost(model, input_tokens=0):
-    """Cost in USD for one Gemini embedding call, from the ACTUAL
-    token_count reported by the Google GenAI SDK response.
-
-    Returns (cost_usd: float, model_recognized: bool).
-    """
-    rate, recognized = get_gemini_rate(model)
-    cost = (input_tokens or 0) * rate["input_per_mtok"] / 1_000_000
-    return cost, recognized
-
-
 def pricing_snapshot():
     """
     Returns the full registry in a flat, display-friendly shape for
@@ -145,15 +116,6 @@ def pricing_snapshot():
             "billing_unit": "per 1M tokens (input / output / cache read / cache write)",
             "rate": f"${rate['input_per_mtok']:.2f} / ${rate['output_per_mtok']:.2f} / "
                     f"${rate['cache_read_per_mtok']:.2f} / ${rate['cache_write_per_mtok']:.2f}",
-            "effective_date": rate["effective_date"],
-            "currency": rate["currency"],
-        })
-    for model, rate in GEMINI_PRICING.items():
-        rows.append({
-            "provider": "Google Gemini",
-            "model": model,
-            "billing_unit": "per 1M input tokens",
-            "rate": f"${rate['input_per_mtok']:.2f}",
             "effective_date": rate["effective_date"],
             "currency": rate["currency"],
         })

@@ -104,9 +104,6 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_backfill_running': 'Indexando documento {current} de {total}...',
  'admin_backfill_done': '✔ Reindexación completa: {indexed} de {total} documentos indexados en '
                         'Qdrant.',
- 'admin_backfill_unavailable': 'La recuperación semántica no está configurada todavía (falta '
-                               'GEMINI_API_KEY o QDRANT_URL en los secretos). El resto de la '
-                               'aplicación sigue funcionando con el contexto histórico por fecha.',
  'admin_anon_header': 'Demostración de anonimización',
  'admin_anon_caption': 'Pega cualquier texto de muestra (solo datos ficticios) para ver qué sale '
                        'del sistema antes de llegar a Claude. Ejecuta la misma función anonymize() '
@@ -209,18 +206,14 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_health_header': '💚 Estado del sistema',
  'admin_health_overall': '#### Estado general',
  'admin_health_critical': '🔴 Crítico',
- 'admin_health_degraded': '🟡 Degradado (la recuperación semántica no está configurada — la '
-                          'aplicación usa el modo alternativo por fecha)',
  'admin_health_healthy': '🟢 Saludable',
  'admin_health_components': '#### Componentes',
  'admin_health_component_col': 'Componente',
  'admin_health_status_col': 'Estado',
  'admin_health_component_database': 'Base de datos',
- 'admin_health_component_embedding': 'Servicio de embeddings (Gemini API)',
  'admin_health_component_reflection': 'Motor de reflexión (API de Claude)',
  'admin_health_healthy_label': 'Saludable',
  'admin_health_unreachable_label': 'No accesible',
- 'admin_health_available_label': 'Disponible',
  'admin_health_not_configured_label': 'No configurado',
  'admin_health_operational_label': '✅ Operativo',
  'admin_health_db_error_prefix': 'Error de base de datos:',
@@ -386,7 +379,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'La anonimización también sustituye los datos personales especialmente sensibles (orientación sexual, identidad de género, diagnósticos, tratamientos y medicamentos concretos, religión o creencias, origen étnico, opiniones políticas y afiliación sindical) por una etiqueta neutra como [HEALTH], para que la IA sepa que se mencionó algo así pero nunca qué. Las pistas indirectas no siempre se detectan, así que conviene no escribir más detalles de los necesarios.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
           'pattern_review_section_title': '🔎 Revisión de patrones',
           'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Escribe cuántos meses quieres analizar (de 1 a {maximum}) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Los patrones son posibilidades para la reflexión, no conclusiones.'},
  'admin_usage_header': '💰 Uso y Costes de Servicios',

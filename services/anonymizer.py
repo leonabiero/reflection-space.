@@ -3,8 +3,7 @@
 This module intentionally uses a layered, deterministic approach rather than
 claiming that a handful of regular expressions can make arbitrary social-work
 narratives anonymous. It removes common direct identifiers, contextual
-identifiers, and conservative proper-name phrases before text reaches Claude
-or Gemini embeddings.
+identifiers, and conservative proper-name phrases before text reaches Claude.
 
 The final layer is deliberately conservative in the privacy direction: a
 proper-looking name may be redacted even when it turns out to be a place or
@@ -89,6 +88,10 @@ _SAFE_CAPITALISED_WORDS = {
     "udala", "aldundia", "jaurlaritza", "eusko", "gizarte", "zerbitzuak",
     "ministerio", "estado", "ley", "sanidad", "salud", "mental", "infancia",
     "menores", "familia", "familias", "bizkaia", "euskadi",
+    # (18 November 2026) Kinds of service, not names: "Centro de Salud
+    # Mental de Uribarri" keeps "Centro de Salud Mental"; only the place
+    # name after it is removed (see _PLACE_NOUNS).
+    "centro", "hospital", "clínica", "clinica", "ambulatorio",
     # Languages / nationalities (capitalised in English)
     "english", "spanish", "basque", "french", "euskera", "euskara",
     "castellano", "español", "inglés", "ingles", "francés",
@@ -132,6 +135,10 @@ _PLACE_NOUNS = {
     # Barakaldo"). "casa de X" is left out on purpose: that is a person.
     "tienda", "bar", "fábrica", "fabrica", "supermercado", "mercado",
     "oficina", "polideportivo", "biblioteca", "estación", "estacion", "parque",
+    # 18 November 2026: services named after their place ("centro de salud
+    # mental de Uribarri", "CSM de Deusto"): the place is tagged
+    # [LOCATION] instead of [PERSON].
+    "mental", "csm", "hospital", "clínica", "clinica", "ambulatorio",
 }
 
 # Common Spanish and Basque first names. A lone first name at the very start
@@ -690,6 +697,241 @@ def _generalise_ages(text: str) -> str:
     return text
 
 
+# ---------------------------------------------------------------------------
+# Sensitive personal details -- GDPR "special categories" (18 November 2026)
+# ---------------------------------------------------------------------------
+# EDE tested the anonymiser and found that words such as "gay" or
+# "lesbiana" reached the AI. Words that state a sensitive personal detail
+# are now replaced by a neutral label, so the AI knows such a detail was
+# mentioned but never what it was:
+#
+#   sexual orientation        -> [SEXUAL_ORIENTATION]
+#   gender identity           -> [GENDER_IDENTITY]
+#   health (specific: diagnoses, treatments, medicine names) -> [HEALTH]
+#   religion or beliefs       -> [RELIGION_BELIEF]
+#   ethnic or racial origin   -> [ETHNIC_ORIGIN]
+#   political opinions        -> [POLITICAL_OPINION]
+#   trade union membership    -> [TRADE_UNION]
+#
+# Product owner's decisions:
+#   - Health: only SPECIFIC diagnoses, treatments and medicines are hidden
+#     ("esquizofrenia", "VIH", "sertralina"). General words such as
+#     "enfermedad", "problema de salud" or "salud mental" are kept (category
+#     "health_general", switched OFF).
+#   - Nationality is NOT hidden for now (category "nationality", switched
+#     OFF).
+#   Both can be switched on, and any category off, with the setting
+#   ANONYMISER_SPECIAL_CATEGORIES in config.py (a list of category names).
+#
+# Words only -- indirect hints are NOT caught ("vive con su novia", "va a la
+# mezquita", "fue a la manifestación"), nor misspellings, slang or medicines
+# that are not on the lists. Like the rest of this module, this reduces the
+# risk; it is not a guarantee.
+#
+# How the lists are written: each entry is a small pattern, matched as a
+# whole word and ignoring capitals. Spanish plurals / feminine forms and
+# common Basque endings are written into the entries ("gay(?:s|a|ak)?").
+# Only long, unambiguous stems match any ending ("esquizofreni\w*"); short
+# words match their listed forms only, so "trans" never touches
+# "transporte". Acronyms (ELA, LAB, PNV, TDAH ...) are matched only when
+# written in capitals, so ordinary words are never caught by mistake.
+
+SPECIAL_CATEGORY_LABELS = {
+    "sexual_orientation": "[SEXUAL_ORIENTATION]",
+    "gender_identity": "[GENDER_IDENTITY]",
+    "health_specific": "[HEALTH]",
+    "health_general": "[HEALTH]",
+    "religion_belief": "[RELIGION_BELIEF]",
+    "ethnic_origin": "[ETHNIC_ORIGIN]",
+    "political_opinion": "[POLITICAL_OPINION]",
+    "trade_union": "[TRADE_UNION]",
+    "nationality": "[NATIONALITY]",
+}
+DEFAULT_SPECIAL_CATEGORIES = (
+    "sexual_orientation", "gender_identity", "health_specific", "religion_belief",
+    "ethnic_origin", "political_opinion", "trade_union",
+)
+
+_SPECIAL_TERMS = {
+    "sexual_orientation": [
+        r"gay(?:s|a|ak|ari|aren|arekin|ek|en|ekin)?", r"gais",
+        r"lesbian\w*", r"homosexual\w*", r"bisexual\w*", r"heterosexual\w*",
+        r"pansexual\w*", r"asexual(?:es|a|ak|idad)?", r"queer",
+        r"lgtbi?q?\+?", r"lgbti?q?\+?", r"lgtbiq?\+?",
+        r"boller[oa]s?", r"maric[oó]n(?:es|a)?", r"maricas?", r"bisex",
+        r"parejas? del mismo sexo", r"same[- ]sex (?:partner|couple|relationship|marriage)s?",
+        r"sexu bereko bikote\w*",
+    ],
+    "gender_identity": [
+        r"trans(?:a|ak|ari|aren|arekin)?", r"transexual\w*", r"transgéner\w*", r"transgener\w*",
+        r"transgender\w*", r"transsexual\w*", r"intersexual\w*", r"intersex",
+        r"no binari[oa]s?", r"non[- ]?binary", r"ez[- ]bitar(?:ra|rak|rra|rrak)?",
+        r"cisg[eé]ner[oa]s?", r"cisgender",
+        r"transici[oó]n de g[eé]nero", r"gender transition", r"genero[- ]trantsizio\w*",
+        r"reasignaci[oó]n de sexo", r"cambio de sexo", r"disforia de g[eé]nero", r"gender dysphoria",
+    ],
+    "health_specific": [
+        # Infections
+        r"vih", r"hiv", r"sida(?:ren|rekin|z)?", r"hies(?:a|aren|arekin)?", r"aids",
+        r"seropositiv\w*", r"hepatitis(?: [abc](?!\w))?", r"tuberculosis",
+        # Mental health diagnoses
+        r"esquizofreni\w*", r"eskizofreni\w*", r"schizophreni\w*", r"esquizoafectiv\w*",
+        r"bipolar\w*", r"psicosis", r"psic[oó]tic[oa]s?", r"psikosi\w*", r"psychos[ie]s", r"psychotic",
+        r"depresi[oó]n(?:es)?(?: mayor| severa| grave| cr[oó]nica)?", r"depresio(?:a|ak|arekin|rekin)?",
+        r"depression", r"trastorno de ansiedad(?: generalizada)?", r"anxiety disorder",
+        r"trastorno l[ií]mite de (?:la )?personalidad", r"trastorno de (?:la )?personalidad",
+        r"trastorno obsesivo[- ]compulsivo", r"trastorno de (?:la )?conducta alimentaria",
+        r"(?:trastorno de )?estr[eé]s postraum[aá]tico", r"trastorno mental grave",
+        r"trastorno por d[eé]ficit de atenci[oó]n(?: e hiperactividad)?", r"d[eé]ficit de atenci[oó]n",
+        r"hiperactividad", r"anorexi\w*", r"bulimi\w*",
+        r"autis\w*", r"asperger\w*",
+        # Neurological, chronic and other conditions
+        r"epilep\w*", r"diabet\w*", r"c[aá]ncer(?:es)?", r"cancer", r"minbizi\w*", r"tumor(?:es)?",
+        r"leucemi\w*", r"leukaemi\w*", r"leukemi\w*", r"linfom\w*", r"lymphom\w*", r"met[aá]stasis",
+        r"alzh[eé]imer\w*", r"demenci\w*", r"dementia\w*", r"dementzi\w*", r"p[aá]rkinson\w*",
+        r"esclerosis (?:m[uú]ltiple|lateral amiotr[oó]fica)", r"multiple sclerosis", r"ictus",
+        r"s[ií]ndrome de down", r"down syndrome", r"par[aá]lisis cerebral", r"cerebral palsy",
+        r"discapacidad intelectual", r"intellectual disability", r"adimen[- ]urritasun\w*",
+        # Addictions (named conditions)
+        r"alcoholism[oe]?", r"alcoh[oó]lic[oa]s?", r"alcoholics?", r"alkoholiko\w*", r"alkoholismo\w*",
+        r"drogodependen\w*", r"toxic[oó]man[oa]s?", r"toxicoman[ií]a", r"ludopat\w*",
+        r"adicci[oó]n(?:es)?", r"adict[oa]s?", r"addiction\w*", r"addicted", r"adikzio\w*",
+        # Treatments
+        r"antirretrovir\w*", r"antiretrovir\w*", r"quimioterapi\w*", r"kimioterapi\w*", r"chemotherap\w*",
+        r"radioterapi\w*", r"radiotherap\w*", r"hemodi[aá]lisis", r"di[aá]lisis", r"dialysis",
+        r"terapia electroconvulsiva", r"electroshock", r"metadona\w*", r"methadone",
+        r"aborto(?:s)?", r"abortion\w*", r"abortu(?:a|ak|aren)?",
+        r"interrupci[oó]n voluntaria del embarazo",
+        # Medicines (generic and common brand names)
+        r"risperidon\w*", r"risperdal", r"olanzapin\w*", r"zyprexa", r"quetiapin\w*", r"seroquel",
+        r"aripiprazol\w*", r"abilify", r"haloperidol\w*", r"clozapin\w*", r"paliperidon\w*", r"xeplion",
+        r"litio(?:a|arekin|z)?", r"lithium", r"plenur",
+        r"sertralin\w*", r"fluoxetin\w*", r"prozac", r"paroxetin\w*", r"escitalopram\w*", r"citalopram\w*",
+        r"venlafaxin\w*", r"duloxetin\w*", r"mirtazapin\w*", r"trazodon\w*",
+        r"lorazepam\w*", r"orfidal", r"diazepam\w*", r"valium", r"alprazolam\w*", r"trankimazin",
+        r"clonazepam\w*", r"rivotril", r"lormetazepam\w*", r"bromazepam\w*", r"tranxilium",
+        # ("Concerta" is left out on purpose: "se concerta una cita".)
+        r"metilfenidat\w*", r"methylphenidate", r"rubifen", r"lisdexanfetamin\w*", r"elvanse",
+        r"valproat\w*", r"depakine", r"lamotrigin\w*", r"carbamazepin\w*", r"pregabalin\w*", r"lyrica",
+        r"gabapentin\w*", r"buprenorfin\w*", r"buprenorphine", r"suboxone", r"naltrexon\w*",
+        r"disulfiram\w*", r"antabus\w*", r"truvada", r"biktarvy", r"dolutegravir\w*", r"tenofovir\w*",
+        r"insulin\w*", r"metformin\w*", r"sintrom", r"acenocumarol\w*",
+        r"tramadol\w*", r"fentanil\w*", r"fentanyl", r"morfina\w*", r"morphine",
+    ],
+    "health_general": [
+        r"enfermedad(?:es)?", r"enferm[oa]s?", r"problemas? de salud", r"salud mental",
+        r"osasun[- ]arazo\w*", r"osasun mental\w*", r"gaixotasun\w*", r"gaixo(?:a|ak)?",
+        r"illness(?:es)?", r"mental health", r"health problems?",
+    ],
+    "religion_belief": [
+        r"musulm[aá]n\w*", r"muslim(?:s)?", r"isl[aá]mic[oa]s?", r"islamiko\w*", r"islamic",
+        r"cat[oó]lic[oa]s?", r"katoliko\w*", r"catholic(?:s)?",
+        # Lower case only: "Cristian" / "Christian" are also first names.
+        r"(?-i:cristian[oa]s?)", r"kristau(?:a|ak|aren|arekin)?", r"(?-i:christians?)", r"islam",
+        r"evang[eé]lic[oa]s?", r"ebanjeliko\w*", r"evangelical(?:s)?",
+        r"protestante(?:s)?", r"protestant(?:s)?",
+        r"jud[ií][oa]s?", r"judu(?:a|ak|aren|arekin)?", r"jewish", r"jews?",
+        r"testig[oa]s? de jehov[aá]", r"jehovah'?s witness(?:es)?", r"jehobaren lekuko\w*",
+        r"morm[oó]n(?:a|as|es)?", r"mormons?", r"budista(?:s)?", r"budist\w*", r"buddhist(?:s)?",
+        # "atea" alone is left out on purpose: in Basque it means "the door".
+        r"hind[uú](?:es|s)?", r"ateos?", r"ateo(?:a|ak)?", r"es atea", r"ateas", r"atheists?",
+        r"agn[oó]stic[oa]s?", r"agnostics?",
+    ],
+    "ethnic_origin": [
+        r"gitan[oa]s?", r"ijito\w*", r"gypsy", r"gypsies", r"roman[ií](?:es|s)?",
+        r"pay[oa]s?", r"afrodescendiente(?:s)?", r"afroamerican\w*",
+        r"de etnia \w+", r"de raza \w+", r"racializad[oa]s?", r"ind[ií]gena(?:s)?",
+    ],
+    "political_opinion": [
+        r"es de (?:izquierdas|derechas)", r"(?:de )?(?:extrema|ultra) ?(?:izquierda|derecha)",
+        r"independentista(?:s)?", r"independentist\w*", r"abertzale\w*",
+        r"comunista\w*", r"communists?", r"anarquista(?:s)?", r"anarkista\w*", r"anarchists?",
+        r"franquista(?:s)?", r"fascista\w*", r"fascists?", r"nacionalista(?:s)?",
+        r"ezkertiar\w*", r"eskuindar\w*", r"(?:left|right)[- ]wing", r"far[- ](?:left|right)",
+        r"izquierda unida", r"ezker batua", r"elkarrekin podemos",
+    ],
+    "trade_union": [
+        r"sindicat[oa]s?", r"sindicalista(?:s)?", r"delegad[oa]s? sindical(?:es)?",
+        r"sindikatu\w*", r"sindikalista\w*", r"trade unions?", r"union members?(?:hip)?",
+        r"trade unionists?",
+    ],
+    "nationality": [
+        r"marroqu[ií](?:es|s)?", r"argelin[oa]s?", r"ruman[oa]s?", r"magreb[ií](?:es|s)?",
+        r"subsahariano?a?s?", r"senegal[eé]s(?:a|as|es)?", r"colombian[oa]s?", r"venezolan[oa]s?",
+        r"hondureñ[oa]s?", r"nicarag[uü]ense(?:s)?", r"peruan[oa]s?", r"bolivian[oa]s?",
+        r"ecuatorian[oa]s?", r"paquistan[ií](?:es|s)?", r"pakistan[ií](?:es|s)?",
+        r"ucranian[oa]s?", r"georgian[oa]s?", r"nigerian[oa]s?", r"malienses?", r"guinean[oa]s?",
+    ],
+}
+
+# Acronyms and party names: matched only exactly as written (capitals), so
+# ordinary words are never caught. ("Podemos" and "Sumar" are left out on
+# purpose: they are also everyday verbs.)
+_SPECIAL_ACRONYMS = {
+    "health_specific": ["VIH", "SIDA", "GIB", "TDAH", "TDA", "TEA", "TLP", "TOC", "TCA", "TEPT",
+                        "TMG", "IVE", "PrEP", "HIV", "ADHD", "PTSD", "OCD"],
+    "political_opinion": ["PNV", "EAJ", "EH Bildu", "Bildu", "PSE-EE", "PSE", "PSOE", "PP", "IU",
+                          "Vox", "VOX"],
+    "trade_union": ["ELA", "LAB", "CCOO", "CC.OO.", "UGT", "STEILAS", "CGT", "CNT"],
+}
+
+
+def _load_special_categories():
+    """The categories switched on, from config.ANONYMISER_SPECIAL_CATEGORIES
+    (names separated by commas). A missing or invalid value -- including
+    any unknown name -- means the defaults, so a typo can never switch the
+    protection off."""
+    try:
+        from config import ANONYMISER_SPECIAL_CATEGORIES
+        names = [n.strip().lower() for n in str(ANONYMISER_SPECIAL_CATEGORIES).split(",") if n.strip()]
+    except Exception:
+        return DEFAULT_SPECIAL_CATEGORIES
+    if not names or any(n not in SPECIAL_CATEGORY_LABELS for n in names):
+        return DEFAULT_SPECIAL_CATEGORIES
+    return tuple(dict.fromkeys(names))
+
+
+def _build_special_rules(categories):
+    """[(compiled regex, label)] for the given categories, longest phrases
+    first so "trastorno bipolar" wins over "bipolar"."""
+    rules = []
+    for key in categories:
+        label = SPECIAL_CATEGORY_LABELS[key]
+        words = sorted(_SPECIAL_TERMS.get(key, []), key=len, reverse=True)
+        if words:
+            rules.append((re.compile(
+                r"(?<![\w\[])(?:%s)(?![\w])" % "|".join(w.replace(" ", r"\s+") for w in words),
+                re.IGNORECASE), label))
+        acronyms = sorted(_SPECIAL_ACRONYMS.get(key, []), key=len, reverse=True)
+        if acronyms:
+            rules.append((re.compile(
+                r"(?<![\w\[.\-])(?:%s)(?![\w\-])" % "|".join(re.escape(a).replace(r"\ ", r"\s+") for a in acronyms)),
+                label))
+    return rules
+
+
+_SPECIAL_RULES = _build_special_rules(_load_special_categories())
+
+
+def _replace_special_categories(text: str, rules=None) -> str:
+    """Replace words that state a sensitive personal detail by their label
+    (see the section comment above)."""
+    for regex, label in (_SPECIAL_RULES if rules is None else rules):
+        text = regex.sub(label, text)
+    return text
+
+
+# One sentence added to the AI's instructions wherever anonymised text is
+# sent (services/reflection_service.py, services/pattern_text_analysis.py),
+# so the AI understands the labels and never speculates about them.
+SENSITIVE_LABELS_NOTE = (
+    "Some details in the text have been replaced by labels in square brackets, "
+    "such as [PERSON], [LOCATION], [HEALTH] or [SEXUAL_ORIENTATION]. A label only "
+    "shows that such a detail was mentioned. Never guess, infer or ask what the "
+    "hidden detail was."
+)
+
+
 def anonymize(text: str) -> str:
     """Return a privacy-hardened representation suitable for external AI.
 
@@ -714,6 +956,9 @@ def _anonymize_core(text: str) -> str:
     safe = _EMAIL_RE.sub("[EMAIL]", safe)
     safe = _IBAN_RE.sub("[ID]", safe)
     safe = _DATE_RE.sub("[DATE]", safe)
+    # (18 November 2026) Sensitive personal details, BEFORE names, so that
+    # "Bildu" or a sentence-initial "Gay" gets its own label, not [PERSON].
+    safe = _replace_special_categories(safe)
     safe = _generalise_ages(safe)
     safe = _IDENTIFIER_RE.sub("[ID]", safe)
     safe = _DNI_NIE_RE.sub("[ID]", safe)

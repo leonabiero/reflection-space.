@@ -29,7 +29,6 @@ import calendar
 
 import config
 from services import usage_ledger
-from services.embedding_service import is_available as gemini_available
 from services.db_pool import get_pool_stats
 from services.reflection_log import get_total_reflection_count
 from services.cost_pricing import pricing_snapshot
@@ -102,27 +101,8 @@ def get_anthropic_overview():
     }
 
 
-def get_gemini_overview():
-    today = usage_ledger.get_today_summary("gemini")
-    month = usage_ledger.get_month_summary("gemini")
-    budget = config.MONTHLY_BUDGET_GEMINI_USD
-    projected = _projected_month_cost(month["estimated_cost_usd"])
-    pct = round(100.0 * month["estimated_cost_usd"] / budget, 1) if budget > 0 else None
-    return {
-        "service": "Gemini Embeddings (Google)",
-        "configured": gemini_available(),
-        "requests_today": today["request_count"],
-        "requests_month": month["request_count"],
-        "fail_count_month": month["fail_count"],
-        "input_tokens_month": month["input_tokens"],
-        "cost_today_usd": today["estimated_cost_usd"],
-        "cost_month_usd": month["estimated_cost_usd"],
-        "projected_month_usd": projected,
-        "budget_usd": budget if budget > 0 else None,
-        "budget_pct_used": pct,
-        "status": _status_for_pct(pct),
-        "cost_is_estimate": month["cost_is_estimate"],
-    }
+# (Google Gemini was removed on 18 November 2026: it no longer received any
+# text, so it is no longer a monitored service.)
 
 
 def get_postgres_overview():
@@ -184,7 +164,6 @@ def get_all_service_overviews():
     table."""
     return {
         "anthropic": get_anthropic_overview(),
-        "gemini": get_gemini_overview(),
         "postgres": get_postgres_overview(),
         "streamlit": get_streamlit_overview(),
         "smtp": get_smtp_overview(),
@@ -263,8 +242,7 @@ def forecast_scenario(users, reflections_per_user_per_month):
     """
     ESTIMATE ONLY (labeled as such everywhere this is displayed).
     Projects total monthly cost at a hypothetical user/volume level,
-    using the CURRENT measured average cost per reflection (Phase 12)
-    and average embeddings-per-reflection ratio observed in the ledger.
+    using the CURRENT measured average cost per reflection (Phase 12).
     If there isn't yet enough real usage to derive an average, this
     returns None fields rather than guessing.
     """
@@ -277,26 +255,11 @@ def forecast_scenario(users, reflections_per_user_per_month):
     if avg_cost is not None:
         projected_claude_cost = avg_cost * total_reflections
 
-    # Gemini: one document embedding is generated per completed
-    # document, roughly one per reflection at this app's current
-    # workflow (draft -> reflect -> finalize -> index). Derive the
-    # observed average Gemini cost per reflection the same way, from
-    # real ledger data, rather than a second guessed ratio.
-    gemini_month = usage_ledger.get_month_summary("gemini")
-    reflections_this_month = get_total_reflection_count() or 0
-    avg_gemini_cost_per_reflection = None
-    if reflections_this_month > 0:
-        avg_gemini_cost_per_reflection = gemini_month["estimated_cost_usd"] / reflections_this_month
-    projected_gemini_cost = None
-    if avg_gemini_cost_per_reflection is not None:
-        projected_gemini_cost = avg_gemini_cost_per_reflection * total_reflections
-
     return {
         "users": users,
         "reflections_per_user_per_month": reflections_per_user_per_month,
         "total_reflections_per_month": total_reflections,
         "projected_claude_cost_usd": projected_claude_cost,
-        "projected_gemini_cost_usd": projected_gemini_cost,
         "basis_note": (
             "Estimate only -- based on this pilot's current measured average "
             "cost per reflection, projected linearly to the volumes above. "

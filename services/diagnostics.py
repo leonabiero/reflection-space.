@@ -269,9 +269,6 @@ def _collect_config_values():
             "app_name": getattr(config, "APP_NAME", ""),
             "app_version": getattr(config, "APP_VERSION", "unspecified"),
             "anthropic_api_key_configured": bool(getattr(config, "ANTHROPIC_API_KEY", "")),
-            "gemini_api_key_configured": bool(getattr(config, "GEMINI_API_KEY", "")),
-            "embedding_model": getattr(config, "EMBEDDING_MODEL", ""),
-            "embedding_dimensions": getattr(config, "EMBEDDING_DIMENSIONS", None),
             "database_configured": bool(getattr(config, "DATABASE_URL", "")),
             "email_alerts_configured": bool(getattr(config, "SMTP_HOST", "")) and bool(getattr(config, "ALERT_EMAIL_TO", "")),
             "db_pool_min_conn": getattr(config, "DB_POOL_MIN_CONN", None),
@@ -321,8 +318,6 @@ def _categorize(error_type, message, traceback_text):
         return "Database"
     if "anthropic" in haystack or "claude" in haystack:
         return "AI / Claude API"
-    if "gemini" in haystack or "embedding" in haystack:
-        return "Retrieval / Embeddings"
     if "smtp" in haystack or "email" in haystack:
         return "Email"
     if "timeout" in haystack or "connection" in haystack:

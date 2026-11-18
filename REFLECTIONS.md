@@ -109,6 +109,35 @@ reflection.**
   Barakaldo" is a place. Floor and door after an address ("2º izquierda",
   "3ºB", "bajo", "2. ezkerra") are removed with it. In text written in
   capitals, "VIVE EN BILBAO CON SU MADRE" no longer loses "CON SU MADRE".
+- **Sensitive personal details — GDPR "special categories" (18 November
+  2026).** EDE's test showed that words such as "gay" reached the AI. Words
+  that state a sensitive detail are now replaced by a neutral label, in
+  Spanish, Basque and English, so the AI knows such a detail was mentioned
+  but never what it was: `[SEXUAL_ORIENTATION]`, `[GENDER_IDENTITY]`,
+  `[HEALTH]`, `[RELIGION_BELIEF]`, `[ETHNIC_ORIGIN]`, `[POLITICAL_OPINION]`,
+  `[TRADE_UNION]`. Every AI instruction that receives anonymised text also
+  says what the labels mean and that the AI must never guess what was hidden
+  (`anonymizer.SENSITIVE_LABELS_NOTE`).
+  - *Product owner's decisions:* health — only **specific** diagnoses,
+    treatments and medicine names are hidden ("esquizofrenia", "VIH",
+    "sertralina"); general words ("enfermedad", "problema de salud", "salud
+    mental") are kept. Nationality is **not** hidden for now. Both can be
+    switched on, and any category off, with `ANONYMISER_SPECIAL_CATEGORIES`
+    in `config.py` (an invalid value falls back to the defaults).
+  - *Named mental health centres:* "Centro de Salud Mental de Uribarri" keeps
+    "Centro de Salud Mental" and the place becomes `[LOCATION]` (it used to be
+    "[PERSON] de Salud Mental de [PERSON]").
+  - *What it will not catch (be honest about this):* indirect hints ("vive con
+    su novia", "va a la mezquita los viernes", "fue a la manifestación",
+    "lleva velo"), misspellings and slang, medicines and conditions that are
+    not on the lists, "Podemos" and "Sumar" (left out because they are also
+    everyday verbs), and the Spanish feminine "atea" (left out because in
+    Basque it means "the door"). "ELA" is always labelled as a trade union,
+    even when it means the disease — still hidden, but with the wrong label.
+    Some words may be hidden when they did not mean a sensitive detail (for
+    example "adicto al trabajo"); the anonymiser leans towards hiding.
+  - *Pattern Review* re-anonymises every saved text each time it runs, so the
+    new protection applies to texts written before this change too.
 - **What the practitioner types in a follow-up conversation is protected too
   (November 2026).** Previously only the document was anonymised; the
   messages typed into a companion conversation went to Claude as written. Each
@@ -216,11 +245,9 @@ Cloud, outside the EU) while it is being written — that was already the case
 and storing does not change it; the database is currently under a personal
 account and should move to an EDE-owned account.
 
-**Gemini (pattern features):** the Gemini key currently runs on Google's free
-tier. Google's Gemini API terms allow only the paid tier for apps used by people
-in the EU, and on the free tier Google may use submitted text to improve its
-products. Until a paid (EDE) key is in place, original texts must not be sent to
-Gemini. Today Gemini only receives texts that are already anonymised.
+**Gemini:** removed on 18 November 2026. No text had been sent to Google Gemini
+since 15 November 2026, so the earlier concern about its free tier no longer
+applies. Claude is the only AI service the app uses.
 
 ### Saved anonymised text (4–10 November 2026, product owner decision) — superseded
 

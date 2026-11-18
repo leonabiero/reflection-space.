@@ -5,7 +5,7 @@ WHY THIS FILE EXISTS
 ---------------------
 Phase 3's load/performance testing is meant to answer "what happens when
 many legitimate practitioners use Reflection Space at the same time?"
-without spending real money on the Claude/Gemini APIs, without touching
+without spending real money on the Claude API, without touching
 a real Postgres database, and without needing production credentials.
 
 The trick used throughout this package is NOT to re-implement the

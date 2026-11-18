@@ -7,8 +7,7 @@ Service Cost & Usage Monitor (September pilot hardening) -- Phases
 
 This module is the single write/read point for the `service_usage`
 table (see services/db_schema.py). Every external/billable operation
-in the app -- a Claude call, a Gemini embedding, an
-SMTP send -- is recorded here, and every number the System
+in the app -- a Claude call, an SMTP send -- is recorded here, and every number the System
 Administration "Service Usage & Costs" panel shows is read back out
 through the functions below.
 
@@ -62,8 +61,10 @@ logger = get_logger(__name__)
 
 # Recognized service identifiers -- used throughout the dashboard so
 # every panel iterates the same fixed list rather than whatever
-# happens to already be in the table.
-SERVICES = ["anthropic", "gemini", "postgres", "streamlit", "smtp"]
+# happens to already be in the table. ("gemini" was removed on
+# 18 November 2026 with Gemini itself; old rows for it in the table are
+# simply no longer shown.)
+SERVICES = ["anthropic", "postgres", "streamlit", "smtp"]
 
 # Small, bounded pool JUST for usage-ledger writes -- deliberately
 # separate from any request-serving thread pool, and deliberately

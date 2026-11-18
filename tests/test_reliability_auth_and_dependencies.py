@@ -84,21 +84,9 @@ class SessionReliabilityTests(unittest.TestCase):
 
 
 class ExternalDependencyReliabilityTests(unittest.TestCase):
-    def test_gemini_embedding_failure_degrades_to_none(self):
-        from services import embedding_service
-
-        client = MagicMock()
-        client.models.embed_content.side_effect = TimeoutError("Gemini timeout")
-        with patch.object(embedding_service, "GEMINI_API_KEY", "configured"), patch.object(embedding_service, "_client", client):
-            self.assertIsNone(embedding_service.embed_document("already anonymized text"))
-
-    def test_empty_embedding_degrades_to_none(self):
-        from services import embedding_service
-
-        client = MagicMock()
-        client.models.embed_content.return_value.embeddings = []
-        with patch.object(embedding_service, "GEMINI_API_KEY", "configured"), patch.object(embedding_service, "_client", client):
-            self.assertIsNone(embedding_service.embed_query("query"))
+    # (18 November 2026: the two Gemini embedding tests were retired with
+    # Gemini itself, with the product owner's approval -- see
+    # tests/test_gemini_removed.py.)
 
     def test_request_fingerprint_is_stable_and_one_way(self):
         from services.request_dedup import fingerprint

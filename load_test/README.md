@@ -33,7 +33,7 @@ concurrency semaphore, 8-way companion fan-out, and retry logic.
   ever made and no real credits are ever spent.
 
 This toolkit never imports the real `psycopg2.connect`, never calls a
-real Anthropic/Gemini/Qdrant endpoint, and never touches a production
+real Anthropic endpoint, and never touches a production
 database. It cannot accidentally run against production.
 
 ## How to run it

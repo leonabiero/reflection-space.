@@ -12,21 +12,23 @@ keep it accurate as providers change their prices. It complements
 | Service | What's tracked | Cost shown? |
 |---|---|---|
 | Claude (Anthropic) | Every reflection companion call, every retry, every companion follow-up conversation, every Pattern Review call (`pattern_text_batch`, `pattern_text_report`) | Yes — from actual token usage |
-| Gemini Embeddings (Google) | Every embedding made (none since 15 November 2026: no feature sends text to Gemini any more) | Yes — from actual token usage |
 | PostgreSQL (Neon) | This app's own connection-pool usage | No — this is an *application* metric, not Neon's bill (see below) |
 | Streamlit | Active sessions, where reliably measurable | No — hosting cost isn't available from this deployment |
 | SMTP | Alert emails sent/failed | No — depends on whatever email provider is configured |
+
+Google Gemini was removed on 18 November 2026 (no text had been sent to it
+since 15 November), so it is no longer listed. Old Gemini rows already in
+the `service_usage` table are simply no longer shown.
 
 ## How a cost is calculated
 
 Every dollar figure on the panel comes from the same two steps:
 
-1. **Record actual usage.** Every Claude and Gemini call is
+1. **Record actual usage.** Every Claude call is
    instrumented at its call site (`services/reflection_service.py`,
-   `services/pattern_text_analysis.py`, `services/embedding_service.py`)
+   `services/pattern_text_analysis.py`)
    to capture the token counts the *provider itself* reports back —
-   `message.usage.input_tokens` / `output_tokens` for Claude, and the
-   Google GenAI SDK's `statistics.token_count` for Gemini. **The
+   `message.usage.input_tokens` / `output_tokens`. **The
    `max_tokens` a call is allowed to use is never treated as the
    number of tokens it actually used** — that would overstate cost
    every time a response finishes early.
@@ -34,25 +36,24 @@ Every dollar figure on the panel comes from the same two steps:
 2. **Price it centrally.** `services/cost_pricing.py` is the *only*
    place a provider's price per token is written down. Everything else
    — the ledger, the dashboard, the forecast — calls into that one
-   file. If Anthropic or Google change their prices, updating the cost
+   file. If Anthropic changes its prices, updating the cost
    shown everywhere in the app is a one-line edit in that single file
    (see "Updating pricing" below).
 
 Every usage event is written to a `service_usage` database table
 (`services/usage_ledger.py`) in the background, off the request path,
 so recording usage can never add latency to — or ever cause a failure
-of — a practitioner's reflection, an embedding, or an email. If the
+of — a practitioner's reflection, a Pattern Review report, or an email. If the
 database write itself fails, it's logged and silently dropped; the
 only consequence is a slightly incomplete dashboard, never a broken
 feature.
 
 ## What counts as exact vs. an estimate
 
-- **Exact:** Claude token counts (from the API response), Gemini token
-  counts (from the SDK response).
+- **Exact:** Claude token counts (from the API response).
 - **Estimate:** any cost computed from a token count when the model
   name wasn't recognized in `cost_pricing.py` (falls back to the
-  default Claude/Gemini model's price, and is flagged
+  default Claude model's price, and is flagged
   `cost_is_estimate`). The dashboard shows a warning caption whenever
   this happened during the period being viewed.
 - **Unavailable, not guessed:** Neon's own compute/storage billing
@@ -83,9 +84,16 @@ summary (`reflection_summary`) was removed, so a reflection no longer costs
 anything beyond its companion calls. Pattern Review costs money only when a
 manager presses "Identify patterns": one Claude call per group of up to 40
 texts (`pattern_text_batch`) plus one final call (`pattern_text_report`).
-With texts of about 2,000 characters, a 12-month report on about 1,200 texts
-is roughly **$1.50–$3.50**; a 3-month report on about 250 texts roughly
-**$0.40–$0.80**. See `services/pattern_text_analysis.py`.
+See `PATTERNS.md` for the cost table by period (1–15 months) and
+`services/pattern_text_analysis.py`.
+
+**Sensitive-label sentence (18 November 2026).** Every reflection companion
+call, follow-up conversation and Pattern Review group now includes one extra
+sentence (about 60 input tokens) explaining the anonymiser's labels such as
+`[HEALTH]`. That adds about $0.001 per reflection (8 calls), about $0.0001
+per follow-up message, and about $0.0001 per Pattern Review group (around
+$0.008 for a full 15-month report) — roughly $0.10 a month at the pilot's
+expected volume.
 
 ## User-volume forecast
 
@@ -108,7 +116,7 @@ later re-arms the alert.
 ## Updating pricing
 
 1. Open `services/cost_pricing.py`.
-2. Update the relevant rate in `ANTHROPIC_PRICING` or `GEMINI_PRICING`.
+2. Update the relevant rate in `ANTHROPIC_PRICING`.
 3. Update that entry's `effective_date` to today.
 4. Nothing else needs to change — every dashboard figure recalculates
    from the same registry automatically.
@@ -122,14 +130,16 @@ every other configuration value in `OPERATIONS.md`:
 | Setting | Default | What it's for |
 |---|---|---|
 | `MONTHLY_BUDGET_ANTHROPIC_USD` | 50 | Claude monthly budget ceiling |
-| `MONTHLY_BUDGET_GEMINI_USD` | 10 | Gemini monthly budget ceiling |
+
+(`MONTHLY_BUDGET_GEMINI_USD` was removed with Gemini; if it is still in the
+hosting secrets it is ignored.)
 
 ## What happens if monitoring itself fails
 
 Nothing, from the practitioner's point of view. Every instrumentation
 point wraps its usage-recording call so that a database outage, a
 full recording queue, or any other monitoring-side failure is caught,
-logged, and ignored — the reflection, embedding, search, or email that
+logged, and ignored — the reflection, report or email that
 triggered it always completes exactly as if monitoring weren't there.
 See `services/usage_ledger.py`'s module docstring for the full design
 reasoning, and `tests/test_service_usage_monitoring.py` for tests that

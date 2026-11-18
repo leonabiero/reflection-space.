@@ -103,10 +103,6 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_backfill_running': '{current}/{total} dokumentua indexatzen...',
  'admin_backfill_done': '✔ Birindexatzea amaituta: {indexed}/{total} dokumentu Qdrant-en '
                         'indexatuta.',
- 'admin_backfill_unavailable': 'Berreskuratze semantikoa oraindik ez dago konfiguratuta '
-                               '(GEMINI_API_KEY edo QDRANT_URL falta da sekretuetan). '
-                               'Aplikazioaren gainerakoak data araberako testuinguru '
-                               'historikoarekin funtzionatzen jarraitzen du.',
  'admin_anon_header': 'Anonimizazio Demoa',
  'admin_anon_caption': 'Itsatsi lagin-testu bat (datu faltsuak soilik) sistematik Claude-ra iritsi '
                        'aurretik zer ateratzen den ikusteko. reflection_service.py fitxategian '
@@ -208,18 +204,14 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_health_header': '💚 Sistemaren osasuna',
  'admin_health_overall': '#### Egoera orokorra',
  'admin_health_critical': '🔴 Kritikoa',
- 'admin_health_degraded': '🟡 Degradatuta (berreskuratze semantikoa ez dago konfiguratuta — '
-                          'aplikazioa data araberako moduan dabil)',
  'admin_health_healthy': '🟢 Osasuntsua',
  'admin_health_components': '#### Osagaiak',
  'admin_health_component_col': 'Osagaia',
  'admin_health_status_col': 'Egoera',
  'admin_health_component_database': 'Datu-basea',
- 'admin_health_component_embedding': 'Embedding zerbitzua (Gemini API)',
  'admin_health_component_reflection': 'Hausnarketa motorra (Claude API)',
  'admin_health_healthy_label': 'Osasuntsua',
  'admin_health_unreachable_label': 'Ezin da atzitu',
- 'admin_health_available_label': 'Eskuragarri',
  'admin_health_not_configured_label': 'Konfiguratu gabe',
  'admin_health_operational_label': '✅ Funtzionamenduan',
  'admin_health_db_error_prefix': 'Datu-base errorea:',
@@ -387,7 +379,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Anonimizazioak datu pertsonal bereziki sentikorrak ere ordezten ditu (sexu-orientazioa, genero-identitatea, diagnostiko, tratamendu eta botika zehatzak, erlijioa edo sinesmenak, jatorri etnikoa, iritzi politikoak eta sindikatu-afiliazioa) [HEALTH] bezalako etiketa neutro batekin, AAk horrelako zerbait aipatu zela jakin dezan, baina inoiz ez zer. Zeharkako aztarnak ez dira beti detektatzen; beraz, hobe da beharrezkoak baino xehetasun gehiago ez idaztea.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
           'pattern_review_section_title': '🔎 Patroien berrikuspena',
           'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Idatzi zenbat hilabete aztertu nahi dituzun (1etik {maximum}era) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Ereduak hausnartzeko aukerak dira, ez ondorioak.'},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',

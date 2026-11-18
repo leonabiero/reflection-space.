@@ -62,12 +62,14 @@ from services.db_time import get_logger
 from services import reflection_service
 from services.reflection_service import LANG_INSTRUCTIONS
 from services import pattern_text_store
-from services.anonymizer import anonymize
+from services.anonymizer import anonymize, SENSITIVE_LABELS_NOTE
 from services import request_dedup
 
 logger = get_logger(__name__)
 
-PROMPT_VERSION = "2026-11-text-patterns-1"
+# -2 (18 November 2026): the batch instructions explain the anonymiser's
+# labels ([HEALTH], [SEXUAL_ORIENTATION], ...).
+PROMPT_VERSION = "2026-11-text-patterns-2"
 BATCH_OPERATION = "pattern_text_batch"
 REPORT_OPERATION = "pattern_text_report"
 
@@ -289,7 +291,7 @@ def read_batch(batch, lang, min_per_pattern):
     None if the group could not be read."""
     system = BATCH_SYSTEM_PROMPT.format(
         minimum=min_per_pattern, max_patterns=MAX_PATTERNS_PER_BATCH,
-    ) + "\n\n" + _lang_instruction(lang)
+    ) + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + _lang_instruction(lang)
     parsed = _call(system, build_batch_message(batch), BATCH_MAX_TOKENS, BATCH_OPERATION)
     if parsed is None:
         return None

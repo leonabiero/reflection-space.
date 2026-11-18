@@ -6,7 +6,8 @@ budget, % used, estimated cost, status) and its two informational
 notes. The detailed breakdowns that used to sit below it -- Claude
 cost detail, cost-per-reflection, Gemini embeddings detail, the pricing
 table, and the user-volume forecast with its preset scenarios -- were
-removed as more detail than the pilot needs here. The underlying
+removed as more detail than the pilot needs here. 18 November 2026: the
+Gemini row was removed together with Gemini itself. The underlying
 calculations (services/cost_dashboard_service.py) are unchanged and
 still covered by tests, so a fuller view could be brought back later
 without losing anything.
@@ -61,15 +62,6 @@ def render(T):
             T.get("admin_usage_col_pct", "% used"): _pct(a["budget_pct_used"]),
             T.get("admin_usage_col_cost", "Est. cost (month)"): _money(a["cost_month_usd"]),
             T.get("admin_usage_col_status", "Status"): _status_label(a["status"]),
-        })
-        g = overviews["gemini"]
-        overview_rows.append({
-            T.get("admin_usage_col_service", "Service"): g["service"],
-            T.get("admin_usage_col_usage", "Usage (this month)"): f"{g['requests_month']} calls",
-            T.get("admin_usage_col_limit", "Budget"): _money(g["budget_usd"]),
-            T.get("admin_usage_col_pct", "% used"): _pct(g["budget_pct_used"]),
-            T.get("admin_usage_col_cost", "Est. cost (month)"): _money(g["cost_month_usd"]),
-            T.get("admin_usage_col_status", "Status"): _status_label(g["status"]),
         })
         p = overviews["postgres"]
         p_usage = f"{p['active_conn']} / {p['max_conn']} " + T.get("admin_usage_connections", "connections") if p.get("pool_created") else T.get("admin_usage_not_started", "Not started yet")

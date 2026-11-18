@@ -6,7 +6,7 @@ from config import (
     ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS,
     REQUEST_DEDUP_TTL_MINUTES,
 )
-from services.anonymizer import anonymize
+from services.anonymizer import anonymize, SENSITIVE_LABELS_NOTE
 from services.error_log import log_error
 from services import request_dedup
 from services import usage_ledger
@@ -157,7 +157,9 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
 
     system_prompt = build_companion_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
-    full_system_prompt = system_prompt + "\n\n" + lang_instruction
+    # (18 November 2026) Explains the anonymiser's labels ([HEALTH],
+    # [SEXUAL_ORIENTATION], ...) so the AI never speculates about them.
+    full_system_prompt = system_prompt + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + lang_instruction
 
     _companion_key = companion.get("key") if isinstance(companion, dict) else None
     _started = time.monotonic()
@@ -385,7 +387,8 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
 
     system_prompt = build_companion_conversation_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
-    full_system_prompt = system_prompt + "\n\n" + lang_instruction
+    # (18 November 2026) Explains the anonymiser's labels -- see above.
+    full_system_prompt = system_prompt + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + lang_instruction
 
     context_block = f"""
 DOCUMENT:

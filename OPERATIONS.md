@@ -23,11 +23,16 @@ GitHub.
 
 | Setting | What it's for | What happens if it's missing |
 |---|---|---|
-| `GEMINI_API_KEY` | Turns text into numerical "fingerprints" for Pattern Review | Those features fall back to simpler grouping; reflections are not affected. Note: the free Gemini tier is not permitted by Google's terms for users in the EU — use a paid key (see `REFLECTIONS.md`). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `ALERT_EMAIL_TO` | Sends an email to an administrator when something breaks | No email alerts go out. Errors are still recorded inside the app's own Error Log screen. |
 | `DEMO_MODE` | Set to `"true"` **only in the separate demo app** (see `DEMO.md`). Shows the red DEMO banner and the "Demo data" section. **Never set it in the real app.** | Normal (real) app |
 | `ADMIN_PASSWORD` | Left over from an earlier design | Not used anywhere in the current code. Safe to leave unset — see note in Section 6. |
-| `MONTHLY_BUDGET_ANTHROPIC_USD` / `MONTHLY_BUDGET_GEMINI_USD` | Budget ceilings shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
+| `MONTHLY_BUDGET_ANTHROPIC_USD` | Budget ceiling shown on the System Administration "Service Usage & Costs" panel — see `SERVICE_USAGE_MONITORING.md` | The panel shows "Limit unavailable" instead of a status percentage for that service; nothing else is affected |
+
+| `ANONYMISER_SPECIAL_CATEGORIES` | Which kinds of sensitive personal details the anonymiser replaces with a label (see `config.py` and `REFLECTIONS.md`). Leave unset unless EDE decides to change them, e.g. to also hide nationality | The default list is used (an invalid value also falls back to it) |
+
+**No longer used (18 November 2026):** `GEMINI_API_KEY` and
+`MONTHLY_BUDGET_GEMINI_USD` — Google Gemini was removed. If they are still in
+the hosting secrets they are simply ignored and can be deleted.
 
 Every tuning knob (rate limits, timeouts, pool size, session length,
 etc.) has a safe built-in default and only needs to be touched if a

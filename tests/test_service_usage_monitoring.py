@@ -3,7 +3,7 @@ Service Cost & Usage Monitor -- Tests
 
 Covers the behaviors the accompanying spec's Phase 17 calls out
 explicitly: actual (not max_tokens-based) cost calculation, retries
-and companion calls being recorded, Gemini/Qdrant/DB metrics failing
+and companion calls being recorded, DB metrics failing
 gracefully, centralized pricing, threshold status correctness, monthly
 projection, cost-per-reflection, duplicate-alert prevention, monitoring
 never breaking a reflection, and no sensitive content ever reaching
@@ -37,12 +37,8 @@ class CostPricingTests(unittest.TestCase):
         self.assertFalse(recognized)
         self.assertGreater(cost, 0)  # still computes SOMETHING via fallback rate, but flagged
 
-    def test_gemini_cost_from_actual_token_count(self):
-        from services.cost_pricing import estimate_gemini_embedding_cost
-
-        cost, recognized = estimate_gemini_embedding_cost("gemini-embedding-001", input_tokens=500)
-        self.assertTrue(recognized)
-        self.assertGreater(cost, 0)
+    # (18 November 2026: the Gemini price test was retired with Gemini
+    # itself, with the product owner's approval.)
 
     def test_pricing_is_centralized_in_one_registry(self):
         """Structural guard: every price lives in cost_pricing.py's
@@ -51,7 +47,6 @@ class CostPricingTests(unittest.TestCase):
 
         self.assertIn("claude-sonnet-5", cost_pricing.ANTHROPIC_PRICING)
         self.assertIn("effective_date", cost_pricing.ANTHROPIC_PRICING["claude-sonnet-5"])
-        self.assertIn("gemini-embedding-001", cost_pricing.GEMINI_PRICING)
 
     def test_every_model_the_app_uses_has_a_price(self):
         """The model the app actually calls must be priced, otherwise the
@@ -179,45 +174,9 @@ class ReflectionServiceInstrumentationTests(unittest.TestCase):
         self.assertTrue(second_call_kwargs["success"])
 
 
-class EmbeddingInstrumentationTests(unittest.TestCase):
-    def test_successful_embedding_uses_actual_token_count_from_sdk(self):
-        from services import embedding_service
-
-        fake_result = MagicMock()
-        fake_embedding = MagicMock()
-        fake_embedding.values = [0.1, 0.2, 0.3]
-        fake_embedding.statistics.token_count = 42
-        fake_result.embeddings = [fake_embedding]
-        fake_result.metadata.billable_character_count = 210
-
-        fake_client = MagicMock()
-        fake_client.models.embed_content.return_value = fake_result
-
-        with patch.object(embedding_service, "_get_client", return_value=fake_client), \
-                patch.object(embedding_service, "usage_ledger") as fake_ledger:
-            vector = embedding_service.embed_document("some safe anonymized text")
-
-        self.assertEqual(vector, [0.1, 0.2, 0.3])
-        fake_ledger.record_usage.assert_called_once()
-        _, kwargs = fake_ledger.record_usage.call_args
-        self.assertEqual(kwargs["input_tokens"], 42)
-        self.assertEqual(kwargs["units_used"], 210)
-        self.assertTrue(kwargs["success"])
-
-    def test_embedding_failure_records_failure_and_returns_none(self):
-        from services import embedding_service
-
-        fake_client = MagicMock()
-        fake_client.models.embed_content.side_effect = RuntimeError("gemini is down")
-
-        with patch.object(embedding_service, "_get_client", return_value=fake_client), \
-                patch.object(embedding_service, "usage_ledger") as fake_ledger:
-            vector = embedding_service.embed_query("some safe text")
-
-        self.assertIsNone(vector)
-        fake_ledger.record_usage.assert_called_once()
-        _, kwargs = fake_ledger.record_usage.call_args
-        self.assertFalse(kwargs["success"])
+# (18 November 2026: the two Gemini embedding instrumentation tests were
+# retired with Gemini itself, with the product owner's approval -- see
+# tests/test_gemini_removed.py.)
 
 
 class DashboardStatusTests(unittest.TestCase):
