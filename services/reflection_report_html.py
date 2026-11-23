@@ -21,7 +21,7 @@ Pure function (text in, text out): no database or AI work.
 
 from html import escape
 
-from services.highlight import highlight_html, legend_html
+from services.highlight import highlight_html, legend_html, type_badge_html
 
 _CSP = "default-src 'none'; style-src 'unsafe-inline'"
 HTML_LANG = {"Español": "es", "Euskera": "eu", "English": "en"}
@@ -64,8 +64,9 @@ def _ul(items):
 def _quote(T, item):
     kind = item.get("type")
     label = T["evidence_type_labels"].get(kind, "") if kind else ""
-    prefix = f"[{label}] " if label else ""
-    return f"<blockquote>{escape(prefix)}«{escape(item.get('quote', ''))}»</blockquote>"
+    # The type in words and in its colour (services/highlight.py).
+    prefix = (type_badge_html(kind, label) + " ") if label else ""
+    return f"<blockquote>{prefix}«{escape(item.get('quote', ''))}»</blockquote>"
 
 
 def build_reflection_report_html(T, lang, code, prepared_on, report, lenses, safe_text, quotes):
@@ -96,7 +97,7 @@ def build_reflection_report_html(T, lang, code, prepared_on, report, lenses, saf
             parts.append(f"<h3>{escape(T['ar_items_header'])}</h3>")
             for item in report["items"]:
                 parts.append('<div class="block">')
-                parts.append(f"<p><strong>{escape(types.get(item['type'], item['type']))}</strong>"
+                parts.append(f"<p>{type_badge_html(item['type'], types.get(item['type'], item['type']))}"
                              f" · {escape(areas.get(str(item['area']), str(item['area'])))}</p>")
                 if item.get("quote"):
                     parts.append(_quote(T, {"quote": item["quote"]}))

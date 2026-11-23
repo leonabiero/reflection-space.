@@ -3,7 +3,7 @@ from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
 from datetime import date
 from services.findings_ui import render_evidence, render_notes_form, md_escape
-from services.highlight import highlight_html, legend_html
+from services.highlight import highlight_html, legend_html, type_badge_html
 from services.analysis_report import all_quotes as all_typed_quotes
 from services.reflection_report_html import build_reflection_report_html
 from services.feedback_store import save_feedback
@@ -480,9 +480,11 @@ with error_boundary(
                 st.markdown(f"**{T['ar_items_header']}**")
                 for item in report["items"]:
                     with st.container(border=True):
+                        # The type in words, in its colour (services/highlight.py).
                         st.markdown(
-                            f"**{md_escape(types.get(item['type'], item['type']))}** · "
-                            f"{md_escape(areas.get(str(item['area']), str(item['area'])))}"
+                            type_badge_html(item["type"], types.get(item["type"], item["type"])) + " · "
+                            + md_escape(areas.get(str(item["area"]), str(item["area"]))),
+                            unsafe_allow_html=True,
                         )
                         if item.get("quote"):
                             st.markdown("> " + md_escape(item["quote"]))

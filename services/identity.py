@@ -377,10 +377,20 @@ def init_identity(T):
         st.error(T["no_users_configured"])
         st.stop()
 
-    username = st.text_input(T["username"])
-    password = st.text_input(T["password_label"], type="password")
+    # November 2026: the two boxes and the button are ONE form. When the
+    # browser autofills the username and password, Streamlit only learnt
+    # the values once a box was clicked, so pressing the button straight
+    # away logged in with empty boxes. A form sends both boxes together
+    # when the button (or Enter) is pressed. Nothing else changes: same
+    # labels, same checks, same messages. The boxes have no key, so the
+    # password is never written to session_state by name.
+    with st.form("login_form", clear_on_submit=False, border=False):
+        username = st.text_input(T["username"], autocomplete="username")
+        password = st.text_input(T["password_label"], type="password",
+                                 autocomplete="current-password")
+        login_submitted = st.form_submit_button(T["login_button"])
 
-    if st.button(T["login_button"]):
+    if login_submitted:
         locked_out, retry_after_seconds = is_locked_out(username)
         if locked_out:
             minutes = max(1, (retry_after_seconds + 59) // 60)

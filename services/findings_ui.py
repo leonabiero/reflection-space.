@@ -17,6 +17,8 @@ import re
 
 import streamlit as st
 
+from services.highlight import type_badge_html
+
 from services.findings_store import (
     upsert_feedback, protect_note_text, FEEDBACK_LABELS, MAX_NOTE_CHARS, MAX_ALTERNATIVE_CHARS,
 )
@@ -39,12 +41,17 @@ def render_evidence(T, evidence, unverified_count=0):
         st.caption(T["findings_evidence_caption"])
         type_labels = T.get("evidence_type_labels", {}) or {}
         for item in evidence:
-            # (November 2026) The kind of evidence, in words, before the
-            # quote; older findings have no type and show the quote only.
+            # (November 2026) The kind of evidence, in words and in its
+            # colour (services/highlight.py, the one place colours are
+            # defined), before the quote; older findings have no type and
+            # show the quote only.
             kind = item.get("type") if isinstance(item, dict) else None
             label = type_labels.get(kind) if kind else None
-            prefix = f"**[{md_escape(label)}]** " if label else ""
-            st.markdown("> " + prefix + md_escape(item.get("quote", "")))
+            if label:
+                st.markdown("> " + type_badge_html(kind, label) + " " + md_escape(item.get("quote", "")),
+                            unsafe_allow_html=True)
+            else:
+                st.markdown("> " + md_escape(item.get("quote", "")))
     if unverified_count:
         st.caption(T["findings_unverified_notice"].format(count=unverified_count))
 

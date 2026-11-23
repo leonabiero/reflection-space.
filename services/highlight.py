@@ -26,13 +26,44 @@ from html import escape
 
 from services.evidence import locate_quote, EVIDENCE_TYPES
 
-# Background (semi-transparent) and underline style for each type.
+# THE ONE PLACE where the colours of the four kinds of evidence are
+# defined. Everything that shows a type in colour -- the highlighted text
+# and its legend, the type badges on the cards, the on-screen analysis
+# report and the downloadable report -- takes them from here.
+#
+# For each type: (semi-transparent background, underline style, solid
+# colour for the underline and the badge border).
+#
+# 24 November 2026 (product owner): "Sesgo" and "Prejuicio" looked too
+# alike (orange and dark orange). Now:
+#   bias         -> clear yellow
+#   prejudice    -> clear red
+#   stereotype   -> blue (unchanged)
+#   loaded_label -> purple (was pink, which sat too close to the new red)
+# The text keeps the theme's own colour ("color:inherit"); the background
+# strengths are chosen so that text stays easily readable on both the
+# light and the dark Streamlit theme (contrast of at least 4.5:1, checked
+# in tests/test_highlight.py).
 TYPE_STYLES = {
-    "bias": ("rgba(230, 159, 0, 0.30)", "solid", "#E69F00"),
+    "bias": ("rgba(255, 214, 0, 0.45)", "solid", "#E6B800"),
     "stereotype": ("rgba(86, 180, 233, 0.30)", "dashed", "#3A9AD9"),
-    "prejudice": ("rgba(213, 94, 0, 0.28)", "double", "#D55E00"),
-    "loaded_label": ("rgba(204, 121, 167, 0.32)", "dotted", "#CC79A7"),
+    "prejudice": ("rgba(220, 38, 38, 0.30)", "double", "#D62828"),
+    "loaded_label": ("rgba(124, 58, 237, 0.28)", "dotted", "#7C3AED"),
 }
+
+
+def type_badge_html(kind, label):
+    """The type of a quote in words, as a small badge in the type's colour
+    (used on the cards and in the reports). Unknown or missing type: the
+    word only, with no colour. Escaped."""
+    if kind not in TYPE_STYLES:
+        return f"[{escape(label or '')}]" if label else ""
+    background, _underline, colour = TYPE_STYLES[kind]
+    return (
+        f'<span style="background:{background};color:inherit;border:1px solid {colour};'
+        f'border-radius:3px;padding:0 4px;font-size:0.85em;font-weight:600;white-space:nowrap;">'
+        f'{escape(label or kind)}</span>'
+    )
 
 
 def find_spans(text, quotes):
