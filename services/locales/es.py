@@ -254,8 +254,15 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_error_log_caption': 'Lista de los problemas registrados en la aplicación (fallos, '
                             'llamadas fallidas de la IA o problemas comunicados por las personas '
                             'usuarias): qué ha pasado, cuándo y en qué estado está. El '
-                            'diagnóstico de la IA llega en el correo de alerta.',
+                            'diagnóstico de la IA llega en el correo de alerta; la instrucción '
+                            'para Claude Code también se puede copiar aquí.',
  'admin_problem_what_label': 'Qué ha pasado',
+ 'admin_problem_prompt_title': 'Instrucción para Claude Code (la misma del correo de alerta)',
+ 'admin_problem_prompt_help': 'Cópiala con el botón de copiar (arriba a la derecha del recuadro) '
+                              'y pégala en Claude Code. Corresponde a la vez más reciente que '
+                              'ocurrió este problema.',
+ 'admin_problem_prompt_unavailable': 'No hay ninguna instrucción para Claude Code guardada para '
+                                     'este problema.',
  'admin_problem_open_header': 'Problemas abiertos ({n})',
  'admin_problem_solved_header': 'Problemas resueltos ({n})',
  'admin_problem_none_open': 'No hay problemas abiertos.',

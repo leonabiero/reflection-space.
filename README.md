@@ -97,6 +97,12 @@ At the product owner's request the app was trimmed to what the pilot needs:
   and "Case Knowledge Search". The Diagnostic Centre is now a plain list of
   recorded problems (what happened, when, status); the AI diagnosis still
   arrives in the alert email. Problems are recorded exactly as before.
+  Since 18 November 2026 each problem also shows the ready-to-paste Claude
+  Code prompt from its alert email (most recent occurrence), with a copy
+  button. It is the exact text saved with the record when the email was
+  made, read through one shared helper (`services/error_log.py`), so the
+  email and the screen can never differ; no extra AI call is made. Older
+  records without a saved prompt show a short "no prompt" message.
 - **Erase all data** (System Administration, typed confirmation, System
   Administrator only) empties every data table so the real pilot starts from
   zero. User accounts, sign-in sessions and settings are kept. See

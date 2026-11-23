@@ -36,7 +36,8 @@ from pages.admin_sections import (
 #     Document Indexing / Retrieval Test / RAG Status sections).
 #   - The AI Diagnostic Centre was reduced to a plain list of recorded
 #     problems (what happened, when, status); the AI diagnosis travels
-#     in the alert email.
+#     in the alert email. Since 18 November 2026 each problem also shows
+#     the same Claude Code prompt as its alert email, with a copy button.
 #   - Added: "Erase all data", to start the real pilot from zero.
 #   - 17 November 2026: "Demo data" (load / remove fictional texts), shown
 #     ONLY in the separate demo app (DEMO_MODE on) -- see DEMO.md.

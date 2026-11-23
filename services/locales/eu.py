@@ -253,8 +253,15 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_error_log_caption': 'Aplikazioan erregistratutako arazoen zerrenda (hutsegiteak, IAren '
                             'dei hutsak edo erabiltzaileek jakinarazitako arazoak): zer gertatu '
                             'den, noiz eta zein egoeratan dagoen. IAren diagnostikoa alerta-mezu '
-                            'elektronikoan iristen da.',
+                            'elektronikoan iristen da; Claude Code-rako jarraibidea hemen ere '
+                            'kopia daiteke.',
  'admin_problem_what_label': 'Zer gertatu da',
+ 'admin_problem_prompt_title': 'Claude Code-rako jarraibidea (alerta-mezuko bera)',
+ 'admin_problem_prompt_help': 'Kopiatu kopiatzeko botoiarekin (laukiaren goiko eskuinaldean) eta '
+                              'itsatsi Claude Code-n. Arazo hau azken aldiz gertatu zenari '
+                              'dagokio.',
+ 'admin_problem_prompt_unavailable': 'Ez dago Claude Code-rako jarraibiderik gordeta arazo '
+                                     'honetarako.',
  'admin_problem_open_header': 'Arazo irekiak ({n})',
  'admin_problem_solved_header': 'Konpondutako arazoak ({n})',
  'admin_problem_none_open': 'Ez dago arazo irekirik.',

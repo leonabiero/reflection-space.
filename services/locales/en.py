@@ -247,8 +247,14 @@ LANG_EN = {'title': '🧠 Reflection Space',
                   'Error logged': 'Error logged'},
  'admin_error_log_caption': 'A list of the problems recorded in the app (crashes, failed AI '
                             'calls, or problems people reported): what happened, when, and its '
-                            'status. The AI diagnosis arrives in the alert email.',
+                            'status. The AI diagnosis arrives in the alert email; the Claude '
+                            'Code prompt can also be copied here.',
  'admin_problem_what_label': 'What happened',
+ 'admin_problem_prompt_title': 'Claude Code prompt (the same as in the alert email)',
+ 'admin_problem_prompt_help': 'Copy it with the copy button (top right of the box) and paste it '
+                              'into Claude Code. It belongs to the most recent time this problem '
+                              'happened.',
+ 'admin_problem_prompt_unavailable': 'No Claude Code prompt is saved for this problem.',
  'admin_problem_open_header': 'Open problems ({n})',
  'admin_problem_solved_header': 'Solved problems ({n})',
  'admin_problem_none_open': 'There are no open problems.',

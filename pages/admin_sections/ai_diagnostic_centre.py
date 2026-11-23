@@ -14,9 +14,16 @@ grown far beyond its purpose, which is simply:
 
 So the screen now shows the bare minimum: a list of recorded problems
 with WHAT happened, WHEN, and a STATUS the administrator can change.
-The AI diagnosis is not shown here any more -- it travels in the alert
-email (services/email_alert.py, services/error_log.py), which is
-unchanged.
+The full AI diagnosis travels in the alert email (services/email_alert.py,
+services/error_log.py), which is unchanged.
+
+18 November 2026 (product owner's request): each problem also shows the
+ready-to-paste Claude Code prompt -- the EXACT text that was in its alert
+email, for the most recent occurrence -- in a box with a copy button.
+Both the email and this screen read it through the one shared helper
+services/error_log.py:get_saved_ai_prompt from the diagnostic package
+saved with the record; nothing is rebuilt and no AI call is made. Older
+records with no saved prompt show a short "no prompt" message.
 
 Nothing about how problems are RECORDED has changed: every error is
 still logged with its full diagnostic package, grouped into issues, and
@@ -36,6 +43,7 @@ from services.error_log import (
     update_issue_status,
     parse_diagnostic_package,
     group_errors_by_signature,
+    get_saved_ai_prompt,
 )
 from services.pagination import Paginator
 from services.translation_manager import render_translation_health_panel
@@ -111,6 +119,23 @@ def _render_issue(T, issue):
             else:
                 update_error_status(err["id"], new_status)
             st.rerun()
+
+        _render_claude_code_prompt(T, err)
+
+
+def _render_claude_code_prompt(T, err):
+    """The same Claude Code prompt that was sent in the alert email, read
+    from the saved diagnostic package through the one shared helper
+    (services/error_log.py:get_saved_ai_prompt). Never rebuilt here and
+    never an AI call. Shown untranslated, exactly as in the email, in
+    Streamlit's code box, which has a built-in copy button."""
+    prompt = get_saved_ai_prompt(parse_diagnostic_package(err.get("diagnostic_package")))
+    st.markdown(f"**{T['admin_problem_prompt_title']}**")
+    if prompt is None:
+        st.info(T["admin_problem_prompt_unavailable"])
+        return
+    st.caption(T["admin_problem_prompt_help"])
+    st.code(prompt, language=None, wrap_lines=True)
 
 
 def _render_group(T, header, issues, paginator_key):

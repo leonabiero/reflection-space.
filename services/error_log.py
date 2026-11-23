@@ -831,6 +831,34 @@ def group_errors_by_signature(errors):
     return [groups[sig] for sig in order]
 
 
+def get_saved_ai_prompt(package):
+    """
+    The ONE place that reads the ready-to-paste Claude Code prompt out
+    of a diagnostic package. Used by BOTH the alert email
+    (build_diagnostic_report_email, below) and System Administration >
+    Diagnostic Centre (pages/admin_sections/ai_diagnostic_centre.py),
+    so the two can never show different text.
+
+    The prompt itself is written once, when the error is logged, by
+    services/diagnostics.py:_build_ai_prompt (plain text, no AI call)
+    and saved inside error_log.diagnostic_package. This function never
+    rebuilds it -- it only returns what was saved.
+
+    package: a dict (DiagnosticPackage.to_dict() or the result of
+    parse_diagnostic_package), or None for older records.
+
+    Returns the prompt text exactly as saved, or None when there is no
+    usable prompt (no package, no "ai_prompt" field, or a blank one).
+    Never raises.
+    """
+    if not isinstance(package, dict):
+        return None
+    prompt = package.get("ai_prompt")
+    if not isinstance(prompt, str) or not prompt.strip():
+        return None
+    return prompt
+
+
 def _root_cause_unavailable_text(package):
     """
     Phase 5: the Root Cause line in the Diagnostic Report email must
@@ -904,7 +932,7 @@ def build_diagnostic_report_email(package, status="New"):
         timeline_text = "(no recent activity recorded for this session)"
 
     explanation = package.get("summary") or "(no explanation available)"
-    ai_prompt = package.get("ai_prompt") or "(no AI prompt available -- open System Administration > AI Diagnostic Centre in the app)"
+    ai_prompt = get_saved_ai_prompt(package) or "(no AI prompt available -- open System Administration > AI Diagnostic Centre in the app)"
 
     # Similar Previous Issues (Phase 5): reuses the same simplified list
     # already computed once, when the package was built (see
