@@ -22,7 +22,8 @@ def render(T):
             else:
                 st.session_state["admin_anon_result"] = {
                     "input": sample,
-                    "output": anonymize(sample),
+                    # Placeholders in the language of the screen.
+                    "output": anonymize(sample, st.session_state.get("lang", "Español")),
                 }
 
         result = st.session_state.get("admin_anon_result")

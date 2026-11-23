@@ -1,6 +1,7 @@
 import threading
 import time
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -18,7 +19,8 @@ class OrchestratorReliabilityTests(unittest.TestCase):
         return patch.multiple(
             self.orchestrator,
             COMPANIONS=self.companions,
-            anonymize=lambda text: f"SAFE:{text}",
+            anonymize=lambda text, *a, **k: f"SAFE:{text}",
+            analysis_report=SimpleNamespace(generate_report=lambda *a, **k: {"report": {"summary": "s", "items": [], "questions": [], "unverified_quote_count": 0}}, log_report_failure=lambda *a, **k: (None, None)),
             generate_companion_reflection=generator,
             classify_reflection_failure_root_cause=lambda *args: "Network Timeout",
             log_error=lambda **kwargs: (101, 202),

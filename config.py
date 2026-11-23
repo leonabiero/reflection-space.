@@ -483,10 +483,23 @@ AGE_BAND_LIMITS = os.getenv("AGE_BAND_LIMITS", "2,12,17,25,64")
 # To switch one on, add its name (for example add ",nationality"). If the
 # value is missing or contains an unknown name, the default list is used,
 # so a typo can never switch the protection off.
+#
+# (November 2026, approved by EDE) Context that may reveal bias is now LEFT
+# VISIBLE by default: sexual orientation, gender identity, health,
+# religion, ethnic origin and nationality. Only political opinion and
+# trade union membership stay hidden by default. Names, addresses, IDs,
+# phones, emails, dates, towns and organisations are always hidden.
 ANONYMISER_SPECIAL_CATEGORIES = os.getenv(
     "ANONYMISER_SPECIAL_CATEGORIES",
-    "sexual_orientation,gender_identity,health_specific,religion_belief,"
-    "ethnic_origin,political_opinion,trade_union",
+    "political_opinion,trade_union",
+)
+
+# (November 2026, approved by EDE) Exact ages are LEFT VISIBLE by default,
+# so the AI can name age-related bias. Set to "true" to replace them with
+# life stages again (AGE_BAND_LIMITS above). Years of birth are always
+# hidden (they are part of a date of birth).
+ANONYMISER_HIDE_EXACT_AGES = os.getenv("ANONYMISER_HIDE_EXACT_AGES", "false").strip().lower() in (
+    "1", "true", "yes", "on",
 )
 
 

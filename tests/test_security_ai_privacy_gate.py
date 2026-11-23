@@ -57,10 +57,12 @@ class CompanionConversationPrivacyTests(unittest.TestCase):
 
         self.assertEqual(result, {"reply": "A reply."})
         sent = _everything_sent(create)
-        for secret in ("Ashley", "Rose", "30", "29", "612 345 678", "Mikel", "Etxeberria", "17"):
+        for secret in ("Ashley", "Rose", "612 345 678", "Mikel", "Etxeberria"):
             self.assertNotIn(secret, sent, msg=f"{secret!r} reached Claude")
-        self.assertIn("[PERSON]", sent)
-        self.assertIn("[AGE_", sent)
+        # Numbered people, in the language of the reflection (English here).
+        self.assertIn("[PERSON 1]", sent)
+        # November 2026 (EDE): exact ages are context and stay visible.
+        self.assertIn("30, not 29", sent)
         # The AI's own earlier reply is passed through unchanged.
         self.assertIn("Thank you for sharing that.", sent)
 
@@ -95,7 +97,7 @@ class CompanionConversationPrivacyTests(unittest.TestCase):
 
         calls = {"n": 0}
 
-        def flaky(text):
+        def flaky(text, *args, **kwargs):
             calls["n"] += 1
             if calls["n"] > 1:
                 raise RuntimeError("fails on the history")
@@ -119,9 +121,10 @@ class SavedNotesPrivacyTests(unittest.TestCase):
     def test_note_text_is_anonymised(self):
         from services.findings_store import protect_note_text
         stored = protect_note_text("  Sarah Mitchell is 34; call +34 612 345 678.  ", 4000)
-        for secret in ("Sarah", "Mitchell", "34", "612 345 678"):
+        for secret in ("Sarah", "Mitchell", "612 345 678"):
             self.assertNotIn(secret, stored)
-        self.assertIn("[PERSON]", stored)
+        # Spanish placeholders by default (the master language).
+        self.assertIn("[PERSONA 1]", stored)
         self.assertEqual(protect_note_text("", 4000), "")
         self.assertEqual(protect_note_text(None, 4000), "")
 
@@ -142,7 +145,7 @@ class SavedNotesPrivacyTests(unittest.TestCase):
         written = repr(cursor.execute.call_args_list)
         # "34 years" rather than a bare "34": the recorded calls also
         # contain a timestamp, which can itself contain the digits 34.
-        for secret in ("Sarah", "Mitchell", "34 years", "John", "Hughes"):
+        for secret in ("Sarah", "Mitchell", "John", "Hughes"):
             self.assertNotIn(secret, written)
 
     def test_anonymiser_failure_saves_nothing(self):

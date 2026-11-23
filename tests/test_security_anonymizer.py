@@ -1,6 +1,30 @@
+import re
 import unittest
+from unittest.mock import patch
 
-from services.anonymizer import anonymize
+import config
+from services.anonymizer import anonymize as _anonymize
+
+
+def anonymize(text, lang="English"):
+    """These tests protect WHAT is removed (names, addresses, IDs, ...).
+    They read the English placeholders and ignore person numbers
+    ([PERSON 2] -> [PERSON]); numbering and the Spanish / Basque
+    placeholders are tested in tests/test_anonymizer_context_and_numbering.py
+    (November 2026)."""
+    return re.sub(r"\[PERSON \d+\]", "[PERSON]", _anonymize(text, lang))
+
+
+class _ExactAgesHidden:
+    """November 2026 (EDE): exact ages are now LEFT VISIBLE by default
+    (config.ANONYMISER_HIDE_EXACT_AGES). The life-stage protection still
+    exists and can be switched back on; these tests switch it on to keep
+    protecting it."""
+
+    def setUp(self):
+        patcher = patch.object(config, "ANONYMISER_HIDE_EXACT_AGES", True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
 
 class AnonymizerSecurityTests(unittest.TestCase):
@@ -85,10 +109,9 @@ class AnonymizerSecurityTests(unittest.TestCase):
         safe = anonymize(text)
         self.assertNotIn("Maria Lopez", safe)
         self.assertNotIn("0712 345 678", safe)
-        # November 2026: the exact age is now generalised to a life stage
-        # (the minor / adult distinction is kept).
-        self.assertNotIn("12-year-old", safe)
-        self.assertIn("[AGE_CHILD]", safe)
+        # November 2026 (EDE): the exact age is context the AI needs to
+        # spot age-related bias, so it is now left visible by default.
+        self.assertIn("12-year-old", safe)
         # The unique combination itself ("small village", "only pupil")
         # cannot be reliably detected by a deterministic anonymizer; this
         # test documents that limitation instead of pretending the system
@@ -185,7 +208,8 @@ class CapitalLettersTests(unittest.TestCase):
         for text in ("Reunión con EDE y Lanbide el lunes.",
                      "The client attended the EDE workshop.",
                      "Hello, John is a happy client"):
-            self.assertEqual(anonymize(text), anonymizer._anonymize_core(text))
+            core = re.sub(r"\[PERSON \d+\]", "[PERSON]", anonymizer._anonymize_core(text))
+            self.assertEqual(anonymize(text), core)
 
     def test_shouted_text_without_names_is_left_as_written(self):
         text = "ATTENTION: NO RISK DETECTED IN THIS VISIT."
@@ -210,9 +234,11 @@ class CapitalLettersTests(unittest.TestCase):
             self.assertNotIn(name, safe)
 
 
-class AnonymizerAgeProtectionTests(unittest.TestCase):
-    """November 2026: exact ages never reach an AI provider. Each one is
-    replaced by a life-stage tag (see config.AGE_BAND_LIMITS)."""
+class AnonymizerAgeProtectionTests(_ExactAgesHidden, unittest.TestCase):
+    """November 2026: when switched on (config.ANONYMISER_HIDE_EXACT_AGES),
+    exact ages never reach an AI provider. Each one is replaced by a
+    life-stage tag (see config.AGE_BAND_LIMITS). Since EDE's decision of
+    November 2026 it is OFF by default; years of birth are always hidden."""
 
     def safe(self, text):
         return anonymize(text)
@@ -382,7 +408,7 @@ class AnonymizerAgeProtectionTests(unittest.TestCase):
             self.assertNotIn(secret, safe)
 
 
-class AnonymizerSyntheticCaseRegressionTests(unittest.TestCase):
+class AnonymizerSyntheticCaseRegressionTests(_ExactAgesHidden, unittest.TestCase):
     """Found by testing a synthetic English case (November 2026)."""
 
     def test_age_straight_after_a_name_is_protected(self):
@@ -417,13 +443,15 @@ class AnonymizerSpanishSyntheticCaseTests(unittest.TestCase):
 
     def test_whole_case(self):
         safe = anonymize(self.CASE)
-        for secret in ("Lucía", "Fernández", "Etxebarria", "42", "40", "1984", "Iparraguirre",
-                       "2º", "izquierda", "Unai", "14", "Carmen", "78", "12345678Z",
+        for secret in ("Lucía", "Fernández", "Etxebarria", "1984", "Iparraguirre",
+                       "2º", "izquierda", "Unai", "Carmen", "12345678Z",
                        "688 123 456", "Barakaldo"):
             self.assertNotIn(secret, safe, msg=secret)
         self.assertIn("una tienda de [LOCATION]", safe)
-        self.assertIn("con su hijo [PERSON], de [AGE_ADOLESCENT]", safe)
-        for kept in ("900 euros", "Lleva 3 años en el piso", "dos mensualidades"):
+        # November 2026 (EDE): exact ages are left visible by default.
+        self.assertIn("con su hijo [PERSON], de 14 años", safe)
+        for kept in ("900 euros", "Lleva 3 años en el piso", "dos mensualidades",
+                     "tiene 42 años, no 40", "tiene 78 años"):
             self.assertIn(kept, safe)
 
     def test_floor_and_door_belong_to_the_address(self):

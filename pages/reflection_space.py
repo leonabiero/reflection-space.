@@ -1,7 +1,11 @@
 import streamlit as st
 from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
-from services.findings_ui import render_evidence, render_notes_form
+from datetime import date
+from services.findings_ui import render_evidence, render_notes_form, md_escape
+from services.highlight import highlight_html, legend_html
+from services.analysis_report import all_quotes as all_typed_quotes
+from services.reflection_report_html import build_reflection_report_html
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
@@ -18,7 +22,7 @@ from config import (
     SAVE_OBSERVATIONS,
 )
 from rdi.orchestrator import run_reflection
-from services.anonymizer import anonymize
+from services.anonymizer import anonymize, PersonNumbers
 from services.error_log import error_boundary, render_application_error_screen, log_error
 from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
@@ -285,21 +289,20 @@ with error_boundary(
         one fold above them ("Why these questions?"); the notes stay
         folded as before.
         """
-        # Simpler screen, second round (November 2026, product owner): only
-        # the QUESTIONS are open. Everything the AI noticed -- the whole
-        # observation, the quoted passage(s) and the "your professional
-        # decision" reminder -- is in ONE fold just above them, which the
-        # practitioner opens when they want to know why these questions.
+        # Direct, grounded analysis (November 2026, EDE project team): the
+        # analysis is shown OPEN, first -- what was detected and why it
+        # matters -- then the typed quotes it is based on, then the
+        # questions. (Before, the analysis was folded away under "Why these
+        # questions?" and only the questions were open.)
         if session.status_of(opportunity.trigger) == ReflectionSession.STATUS_FINDING:
-            with st.expander(T["workspace_more_header"], expanded=False):
-                if opportunity.focus:
-                    st.write(opportunity.focus)
-                # Saved-findings Stage 1: the exact passage(s) this
-                # observation is based on. Only passages verified word for
-                # word against the text the AI was given are ever shown
-                # (services/evidence.py).
-                render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
-                st.caption(T["workspace_reminder"])
+            if opportunity.focus:
+                st.markdown(f"**{T['workspace_analysis_header']}**")
+                st.write(opportunity.focus)
+            # The exact passage(s) the analysis is based on, each with its
+            # type in words. Only passages verified word for word against
+            # the text the AI was given are ever shown (services/evidence.py).
+            render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
+            st.caption(T["workspace_reminder"])
         elif opportunity.focus:
             # "Nothing notable" / "not available": the short status text
             # stays visible -- there is nothing to fold.
@@ -386,6 +389,9 @@ with error_boundary(
                                     professional_message=sent_message,
                                     lang=getattr(session, "reflection_lang", None) or st.session_state.lang,
                                     requested_by=user_name,
+                                    # Same placeholders and person numbers
+                                    # as the document (memory only).
+                                    people=getattr(session, "people", None),
                                 )
                         finally:
                             st.session_state[convo_generating_key] = False
@@ -446,6 +452,96 @@ with error_boundary(
                     ),
                 )
 
+
+
+    # ---------------------------------------------------------------------
+    # Analysis report, download and highlighted text (November 2026, EDE)
+    # ---------------------------------------------------------------------
+    def _typed_quotes(session):
+        """Every typed quote of this reflection (cards and report). Works
+        for a reflection opened before this version too."""
+        lens = [{"evidence": getattr(o, "evidence", None) or []} for o in session.opportunities]
+        return all_typed_quotes(lens, getattr(session, "analysis_report", None))
+
+    def _render_analysis_report(session):
+        """The analysis report on screen (shown first), then -- separate and
+        optional, underneath it -- the "Download report" button. Shown,
+        never saved. A reflection opened before this version simply has
+        no report."""
+        st.subheader(T["ar_header"])
+        report = getattr(session, "analysis_report", None)
+        types = T["evidence_type_labels"]
+        areas = T["ar_area_names"]
+        if report:
+            if report.get("summary"):
+                st.markdown(f"**{T['ar_summary_header']}**")
+                st.write(report["summary"])
+            if report.get("items"):
+                st.markdown(f"**{T['ar_items_header']}**")
+                for item in report["items"]:
+                    with st.container(border=True):
+                        st.markdown(
+                            f"**{md_escape(types.get(item['type'], item['type']))}** · "
+                            f"{md_escape(areas.get(str(item['area']), str(item['area'])))}"
+                        )
+                        if item.get("quote"):
+                            st.markdown("> " + md_escape(item["quote"]))
+                        else:
+                            st.caption(T["ar_missing_quote"])
+                        st.write(item.get("why", ""))
+            if report.get("unverified_quote_count"):
+                st.caption(T["ar_unverified_notice"].format(count=report["unverified_quote_count"]))
+            if report.get("questions"):
+                st.markdown(f"**{T['ar_questions_header']}**")
+                for q in report["questions"]:
+                    st.markdown(f"- {q}")
+            st.caption(T["workspace_reminder"])
+        elif getattr(session, "analysis_report_failed", False):
+            st.info(T["ar_failed_notice"])
+            if getattr(session, "can_retry_analysis_report", lambda: False)():
+                if st.button(T["ar_retry_button"], key="rs_ar_retry"):
+                    with st.spinner(T["workspace_ai_thinking"]):
+                        session.retry_analysis_report()
+                    session.save()
+                    st.rerun()
+        else:
+            return
+
+        # Separate and optional: the printable page (anonymised text only).
+        lenses = []
+        for opportunity in build_conversation(session.opportunities):
+            if session.status_of(opportunity.trigger) != ReflectionSession.STATUS_FINDING:
+                continue
+            lenses.append({
+                "label": T["section_labels"].get(opportunity.trigger, opportunity.trigger),
+                "analysis": opportunity.focus,
+                "evidence": opportunity.evidence,
+                "questions": list(opportunity.invitation) if isinstance(opportunity.invitation, (list, tuple)) else [],
+            })
+        page = build_reflection_report_html(
+            T, getattr(session, "reflection_lang", st.session_state.lang), session.case_ref,
+            date.today().strftime("%d/%m/%Y"), report, lenses, session.safe_text,
+            _typed_quotes(session),
+        )
+        st.download_button(
+            T["rr_download_button"], data=page.encode("utf-8"),
+            file_name=f"{session.case_ref}.html", mime="text/html", key="rs_rr_download",
+        )
+        st.caption(T["rr_download_help"])
+
+    def _render_highlighted_text(session):
+        """The ANONYMISED text with every exact quote highlighted, one
+        colour per type, with the type also in words and a legend."""
+        if not session.safe_text:
+            return
+        quotes = _typed_quotes(session)
+        with st.expander(T["hl_header"], expanded=bool(quotes)):
+            st.caption(T["hl_intro"])
+            if not quotes:
+                st.caption(T["hl_none_found"])
+            types = T["evidence_type_labels"]
+            st.markdown(legend_html(types, T["hl_legend_title"]), unsafe_allow_html=True)
+            st.markdown(highlight_html(session.safe_text, quotes, types), unsafe_allow_html=True)
 
 
     # =====================================================================
@@ -643,6 +739,13 @@ with error_boundary(
                     st.markdown(f"#### {TRIGGER_ICONS.get(selected, '•')} {label}")
                     _render_opportunity_tab_body(session, opportunity)
 
+        # November 2026 (EDE): after the eight cards, the analysis report
+        # (with the optional download underneath it), then the text with
+        # the quotes highlighted.
+        st.divider()
+        _render_analysis_report(session)
+        _render_highlighted_text(session)
+
         st.divider()
 
         # Finishing is ONE click (November 2026, product owner's
@@ -819,8 +922,13 @@ with error_boundary(
                 # no text at all -- only the kind of failure.
                 # ---------------------------------------------------------
                 safe_text = None
+                # Which number each person has in this text (real names:
+                # kept in this browser session only, never saved or sent),
+                # so the chat later uses the same numbers.
+                people = PersonNumbers()
                 try:
-                    safe_text = anonymize(material)
+                    # Placeholders in the language of the reflection.
+                    safe_text = anonymize(material, reflect_lang, people)
                 except Exception as exc:
                     safe_text = None
                     log_error(
@@ -877,7 +985,8 @@ with error_boundary(
                             # Only the ANONYMISED text goes in. (The
                             # orchestrator anonymises again; that is
                             # harmless because anonymize() is idempotent.)
-                            result = run_reflection(safe_text, reflect_lang, context_description="")
+                            result = run_reflection(safe_text, reflect_lang, context_description="",
+                                                    people=people)
                         reflection_succeeded = True
                     finally:
                         # A failed/aborted attempt must not block a retry.
@@ -899,6 +1008,7 @@ with error_boundary(
                         case_text=material,
                         reflection_lang=reflect_lang,
                     )
+                    session.people = people
 
                     # Save the reflection record, identified by the neutral
                     # code, together with the ORIGINAL text (EU database,

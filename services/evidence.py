@@ -124,16 +124,70 @@ def _find_in_source(quote, source):
     return source[original_start:original_end]
 
 
+# (November 2026, EDE) Each quote can carry the kind of evidence it is.
+# Kept in step with rdi/companions/prompt_builder.py:EVIDENCE_TYPES (not
+# imported, so this module stays free of other app code).
+EVIDENCE_TYPES = ("bias", "stereotype", "prejudice", "loaded_label")
+
+# A loaded label is often a single short word ("dócil", "pobres",
+# "víctima"). Such a quote is accepted from this length, but only when it
+# is a whole word (or words) in the text -- never part of a longer word.
+MIN_LABEL_QUOTE_CHARS = 3
+
+
+def clean_type(value):
+    """The evidence type if it is one of the four known ones, else None."""
+    if isinstance(value, str):
+        value = value.strip().lower().replace(" ", "_").replace("-", "_")
+        if value == "loaded_labels":
+            value = "loaded_label"
+        if value in EVIDENCE_TYPES:
+            return value
+    return None
+
+
 def _clean_candidate(raw):
-    """Accept either a plain string or {"quote": "..."} from the model."""
+    """Accept either a plain string or {"quote": "...", "type": "..."} from
+    the model. Returns (text, type) or (None, None)."""
+    kind = None
     if isinstance(raw, dict):
+        kind = clean_type(raw.get("type"))
         raw = raw.get("quote")
     if not isinstance(raw, str):
-        return None
+        return None, None
     text = _strip_outer_quote_marks(raw)
-    if len(text) < MIN_QUOTE_CHARS or len(text) > MAX_QUOTE_CHARS:
+    minimum = MIN_LABEL_QUOTE_CHARS if kind == "loaded_label" else MIN_QUOTE_CHARS
+    if len(text) < minimum or len(text) > MAX_QUOTE_CHARS:
+        return None, None
+    return text, kind
+
+
+def _is_whole_words(match, source):
+    """True if the matched slice does not start or end inside a word."""
+    start = source.find(match)
+    while start != -1:
+        end = start + len(match)
+        before_ok = start == 0 or not source[start - 1].isalnum()
+        after_ok = end >= len(source) or not source[end].isalnum()
+        if before_ok and after_ok:
+            return True
+        start = source.find(match, start + 1)
+    return False
+
+
+def locate_quote(quote, source):
+    """(start, end) of `quote` in `source` with the same tolerance as
+    verify_quotes (spacing, accent encoding), or None. Used to highlight
+    quotes in the text (services/highlight.py)."""
+    if not isinstance(quote, str) or not isinstance(source, str) or not quote.strip():
         return None
-    return text
+    for form in dict.fromkeys([quote, unicodedata.normalize("NFC", quote)]):
+        match = _find_in_source(form, source)
+        if match is not None:
+            start = source.find(match)
+            if start != -1:
+                return start, start + len(match)
+    return None
 
 
 def verify_quotes(candidates, source_text):
@@ -170,7 +224,7 @@ def verify_quotes(candidates, source_text):
     unverified_count = 0
 
     for raw in candidates:
-        cleaned = _clean_candidate(raw)
+        cleaned, kind = _clean_candidate(raw)
         if cleaned is None:
             unverified_count += 1
             continue
@@ -188,6 +242,12 @@ def verify_quotes(candidates, source_text):
             if match is not None:
                 break
 
+        # A short label quote must be a whole word in the text ("dócil",
+        # never the "ocil" of "dócil").
+        if match is not None and len(cleaned) < MIN_QUOTE_CHARS and not any(
+                _is_whole_words(match, s) for s in sources_to_try):
+            match = None
+
         if match is None:
             unverified_count += 1
             continue
@@ -196,6 +256,9 @@ def verify_quotes(candidates, source_text):
             continue
         seen.add(match)
         if len(verified) < MAX_QUOTES_PER_FINDING:
-            verified.append({"quote": match})
+            item = {"quote": match}
+            if kind:
+                item["type"] = kind
+            verified.append(item)
 
     return verified, unverified_count

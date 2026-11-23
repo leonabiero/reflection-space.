@@ -224,19 +224,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                           'honetan.',
  'admin_anon_stale_note': 'Testua aldatu duzu azken probatik: sakatu berriro botoia emaitza '
                           'eguneratua ikusteko.',
- 'admin_anon_tags_help': 'Etiketak: [PERSON] = pertsona-izena · [LOCATION] = tokia · [ADDRESS] = '
-                         'helbidea · [ORGANISATION] = zentroa edo erakundea · [ID] = NAN/AIZ, '
-                         'espedientea, kontua edo beste identifikatzaile bat · [PHONE] = telefonoa '
-                         '· [EMAIL] = posta elektronikoa · [DATE] = data · [AGE_…] = adin '
-                         'zehatza, bizitzako etapa batekin ordezkatua (INFANT = haurtxoa, CHILD = '
-                         'haurra, ADOLESCENT = nerabe adingabea, YOUNG_ADULT = heldu gaztea, ADULT = '
-                         'heldua, OLDER_ADULT = adinekoa).',
- 'anon_sensitive_labels_help': 'Datu sentikorrak: [SEXUAL_ORIENTATION] = sexu-orientazioa · '
-                               '[GENDER_IDENTITY] = genero-identitatea · [HEALTH] = diagnostiko, '
-                               'tratamendu edo botika zehatza · [RELIGION_BELIEF] = erlijioa edo '
-                               'sinesmenak · [ETHNIC_ORIGIN] = jatorri etnikoa · [POLITICAL_OPINION] = '
-                               'iritzi politikoa · [TRADE_UNION] = sindikatu-afiliazioa · '
-                               '[NATIONALITY] = nazionalitatea (aktibatzen bada bakarrik).',
+ 'admin_anon_tags_help': 'Markatzaileak pantailaren hizkuntzan agertzen dira. Testu zaharrek ingelesezko etiketak izan ditzakete, [PERSON] edo [HEALTH] adibidez: gauza bera esan nahi dute.',
+ 'anon_sensitive_labels_help': 'Markatzaileak: [PERTSONA 1], [PERTSONA 2]… = pertsona desberdinak (zenbaki bera, pertsona bera) · [HELBIDEA] = helbidea · [TOKIA] = tokia · [ERAKUNDEA] = zentroa edo erakundea · [IDENTIFIKATZAILEA] = NAN/AIZ, espedientea, kontua edo beste identifikatzaile bat · [TELEFONOA] = telefonoa · [POSTA] = posta elektronikoa · [DATA] = data · [IRITZI POLITIKOA] = iritzi politikoa · [SINDIKATU AFILIAZIOA] = sindikatu-afiliazioa. Sexua, jatorria, nazionalitatea, egoera migratzailea, erlijioa, adina, osasuna, kontsumoa, desgaitasuna eta sexu-orientazioa nahita uzten dira ikusgai, alborapenak hor agertu ohi direlako.',
  'admin_tools_anon_test_header': 'Anonimizazio proba',
  'admin_tools_future': 'Etorkizuneko administrazio-tresnak hemen agertuko dira.',
  'admin_console_caption': 'Reflection Space-ren administrazio-kontsola -- erabiltzaileak, '
@@ -327,7 +316,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'help': {'nav_label': '❓ Laguntza',
           'page_title': 'Reflection Spaceren gida azkarra',
           'intro_title': 'Zer da Reflection Space?',
-          'intro_body': 'Reflection Spacek kasu bati buruz une berean hausnartzen laguntzen dizu: kasua idatzi, itsatsi edo igotzen duzu eta hausnarketarako galderak eskaintzen dizkizu zortzi dimentsio profesionaletan -- adibidez, erabiltzailearen ahotsa agertzen den, edo zailtasunen ondoan haren indarguneak ahazten ari diren. Ez da dokumentuak gordetzeko lekua: AAren behaketak eta galderak ez dira gordetzen.',
+          'intro_body': 'Reflection Spacek kasu bati buruz une berean hausnartzen laguntzen dizu: kasua idatzi, itsatsi edo igotzen duzu eta AAk analisi zuzen eta oinarritua egiten du zortzi dimentsio profesionaletan -- adibidez, erabiltzailearen ahotsa agertzen den, edo estereotipoak, alborapenak edo etiketa kargatuak agertzen diren --, hausnartzeko galderekin eta analisi-txosten batekin. Dokumentazioa aztertzen du, ez zaitu inoiz zu epaitzen. Ez da dokumentuak gordetzeko lekua: AAren analisia eta galderak ez dira gordetzen.',
           'guardrail_note': 'Tresnak ez du inoiz ezer kalifikatzen, puntuatzen edo zure ordez '
                             'erabakitzen. Zuk erabakitzen duzu zer egin, ezer egitekotan, '
                             'pentsarazi dizunarekin.',
@@ -338,13 +327,8 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
           'doc_section_body': 'Reflection Spacen zure testua koadro bakar batean idatzi edo itsasten duzu, edo Word, PDF edo testu bat igotzen duzu (testua bakarrik irakurtzen da; fitxategia ez da gordetzen). Testu bat idatzi eta dokumentu bat ere igotzen baduzu, zeri buruz hausnartu nahi duzun galdetuko zaizu. Ez duzu kasuaren erreferentziarik edo daturik eman behar: aplikazioak berak sortzen du kode neutro bat (adibidez RS-7F3K2Q), inor identifikatzen ez duena. Jatorrizko testua modu seguruan gordetzen da eta, anonimizatuta, Patroien berrikuspenean erabiltzen da (ikus behean).',
           'original_saved_note': 'Jatorrizko testua modu seguruan gordetzen da EBko datu-base batean, gehienez {months} hilabetez. Zuk bakarrik irakur dezakezu, Nire Hausnarketan. Kudeaketa-taldearen Patroien berrikuspenean ere erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. Denbora hori igarotakoan automatikoki ezabatzen da; hausnarketak bere horretan jarraitzen du.',
           'reflection_section_title': '🪞 Reflection Space -- une berean hausnartu',
-          'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da (izenak eta beste datu pertsonal batzuk kentzen dira) eta bertsio babestu hori bakarrik bidaltzen zaio AAri. Anonimizazioak huts egingo balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» aukerak AAk jaso zuena erakusten dizu. Arakatu zortzi dimentsioetako edozein, ireki elkarrizketa labur bat nahi baduzu, eta sakatu Amaitu hausnarketa. AAren behaketak eta galderak zuretzat bakarrik dira eta ez dira gordetzen. Nahi baduzu, baloratu erabilgarritasuna goiko eskuineko izkinako «Baloratu» botoiarekin -- guztiz aukerakoa; ezer ez dago horren mende.',
-          'cards_note': 'Zortzi hausnarketa-aukerak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako '
-                         'puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer hausnartu; '
-                         'grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri '
-                         '(txartelaren barruan berriro saia zaitezke). Txartel bat irekitzean galderak '
-                         'ikusten dituzu; IAk nabaritu duena eta oinarri duen pasartea «Zergatik galdera '
-                         'hauek?» atalean daude.',
+          'reflection_section_body': 'Hausnartu sakatzean, zure testua automatikoki anonimizatzen da (izenak, helbideak eta beste datu identifikatzaile batzuk ezkutatzen dira; testuingurua, sexua, jatorria edo adina adibidez, ikusgai geratzen da) eta bertsio babestu hori bakarrik bidaltzen zaio AAri. Anonimizazioak huts egingo balu, ez da ezer bidaltzen. Emaitzetan, «Ikusi testu anonimizatua» aukerak AAk jaso zuena erakusten dizu. Txartelen azpian analisi-txostena (nahi baduzu deskarga dezakezu) eta zure testua pasarteak koloreekin nabarmenduta ikusiko dituzu. Arakatu zortzi dimentsioetako edozein, ireki elkarrizketa labur bat nahi baduzu, eta sakatu Amaitu hausnarketa. AAren behaketak eta galderak zuretzat bakarrik dira eta ez dira gordetzen. Nahi baduzu, baloratu erabilgarritasuna goiko eskuineko izkinako «Baloratu» botoiarekin -- guztiz aukerakoa; ezer ez dago horren mende.',
+          'cards_note': 'Zortzi begiradak txartel gisa agertzen dira ikuspegi bakarrean. Izkinako puntuak bakoitzak zer aurkitu duen adierazten du: berdea, badago zer aztertu; grisa, ezer nabarmenik ez testu honetan; laranja, orain ez dago erabilgarri (txartelaren barruan berriro saia zaitezke). Txartel bat irekitzean AAren analisia, oinarri dituen pasarteak (bere motarekin: alborapena, estereotipoa, aurreiritzia edo etiketa kargatua) eta galderak ikusten dituzu. Txartelen azpian analisi-txostena, hura deskargatzeko aukerako botoia eta zure testua pasarteak koloreekin nabarmenduta daude.',
           'dimensions_title': 'Zortzi gogoeta-dimentsioak',
           'dimensions': [{'label': 'Pertsonaren ahotsa',
                           'desc': 'Pertsonaren ahotsa, helburuak eta hobespenak presente al daude, '
@@ -392,9 +376,9 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
                                  'hitzekin eta sakatu Bidali -- sistemak automatikoki gehitzen '
                                  'ditu orriaren, saioaren eta nabigazioaren datuak.',
           'privacy_title': '🔒 Pribatutasuna eta datuak',
-          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Anonimizazioak datu pertsonal bereziki sentikorrak ere ordezten ditu (sexu-orientazioa, genero-identitatea, diagnostiko, tratamendu eta botika zehatzak, erlijioa edo sinesmenak, jatorri etnikoa, iritzi politikoak eta sindikatu-afiliazioa) etiketa neutro batekin, AAk horrelako zerbait aipatu zela jakin dezan, baina inoiz ez zer. Etiketak hauek dira: [SEXUAL_ORIENTATION] = sexu-orientazioa, [GENDER_IDENTITY] = genero-identitatea, [HEALTH] = diagnostiko, tratamendu edo botika zehatza, [RELIGION_BELIEF] = erlijioa edo sinesmenak, [ETHNIC_ORIGIN] = jatorri etnikoa, [POLITICAL_OPINION] = iritzi politikoa, [TRADE_UNION] = sindikatu-afiliazioa eta [NATIONALITY] = nazionalitatea (aktibatzen bada bakarrik). Zeharkako aztarnak ez dira beti detektatzen; beraz, hobe da beharrezkoak baino xehetasun gehiago ez idaztea.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
+          'privacy_points': ['Kasuaren jatorrizko testua modu seguruan gordetzen da EBko datu-base batean denbora mugatu batez, eta zuk bakarrik irakur dezakezu. AAri bertsio anonimizatua bakarrik bidaltzen zaio.', 'Anonimizazioak norbait zuzenean identifikatzen duten datuak ezkutatzen ditu (izen-abizenak, helbideak, nortasun-agiriak, telefonoak, posta elektronikoak, datak, bizilekuak eta erakundeak), baita iritzi politikoak eta sindikatu-afiliazioa ere. Pertsona bakoitzak zenbaki bat du: [PERTSONA 1], [PERTSONA 2]… (zenbaki bera beti pertsona bera da). Nahita, eta EDEren onarpenarekin, alborapenak agertu ohi diren testuingurua ikusgai uzten da: sexua eta generoa, jatorri etnikoa, jatorria eta nazionalitatea, egoera migratzailea, erlijioa, adina, osasun mentala, kontsumoa, desgaitasuna eta sexu-orientazioa. Zeharkako aztarnak ez dira beti detektatzen; beraz, hobe da beharrezkoak baino xehetasun gehiago ez idaztea.', 'Hausnarketa bakoitza kode neutro batekin eta datu pertsonalik gabeko gaiekin identifikatzen da, inoiz ez izenekin.', 'Zure jatorrizko testua kudeaketa-taldearen Patroien berrikuspenean erabiltzen da, zure izenik gabe: berriro anonimizatzen da AAk irakurri aurretik, eta arduradunek AAren txosten orokorra bakarrik ikusten dute, inoiz ez zure testua. AAren behaketak eta galderak ez dira gordetzen.', 'Elkarrizketa erreflexiboen edukia ez da inoiz saiotik haratago gordetzen -- zein gai arakatu zen eta noiz bakarrik erregistratzen da.', 'Nire Hausnarketa pertsonala da eta ez du konparaziorik onartzen: puntuaziorik gabe, sailkapenik gabe, zuk bakarrik ikus dezakezu.', 'Roletan oinarritutako sarbide-kontrola bi mailatan aplikatzen da aplikazio osoan.'],
           'pattern_review_section_title': '🔎 Patroien berrikuspena',
-          'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Idatzi zenbat hilabete aztertu nahi dituzun (1etik {maximum}era) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Deskargatzeak ez du ezer ezabatzen; fitxategia duzunean, «Badut fitxategia: ezabatu txostena» botoiak txostena betiko ezabatzen du aplikaziotik, kudeaketa-talde osoarentzat (lehenik berresteko eskatzen da). Ereduak hausnartzeko aukerak dira, ez ondorioak.'},
+          'pattern_review_section_body': 'Gainbegirale eta programa-arduradunentzat. Idatzi zenbat hilabete aztertu nahi dituzun (1etik {maximum}era) eta sakatu Identifikatu ereduak: AAk gizarte-langileek aldi horretan idatzitako testu anonimizatuak irakurtzen ditu eta kasuak idazteko moduan errepikatzen diren ereduei buruzko txosten bat idazten du. Txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Gutxienez {minimum} testu behar dira, eta eredu bat testu batzuetan agertzen bada bakarrik sartzen da. Txosten bakoitza bere data eta aldiarekin gordetzen da, eta inprimatzeko deskarga daiteke. Deskargatzeak ez du ezer ezabatzen; fitxategia duzunean, «Badut fitxategia: ezabatu txostena» botoiak txostena betiko ezabatzen du aplikaziotik, kudeaketa-talde osoarentzat (lehenik berresteko eskatzen da). Alborapen bera errepikatzen denean, eredu bat sortzen da: txostenak zintzotasunez eta arrazoi oinarrituekin izendatzen du, eta beti jasotzen ditu bere mugak.'},
  'admin_usage_header': '💰 Zerbitzuen Erabilera eta Kostuak',
  'admin_usage_caption': 'Kanpoko zerbitzu bakoitzak proiektu pilotu honetan zenbat kostatzen duen, '
                         'egiazko APIen erabileratik estimatuta. "Estimazioa" gisa markatutako '
@@ -596,7 +580,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'my_reflections_deleted_header': 'Duela gutxi ezabatuak',
  'my_reflections_restore': 'Berreskuratu',
  'my_reflections_erase_on': 'Behin betiko ezabatuko da: {date} (UTC).',
- 'pr_intro': 'Patroien berrikuspenak kasuak nola idazten diren aztertzen du, eta ereduak bilatzen ditu gizarte-langileek zuk aukeratutako aldian idatzitako testuetan. AAk testu anonimizatuak irakurtzen ditu eta txosten bat idazten du; zuk txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Erakusten duena hausnartzeko eredu posibleak dira, ez ondorioak: eredu bat ez da alborapenaren edo praktika txarraren froga, eta taldeak erabakitzen du zer esan nahi duen, ezer esan nahi badu.',
+ 'pr_intro': 'Patroien berrikuspenak kasuak nola idazten diren aztertzen du, eta ereduak bilatzen ditu gizarte-langileek zuk aukeratutako aldian idatzitako testuetan. AAk testu anonimizatuak irakurtzen ditu eta txosten bat idazten du; zuk txostena bakarrik ikusten duzu, inoiz ez testuak ezta nork idatzi zituen ere. Alborapen bera errepikatzen denean, eredu bat sortzen da: txostenak argi eta arrazoi oinarrituekin izendatzen ditu errepikatzen diren alborapenak, estereotipoak, aurreiritziak eta etiketa kargatuak. Idazkera deskribatzen du, inoiz ez idazten dutenak, eta beti jasotzen ditu bere mugak; taldeak erabakitzen du zer egin horrekin.',
  'pr_new_header': 'Ereduak identifikatu',
  'pr_texts_note': 'Aplikazioak {months} hilabetez gordetzen dituen jatorrizko testuak erabiltzen dira. Bakoitza berriro anonimizatzen da AAk irakurri aurretik, eta ez da inoiz izen edo rol batekin bidaltzen.',
  'pr_period_label': 'Aztertu beharreko hilabete kopurua ({minimum}etik {maximum}era)',
@@ -618,7 +602,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'pr_report_option': '{date} — {period} — {texts} testu',
  'pr_report_meta': 'Data: {date} · aldia: {period} ·aldiko {texts} testu, horietatik {read} AAk irakurriak',
  'pr_some_unread': 'AAk ezin izan ditu testu batzuk irakurri oraingoan; beraz, txosten hau aldian dauden baino testu gutxiagotan oinarritzen da.',
- 'pr_candidate_note': 'Hausnartzeko eredu posibleak, AAk idatziak; ez dira ondorioak. Eredu bat ez da alborapenaren edo praktika txarraren froga.',
+ 'pr_candidate_note': 'AAk testu anonimizatuetatik idatzitako analisia: zintzotasunez izendatzen ditu idazkeran errepikatzen diren alborapenak, eta ez ditu inoiz idazten dutenak epaitzen. Egiaztatu taldearen ezagutzarekin eta ikusi bere mugak amaieran.',
  'pr_overview_header': 'Ikuspegi orokorra',
  'pr_patterns_header': 'Identifikatutako ereduak',
  'pr_no_patterns': 'Ez da eredurik agertu txostenean sartzeko adina testutan.',
@@ -642,7 +626,7 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'pr_print_title': 'Patroien berrikuspeneko txostena',
  'pr_print_confidential': 'Kudeaketa-taldearentzako dokumentu konfidentziala',
  'pr_print_prepared': 'Inprimatze-data: {date}',
- 'pr_print_footer': 'Konfidentziala · Hausnartzeko eredu posibleak, ez ondorioak · {date}',
+ 'pr_print_footer': 'Konfidentziala · Idazkerako ereduen analisia, inoiz ez pertsonena · {date}',
  'demo_banner': 'ERAKUSKETA — Hau erakusketarako aplikazioa da. Testu eta datu guztiak fikziozkoak dira; ez dago pilotuko datu errealik.',
  'demo_banner_wrong_database': 'KONTUZ — Erakusketarako aplikazio hau ez dago erakusketarako datu-basera konektatuta. Ezin da erakusketako daturik kargatu. Berrikusi DATABASE_URL erakusketarako aplikazioaren sekretuetan.',
  'demo_banner_real_app_on_demo': 'KONTUZ — Aplikazio hau ERAKUSKETARAKO datu-basera konektatuta dago. Berrikusi DATABASE_URL aplikazio errealaren sekretuetan.',
@@ -658,4 +642,41 @@ LANG_EU = {'title': '🧠 Hausnarketa Gunea',
  'admin_demo_remove_button': 'Kendu erakusketako datuak',
  'admin_demo_removed': 'Erakusketako {texts} testu, {ratings} balorazio eta {reports} txosten kendu dira.',
  'pr_rating_line': '⭐ Hausnarketen erabilgarritasunaren batez besteko balorazioa: {average} / 5 · balorazioak: {count}',
- 'pr_rating_none': '⭐ Oraindik ez dago hausnarketen erabilgarritasunari buruzko baloraziorik.'}
+ 'pr_rating_none': '⭐ Oraindik ez dago hausnarketen erabilgarritasunari buruzko baloraziorik.',
+ 'anon_placeholders': {'PERSON': 'PERTSONA', 'LOCATION': 'TOKIA', 'ADDRESS': 'HELBIDEA',
+                       'ORGANISATION': 'ERAKUNDEA', 'ID': 'IDENTIFIKATZAILEA', 'PHONE': 'TELEFONOA',
+                       'EMAIL': 'POSTA', 'DATE': 'DATA',
+                       'SEXUAL_ORIENTATION': 'SEXU ORIENTAZIOA', 'GENDER_IDENTITY': 'GENERO IDENTITATEA',
+                       'HEALTH': 'OSASUNA', 'RELIGION_BELIEF': 'ERLIJIOA EDO SINESMENAK',
+                       'ETHNIC_ORIGIN': 'JATORRI ETNIKOA', 'POLITICAL_OPINION': 'IRITZI POLITIKOA',
+                       'TRADE_UNION': 'SINDIKATU AFILIAZIOA', 'NATIONALITY': 'NAZIONALITATEA',
+                       'AGE_INFANT': 'ADINA HAURTXOA', 'AGE_CHILD': 'ADINA HAURRA',
+                       'AGE_ADOLESCENT': 'ADINA NERABEA', 'AGE_YOUNG_ADULT': 'ADINA HELDU GAZTEA',
+                       'AGE_ADULT': 'ADINA HELDUA', 'AGE_OLDER_ADULT': 'ADINA ADINEKOA'},
+ 'workspace_analysis_header': 'Analisia',
+ 'ar_header': 'Analisi-txostena',
+ 'ar_summary_header': 'Laburpena',
+ 'ar_items_header': 'Detektatu dena',
+ 'ar_questions_header': 'Hausnartzeko galderak',
+ 'ar_failed_notice': 'Ezin izan da analisi-txostena sortu oraingoan. Zortzi txartelen analisia eskuragarri dago oraindik.',
+ 'ar_retry_button': 'Saiatu berriro txostenarekin',
+ 'ar_missing_quote': 'Testuan agertzen ez den edo izendatzen ez den zerbaiti buruzkoa da.',
+ 'ar_unverified_notice': 'AAk proposatutako {count} pasarte ez zetozen bat testuarekin zehatz-mehatz, eta ez dira erakusten.',
+ 'ar_area_names': {'1': '1 · Zapalkuntza-ardatzak eta testuinguru soziala',
+                   '2': '2 · Balio-sistema inplizitua',
+                   '3': '3 · Egitura eta dinamika instituzionalak',
+                   '4': '4 · Esku-hartzearen funtsezko kontzeptuak',
+                   '5': '5 · Hizkuntza, kategoriak eta errealitatearen eraikuntza'},
+ 'evidence_type_labels': {'bias': 'Alborapena', 'stereotype': 'Estereotipoa', 'prejudice': 'Aurreiritzia',
+                          'loaded_label': 'Etiketa kargatua'},
+ 'hl_header': 'Testua, seinaleak nabarmenduta',
+ 'hl_legend_title': 'Legenda:',
+ 'hl_intro': 'Zure testu anonimizatua, AAk aipatutako pasarte bakoitza bere motaren arabera nabarmenduta. Testuan zehatz-mehatz agertzen diren pasarteak bakarrik nabarmentzen dira.',
+ 'hl_none_found': 'Hausnarketa honetan ez dago motadun pasarterik nabarmentzeko.',
+ 'rr_download_button': 'Deskargatu txostena (aukerakoa)',
+ 'rr_download_help': 'Inprimatzeko edo PDF gisa gordetzeko orri bat deskargatzen du, analisi-txostenarekin, zortzi txartelekin eta testu nabarmenduarekin. Testu anonimizatua bakarrik dauka, inoiz ez jatorrizkoa. Aplikazioak ez du gordetzen.',
+ 'rr_print_title': 'Hausnarketaren analisi-txostena',
+ 'rr_print_confidential': 'Erabilera profesionalerako dokumentu konfidentziala. Testu anonimizatua bakarrik dauka.',
+ 'rr_print_meta': '{code} hausnarketa · inprimatze-data: {date}',
+ 'rr_print_footer': 'Konfidentziala · Dokumentazioaren analisia, inoiz ez pertsonena · {date}',
+ 'rr_lenses_header': 'Zortzi begiradak'}

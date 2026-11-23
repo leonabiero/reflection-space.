@@ -234,3 +234,18 @@ and database, never in the real one. See `DEMO.md`.
 - `tests/test_pattern_text_store_postgres.py` — real database (set
   `TEST_DATABASE_URL`): which texts are read, time limits, deletion, roles,
   reports, deleting one report or all of them.
+
+## November 2026 update — frank analysis (EDE)
+
+The AI's instructions (`services/pattern_text_analysis.py`, prompt version
+`2026-11-text-patterns-3`) now say: "When the same bias is repeated, it
+creates a pattern." Both steps use the EDE framework as checklist and name
+repeated biases, stereotypes, prejudices and loaded labels frankly, with
+grounded reasons, instead of "cautious wording". Unchanged: never about the
+writers, never quotes or case details, at least
+`PATTERN_MIN_TEXTS_PER_PATTERN` texts per pattern, the copy check, and the
+**limitations** section, which is always present and now written frankly.
+Texts are anonymised with placeholders in the language the manager chose
+for the report; each text numbers its own people. The screen and printout
+texts were updated to match (`pr_intro`, `pr_candidate_note`,
+`pr_print_footer`, Help).

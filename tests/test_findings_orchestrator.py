@@ -5,6 +5,7 @@ NOT call a real model.
 """
 import threading
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 DOC = "Maite dice que quiere vivir cerca de su hermana. El equipo considera que no esta motivada."
@@ -24,7 +25,8 @@ class OrchestratorFindingsTests(unittest.TestCase):
         with patch.multiple(
             self.orchestrator,
             COMPANIONS=self.companions,
-            anonymize=lambda text: text,
+            anonymize=lambda text, *a, **k: text,
+            analysis_report=SimpleNamespace(generate_report=lambda *a, **k: {"report": {"summary": "s", "items": [], "questions": [], "unverified_quote_count": 0}}, log_report_failure=lambda *a, **k: (None, None)),
             generate_companion_reflection=generator,
             classify_reflection_failure_root_cause=lambda *a: "Network Timeout",
             log_error=lambda **kw: (1, 2),
@@ -119,7 +121,8 @@ class PromptTests(unittest.TestCase):
         import inspect
         from services import reflection_service
         source = inspect.getsource(reflection_service._call_companion_model)
-        self.assertIn("max_tokens=1280", source)
+        # November 2026: 1280 -> 2000 for the longer, typed analysis.
+        self.assertIn("max_tokens=2000", source)
 
 
 if __name__ == "__main__":

@@ -390,3 +390,47 @@ the branch **`master-version`**.
 - `tests/test_simple_reflection_screen.py` — the November 2026 simplified
   screen: input rules, privacy (the AI only receives anonymised text, failure
   stops everything), reflection language, translations.
+
+## November 2026 update — direct analysis and lighter anonymisation (EDE)
+
+Approved by the EDE project team and project leads; this section replaces
+what is said above about sensitive-detail labels and life-stage ages.
+
+**What the anonymiser hides** (`services/anonymizer.py`): names and
+surnames (each different person gets a number: `[PERSONA 1]`,
+`[PERSONA 2]`…, the same person always the same number), addresses, ID
+numbers, phones, emails, dates and years of birth, towns of residence,
+named organisations, political opinion and trade union membership.
+
+**What it deliberately leaves visible:** sex and gender, ethnicity, origin
+and nationality (country names after "procedente de / natural de / from"
+are kept), migration status, religion, exact age, mental health, substance
+use, disability, sexual orientation. This is the context where bias tends
+to appear, so the AI has to see it to name it. Both switches still exist in
+`config.py` (`ANONYMISER_SPECIAL_CATEGORIES`, `ANONYMISER_HIDE_EXACT_AGES`).
+
+**Placeholders follow the language of the reflection:** Spanish
+`[PERSONA 1] [DIRECCIÓN] [LUGAR] [ORGANIZACIÓN] [IDENTIFICADOR] [TELÉFONO]
+[CORREO] [FECHA]`, Basque `[PERTSONA 1] [HELBIDEA] [TOKIA] [ERAKUNDEA]
+[IDENTIFIKATZAILEA] [TELEFONOA] [POSTA] [DATA]`, English `[PERSON 1]
+[ADDRESS] [LOCATION] [ORGANISATION] [ID] [PHONE] [EMAIL] [DATE]`. The words
+are in `services/locales/*.py` (`anon_placeholders`). Placeholders in any of
+the three languages, and the older English ones (`[PERSON]`, `[HEALTH]`…),
+are recognised and left untouched, so anonymising twice changes nothing and
+older saved texts read the same. The note sent to the AI lists the
+placeholders of the chosen language.
+
+**Chat:** messages typed in "Explore with the companion" use the same
+language and the same person numbers as the document. The name→number list
+lives only in the browser session (never saved, never sent).
+
+**Two live false positives fixed:** an ordinary capitalised word after a
+dash in a heading ("Informe de seguimiento – Alojamiento social") is no
+longer hidden, and "referencia" is no longer taken for an ID label unless a
+real number follows ("Profesional de referencia: Ane Etxeberria" →
+"Profesional de referencia: [PERSONA 1]").
+
+**Results screen:** each card shows the analysis open, then the typed
+quotes, then 1–2 questions; under the cards, the analysis report, an
+optional "Download report" button (anonymised text only), and the text with
+the quotes highlighted by type. None of it is saved.

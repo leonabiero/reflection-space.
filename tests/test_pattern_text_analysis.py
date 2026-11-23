@@ -244,11 +244,16 @@ class ProtectTextsTests(unittest.TestCase):
             ["Juan Pérez vive en Barakaldo con su madre Ana. Tiene 34 años.", "  "])
         self.assertEqual(skipped, 0)
         self.assertEqual(len(protected), 1)
-        for private in ("Juan", "Pérez", "Barakaldo", "34"):
+        for private in ("Juan", "Pérez", "Barakaldo"):
             self.assertNotIn(private, protected[0])
+        # November 2026 (EDE): the age stays visible; placeholders follow
+        # the language chosen for the report (Spanish by default).
+        self.assertIn("34 años", protected[0])
+        self.assertIn("[PERSONA 1]", protected[0])
+        self.assertIn("[PERTSONA 1]", pta.protect_texts(["Juan Pérez etorri da."], "Euskera")[0][0])
 
     def test_a_text_that_cannot_be_anonymised_is_never_sent(self):
-        def broken(text):
+        def broken(text, *args, **kwargs):
             raise RuntimeError("boom")
         with patch.object(pta, "anonymize", broken):
             protected, skipped = pta.protect_texts(["Juan Pérez vive en Bilbao."])

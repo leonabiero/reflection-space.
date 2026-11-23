@@ -1,29 +1,55 @@
 """
-Sensitive personal details -- GDPR "special categories" (18 November 2026).
+Sensitive personal details -- GDPR "special categories".
 
-EDE found that words such as "gay" reached the AI. The anonymizer now
-replaces words that state a sensitive personal detail with a neutral label
-([SEXUAL_ORIENTATION], [GENDER_IDENTITY], [HEALTH], [RELIGION_BELIEF],
-[ETHNIC_ORIGIN], [POLITICAL_OPINION], [TRADE_UNION]), in Spanish, Basque and
-English. Product owner's decisions: health -- only specific diagnoses,
-treatments and medicines are hidden, general words are kept; nationality
-is not hidden for now. Both can be switched on in config.
+18 November 2026: words that state a sensitive personal detail were
+replaced by a neutral label ([SEXUAL_ORIENTATION], [GENDER_IDENTITY],
+[HEALTH], [RELIGION_BELIEF], [ETHNIC_ORIGIN], [POLITICAL_OPINION],
+[TRADE_UNION]), in Spanish, Basque and English.
+
+November 2026 -- EDE's decision (approved by the project leads): this is
+the context in which bias tends to appear, and the AI must see it to name
+it. By default, sexual orientation, gender identity, health, religion,
+ethnic origin and nationality are now LEFT VISIBLE; only political
+opinion and trade union membership are still hidden. Every category still
+works and can be switched back on in config.ANONYMISER_SPECIAL_CATEGORIES.
+
+So these tests protect two things:
+  - the NEW default (DefaultBehaviourTests);
+  - every category still working when switched on (the other classes,
+    which switch all categories on).
 
 Also: a named mental health centre keeps "centro de salud mental" but
 loses its place name.
 """
 
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from services import anonymizer
-from services.anonymizer import anonymize
+from services.anonymizer import anonymize as _anonymize
 
 ROOT = Path(__file__).resolve().parents[1]
+ALL_CATEGORIES = tuple(anonymizer.SPECIAL_CATEGORY_LABELS)
+SWITCHED_ON = tuple(c for c in ALL_CATEGORIES if c not in ("nationality", "health_general"))
+
+
+def anonymize(text):
+    """English placeholders, person numbers ignored (they are tested in
+    tests/test_anonymizer_context_and_numbering.py)."""
+    return re.sub(r"\[PERSON \d+\]", "[PERSON]", _anonymize(text, "English"))
 
 
 class _Base(unittest.TestCase):
+    """All the categories that used to be on by default, switched on."""
+
+    def setUp(self):
+        patcher = mock.patch.object(anonymizer, "_SPECIAL_RULES",
+                                    anonymizer._build_special_rules(SWITCHED_ON))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def assert_label(self, text, label, *hidden):
         safe = anonymize(text)
         self.assertIn(label, safe, msg=f"{text!r} -> {safe!r}")
@@ -38,6 +64,35 @@ class _Base(unittest.TestCase):
         for word in kept:
             self.assertIn(word, safe, msg=f"{word!r} should be kept: {safe!r}")
         return safe
+
+
+class DefaultBehaviourTests(unittest.TestCase):
+    """EDE, November 2026: context that may reveal bias stays visible."""
+
+    def test_sensitive_context_is_left_visible_by_default(self):
+        text = ("Es una mujer trans, lesbiana, musulmana, gitana, marroquí, con esquizofrenia; "
+                "toma litio. He is gay and HIV positive.")
+        safe = anonymize(text)
+        for word in ("trans", "lesbiana", "musulmana", "gitana", "marroquí", "esquizofrenia",
+                     "litio", "gay", "HIV"):
+            self.assertIn(word, safe, msg=safe)
+        for label in ("[SEXUAL_ORIENTATION]", "[GENDER_IDENTITY]", "[HEALTH]",
+                      "[RELIGION_BELIEF]", "[ETHNIC_ORIGIN]", "[NATIONALITY]"):
+            self.assertNotIn(label, safe)
+
+    def test_political_opinion_and_trade_union_are_still_hidden(self):
+        safe = anonymize("Vota al PNV y está afiliado a ELA.")
+        self.assertIn("[POLITICAL_OPINION]", safe)
+        self.assertIn("[TRADE_UNION]", safe)
+        self.assertNotIn("PNV", safe)
+        self.assertNotIn("ELA", safe)
+
+    def test_names_are_still_hidden_next_to_visible_context(self):
+        safe = anonymize("La usuaria, Lucía García, musulmana, procedente de Marruecos.")
+        self.assertNotIn("Lucía", safe)
+        self.assertNotIn("García", safe)
+        self.assertIn("musulmana", safe)
+        self.assertIn("Marruecos", safe)
 
 
 class SexualOrientationTests(_Base):
@@ -119,7 +174,6 @@ class HealthSpecificTests(_Base):
         self.assert_label("She is HIV positive.", self.LABEL, "hiv")
 
     def test_general_health_words_are_kept(self):
-        # Product owner's decision: general words are not hidden.
         self.assert_kept(
             "Tiene una enfermedad y problemas de salud. Va al centro de salud.",
             "enfermedad", "problemas de salud", "centro de salud",
@@ -163,7 +217,7 @@ class FalsePositiveTests(_Base):
         self.assert_kept("Hay que sumar los ingresos.", "sumar")
         self.assert_kept("El laboratorio llamó; la tea estaba fría.", "laboratorio", "tea")
 
-    def test_nationality_is_not_hidden_for_now(self):
+    def test_nationality_is_not_hidden(self):
         safe = self.assert_kept("Es marroquí y su vecina es rumana.", "marroquí", "rumana")
         self.assertNotIn("[NATIONALITY]", safe)
 
@@ -194,9 +248,8 @@ class NamedMentalHealthCentreTests(_Base):
 
 class SettingTests(unittest.TestCase):
     def test_default_categories(self):
+        self.assertEqual(anonymizer.DEFAULT_SPECIAL_CATEGORIES, ("political_opinion", "trade_union"))
         self.assertEqual(anonymizer._load_special_categories(), anonymizer.DEFAULT_SPECIAL_CATEGORIES)
-        self.assertNotIn("nationality", anonymizer.DEFAULT_SPECIAL_CATEGORIES)
-        self.assertNotIn("health_general", anonymizer.DEFAULT_SPECIAL_CATEGORIES)
         import config
         self.assertEqual(
             tuple(n.strip() for n in config.ANONYMISER_SPECIAL_CATEGORIES.split(",")),
@@ -211,7 +264,7 @@ class SettingTests(unittest.TestCase):
         self.assertIn("[NATIONALITY]", safe)
         self.assertIn("[HEALTH]", safe)
 
-    def test_switching_a_category_off(self):
+    def test_switching_a_category_on(self):
         with mock.patch("config.ANONYMISER_SPECIAL_CATEGORIES", "health_specific"):
             rules = anonymizer._build_special_rules(anonymizer._load_special_categories())
         safe = anonymizer._replace_special_categories("Es gay y toma litio.", rules)
@@ -231,20 +284,24 @@ class SettingTests(unittest.TestCase):
 
 
 class AiInstructionTests(unittest.TestCase):
-    """The AI is told what the labels mean, wherever anonymised text goes."""
+    """The AI is told what the placeholders mean, in the language of the
+    text, wherever anonymised text goes."""
 
     def test_note_is_in_every_live_prompt(self):
-        note = "anonymizer import anonymize, SENSITIVE_LABELS_NOTE"
         service = (ROOT / "services" / "reflection_service.py").read_text(encoding="utf-8")
-        self.assertIn(note, service)
-        self.assertEqual(service.count('+ "\\n\\n" + SENSITIVE_LABELS_NOTE + "\\n\\n" + lang_instruction'), 2)
+        self.assertIn("from services.anonymizer import anonymize, labels_note", service)
+        self.assertEqual(service.count('+ "\\n\\n" + labels_note(lang) + "\\n\\n" + lang_instruction'), 3)
         patterns = (ROOT / "services" / "pattern_text_analysis.py").read_text(encoding="utf-8")
-        self.assertIn(note, patterns)
-        self.assertIn('+ SENSITIVE_LABELS_NOTE + "\\n\\n" + _lang_instruction(lang)', patterns)
+        self.assertIn("from services.anonymizer import anonymize, labels_note", patterns)
+        self.assertIn('+ labels_note(lang) + "\\n\\n" + _lang_instruction(lang)', patterns)
 
-    def test_note_says_never_guess(self):
-        self.assertIn("Never guess, infer or ask", anonymizer.SENSITIVE_LABELS_NOTE)
-        self.assertIn("[HEALTH]", anonymizer.SENSITIVE_LABELS_NOTE)
+    def test_note_says_never_guess_and_uses_the_language(self):
+        for lang, person in (("Español", "[PERSONA 1]"), ("Euskera", "[PERTSONA 1]"),
+                             ("English", "[PERSON 1]")):
+            note = anonymizer.labels_note(lang)
+            self.assertIn("Never guess, infer or ask", note)
+            self.assertIn(person, note)
+            self.assertIn("deliberately been left in the text", note)
 
     def test_companion_call_sends_the_note(self):
         from services import reflection_service
@@ -259,8 +316,8 @@ class AiInstructionTests(unittest.TestCase):
                 mock.patch.object(reflection_service, "_record_claude_usage"):
             with self.assertRaises(RuntimeError):
                 reflection_service.generate_companion_reflection(
-                    COMPANIONS[0], "[PERSON] es [SEXUAL_ORIENTATION].", "Español")
-        self.assertIn(anonymizer.SENSITIVE_LABELS_NOTE, sent["system"])
+                    COMPANIONS[0], "[PERSONA 1] es lesbiana.", "Euskera")
+        self.assertIn(anonymizer.labels_note("Euskera"), sent["system"])
 
 
 def _load_locale(lang):
@@ -272,26 +329,37 @@ def _load_locale(lang):
 
 
 class LabelExplanationTests(unittest.TestCase):
-    """18 November 2026: every place that explains the labels to people
-    also explains the sensitive-detail labels, in all three languages."""
+    """Every place that explains the placeholders to people explains them
+    in its own language (November 2026)."""
 
-    LABELS = sorted(set(anonymizer.SPECIAL_CATEGORY_LABELS.values()))
+    EXPLAINED = ("PERSON", "ADDRESS", "LOCATION", "ORGANISATION", "ID", "PHONE", "EMAIL", "DATE",
+                 "POLITICAL_OPINION", "TRADE_UNION")
+    LANGS = {"es": "Español", "eu": "Euskera", "en": "English"}
 
-    def test_all_eight_labels_are_known(self):
-        self.assertEqual(len(self.LABELS), 8)
+    def test_every_placeholder_is_explained_in_every_language(self):
+        for code, lang in self.LANGS.items():
+            texts = _load_locale(code)
+            words = texts["anon_placeholders"]
+            legend = texts["anon_sensitive_labels_help"]
+            for tag in self.EXPLAINED:
+                self.assertIn(f"[{words[tag]}", legend, f"{tag} missing from the legend in {code}")
+            self.assertIn(f"[{words['PERSON']} 1]", texts["help"]["privacy_points"][1])
+            # Older English labels are still explained on the admin screen.
+            self.assertIn("[PERSON]", texts["admin_anon_tags_help"])
 
-    def test_every_label_is_explained_in_every_language(self):
-        for lang in ("es", "eu", "en"):
-            texts = _load_locale(lang)
-            places = {
-                "anon_sensitive_labels_help": texts["anon_sensitive_labels_help"],
-                "help privacy point": texts["help"]["privacy_points"][1],
-            }
-            for where, text in places.items():
-                for label in self.LABELS:
-                    self.assertIn(f"{label} =", text, f"{label} missing from {where} in {lang}")
-            # The older labels are still explained on the admin screen.
-            self.assertIn("[PERSON] =", texts["admin_anon_tags_help"])
+    def test_placeholder_words_match_the_agreed_ones(self):
+        es, eu, en = (_load_locale(c)["anon_placeholders"] for c in ("es", "eu", "en"))
+        self.assertEqual([es[t] for t in self.EXPLAINED[:8]],
+                         ["PERSONA", "DIRECCIÓN", "LUGAR", "ORGANIZACIÓN", "IDENTIFICADOR",
+                          "TELÉFONO", "CORREO", "FECHA"])
+        self.assertEqual([eu[t] for t in self.EXPLAINED[:8]],
+                         ["PERTSONA", "HELBIDEA", "TOKIA", "ERAKUNDEA", "IDENTIFIKATZAILEA",
+                          "TELEFONOA", "POSTA", "DATA"])
+        self.assertEqual([en[t] for t in self.EXPLAINED[:8]],
+                         ["PERSON", "ADDRESS", "LOCATION", "ORGANISATION", "ID", "PHONE",
+                          "EMAIL", "DATE"])
+        for words in (es, eu, en):
+            self.assertEqual(set(words), set(anonymizer.CANONICAL_TAGS))
 
     def test_labels_are_shown_where_anonymised_text_is_shown(self):
         admin = (ROOT / "pages" / "admin_sections" / "admin_tools.py").read_text(encoding="utf-8")
@@ -304,12 +372,15 @@ class LabelExplanationTests(unittest.TestCase):
 
 
 class DemoTextsTests(unittest.TestCase):
-    def test_sensitive_words_in_the_demo_texts_are_replaced(self):
+    def test_context_words_in_the_demo_texts_are_kept(self):
+        """EDE, November 2026: the context stays visible in the demo too."""
         from services.demo_texts import DEMO_TEXTS
-        joined = " ".join(anonymize(t["text"]) for t in DEMO_TEXTS).lower()
-        for word in (" gay", "lesbiana", "bisexual", "esquizofrenia", "eskizofrenia", " vih",
-                     "sertralina", "risperidona", "musulmana", "gitana", "bipolar", "litio"):
-            self.assertNotIn(word, joined, word)
+        originals = " ".join(t["text"] for t in DEMO_TEXTS).lower()
+        joined = " ".join(_anonymize(t["text"]) for t in DEMO_TEXTS).lower()
+        for word in ("lesbiana", "bisexual", "esquizofrenia", "sertralina", "risperidona",
+                     "musulmana", "gitana", "bipolar"):
+            if word in originals:
+                self.assertIn(word, joined, word)
 
 
 if __name__ == "__main__":

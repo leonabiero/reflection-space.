@@ -106,6 +106,12 @@ class _RetryInvitation:
                         evidence=evidence,
                         unverified_quote_count=unverified_count,
                     )
+                    # So a later retry of the analysis report sees it too.
+                    if isinstance(getattr(self.session, "findings", None), list):
+                        self.session.findings.append({
+                            "module": self.trigger, "observation": observation,
+                            "questions": questions, "evidence": evidence,
+                        })
                     # Since 15 November 2026 the AI's observations and
                     # questions are not saved (config.SAVE_OBSERVATIONS),
                     # so a retried card is only shown, never stored.
@@ -177,6 +183,19 @@ class ReflectionSession:
         self.failed_count = 0
         self.failed_labels = result.get("failed_labels", [])
         self.safe_text = result.get("safe_text", "")
+
+        # November 2026: the analysis report (None if it failed or was not
+        # made), and the lens results it was built from, so it can be
+        # retried once. Shown, never saved.
+        self.analysis_report = result.get("analysis_report")
+        self.analysis_report_failed = bool(result.get("analysis_report_failed"))
+        self.analysis_report_retried = False
+        self.findings = list(result.get("findings") or [])
+        # Which number each person has in this text (anonymizer.
+        # PersonNumbers): holds real names, so it lives only here, in the
+        # browser session, and is never saved or sent. The chat uses it so
+        # the same person keeps the same number.
+        self.people = None
 
         # These sets define the manual-retry state machine for this session:
         # retryable -> one manual attempt -> either success or permanent
@@ -322,6 +341,36 @@ class ReflectionSession:
                 else self.STATUS_NONE
             )
         return self.STATUS_FINDING if trigger in generated else self.STATUS_NONE
+
+    def can_retry_analysis_report(self):
+        return (getattr(self, "analysis_report", None) is None
+                and getattr(self, "analysis_report_failed", False)
+                and not getattr(self, "analysis_report_retried", False))
+
+    def retry_analysis_report(self):
+        """One practitioner retry of the analysis report (one call, up to
+        one attempt). Returns True if it worked."""
+        from services import analysis_report
+        self.analysis_report_retried = True
+        lang = getattr(self, "reflection_lang", None) or st.session_state.get("lang", "Español")
+        outcome = analysis_report.generate_report(
+            self.safe_text, getattr(self, "findings", []), lang,
+            labels={c["key"]: c["label"] for c in COMPANIONS}, attempts=1,
+        )
+        if outcome.get("report"):
+            self.analysis_report = outcome["report"]
+            self.analysis_report_failed = False
+            return True
+        analysis_report.log_report_failure(outcome, lang, manual=True)
+        return False
+
+    def all_typed_quotes(self):
+        """Every typed, verified quote shown in this reflection (lens cards
+        and report), for the highlighted text."""
+        from services.analysis_report import all_quotes
+        lens = [{"evidence": o.evidence} for o in self.opportunities
+                if isinstance(getattr(o, "evidence", None), list)]
+        return all_quotes(lens, getattr(self, "analysis_report", None))
 
     def explored_count(self):
         return sum(1 for o in self.opportunities if o.explored)

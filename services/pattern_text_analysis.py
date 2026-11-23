@@ -62,14 +62,18 @@ from services.db_time import get_logger
 from services import reflection_service
 from services.reflection_service import LANG_INSTRUCTIONS
 from services import pattern_text_store
-from services.anonymizer import anonymize, SENSITIVE_LABELS_NOTE
+from services.anonymizer import anonymize, labels_note
 from services import request_dedup
+from rdi.companions.prompt_builder import EDE_FRAMEWORK
 
 logger = get_logger(__name__)
 
 # -2 (18 November 2026): the batch instructions explain the anonymiser's
 # labels ([HEALTH], [SEXUAL_ORIENTATION], ...).
-PROMPT_VERSION = "2026-11-text-patterns-2"
+# -3 (November 2026, EDE): direct, grounded naming of repeated biases ("When
+# the same bias is repeated, it creates a pattern."), the EDE framework as
+# checklist, placeholders in the report's language; limitations kept.
+PROMPT_VERSION = "2026-11-text-patterns-3"
 BATCH_OPERATION = "pattern_text_batch"
 REPORT_OPERATION = "pattern_text_report"
 
@@ -102,32 +106,36 @@ _TITLE_MAX = 150
 _FIELD_MAX = 1500
 _ITEM_MAX = 400
 
-BATCH_SYSTEM_PROMPT = """You help the management team of a social-intervention organisation in the Basque Country reflect on how professional case documentation is written.
+BATCH_SYSTEM_PROMPT = """You help the management team of a social-intervention organisation in the Basque Country analyse how professional case documentation is written.
 
-You will receive a numbered set of texts written by social workers about their cases. Names and personal details have already been replaced by tags such as [PERSON] or [LOCATION]. The texts may be in Spanish, Basque or English.
+You will receive a numbered set of texts written by social workers about their cases. Names and other direct identifiers have already been replaced by placeholders in square brackets (see the note below). The texts may be in Spanish, Basque or English.
 
-Find patterns in HOW the cases are written that recur across several texts. For example: whether the person's own voice, wishes and goals appear or are missing; interpretations or opinions presented as facts; charged labels; a focus on problems and deficits rather than strengths and resources; decisions or plans without stated reasons; context that is regularly missing; kinds of situations or needs that keep coming up.
+Find patterns in HOW the cases are written that recur across several texts. When the same bias is repeated, it creates a pattern. For example: whether the person's own voice, wishes and goals appear or are missing; interpretations or opinions presented as facts; loaded labels; stereotypes; a focus on problems and deficits rather than strengths and resources; decisions or plans without stated reasons; context that is regularly missing.
 
+""" + EDE_FRAMEWORK + """
 Rules you must follow exactly:
 - A pattern must appear in at least {minimum} different texts. Give the numbers of the texts where you see it. Leave out anything that appears in fewer texts.
-- Describe the writing, never the writers. Do not judge, score or label the professionals or anyone in the cases, and never try to work out who anyone is.
-- Never quote or copy sentences from the texts, and never mention details that could point to one particular case or person (tags, places, ages, dates or events specific to one case).
-- A pattern is not proof of bias or poor practice. Use cautious wording such as "appears", "may", "in several texts".
+- Be direct and frank: clearly name the biases, stereotypes, prejudices and loaded labels that recur, with well-grounded reasons. Do not soften them.
+- Describe the writing, never the writers. Do not judge, score or label the professionals, and never try to work out who anyone is.
+- Never quote or copy sentences from the texts, and never mention details that could point to one particular case or person (placeholders, places, ages, dates or events specific to one case).
 - At most {max_patterns} patterns, the most frequent first.
 
 Return ONLY valid JSON, with no text before or after:
 {{"patterns": [{{"title": "short title", "description": "two or three sentences", "texts": [1, 4, 7]}}]}}"""
 
-REPORT_SYSTEM_PROMPT = """You help the management team of a social-intervention organisation in the Basque Country reflect on how professional case documentation is written.
+REPORT_SYSTEM_PROMPT = """You help the management team of a social-intervention organisation in the Basque Country analyse how professional case documentation is written.
 
-Texts written by social workers were read in separate groups. For each group you will receive the candidate patterns found in it, each with an id and the number of texts in which it was seen. Write ONE report for the team.
+Texts written by social workers were read in separate groups. For each group you will receive the candidate patterns found in it, each with an id and the number of texts in which it was seen. Write ONE report for the team. When the same bias is repeated, it creates a pattern.
 
+""" + EDE_FRAMEWORK + """
 Rules you must follow exactly:
 - Combine candidate patterns that describe the same thing. For every pattern in your report, list in "sources" the ids of ALL the candidate patterns it combines. Use only ids that you were given.
 - Use only what the candidate patterns say. Never invent quotations, cases, people, numbers or events.
-- Describe the writing, never the writers. Do not judge, score or label professionals or anyone in the cases.
-- A pattern is not proof of bias or poor practice. Use cautious wording ("may", "appears", "possible").
-- "questions" are open questions the team could discuss (at most {max_questions} per pattern). "limitations" says what cannot be known from this kind of analysis.
+- Be direct and frank: clearly name the biases, stereotypes, prejudices and loaded labels, and say why each matters, with well-grounded reasons. Do not soften them.
+- Describe the writing, never the writers. Do not judge, score or label the professionals.
+- Do not give recommendations, action plans or suggested wording.
+- "questions" are questions that invite the team to reflect (at most {max_questions} per pattern).
+- "limitations" must always be present: say frankly what this kind of analysis cannot know (for example, what the texts leave out, what only the professionals or the people supported could explain, and the limits of anonymised and automatically read texts).
 - At most {max_patterns} patterns.
 
 Return ONLY valid JSON, with no text before or after:
@@ -291,7 +299,7 @@ def read_batch(batch, lang, min_per_pattern):
     None if the group could not be read."""
     system = BATCH_SYSTEM_PROMPT.format(
         minimum=min_per_pattern, max_patterns=MAX_PATTERNS_PER_BATCH,
-    ) + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + _lang_instruction(lang)
+    ) + "\n\n" + labels_note(lang) + "\n\n" + _lang_instruction(lang)
     parsed = _call(system, build_batch_message(batch), BATCH_MAX_TOKENS, BATCH_OPERATION)
     if parsed is None:
         return None
@@ -392,16 +400,18 @@ def remove_copied_passages(report, copy_index):
 # ---------------------------------------------------------------------
 # The whole analysis
 # ---------------------------------------------------------------------
-def protect_texts(texts):
-    """Anonymise each text before the AI may see it. Returns
-    (protected_texts, skipped): a text whose anonymisation fails or leaves
-    nothing is skipped -- it is never sent as it was."""
+def protect_texts(texts, lang="Español"):
+    """Anonymise each text before the AI may see it, with placeholders in
+    the language chosen for the report (each text numbers its own
+    people). Returns (protected_texts, skipped): a text whose
+    anonymisation fails or leaves nothing is skipped -- it is never sent
+    as it was."""
     protected, skipped = [], 0
     for text in texts:
         if not (text or "").strip():
             continue
         try:
-            safe = anonymize(text)
+            safe = anonymize(text, lang)
         except Exception:
             safe = None
         if (safe or "").strip():
@@ -526,7 +536,7 @@ def run_report(actor_role, actor_name, period_months, lang="Español"):
     succeeded = False
     try:
         originals = [t["text"] for t in texts]
-        protected, skipped = protect_texts(originals)
+        protected, skipped = protect_texts(originals, lang)
         result["texts_skipped"] = skipped
         outcome = analyse_texts(protected, lang=lang, originals=originals)
         result["texts_read"] = outcome["texts_read"]

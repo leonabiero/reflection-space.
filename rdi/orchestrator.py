@@ -162,6 +162,16 @@ verified results as additive keys ("findings", "module_status", "model",
 "prompt_version") so the page can save them (services/findings_store.py).
 Every pre-existing key and shape in the return value is unchanged, and
 nothing here adds an API call.
+
+November 2026 -- analysis report and typed evidence
+-----------------------------------------------------
+Each verified quote now also carries its type (bias / stereotype /
+prejudice / loaded_label) when the AI gave a valid one. After the eight
+lenses have finished -- still inside the same concurrency slot -- ONE
+extra call writes the analysis report (services/analysis_report.py). It
+is returned as the additive key "analysis_report" (None if it failed;
+"analysis_report_failed" is then True). A failed report is logged once
+and never stops the lens cards from being shown. Nothing is saved.
 """
 
 import random
@@ -175,6 +185,7 @@ from config import CLAUDE_MAX_CONCURRENT_REFLECTIONS, CLAUDE_REFLECTION_QUEUE_TI
 from services.anonymizer import anonymize
 from services.reflection_service import generate_companion_reflection, COMPANION_MODEL
 from services.evidence import verify_quotes
+from services import analysis_report
 from rdi.companions.prompt_builder import PROMPT_VERSION
 from services.error_log import log_error
 from services.issue_fingerprint import classify_reflection_failure_root_cause
@@ -290,7 +301,55 @@ def _representative_failure(failure_details):
     return with_traceback or failure_details[0]
 
 
-def run_reflection(text, lang="Español", context_description=""):
+def _merge_results(results, safe_text, context_description):
+    """Merge the companions' results into the shapes the rest of the app
+    uses. Failed companions are logged as empty/not flagged, same as a
+    dimension the model found nothing notable in."""
+    raw_result = {}
+    opportunities = []
+    findings = []
+    module_status = {}
+    for companion in COMPANIONS:
+        key = companion["key"]
+        result = results.get(key)
+
+        if result is None:
+            raw_result[key] = {"observation": "", "questions": []}
+            module_status[key] = "failed"
+            continue
+
+        observation = result.get("observation", "")
+        questions = result.get("questions", [])
+        raw_result[key] = {"observation": observation, "questions": questions}
+
+        # Keep only passages that really appear, word for word, in the
+        # anonymized text the model was given (services/evidence.py).
+        evidence, unverified_count = verify_quotes(result.get("evidence"), safe_text)
+
+        opportunity = ReflectiveOpportunity(
+            trigger=key,
+            context=context_description,
+            focus=observation,
+            invitation=questions,
+            evidence=evidence,
+            unverified_quote_count=unverified_count,
+        )
+        if not opportunity.is_empty():
+            opportunities.append(opportunity)
+            module_status[key] = "finding"
+            findings.append({
+                "module": key,
+                "observation": observation,
+                "questions": questions,
+                "evidence": evidence,
+                "unverified_quote_count": unverified_count,
+            })
+        else:
+            module_status[key] = "no_finding"
+    return raw_result, opportunities, findings, module_status
+
+
+def run_reflection(text, lang="Español", context_description="", people=None):
     """
     Generate a reflection by running all 8 companions in parallel and
     merging their results.
@@ -337,8 +396,13 @@ def run_reflection(text, lang="Español", context_description=""):
                                            follow-up conversations
         }
     """
-    safe_text = anonymize(text)
+    # Placeholders in the language of the reflection; `people` shares the
+    # person numbering with the page (already-anonymised text passes
+    # through unchanged).
+    safe_text = anonymize(text, lang, people)
 
+    merged = None
+    report_outcome = None
     results = {}   # key -> companion result dict or None on failure
     failed_labels = []
     failure_details = []  # [{key, label, error_message, raw, traceback, root_cause}, ...]
@@ -429,6 +493,20 @@ def run_reflection(text, lang="Español", context_description=""):
                     })
                 else:
                     results[companion["key"]] = result
+
+        # November 2026: the analysis report, from the lenses that worked
+        # (only if at least one did). Inside the same slot, so it counts
+        # towards the same capacity limit.
+        if len(failed_labels) < len(COMPANIONS):
+            merged = _merge_results(results, safe_text, context_description)
+            try:
+                report_outcome = analysis_report.generate_report(
+                    safe_text, merged[2], lang,
+                    labels={c["key"]: c["label"] for c in COMPANIONS},
+                )
+            except Exception as exc:   # never lose the lens cards over it
+                report_outcome = {"error": "Analysis report failed", "raw": str(exc),
+                                  "traceback": traceback.format_exc()}
     finally:
         # Always release, success or failure -- see the module
         # docstring's "Concurrency control" section. Post-processing
@@ -518,50 +596,15 @@ def run_reflection(text, lang="Español", context_description=""):
         )
 
     # Merge into the same flat shape generate_reflection() used to
-    # return, so log_reflection() keeps working
-    # exactly as before. Failed companions are logged as empty/not
-    # flagged, same as a dimension the model found nothing notable in.
-    raw_result = {}
-    opportunities = []
-    findings = []
-    module_status = {}
-    for companion in COMPANIONS:
-        key = companion["key"]
-        result = results.get(key)
+    # return, so log_reflection() keeps working exactly as before.
+    if merged is None:
+        merged = _merge_results(results, safe_text, context_description)
+    raw_result, opportunities, findings, module_status = merged
 
-        if result is None:
-            raw_result[key] = {"observation": "", "questions": []}
-            module_status[key] = "failed"
-            continue
-
-        observation = result.get("observation", "")
-        questions = result.get("questions", [])
-        raw_result[key] = {"observation": observation, "questions": questions}
-
-        # Keep only passages that really appear, word for word, in the
-        # anonymized text the model was given (services/evidence.py).
-        evidence, unverified_count = verify_quotes(result.get("evidence"), safe_text)
-
-        opportunity = ReflectiveOpportunity(
-            trigger=key,
-            context=context_description,
-            focus=observation,
-            invitation=questions,
-            evidence=evidence,
-            unverified_quote_count=unverified_count,
-        )
-        if not opportunity.is_empty():
-            opportunities.append(opportunity)
-            module_status[key] = "finding"
-            findings.append({
-                "module": key,
-                "observation": observation,
-                "questions": questions,
-                "evidence": evidence,
-                "unverified_quote_count": unverified_count,
-            })
-        else:
-            module_status[key] = "no_finding"
+    report = (report_outcome or {}).get("report")
+    report_failed = report is None
+    if report_failed and report_outcome is not None:
+        analysis_report.log_report_failure(report_outcome, lang)
 
     return {
         "opportunities": opportunities,
@@ -574,4 +617,7 @@ def run_reflection(text, lang="Español", context_description=""):
         "module_status": module_status,
         "model": COMPANION_MODEL,
         "prompt_version": PROMPT_VERSION,
+        # November 2026 (additive): the analysis report, or None.
+        "analysis_report": report,
+        "analysis_report_failed": report_failed,
     }

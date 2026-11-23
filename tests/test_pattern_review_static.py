@@ -100,7 +100,7 @@ class AnalysisReadsOriginalTextsTests(unittest.TestCase):
     def test_every_text_is_anonymised_before_the_ai(self):
         source = _read("services", "pattern_text_analysis.py")
         run = source[source.index("def run_report("):]
-        self.assertLess(run.index("protect_texts(originals)"), run.index("analyse_texts(protected"))
+        self.assertLess(run.index("protect_texts(originals, lang)"), run.index("analyse_texts(protected"))
 
 class PatternReviewScreenTests(unittest.TestCase):
     def setUp(self):

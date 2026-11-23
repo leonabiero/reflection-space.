@@ -5,10 +5,12 @@ Reflection Objects
 Defines the shape every reflective item in the app must take: a
 Reflective Opportunity.
 
-Per the RDI philosophy, the app never issues verdicts, scores, or
-recommendations. This class enforces that structurally, not just by
-convention -- there is simply no field here to put a score or a verdict
-in. If a future companion tries to return one, it has nowhere to go.
+Per the RDI philosophy, the app never scores the professional and never
+gives case decisions or recommendations. Since November 2026 the AI does
+give a direct, grounded analysis of the documentation (the `focus`),
+but there is still no field here for a score, a decision or a
+recommendation -- if a future companion tries to return one, it has
+nowhere to go.
 
 A Reflective Opportunity always has exactly these five parts:
     trigger              -- what in the documentation prompted this
@@ -16,8 +18,9 @@ A Reflective Opportunity always has exactly these five parts:
     context               -- what documentation this opportunity was
                               generated from (e.g. "today's note" or
                               "today's note + 2 historical documents")
-    focus                 -- the observation itself: what was noticed,
-                              written in neutral, non-judgmental language
+    focus                 -- the analysis itself: what was detected and
+                              why it matters, frank but never judging the
+                              professional
     invitation             -- the reflective question(s) inviting the
                               professional to think further
     professional_choice    -- a fixed reminder that engaging with this

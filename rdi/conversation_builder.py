@@ -21,10 +21,11 @@ ordering:
   5. Missing Information
   6. Evidence for Decisions
   7. Continuity
-  8. Strengths vs Deficits           -- deliberately last, so the
-                                        conversation closes on what the
-                                        person/family is already doing
-                                        well, not on a gap
+  8. Strengths vs Deficits
+
+(November 2026: the order is kept so practitioners know where each card
+is. It only decides where each card sits on the screen; it never changes,
+softens or hides what any card says.)
 """
 
 CONVERSATION_ORDER = [

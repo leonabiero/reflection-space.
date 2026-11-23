@@ -17,6 +17,7 @@ import re
 import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from services import document_import as di
@@ -110,6 +111,7 @@ class OrchestratorPrivacyTests(unittest.TestCase):
         return patch.multiple(
             self.orchestrator,
             generate_companion_reflection=self._fake_ai,
+            analysis_report=SimpleNamespace(generate_report=lambda *a, **k: {"report": {"summary": "s", "items": [], "questions": [], "unverified_quote_count": 0}}, log_report_failure=lambda *a, **k: (None, None)),
             log_error=lambda **kwargs: (1, 2),
             _reflection_semaphore=threading.Semaphore(8),
         )
@@ -136,7 +138,7 @@ class OrchestratorPrivacyTests(unittest.TestCase):
             self.assertNotIn("12345678Z", text)
 
     def test_failed_anonymisation_sends_nothing(self):
-        def broken(_text):
+        def broken(_text, *args, **kwargs):
             raise RuntimeError("anonymiser broke")
 
         with self._patches(), patch.object(self.orchestrator, "anonymize", broken):
@@ -161,7 +163,7 @@ class PagePrivacyFlowTests(unittest.TestCase):
         self.page = _read("pages", "reflection_space.py")
 
     def test_anonymisation_happens_before_the_ai_call(self):
-        anonymise_at = self.page.index("safe_text = anonymize(material)")
+        anonymise_at = self.page.index("safe_text = anonymize(material, reflect_lang, people)")
         ai_at = self.page.index("run_reflection(")
         self.assertLess(anonymise_at, ai_at)
 
@@ -172,7 +174,7 @@ class PagePrivacyFlowTests(unittest.TestCase):
             self.assertNotIn(f"run_reflection({raw_name}", self.page)
 
     def test_failure_stops_with_no_fallback(self):
-        start = self.page.index("safe_text = anonymize(material)")
+        start = self.page.index("safe_text = anonymize(material, reflect_lang, people)")
         end = self.page.index("run_reflection(", start)
         block = self.page[start:end]
         self.assertIn('if not (safe_text or "").strip():', block)
@@ -448,17 +450,21 @@ class SimplerResultsScreenTests(unittest.TestCase):
         self.assertIn("st.write(session.safe_text)", band)
         self.assertIn("st.write(session.case_text)", band)
 
-    def test_only_the_questions_are_open(self):
+    def test_the_analysis_is_shown_open_before_the_questions(self):
+        # November 2026 (EDE): direct, grounded analysis. The analysis is no
+        # longer folded away under "Why these questions?": it is shown open,
+        # first, then the typed quotes, then the questions.
         start = self.page.index("def _render_opportunity_tab_body")
         body = self.page[start:self.page.index("_render_finding_notes(session, opportunity)", start)]
-        # The fold ("Why these questions?") comes first and holds everything
-        # the AI noticed; the questions come after it, open.
-        fold_at = body.index('st.expander(T["workspace_more_header"], expanded=False)')
-        self.assertLess(fold_at, body.index('st.markdown(f"- {q}")'))
-        fold = body[fold_at:body.index("elif opportunity.focus:")]
-        self.assertIn("st.write(opportunity.focus)", fold)
-        self.assertIn("render_evidence(", fold)
-        self.assertIn('st.caption(T["workspace_reminder"])', fold)   # reminder stays inside the fold
+        self.assertNotIn('st.expander(T["workspace_more_header"]', body)
+        analysis_at = body.index("st.write(opportunity.focus)")
+        quotes_at = body.index("render_evidence(T, opportunity.evidence")
+        questions_at = body.index('st.markdown(f"- {q}")')
+        self.assertLess(analysis_at, quotes_at)
+        self.assertLess(quotes_at, questions_at)
+        self.assertIn('T[\'workspace_analysis_header\']', body)
+        # The "your professional decision" reminder is still shown with it.
+        self.assertIn('st.caption(T["workspace_reminder"])', body[analysis_at:questions_at])
         # The questions list is iterated once, so the Retry button still appears.
         self.assertEqual(body.count("for q in questions:"), 1)
 

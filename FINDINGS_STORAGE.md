@@ -143,3 +143,14 @@ and only ticked observations reached the management Pattern Review. Since then *
 quotation) is used there, without the author's name; the tick was removed and the flag is no longer read. Notes and
 ratings stay private.
 See `PATTERNS.md`.
+
+## November 2026 update — typed quotes
+
+Each quote can now carry a type: `bias`, `stereotype`, `prejudice` or
+`loaded_label` (`services/evidence.py`). The exact-match rule is unchanged.
+A short loaded label (from 3 characters, e.g. "dócil") is accepted only if
+it is a whole word in the text; other quotes still need 10 characters.
+Older saved findings have no type and display exactly as before. (Since 15
+November 2026 the AI's observations are not saved unless
+`SAVE_OBSERVATIONS` is switched on; if they are, the type is saved with the
+quote.)

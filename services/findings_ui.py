@@ -37,8 +37,14 @@ def render_evidence(T, evidence, unverified_count=0):
     the text and were therefore not shown."""
     if evidence:
         st.caption(T["findings_evidence_caption"])
+        type_labels = T.get("evidence_type_labels", {}) or {}
         for item in evidence:
-            st.markdown("> " + md_escape(item.get("quote", "")))
+            # (November 2026) The kind of evidence, in words, before the
+            # quote; older findings have no type and show the quote only.
+            kind = item.get("type") if isinstance(item, dict) else None
+            label = type_labels.get(kind) if kind else None
+            prefix = f"**[{md_escape(label)}]** " if label else ""
+            st.markdown("> " + prefix + md_escape(item.get("quote", "")))
     if unverified_count:
         st.caption(T["findings_unverified_notice"].format(count=unverified_count))
 

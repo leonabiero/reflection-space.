@@ -50,6 +50,9 @@ import re
 _UPPER = "A-ZÀ-ÖØ-Þ"
 _LOWER = "a-zß-öø-ÿ"
 _NAME_TOKEN = r"[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ]*(?:['’\-][A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ]*)*"
+# (November 2026) A name may continue on the next line ("LUCÍA" / "GARCÍA"),
+# so it is still matched across a line break -- but each line gets its own
+# placeholder and the line break is kept (see _tag_lines).
 _NAME_SEQUENCE_RE = re.compile(rf"\b{_NAME_TOKEN}(?:\s+{_NAME_TOKEN}){{1,3}}\b")
 _SINGLE_COMPLEX_NAME_RE = re.compile(rf"\b{_NAME_TOKEN}\b")
 # A single capitalised word with at least one lower-case letter after the
@@ -99,7 +102,76 @@ _SAFE_CAPITALISED_WORDS = {
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
     "sunday", "january", "february", "march", "april", "may", "june",
     "july", "august", "september", "october", "november", "december",
+    # (November 2026) Ordinary words of social-services reports that are
+    # often written with a capital letter in headings ("Informe de
+    # seguimiento – Alojamiento social", "Profesional de referencia: ...").
+    # In the pilot "Alojamiento" was hidden as if it were a name.
+    "alojamiento", "seguimiento", "informe", "profesional", "referencia",
+    "intervención", "intervencion", "valoración", "valoracion", "vivienda",
+    "acogida", "acompañamiento", "acompanamiento", "proyecto", "programa",
+    "objetivo", "objetivos", "situación", "situacion", "área", "area",
+    "equipo", "recurso", "recursos", "inclusión", "inclusion", "empleo",
+    "formación", "formacion", "orientación", "orientacion", "atención",
+    "atencion", "derivación", "derivacion", "diagnóstico", "diagnostico",
+    "tutora", "tutor", "educadora", "educador", "trabajadora", "trabajador",
+    "técnica", "tecnica", "técnico", "tecnico", "coordinadora", "coordinador",
+    "fecha", "motivo", "resumen", "conclusiones", "antecedentes",
+    "txostena", "jarraipena", "etxebizitza", "harrera", "erreferentzia",
+    "profesionala", "egoera", "helburuak",
+    "follow-up", "housing", "referral", "assessment", "summary", "background",
 }
+
+# (November 2026, EDE) Origin, nationality and religion are deliberately
+# LEFT VISIBLE, because they are where bias tends to hide. In English
+# (and in Spanish at the start of a sentence) these words are written with
+# a capital letter, so without this list "procedente de Marruecos",
+# "llegó de Senegal" or "a Moroccan woman" lost the origin to [LOCATION] or
+# [PERSON]. Towns and cities of residence are still hidden (_KNOWN_PLACES).
+# Compared in lower case; Basque case endings are understood too
+# ("Marokotik", "Errumaniako").
+_ORIGIN_AND_BELIEF_WORDS = set("""
+marruecos maroko morocco argelia aljeria algeria túnez tunez tunisia túnez
+senegal mali malí gambia guinea nigeria ghana camerún camerun cameroon
+mauritania sáhara sahara costa marfil ivory coast etiopía etiopia ethiopia
+eritrea somalia sudán sudan egipto egypt libia libya kenia kenya congo angola
+rumanía rumania errumania romania bulgaria ukrania ucrania ukraine ukraina
+rusia errusia russia georgia moldavia moldova polonia polonia poland albania
+portugal francia frantzia france italia italy alemania germany
+colombia kolonbia venezuela ecuador ekuador perú peru bolivia paraguay
+uruguay argentina chile txile brasil brazil honduras nicaragua guatemala
+cuba kuba méxico mexico mexiko dominicana república republica dominican
+republic panamá panama
+pakistán pakistan bangladés banglades bangladesh india china txina siria
+syria afganistán afganistan afghanistan irak iraq irán iran turquía turkey
+filipinas philippines nepal
+áfrica africa afrika europa europe asia américa america amerika
+latinoamérica latinoamerica latinoamerika latin magreb maghreb
+sudamérica sudamerica centroamérica centroamerica caribe caribbean
+subsahariana subsahariano subsaharan oriente próximo medio east middle
+moroccan moroccans algerian algerians romanian romanians ukrainian
+ukrainians russian russians colombian colombians venezuelan venezuelans
+peruvian peruvians bolivian bolivians ecuadorian ecuadorians honduran
+hondurans nicaraguan nicaraguans senegalese nigerian nigerians ghanaian
+malian guinean pakistani pakistanis syrian syrians afghan afghans chinese
+indian african africans arab arabs arabic latino latina latinos latinas
+european europeans georgian georgians bulgarian bulgarians portuguese
+gitano gitana gitanos gitanas roma romani gypsy gypsies
+muslim muslims musulmán musulman musulmana islam islamic islámica islámico
+catholic catholics católico católica catolico catolica jewish jew jews
+hindu buddhist evangelical evangelicals protestant protestants orthodox
+ortodoxa ortodoxo sikh ramadán ramadan
+""".split())
+
+_ORIGIN_SUFFIXES = ("ko", "koa", "koak", "tik", "etik", "ra", "ara", "era", "n", "en",
+                    "an", "rako", "ar", "arra", "tar", "tarra", "tarrak")
+
+
+def _is_origin_or_belief_word(word: str) -> bool:
+    low = word.lower().strip(",.;:!?()\"'«»")
+    if low in _ORIGIN_AND_BELIEF_WORDS:
+        return True
+    return any(low.startswith(w) and low[len(w):] in _ORIGIN_SUFFIXES
+               for w in _ORIGIN_AND_BELIEF_WORDS if len(w) >= 5)
 
 # Function words that often start a sentence (and so appear capitalised).
 # They are never names, so they are never recorded or redacted as names.
@@ -270,7 +342,11 @@ _ADDRESS_UNIT_RE = re.compile(
 _IDENTIFIER_RE = re.compile(
     r"\b(?:case\s*(?:reference|ref|number|no|id)|client\s*(?:id|number|no)|national\s*(?:id|number|no)|identifier|reference|ref"
     r"|dni|nie|nif|pasaporte|passport|tarjeta\s+sanitaria|tis|n[º°o]\.?\s*(?:de\s+)?expediente|expediente|n[úu]mero\s+de\s+(?:caso|expediente|usuario|usuaria)|referencia|nss|n[º°o]\.?\s*(?:de\s+)?(?:la\s+)?seguridad\s+social|espediente(?:a)?|zenbakia|nan)"
-    r"\b\s*[:#\-]?\s*(?:(?:es|n[º°o]\.?|número|numero)\s*[:\-]?\s*)?[A-Za-z0-9][A-Za-z0-9/_\-.]{2,}\b",
+    # (November 2026) The value must contain at least one digit: every
+    # real identifier does, while "Profesional de referencia: Ane
+    # Etxeberria" was being hidden as "[ID]" (the word after the label was
+    # an ordinary word or a name, not a number).
+    r"\b\s*[:#\-]?\s*(?:(?:es|n[º°o]\.?|número|numero)\s*[:\-]?\s*)?(?=[A-Za-z/_\-.]*\d)[A-Za-z0-9][A-Za-z0-9/_\-.]{2,}\b",
     re.IGNORECASE,
 )
 # Spanish DNI (8 digits + letter) and NIE (X/Y/Z + 7 digits + letter).
@@ -297,7 +373,8 @@ _LEADING_PUNCT = " \t\"'«“‘(¡¿-–—•*·"
 
 def _is_safe_word(word: str) -> bool:
     low = word.lower()
-    return low in _SAFE_CAPITALISED_WORDS or low in _STOPWORDS
+    return (low in _SAFE_CAPITALISED_WORDS or low in _STOPWORDS
+            or _is_origin_or_belief_word(low))
 
 
 def _record_name_tokens(phrase: str, known_names: set) -> None:
@@ -308,10 +385,104 @@ def _record_name_tokens(phrase: str, known_names: set) -> None:
             known_names.add(token)
 
 
-def _replace_proper_names(text: str, known_names: set) -> str:
+class PersonNumbers:
+    """Which number each person has in one text (November 2026, EDE):
+    different people become [PERSON 1], [PERSON 2], ...; the same person
+    always keeps the same number. "Ane Etxeberria" and a later "Ane" are
+    the same person, unless "Ane" could belong to two different people.
+
+    It holds real names, so it lives only in memory (the browser session
+    of one reflection) and is never saved or sent anywhere. Pass the same
+    object again (e.g. for the messages of "Explore with the companion")
+    so the same name gets the same number as in the document."""
+
+    def __init__(self):
+        self._by_name = {}      # normalised full name -> number
+        self._by_token = {}     # one name word -> number (None = ambiguous)
+        self.last = 0           # highest number given so far
+
+    @staticmethod
+    def _tokens(phrase):
+        words = []
+        for token in str(phrase or "").split():
+            token = token.strip(",.;:!?()\"'«»").lower()
+            if token and token not in _STOPWORDS and token.rstrip(".") not in _TITLE_WORDS_LOWER:
+                words.append(token)
+        return words
+
+    def number_for(self, phrase):
+        words = self._tokens(phrase)
+        if not words:
+            words = [str(phrase or "").strip().lower() or "?"]
+        full = " ".join(words)
+        number = self._by_name.get(full)
+        if number is None:
+            candidates = {self._by_token.get(w) for w in words if w in self._by_token}
+            candidates.discard(None)
+            if len(candidates) == 1:
+                number = candidates.pop()
+        if number is None:
+            self.last += 1
+            number = self.last
+        self._by_name[full] = number
+        for w in words:
+            if w in self._by_token and self._by_token[w] not in (None, number):
+                self._by_token[w] = None
+            elif w not in self._by_token:
+                self._by_token[w] = number
+        return number
+
+    def tag(self, phrase):
+        return f"[PERSON {self.number_for(phrase)}]"
+
+    def renumber(self, mapping):
+        """Apply {old number: new number} to everything remembered."""
+        self._by_name = {k: mapping.get(v, v) for k, v in self._by_name.items()}
+        self._by_token = {k: (mapping.get(v, v) if v is not None else None)
+                          for k, v in self._by_token.items()}
+
+
+_TITLE_WORDS_LOWER = {"mr", "mrs", "ms", "miss", "dr", "dra", "sr", "sra", "srta",
+                      "don", "doña", "dña", "d", "jn", "and", "andre", "jaun"}
+
+_LINE_BREAK_RE = re.compile(r"(\s*\n\s*)")
+
+
+def _tag_lines(phrase, people):
+    """The placeholder for a person phrase. A phrase that runs across a line
+    break gets one placeholder per line and keeps the line break: "Ane
+    Etxeberria" / "Fatima Benali" on two lines are two people, and a
+    surname written alone on the next line ("LUCÍA" / "GARCÍA") is still
+    hidden. A line made only of ordinary words ("Informe") is kept."""
+    if "\n" not in phrase:
+        return people.tag(phrase)
+    parts = _LINE_BREAK_RE.split(phrase)
+    out = []
+    for i, part in enumerate(parts):
+        if i % 2 or not part.strip():
+            out.append(part)
+        elif all(_is_safe_word(t.strip(",.;:!?()\"'«»")) for t in part.split()):
+            out.append(part)
+        else:
+            out.append(people.tag(part))
+    return "".join(out)
+
+
+def _replace_proper_names(text: str, known_names: set, people=None) -> str:
     """Redact conservative multi-token names plus complex single names."""
+    people = people if people is not None else PersonNumbers()
     def repl(match):
         phrase = match.group(0)
+        if "\n" in phrase:
+            # One line at a time (see _tag_lines).
+            parts = _LINE_BREAK_RE.split(phrase)
+            return "".join(
+                part if (i % 2 or not part.strip()) else _one_line(part)
+                for i, part in enumerate(parts)
+            )
+        return _one_line(phrase)
+
+    def _one_line(phrase):
         if phrase in _PROTECTED_PROPER_PHRASES:
             return phrase
         tokens = phrase.split()
@@ -336,7 +507,7 @@ def _replace_proper_names(text: str, known_names: set) -> str:
         if " ".join(tokens).lower() in _KNOWN_PLACE_PHRASES:
             return (" ".join(lead) + " " if lead else "") + "[LOCATION]"
         _record_name_tokens(" ".join(tokens), known_names)
-        return (" ".join(lead) + " " if lead else "") + "[PERSON]"
+        return (" ".join(lead) + " " if lead else "") + people.tag(" ".join(tokens))
 
     text = _NAME_SEQUENCE_RE.sub(repl, text)
 
@@ -344,9 +515,11 @@ def _replace_proper_names(text: str, known_names: set) -> str:
         token = match.group(0)
         if _is_known_place(token):
             return "[LOCATION]"
+        if _is_safe_word(token):
+            return token
         if "-" in token or "'" in token or "’" in token:
             known_names.add(token)
-            return "[PERSON]"
+            return people.tag(token)
         return token
 
     return _SINGLE_COMPLEX_NAME_RE.sub(complex_repl, text)
@@ -354,7 +527,13 @@ def _replace_proper_names(text: str, known_names: set) -> str:
 
 def _is_sentence_start(text: str, start: int) -> bool:
     before = text[:start].rstrip(_LEADING_PUNCT)
-    return not before or before[-1] in _SENTENCE_END_CHARS
+    if not before or before[-1] in _SENTENCE_END_CHARS:
+        return True
+    # (November 2026) A dash between spaces starts a new part of a heading
+    # ("Informe de seguimiento – Alojamiento social"): the word after it is
+    # capitalised because of the heading, not because it is a name.
+    gap = text[len(before):start]
+    return any(d in gap for d in ("–", "—", " - ", "|"))
 
 
 def _looks_like_place(text: str, start: int) -> bool:
@@ -366,7 +545,7 @@ def _looks_like_place(text: str, start: int) -> bool:
     return len(words) >= 2 and words[-1] == "de" and words[-2] in _PLACE_NOUNS
 
 
-def _replace_single_names(text: str, known_names: set) -> str:
+def _replace_single_names(text: str, known_names: set, people=None) -> str:
     """Redact single capitalised words written mid-sentence.
 
     In Spanish, Basque and (outside a small set of calendar / language
@@ -403,10 +582,16 @@ def _replace_single_names(text: str, known_names: set) -> str:
     if not found:
         return text
 
+    people = people if people is not None else PersonNumbers()
+
+    def sub(m):
+        tag = found[m.group(0)]
+        return people.tag(m.group(0)) if tag == "[PERSON]" else tag
+
     # Longest first so "Mari" never eats the start of "Maribel".
     names = sorted(found, key=len, reverse=True)
     pattern = re.compile(r"(?<![\w\[])(?:%s)(?![\w\]])" % "|".join(re.escape(n) for n in names))
-    return pattern.sub(lambda m: found[m.group(0)], text)
+    return pattern.sub(sub, text)
 
 
 # ---------------------------------------------------------------------------
@@ -563,7 +748,7 @@ _AGE_PATTERNS = [
     rf"{_NOT_AGE_AFTER}(?!\s*(?:{_YEARS_EN}|{_MONTHS_EN})?\s*(?:later|ago|before|after)\b)",
     # "she is 30, not 29", "he's 17.", "who is 67 and"
     # (also after a name already replaced: "[PERSON], is 41", "[PERSON] was 67")
-    rf"(?:\b(?:she|he|they|who|i)|\[PERSON\]\s*,?)(?:'s|’s|\s+is|\s+was|\s+am|\s+are)\s+(?:only\s+|just\s+|now\s+|actually\s+)?"
+    rf"(?:\b(?:she|he|they|who|i)|\[PERSON(?:\s\d+)?\]\s*,?)(?:'s|’s|\s+is|\s+was|\s+am|\s+are)\s+(?:only\s+|just\s+|now\s+|actually\s+)?"
     rf"(?P<age>{_NUM})(?=\s*(?:[,.;!?)]|$|\s+(?:not|and|but|now|or|this|so)\b))",
     # "a woman of 30", "children of 5 and 7"
     rf"\b{_PERSON_NOUNS_EN}\s+(?:aged\s+|of\s+)(?P<age>{_NUMLIST}(?:\s*{_YEARS_EN})?)\b{_NOT_AGE_AFTER}",
@@ -581,7 +766,7 @@ _AGE_PATTERNS = [
     # "30 años de edad"
     rf"(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES})\s+de\s+edad)\b",
     # "una mujer de 30 años", "hijos de 5 y 7 años", "menor de 17 años"
-    rf"(?:\b{_PERSON_NOUNS_ES}|\[PERSON\])\s*,?\s+de\s+(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b",
+    rf"(?:\b{_PERSON_NOUNS_ES}|\[PERSON(?:\s\d+)?\])\s*,?\s+de\s+(?P<age>{_NUMLIST}\s+(?:{_YEARS_ES}|{_MONTHS_ES}))\b",
     # "edad: 30", "su edad real es 30", "edad de 30 años", "edad, 30"
     rf"\bedad(?:es)?\b(?:\s*(?:real|actual|verdadera|correcta|es|era|sería|seria|de|"
     rf"aproximada|aprox\.?|unos|unas|:|=|-|–|,)\s*)*\s*(?P<age>{_NUM}(?:\s+{_YEARS_ES})?)\b{_NOT_AGE_AFTER}",
@@ -676,14 +861,35 @@ def _replace_age_group(match):
     return text[: start - whole_start] + tags + text[end - whole_start:]
 
 
-def _generalise_ages(text: str) -> str:
-    """Replace exact ages with life-stage tags (see the section comment)."""
+def _hide_birth_years(text: str) -> str:
+    """A year of birth is part of a date of birth, a direct identifier:
+    always replaced by [DATE], whether or not exact ages are hidden."""
     for regex in _BIRTH_YEAR_RES:
         text = regex.sub(
             lambda m: m.group(0)[: m.start("age") - m.start()] + "[DATE]"
             + m.group(0)[m.end("age") - m.start():],
             text,
         )
+    return text
+
+
+def _hide_exact_ages_enabled() -> bool:
+    """(November 2026, EDE) Exact ages are now LEFT VISIBLE by default
+    (config.ANONYMISER_HIDE_EXACT_AGES = false). The life-stage code below
+    is kept and is used again if the setting is switched on."""
+    try:
+        from config import ANONYMISER_HIDE_EXACT_AGES
+    except Exception:
+        return False
+    return bool(ANONYMISER_HIDE_EXACT_AGES)
+
+
+def _generalise_ages(text: str, force: bool = False) -> str:
+    """Replace exact ages with life-stage tags (see the section comment).
+    Does nothing unless exact-age hiding is switched on (or `force`)."""
+    text = _hide_birth_years(text)
+    if not (force or _hide_exact_ages_enabled()):
+        return text
     for regex in _AGE_RES:
         text = regex.sub(_replace_age_group, text)
     # Corrections and lists linked to an age that was just replaced. A few
@@ -747,10 +953,13 @@ SPECIAL_CATEGORY_LABELS = {
     "trade_union": "[TRADE_UNION]",
     "nationality": "[NATIONALITY]",
 }
-DEFAULT_SPECIAL_CATEGORIES = (
-    "sexual_orientation", "gender_identity", "health_specific", "religion_belief",
-    "ethnic_origin", "political_opinion", "trade_union",
-)
+# (November 2026, approved by EDE) Sexual orientation, gender identity,
+# health, religion and ethnic origin are now LEFT VISIBLE by default:
+# they are the context in which bias tends to appear, and the AI has to
+# see them to name it. Political opinion and trade union membership are
+# still hidden (EDE did not ask for them). Every category still works and
+# can be switched back on with ANONYMISER_SPECIAL_CATEGORIES in config.py.
+DEFAULT_SPECIAL_CATEGORIES = ("political_opinion", "trade_union")
 
 _SPECIAL_TERMS = {
     "sexual_orientation": [
@@ -921,19 +1130,198 @@ def _replace_special_categories(text: str, rules=None) -> str:
     return text
 
 
-# One sentence added to the AI's instructions wherever anonymised text is
-# sent (services/reflection_service.py, services/pattern_text_analysis.py),
-# so the AI understands the labels and never speculates about them.
-SENSITIVE_LABELS_NOTE = (
-    "Some details in the text have been replaced by labels in square brackets, "
-    "such as [PERSON], [LOCATION], [HEALTH] or [SEXUAL_ORIENTATION]. A label only "
-    "shows that such a detail was mentioned. Never guess, infer or ask what the "
-    "hidden detail was."
+# ---------------------------------------------------------------------------
+# Placeholders in the language of the reflection (November 2026, EDE)
+# ---------------------------------------------------------------------------
+# Inside this module every replacement is made with one fixed English
+# "canonical" tag ([PERSON 1], [ADDRESS], [HEALTH], ...). At the very end
+# the tags are written in the language chosen for the reflection, so the
+# text the AI and the professional see is entirely in that language:
+#   Español: [PERSONA 1], [DIRECCIÓN], [LUGAR], ...
+#   Euskera: [PERTSONA 1], [HELBIDEA], [TOKIA], ...
+#   English: [PERSON 1], [ADDRESS], [LOCATION], ...
+# The words come from the translation files (key "anon_placeholders" in
+# services/locales/*.py), never from this file.
+#
+# Placeholders already in a text -- in ANY of the three languages, and the
+# older English ones such as [PERSON] or [HEALTH] -- are recognised and
+# left exactly as they are, so anonymising a text twice never changes it,
+# and older saved texts still read the same.
+
+CANONICAL_TAGS = (
+    "PERSON", "LOCATION", "ADDRESS", "ORGANISATION", "ID", "PHONE", "EMAIL", "DATE",
+    "SEXUAL_ORIENTATION", "GENDER_IDENTITY", "HEALTH", "RELIGION_BELIEF",
+    "ETHNIC_ORIGIN", "POLITICAL_OPINION", "TRADE_UNION", "NATIONALITY",
+    "AGE_INFANT", "AGE_CHILD", "AGE_ADOLESCENT", "AGE_YOUNG_ADULT", "AGE_ADULT",
+    "AGE_OLDER_ADULT",
 )
 
+# What each placeholder means, for the note to the AI (English, like the
+# rest of the AI's instructions; never shown to people).
+_TAG_MEANINGS = {
+    "LOCATION": "a place (town, neighbourhood)", "ADDRESS": "an address",
+    "ORGANISATION": "a named centre, school or organisation",
+    "ID": "an identity document, case number, account or other identifier",
+    "PHONE": "a phone number", "EMAIL": "an email address", "DATE": "a date",
+    "POLITICAL_OPINION": "a political opinion", "TRADE_UNION": "trade union membership",
+}
 
-def anonymize(text: str) -> str:
+_LANG_DICTS = None
+
+
+def _locale_dicts():
+    global _LANG_DICTS
+    if _LANG_DICTS is None:
+        from services.locales.es import LANG_ES
+        from services.locales.eu import LANG_EU
+        from services.locales.en import LANG_EN
+        _LANG_DICTS = {"Español": LANG_ES, "Euskera": LANG_EU, "English": LANG_EN}
+    return _LANG_DICTS
+
+
+def placeholder_words(lang="Español"):
+    """{canonical tag: word in `lang`}. Unknown language -> Spanish; a word
+    missing from a language -> Spanish, then the canonical English tag."""
+    dicts = _locale_dicts()
+    chosen = dicts.get(lang, dicts["Español"]).get("anon_placeholders") or {}
+    spanish = dicts["Español"].get("anon_placeholders") or {}
+    return {tag: chosen.get(tag) or spanish.get(tag) or tag for tag in CANONICAL_TAGS}
+
+
+def _all_placeholder_words():
+    words = set(CANONICAL_TAGS)
+    for lang in _locale_dicts():
+        words.update(placeholder_words(lang).values())
+    return words
+
+
+_PLACEHOLDER_RE = None
+
+
+def placeholder_regex():
+    """Matches any placeholder in any of the three languages (or the old
+    English tags), with or without a person number."""
+    global _PLACEHOLDER_RE
+    if _PLACEHOLDER_RE is None:
+        words = sorted(_all_placeholder_words(), key=len, reverse=True)
+        _PLACEHOLDER_RE = re.compile(
+            r"\[(?:%s)(?:\s(\d+))?\]" % "|".join(re.escape(w) for w in words)
+        )
+    return _PLACEHOLDER_RE
+
+
+def _person_words():
+    words = {"PERSON"}
+    for lang in _locale_dicts():
+        words.add(placeholder_words(lang)["PERSON"])
+    return words
+
+
+def labels_note(lang="Español"):
+    """The note added to the AI's instructions wherever anonymised text is
+    sent, listing the placeholders in the language of the reflection."""
+    w = placeholder_words(lang)
+    person = w["PERSON"]
+    others = "; ".join(f"[{w[t]}] = {m}" for t, m in _TAG_MEANINGS.items())
+    return (
+        "Details in the text that could identify someone have been replaced by "
+        f"placeholders in square brackets: [{person} 1], [{person} 2], ... = different "
+        "people (the same number is always the same person); "
+        f"{others}. Older texts may contain other placeholders such as "
+        "[PERSON] or [HEALTH]; they mean the same kind of thing. A placeholder only "
+        "shows that such a detail was there. Never guess, infer or ask what the "
+        "hidden detail was. Sex, gender, origin, nationality, migration status, "
+        "religion, age, health, substance use, disability and sexual orientation "
+        "have deliberately been left in the text, because they matter when "
+        "analysing bias."
+    )
+
+
+# Kept for code that imports the old name: the note in Spanish placeholders
+# (the default language).
+SENSITIVE_LABELS_NOTE = labels_note("Español")
+
+
+# Private-use characters: not letters, digits, spaces or punctuation that
+# any rule above looks at, so a placeholder hidden behind them is never
+# touched by those rules.
+_MASK_OPEN, _MASK_CLOSE, _MASK_BASE = "", "", 0xE100
+
+
+def _mask_placeholders(text):
+    found = []
+
+    def repl(m):
+        found.append(m.group(0))
+        return _MASK_OPEN + chr(_MASK_BASE + len(found) - 1) + _MASK_CLOSE
+
+    return placeholder_regex().sub(repl, text), found
+
+
+def _unmask_placeholders(text, found):
+    if not found:
+        return text
+    return re.sub(
+        _MASK_OPEN + "(.)" + _MASK_CLOSE,
+        lambda m: found[ord(m.group(1)) - _MASK_BASE],
+        text,
+    )
+
+
+def _highest_person_number(placeholders):
+    persons = _person_words()
+    best = 0
+    for p in placeholders:
+        m = re.match(r"\[(.+?)\s(\d+)\]$", p)
+        if m and m.group(1) in persons:
+            best = max(best, int(m.group(2)))
+    return best
+
+
+_CANONICAL_TAG_RE = re.compile(r"\[(%s)(?:\s(\d+))?\]" % "|".join(
+    sorted(CANONICAL_TAGS, key=len, reverse=True)))
+
+
+def _number_in_order(text, people, first_new):
+    """Give the people found in THIS call numbers in the order they first
+    appear in the text, starting at `first_new` (people already numbered
+    earlier keep their number)."""
+    order = []
+    for m in _CANONICAL_TAG_RE.finditer(text):
+        if m.group(1) == "PERSON" and m.group(2):
+            n = int(m.group(2))
+            if n >= first_new and n not in order:
+                order.append(n)
+    mapping = {old: first_new + i for i, old in enumerate(order)}
+    if all(k == v for k, v in mapping.items()):
+        return text
+    people.renumber(mapping)
+
+    def repl(m):
+        if m.group(1) == "PERSON" and m.group(2):
+            return f"[PERSON {mapping.get(int(m.group(2)), int(m.group(2)))}]"
+        return m.group(0)
+
+    return _CANONICAL_TAG_RE.sub(repl, text)
+
+
+def _localise_tags(text, lang):
+    words = placeholder_words(lang)
+
+    def repl(m):
+        word = words.get(m.group(1), m.group(1))
+        return f"[{word} {m.group(2)}]" if m.group(2) else f"[{word}]"
+
+    return _CANONICAL_TAG_RE.sub(repl, text)
+
+
+def anonymize(text: str, lang: str = "Español", people: "PersonNumbers" = None) -> str:
     """Return a privacy-hardened representation suitable for external AI.
+
+    `lang`: language of the placeholders ("Español" by default, "Euskera",
+    "English"). `people`: a PersonNumbers object to share numbering with
+    another text (e.g. the chat messages of one reflection use the same
+    numbers as its document); a fresh one is used if not given.
 
     Two passes: the original rules on the text as written, then the same
     rules again on a copy where words written in CAPITAL LETTERS have been
@@ -942,13 +1330,20 @@ def anonymize(text: str) -> str:
     """
     if not text:
         return text
-    return _anonymize_capitals(_anonymize_core(text))
+    people = people if people is not None else PersonNumbers()
+    masked, found = _mask_placeholders(str(text))
+    people.last = max(people.last, _highest_person_number(found))
+    first_new = people.last + 1
+    safe = _anonymize_capitals(_anonymize_core(masked, people), people)
+    safe = _number_in_order(safe, people, first_new)
+    return _unmask_placeholders(_localise_tags(safe, lang), found)
 
 
-def _anonymize_core(text: str) -> str:
+def _anonymize_core(text: str, people: "PersonNumbers" = None) -> str:
     """The rule set: the original rules plus (November 2026) exact ages."""
     if not text:
         return text
+    people = people if people is not None else PersonNumbers()
 
     known_names = set()
 
@@ -979,7 +1374,10 @@ def _anonymize_core(text: str) -> str:
                 # rest is kept.
                 words = list(re.finditer(r"\S+", captured))
                 for w in words[1:]:
-                    if w.group(0).lower().strip(",.;:!?()\"'«»") in _STOPWORDS:
+                    low = w.group(0).lower().strip(",.;:!?()\"'«»")
+                    # Also a common verb in capitals ("LUCÍA GARCÍA VINO"):
+                    # the name stops before it.
+                    if low in _STOPWORDS or (w.group(0).isupper() and low in _NOT_SURNAMES):
                         captured = captured[:w.start()].rstrip()
                         tail = m.group(1)[len(captured):]
                         break
@@ -988,6 +1386,7 @@ def _anonymize_core(text: str) -> str:
                 return m.group(0)
             if r == "[PERSON]":
                 _record_name_tokens(captured, known_names)
+                r = _tag_lines(captured, people)
             if m.end(1) == m.end(0):
                 # Keep the cue words ("la madre, ...", "vive en ...") so the
                 # sentence still makes sense; only the name is replaced.
@@ -998,7 +1397,7 @@ def _anonymize_core(text: str) -> str:
 
     def title_repl(m):
         _record_name_tokens(m.group(1), known_names)
-        return "[PERSON]"
+        return _tag_lines(m.group(1), people)
 
     safe = re.sub(
         rf"\b{_TITLES}\.?\s+({_NAME_TOKEN}(?:\s+{_NAME_TOKEN}){{0,3}})\b",
@@ -1006,8 +1405,8 @@ def _anonymize_core(text: str) -> str:
         safe,
     )
 
-    safe = _replace_proper_names(safe, known_names)
-    safe = _replace_single_names(safe, known_names)
+    safe = _replace_proper_names(safe, known_names, people)
+    safe = _replace_single_names(safe, known_names, people)
     # Ages again, now that names are tags: "John Hughes, is 41" only
     # looks like an age once the name has become "[PERSON], is 41".
     return _generalise_ages(safe)
@@ -1108,7 +1507,7 @@ def _normalise_capitals(tokens):
     return result
 
 
-def _anonymize_capitals(text: str) -> str:
+def _anonymize_capitals(text: str, people=None) -> str:
     tokens = _TOKEN_RE.findall(text)
     if "".join(tokens) != text:      # defensive: never risk losing text
         return text
@@ -1116,7 +1515,7 @@ def _anonymize_capitals(text: str) -> str:
     if shadow == tokens:
         return text
 
-    redacted = _TOKEN_RE.findall(_anonymize_core("".join(shadow)))
+    redacted = _TOKEN_RE.findall(_anonymize_core("".join(shadow), people))
     restored = _restore_original_case(tokens, shadow, redacted)
     # If the two versions cannot be lined up with certainty, keep the
     # protected copy (in lower case) rather than risk putting a name back.
@@ -1178,7 +1577,8 @@ def _restore_original_case(original, shadow, redacted):
 
 def _find_tag_end(tokens, start):
     """Index of the "]" closing the tag that starts at tokens[start]."""
-    for k in range(start + 1, min(len(tokens), start + 4)):
+    # "[PERSON 12]" is five tokens; "[AGE_ADULT]" three.
+    for k in range(start + 1, min(len(tokens), start + 8)):
         if tokens[k] == "]":
             return k
     return None

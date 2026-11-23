@@ -77,3 +77,20 @@ Requested in the brief but **not present** on this branch (no AI prompt exists):
 - **Tone pass**: does not exist (tone is handled inside 1 and 10).
 - **Summary generation**: does not exist (the per-reflection AI summary was removed on 15 November 2026; prompts forbid summaries).
 - **Corpus analysis / lens reading**: does not exist on `main`; the only corpus-level reading is Pattern Review (17–18).
+
+
+## Update — November 2026 (EDE's edits applied)
+
+EDE's edits to instructions 1–11, 12, 15 and 17–18 were applied to the
+English source. New instruction: **19 — Analysis report** (`rdi/companions/
+prompt_builder.py: build_analysis_report_prompt()`, called by `services/
+reflection_service.py: generate_analysis_report()`, checked by `services/
+analysis_report.py: validate_report()`). Instruction 12 is now `services/
+anonymizer.py: labels_note(lang)`, which lists the placeholders in the
+language of the reflection. The EDE framework is `EDE_FRAMEWORK` and the
+evidence types are `EVIDENCE_TYPES` / `EVIDENCE_TYPE_DEFINITIONS` in
+`prompt_builder.py`. Versions: `PROMPT_VERSION = "2026-11-frank-analysis-1"`,
+Pattern Review `"2026-11-text-patterns-3"`. `reflection_prompt.txt` was kept
+in step. The updated Spanish document is
+`Reflection_Space_Instrucciones_IA_2026-11-24.docx`; the 23 November one is
+kept as a record.

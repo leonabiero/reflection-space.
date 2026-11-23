@@ -153,3 +153,22 @@ timing, and a small allowlisted label (a companion name, an operation
 name, a model name). See `services/usage_ledger.py`'s
 `_METADATA_ALLOWLIST` for the exact, enforced list of what's permitted
 in that table's `metadata` column.
+
+## November 2026 — cost of the direct analysis and the analysis report
+
+Estimate (Claude Sonnet 5.5, $2 / $10 per million input / output tokens),
+for a typical text of about 550 tokens:
+
+| | Input tokens | Output tokens | Cost |
+|---|---|---|---|
+| Before: 8 lenses | ~14,000 | ~1,040 | ~$0.038 |
+| Now: 8 lenses (longer instructions with the EDE framework; longer analysis and typed quotes) | ~16,800 | ~2,160 | ~$0.055 |
+| Now: analysis report (1 call) | ~3,700 | ~900 | ~$0.016 |
+| **Now: total** | ~20,500 | ~3,060 | **~$0.072** |
+
+About **$0.033 more per reflection** (range $0.06–$0.09 in total). At about
+90 reflections a month: roughly **$3 more a month**. Reply ceilings: lens
+1,280 → 2,000 tokens; analysis report 6,000 (new); chat 400 (unchanged);
+Pattern Review 12,000 (unchanged). Ceilings are not costs: only tokens
+actually used are billed. The report call is recorded as `analysis_report`
+and is included in "Average Claude cost per reflection".

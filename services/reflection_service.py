@@ -6,12 +6,14 @@ from config import (
     ANTHROPIC_API_KEY, SIMULATE_RATE_LIMIT_ERROR, CLAUDE_REQUEST_TIMEOUT_SECONDS,
     REQUEST_DEDUP_TTL_MINUTES,
 )
-from services.anonymizer import anonymize, SENSITIVE_LABELS_NOTE
+from services.anonymizer import anonymize, labels_note
 from services.error_log import log_error
 from services import request_dedup
 from services import usage_ledger
 from services.cost_pricing import estimate_anthropic_cost
-from rdi.companions.prompt_builder import build_companion_prompt, build_companion_conversation_prompt
+from rdi.companions.prompt_builder import (
+    build_companion_prompt, build_companion_conversation_prompt, build_analysis_report_prompt,
+)
 
 CLAUDE_MODEL = "claude-sonnet-5-5"
 
@@ -78,7 +80,7 @@ def generate_reflection(text: str, lang: str = "Español"):
     # This is the single point where all callers are protected, per
     # NFR-019 / NFR-020 (controlled AI data sharing, anonymisation
     # support) in the Technical Operations Documentation.
-    safe_text = anonymize(text)
+    safe_text = anonymize(text, lang)
 
     system_prompt = open("reflection_prompt.txt", "r", encoding="utf-8").read()
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
@@ -157,9 +159,10 @@ def generate_companion_reflection(companion: dict, safe_text: str, lang: str = "
 
     system_prompt = build_companion_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
-    # (18 November 2026) Explains the anonymiser's labels ([HEALTH],
-    # [SEXUAL_ORIENTATION], ...) so the AI never speculates about them.
-    full_system_prompt = system_prompt + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + lang_instruction
+    # Explains the anonymiser's placeholders, in the language of the
+    # reflection ([PERSONA 1], [DIRECCIÓN], ...), so the AI never
+    # speculates about them.
+    full_system_prompt = system_prompt + "\n\n" + labels_note(lang) + "\n\n" + lang_instruction
 
     _companion_key = companion.get("key") if isinstance(companion, dict) else None
     _started = time.monotonic()
@@ -254,7 +257,12 @@ def _call_companion_model(full_system_prompt, safe_text):
         # is a CEILING, not a cost: Anthropic bills only for tokens
         # actually generated. The real added cost is the evidence text
         # itself -- see FINDINGS_STORAGE.md for the estimate.
-        max_tokens=1280,
+        # November 2026 (direct, grounded analysis): raised from 1280 to
+        # 2000. Each lens now writes a 2-4 sentence analysis and tags every
+        # quote with its type, in Spanish by default; the room must never
+        # be tight enough to cut a reply mid-JSON. Still a ceiling, not a
+        # cost.
+        max_tokens=2000,
         system=full_system_prompt,
         messages=[
             {
@@ -271,7 +279,7 @@ Return structured reflection JSON only.
 
 def continue_companion_conversation(companion: dict, safe_text: str, initial_observation: str,
                                      initial_questions, conversation_history, professional_message: str,
-                                     lang: str = "Español", requested_by: str = ""):
+                                     lang: str = "Español", requested_by: str = "", people=None):
     """
     Sprint 6/7: continue a free-text reflective conversation for ONE
     companion's opportunity, inside the Reflection Workspace.
@@ -350,15 +358,21 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
     dict with "privacy_blocked": True (and a logged reference number) --
     there is no fallback to the text as typed. The practitioner still sees
     their own words on screen; only the AI receives the protected version.
+
+    November 2026: messages are anonymised in the language of the
+    reflection (`lang`) and, when `people` (the document's
+    anonymizer.PersonNumbers, kept only in the browser session) is given,
+    with the same person numbers as the document -- "Ane" is [PERSONA 1]
+    in the chat if she is [PERSONA 1] in the text.
     """
     try:
-        safe_message = anonymize(professional_message or "")
+        safe_message = anonymize(professional_message or "", lang, people)
         safe_history = [
             {
                 "role": turn.get("role"),
                 "content": (
                     turn.get("content", "") if turn.get("role") == "ai"
-                    else anonymize(turn.get("content", "") or "")
+                    else anonymize(turn.get("content", "") or "", lang, people)
                 ),
             }
             for turn in (conversation_history or [])
@@ -387,8 +401,8 @@ def continue_companion_conversation(companion: dict, safe_text: str, initial_obs
 
     system_prompt = build_companion_conversation_prompt(companion)
     lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
-    # (18 November 2026) Explains the anonymiser's labels -- see above.
-    full_system_prompt = system_prompt + "\n\n" + SENSITIVE_LABELS_NOTE + "\n\n" + lang_instruction
+    # Explains the anonymiser's placeholders -- see above.
+    full_system_prompt = system_prompt + "\n\n" + labels_note(lang) + "\n\n" + lang_instruction
 
     context_block = f"""
 DOCUMENT:
@@ -508,3 +522,78 @@ Your original reflective question(s) were:
         request_dedup.complete(request_id)
 
     return {"reply": raw.strip()}
+
+
+# ---------------------------------------------------------------------
+# Analysis report ("Informe de análisis", November 2026)
+# ---------------------------------------------------------------------
+# One extra call per reflection, after the eight lenses: it brings their
+# results together (see services/analysis_report.py for the checks made
+# on its answer). Room for the reply: a ceiling, not a cost.
+ANALYSIS_REPORT_MAX_TOKENS = 6000
+ANALYSIS_REPORT_OPERATION = "analysis_report"
+
+
+def _strip_fence(raw):
+    cleaned = (raw or "").strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines.pop(0)
+        if lines and lines[-1].startswith("```"):
+            lines.pop()
+        cleaned = "\n".join(lines).strip()
+    return cleaned
+
+
+def generate_analysis_report(safe_text: str, lens_results_text: str, lang: str = "Español"):
+    """
+    Ask Claude for the analysis report. `safe_text` is the ANONYMISED
+    document; `lens_results_text` the eight lenses' results as plain text
+    (built by services/analysis_report.py from anonymised material only).
+
+    Returns the parsed JSON dict, or {"error": ..., "raw": ...}. Raises
+    if the API call itself fails (the caller retries and logs).
+    """
+    if SIMULATE_RATE_LIMIT_ERROR:
+        raise Exception(
+            "Simulated for testing (Test B): 429 rate_limit_error - "
+            "Number of request tokens has exceeded your per-minute rate limit"
+        )
+    lang_instruction = LANG_INSTRUCTIONS.get(lang, LANG_INSTRUCTIONS["Español"])
+    system = build_analysis_report_prompt() + "\n\n" + labels_note(lang) + "\n\n" + lang_instruction
+    started = time.monotonic()
+    try:
+        message = client.messages.create(
+            model=COMPANION_MODEL,
+            max_tokens=ANALYSIS_REPORT_MAX_TOKENS,
+            system=system,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"DOCUMENT:\n{safe_text}\n\nRESULTS OF THE EIGHT LENSES:\n"
+                    f"{lens_results_text}\n\nReturn the analysis report JSON only."
+                ),
+            }],
+        )
+    except Exception as e:
+        _record_claude_usage(ANALYSIS_REPORT_OPERATION, started, success=False,
+                              error_type=type(e).__name__)
+        raise
+    _record_claude_usage(ANALYSIS_REPORT_OPERATION, started, message=message)
+
+    raw = next((b.text for b in message.content if getattr(b, "type", None) == "text"), "")
+    cleaned = _strip_fence(raw)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start != -1 and end > start:
+            try:
+                return json.loads(cleaned[start:end + 1])
+            except Exception:
+                pass
+    label = "Failed to parse JSON"
+    if getattr(message, "stop_reason", None) == "max_tokens":
+        label = "Failed to parse JSON (response truncated: max_tokens reached)"
+    return {"error": label, "raw": raw}

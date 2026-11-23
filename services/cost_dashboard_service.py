@@ -204,7 +204,12 @@ def get_cost_per_reflection(window_days=30):
     companion_rows = [r for r in breakdown if r["operation"] == "companion_reflection"]
     companion_calls = sum(r["request_count"] for r in companion_rows)
     companion_fail = sum(r["fail_count"] for r in companion_rows)
-    companion_cost = sum(r["estimated_cost_usd"] for r in companion_rows)
+    # (November 2026) A reflection also makes one analysis-report call
+    # (services/reflection_service.py: "analysis_report"); its cost is part
+    # of what a reflection costs.
+    report_rows = [r for r in breakdown if r["operation"] == "analysis_report"]
+    companion_cost = (sum(r["estimated_cost_usd"] for r in companion_rows)
+                      + sum(r["estimated_cost_usd"] for r in report_rows))
 
     reflections_generated = get_total_reflection_count() or 0
 

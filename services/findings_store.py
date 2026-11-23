@@ -54,6 +54,7 @@ Privacy rules this module enforces
 import json
 
 from services.anonymizer import anonymize
+from services.evidence import clean_type as clean_evidence_type
 from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import now_utc, iso, get_logger
 
@@ -113,7 +114,13 @@ def _clean_finding(finding):
     for item in finding.get("evidence") or []:
         quote = item.get("quote") if isinstance(item, dict) else None
         if isinstance(quote, str) and quote:
-            evidence.append({"quote": quote})
+            entry = {"quote": quote}
+            # (November 2026) The kind of evidence, when it is one of the
+            # four known types; older findings simply have none.
+            kind = clean_evidence_type(item.get("type"))
+            if kind:
+                entry["type"] = kind
+            evidence.append(entry)
     try:
         unverified = max(0, int(finding.get("unverified_quote_count") or 0))
     except (TypeError, ValueError):

@@ -6,9 +6,13 @@ pause and reflect on their casework — surfacing possible blind spots, asking
 whether the client's own voice has been heard, and pointing out information
 that might be missing — before decisions are finalised.
 
-It is not a case-management system and it does not evaluate or score
-practitioners. It is a private reflective space that sits alongside their
-existing work.
+It is not a case-management system and it never scores or judges
+practitioners. Since November 2026 (EDE project team, approved by the
+project leads) the AI gives a **direct, grounded analysis** of the
+documentation: it clearly names stereotypes, biases, prejudices and loaded
+labels, with reasons and exact quotes, and asks 1–2 questions per lens —
+but never gives case decisions, action plans or suggested rewording. It is
+a private reflective space that sits alongside their existing work.
 
 Since October 2026 it is also **not a document store**: a professional
 writes, pastes or uploads a case and reflects on it on the spot, and only the
@@ -47,21 +51,29 @@ mistake in one place doesn't expose data it shouldn't.
 the Reflection Space screen and presses **Reflect** → the text is anonymised
 first (if that fails, nothing is sent anywhere) → only the anonymised text
 goes to the RDI ("Reflective Decision Intelligence") layer in `rdi/`, which
-uses Claude to generate reflective prompts (never directive advice) in the
-language the worker chose. What is saved to Postgres: the reflection record
+uses Claude to analyse the text through eight lenses (never directive
+advice) in the language the worker chose, and then writes one **analysis
+report** that brings them together (one extra AI call; see "November 2026:
+direct, grounded analysis" below). What is saved to Postgres: the reflection record
 with a neutral, automatically created code and the **original** text (since
 10 November 2026, agreed with EDE — stored in the EU database, readable only
 by its author). Since 15 November 2026 Pattern Review has the AI read these
 original texts, each anonymised again first, and shows managers only the
 report (see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
 go through the same anonymisation before they
-reach Claude, with the same "if it fails, nothing is sent" rule; exact ages
-are replaced by life stages, and (since 18 November 2026) sensitive personal
-details such as sexual orientation, specific diagnoses or religion are
-replaced by labels such as `[HEALTH]` (see `REFLECTIONS.md`). What each
-label means is explained in plain words, in all three languages, on the
-System Administration anonymiser test, under "View anonymised text" and in
-Help. The Qdrant search service,
+reach Claude, with the same "if it fails, nothing is sent" rule. Since
+November 2026 (approved by EDE) the anonymiser hides direct identifiers
+only — names (numbered: `[PERSONA 1]`, `[PERSONA 2]`…), addresses, IDs,
+phones, emails, dates, towns and organisations, plus political opinion and
+trade union membership — and deliberately leaves visible the context where
+bias tends to appear (sex, origin, nationality, migration status, religion,
+exact age, health, substance use, disability, sexual orientation). The
+placeholders are written in the language of the reflection (Spanish
+`[DIRECCIÓN]`, Basque `[HELBIDEA]`, English `[ADDRESS]`); the words live in
+`services/locales/*.py` (`anon_placeholders`). See `REFLECTIONS.md`. What
+each placeholder means is explained in plain words, in all three languages,
+on the System Administration anonymiser test, under "View anonymised text"
+and in Help. The Qdrant search service,
 which served the old document-based design, was removed in November 2026,
 and Google Gemini (which no longer received any text) on 18 November 2026:
 Claude is now the only AI service.
@@ -107,6 +119,32 @@ At the product owner's request the app was trimmed to what the pilot needs:
   Administrator only) empties every data table so the real pilot starts from
   zero. User accounts, sign-in sessions and settings are kept. See
   `services/data_reset.py`. Nothing is ever erased automatically.
+
+## November 2026: direct, grounded analysis
+
+Requested by the EDE project team and approved by the project leads:
+
+- **AI instructions** (`rdi/companions/prompt_builder.py`): "Your role is NOT
+  to judge or criticise, but it IS to assess and analyse." Direct and frank,
+  no softening, no suggested question openings; the EDE framework for
+  reflective practice analysis (5 areas) is the AI's checklist. Each lens
+  gives a 2–4 sentence analysis, 1–2 questions and exact quotes tagged as
+  bias, stereotype, prejudice or loaded label. The chat ("Explore with the
+  companion") follows the same tone.
+- **Cards** show the analysis open, then the typed quotes, then the questions.
+- **Analysis report** (`services/analysis_report.py`): one extra call after
+  the lenses; shown under the cards, with an optional **Download report**
+  button underneath it (`services/reflection_report_html.py`, printable page
+  with anonymised text only). If it fails, the cards still show and there is
+  one Retry button. Nothing is saved.
+- **Highlighted text** (`services/highlight.py`): the anonymised text with
+  every exact quote highlighted, one colour and underline style per type,
+  the type also in words, with a legend.
+- **Pattern Review** names repeated biases frankly ("When the same bias is
+  repeated, it creates a pattern."), never the writers, and always keeps
+  its limitations section.
+- **Cost:** about $0.07 per reflection instead of about $0.038 (see
+  `SERVICE_USAGE_MONITORING.md`).
 
 ## Demonstrations (17 November 2026)
 
@@ -176,6 +214,11 @@ Tests are organised by what they guard:
 - `test_demo_data.py` — the demo app: the fictional texts, the locks that
   keep demo texts out of the real database, loading and removing, the
   banner and translations, and no password in the code
+- `test_frank_analysis_prompts.py`, `test_analysis_report.py`,
+  `test_highlight.py`, `test_anonymizer_context_and_numbering.py` — the
+  November 2026 changes: the AI's wording, the analysis report and typed
+  quotes, the highlighted text, and the anonymiser's numbered,
+  language-specific placeholders and visible context
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call

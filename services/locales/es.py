@@ -226,19 +226,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                           'texto.',
  'admin_anon_stale_note': 'Has cambiado el texto desde la última prueba: pulsa el botón otra vez '
                           'para ver el resultado actualizado.',
- 'admin_anon_tags_help': 'Etiquetas: [PERSON] = nombre de persona · [LOCATION] = lugar · [ADDRESS] '
-                         '= dirección · [ORGANISATION] = centro u organización · [ID] = DNI/NIE, '
-                         'expediente, cuenta u otro identificador · [PHONE] = teléfono · [EMAIL] = '
-                         'correo · [DATE] = fecha · [AGE_…] = edad exacta sustituida por una '
-                         'etapa de la vida (INFANT = bebé, CHILD = niño/a, ADOLESCENT = adolescente '
-                         'menor de edad, YOUNG_ADULT = adulto/a joven, ADULT = adulto/a, OLDER_ADULT = '
-                         'persona mayor).',
- 'anon_sensitive_labels_help': 'Datos sensibles: [SEXUAL_ORIENTATION] = orientación sexual · '
-                               '[GENDER_IDENTITY] = identidad de género · [HEALTH] = diagnóstico, '
-                               'tratamiento o medicamento concreto · [RELIGION_BELIEF] = religión o '
-                               'creencias · [ETHNIC_ORIGIN] = origen étnico · [POLITICAL_OPINION] = '
-                               'opinión política · [TRADE_UNION] = afiliación sindical · '
-                               '[NATIONALITY] = nacionalidad (solo si se activa).',
+ 'admin_anon_tags_help': 'Los marcadores aparecen en el idioma de la pantalla. Los textos antiguos pueden tener etiquetas en inglés como [PERSON] o [HEALTH]: significan lo mismo.',
+ 'anon_sensitive_labels_help': 'Marcadores: [PERSONA 1], [PERSONA 2]… = personas distintas (mismo número, misma persona) · [DIRECCIÓN] = dirección · [LUGAR] = lugar · [ORGANIZACIÓN] = centro u organización · [IDENTIFICADOR] = DNI/NIE, expediente, cuenta u otro identificador · [TELÉFONO] = teléfono · [CORREO] = correo electrónico · [FECHA] = fecha · [OPINIÓN POLÍTICA] = opinión política · [AFILIACIÓN SINDICAL] = afiliación sindical. El sexo, el origen, la nacionalidad, la situación migratoria, la religión, la edad, la salud, el consumo, la discapacidad y la orientación sexual se dejan visibles a propósito, porque es donde suelen aparecer los sesgos.',
  'admin_tools_anon_test_header': 'Prueba de anonimización',
  'admin_tools_future': 'Las futuras herramientas de administración aparecerán aquí.',
  'admin_console_caption': 'Consola de administración de Reflection Space -- usuarios, estado del '
@@ -330,7 +319,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'help': {'nav_label': '❓ Ayuda',
           'page_title': 'Guía rápida de Reflection Space',
           'intro_title': '¿Qué es Reflection Space?',
-          'intro_body': 'Reflection Space te ayuda a reflexionar sobre un caso en el momento: escribes, pegas o subes el caso y te ofrece preguntas reflexivas en ocho dimensiones profesionales -- por ejemplo, si la voz de la persona usuaria está presente, o si se están pasando por alto sus fortalezas junto a las dificultades. No es un lugar para guardar documentos: las observaciones y preguntas de la IA no se conservan.',
+          'intro_body': 'Reflection Space te ayuda a reflexionar sobre un caso en el momento: escribes, pegas o subes el caso y la IA hace un análisis directo y fundamentado en ocho dimensiones profesionales -- por ejemplo, si la voz de la persona usuaria está presente, o si aparecen estereotipos, sesgos o etiquetas cargadas --, con preguntas para reflexionar y un informe de análisis. Analiza la documentación, nunca te juzga a ti. No es un lugar para guardar documentos: el análisis y las preguntas de la IA no se conservan.',
           'guardrail_note': 'La herramienta nunca califica, puntúa ni decide nada por ti. Tú '
                             'decides qué hacer, si acaso, con lo que te haya hecho pensar.',
           'journey_title': 'Cómo funciona',
@@ -340,13 +329,8 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
           'doc_section_body': 'En Reflection Space escribes o pegas tu texto en un solo cuadro, o subes un Word, PDF o texto (solo se lee el texto; el archivo no se guarda). Si escribes un texto y además subes un documento, se te preguntará sobre cuál quieres reflexionar. No tienes que dar ninguna referencia ni dato del caso: la aplicación crea sola un código neutro (por ejemplo RS-7F3K2Q) que no identifica a nadie. El texto original se guarda de forma segura y se usa, anonimizado, en la Revisión de patrones (ver abajo).',
           'original_saved_note': 'El texto original se guarda de forma segura en una base de datos de la UE, durante un máximo de {months} meses. Solo tú puedes leerlo, en Mi Reflexión. También se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Pasado ese tiempo se borra automáticamente; la reflexión se mantiene.',
           'reflection_section_title': '🪞 Reflection Space -- reflexionar en el momento',
-          'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se quitan nombres y otros datos personales) y solo esa versión protegida se envía a la IA. Si la anonimización fallara, no se envía nada. En los resultados, «Ver texto anonimizado» te muestra exactamente lo que recibió la IA. Explora cualquiera de las ocho dimensiones, abre una breve conversación sobre alguna si quieres y pulsa Terminar reflexión. Las observaciones y preguntas de la IA son solo para ti y no se conservan. Si quieres, valora su utilidad con el botón «Valorar» de la esquina superior derecha -- totalmente opcional; nada depende de ello.',
-          'cards_note': 'Las ocho oportunidades de reflexión se muestran como tarjetas en una sola vista. '
-                         'El punto de la esquina indica qué encontró cada una: verde, hay algo sobre lo que '
-                         'reflexionar; gris, nada destacable en este texto; naranja, no disponible ahora '
-                         '(puedes reintentarlo dentro de la tarjeta). Al abrir una tarjeta ves las preguntas; '
-                         'lo que observó la IA y el pasaje en que se basa están en «¿Por qué estas '
-                         'preguntas?».',
+          'reflection_section_body': 'Al pulsar Reflexionar, tu texto se anonimiza automáticamente (se ocultan nombres, direcciones y otros datos identificativos; el contexto, como el sexo, el origen o la edad, se deja visible) y solo esa versión protegida se envía a la IA. Si la anonimización fallara, no se envía nada. En los resultados, «Ver texto anonimizado» te muestra exactamente lo que recibió la IA. Debajo de las tarjetas verás el informe de análisis (que puedes descargar si quieres) y tu texto con los pasajes destacados por colores. Explora cualquiera de las ocho dimensiones, abre una breve conversación sobre alguna si quieres y pulsa Terminar reflexión. Las observaciones y preguntas de la IA son solo para ti y no se conservan. Si quieres, valora su utilidad con el botón «Valorar» de la esquina superior derecha -- totalmente opcional; nada depende de ello.',
+          'cards_note': 'Las ocho miradas se muestran como tarjetas en una sola vista. El punto de la esquina indica qué encontró cada una: verde, hay algo que analizar; gris, nada destacable en este texto; naranja, no disponible ahora (puedes reintentarlo dentro de la tarjeta). Al abrir una tarjeta ves el análisis de la IA, los pasajes en que se basa (con su tipo: sesgo, estereotipo, prejuicio o etiqueta cargada) y las preguntas. Debajo de las tarjetas están el informe de análisis, el botón opcional para descargarlo y tu texto con los pasajes destacados por colores.',
           'dimensions_title': 'Las ocho dimensiones reflexivas',
           'dimensions': [{'label': 'Voz de la persona usuaria',
                           'desc': '¿Está presente la voz, los objetivos y las preferencias de la '
@@ -392,9 +376,9 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
                                  'tus propias palabras y pulsa Enviar -- el sistema añade '
                                  'automáticamente el contexto de página, sesión y navegación.',
           'privacy_title': '🔒 Privacidad y datos',
-          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'La anonimización también sustituye los datos personales especialmente sensibles (orientación sexual, identidad de género, diagnósticos, tratamientos y medicamentos concretos, religión o creencias, origen étnico, opiniones políticas y afiliación sindical) por una etiqueta neutra, para que la IA sepa que se mencionó algo así pero nunca qué. Las etiquetas son: [SEXUAL_ORIENTATION] = orientación sexual, [GENDER_IDENTITY] = identidad de género, [HEALTH] = diagnóstico, tratamiento o medicamento concreto, [RELIGION_BELIEF] = religión o creencias, [ETHNIC_ORIGIN] = origen étnico, [POLITICAL_OPINION] = opinión política, [TRADE_UNION] = afiliación sindical y [NATIONALITY] = nacionalidad (solo si se activa). Las pistas indirectas no siempre se detectan, así que conviene no escribir más detalles de los necesarios.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
+          'privacy_points': ['El texto original del caso se guarda de forma segura en una base de datos de la UE durante un tiempo limitado y solo tú puedes leerlo. A la IA solo se envía la versión anonimizada.', 'La anonimización oculta los datos que identifican directamente a alguien (nombres y apellidos, direcciones, documentos de identidad, teléfonos, correos, fechas, lugares de residencia y organizaciones) y, además, las opiniones políticas y la afiliación sindical. Cada persona distinta se numera: [PERSONA 1], [PERSONA 2]… (el mismo número es siempre la misma persona). A propósito, y con la aprobación de EDE, se deja visible el contexto donde suelen aparecer los sesgos: sexo y género, origen étnico, origen y nacionalidad, situación migratoria, religión, edad, salud mental, consumo, discapacidad y orientación sexual. Las pistas indirectas no siempre se detectan, así que conviene no escribir más detalles de los necesarios.', 'Cada reflexión se identifica con un código neutro y temas sin datos personales, nunca con nombres.', 'Tu texto original se usa, sin tu nombre, en la Revisión de patrones del equipo de gestión: se vuelve a anonimizar antes de que lo lea la IA, y los responsables solo ven el informe general de la IA, nunca tu texto. Las observaciones y preguntas de la IA no se conservan.', 'El contenido de las conversaciones reflexivas nunca se guarda más allá de la sesión -- solo se registra qué tema se exploró y cuándo.', 'Mi Reflexión es personal y no admite comparaciones: sin puntuaciones, sin clasificaciones, visible solo para ti.', 'El control de acceso basado en roles se aplica en dos niveles en toda la aplicación.'],
           'pattern_review_section_title': '🔎 Revisión de patrones',
-          'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Escribe cuántos meses quieres analizar (de 1 a {maximum}) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Descargarlo no borra nada; cuando ya tengas el archivo, «Ya tengo el archivo: eliminar informe» lo elimina de la aplicación de forma permanente, para todo el equipo de gestión (antes se pide confirmación). Los patrones son posibilidades para la reflexión, no conclusiones.'},
+          'pattern_review_section_body': 'Para personas supervisoras y responsables de programa. Escribe cuántos meses quieres analizar (de 1 a {maximum}) y pulsa Identificar patrones: la IA lee los textos anonimizados que las y los trabajadores sociales escribieron en ese periodo y redacta un informe sobre los patrones que se repiten en cómo se escriben los casos. Solo ves el informe, nunca los textos ni quién los escribió. Hacen falta al menos {minimum} textos, y un patrón solo se incluye si aparece en varios textos. Cada informe se guarda con su fecha y periodo, y se puede descargar para imprimir. Descargarlo no borra nada; cuando ya tengas el archivo, «Ya tengo el archivo: eliminar informe» lo elimina de la aplicación de forma permanente, para todo el equipo de gestión (antes se pide confirmación). Cuando el mismo sesgo se repite, forma un patrón: el informe lo nombra con franqueza y razones fundamentadas, y siempre incluye sus límites.'},
  'admin_usage_header': '💰 Uso y Costes de Servicios',
  'admin_usage_caption': 'Lo que cuesta cada servicio externo en este proyecto piloto, estimado a '
                         'partir del uso real registrado de las API. Las cifras marcadas como '
@@ -594,7 +578,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'my_reflections_deleted_header': 'Borradas recientemente',
  'my_reflections_restore': 'Recuperar',
  'my_reflections_erase_on': 'Se borrará definitivamente el {date} (UTC).',
- 'pr_intro': 'La Revisión de patrones busca patrones en cómo se escriben los casos, entre los textos que las y los trabajadores sociales escribieron en el periodo que elijas. La IA lee los textos anonimizados y redacta un informe; tú solo ves el informe, nunca los textos ni quién los escribió. Lo que muestra son posibles patrones para la reflexión, no conclusiones: un patrón no es una prueba de sesgo ni de mala práctica, y es el equipo quien decide qué significa, si es que significa algo.',
+ 'pr_intro': 'La Revisión de patrones busca patrones en cómo se escriben los casos, entre los textos que las y los trabajadores sociales escribieron en el periodo que elijas. La IA lee los textos anonimizados y redacta un informe; tú solo ves el informe, nunca los textos ni quién los escribió. Cuando el mismo sesgo se repite, forma un patrón: el informe nombra con claridad y con razones fundamentadas los sesgos, estereotipos, prejuicios y etiquetas cargadas que se repiten. Describe la escritura, nunca a quienes escriben, e incluye siempre sus límites; es el equipo quien decide qué hacer con ello.',
  'pr_new_header': 'Identificar patrones',
  'pr_texts_note': 'Se usan los textos originales que la aplicación guarda durante {months} meses. Cada uno se vuelve a anonimizar antes de que lo lea la IA, y nunca se envía con un nombre ni un rol.',
  'pr_period_label': 'Número de meses que analizar (de {minimum} a {maximum})',
@@ -616,7 +600,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'pr_report_option': '{date} — {period} — {texts} textos',
  'pr_report_meta': 'Hecho el {date} · periodo: {period} · {texts} textos en el periodo, {read} leídos por la IA',
  'pr_some_unread': 'La IA no pudo leer algunos textos esta vez, así que este informe se basa en menos textos de los que hay en el periodo.',
- 'pr_candidate_note': 'Posibles patrones para la reflexión, redactados por la IA; no son conclusiones. Un patrón no es una prueba de sesgo ni de mala práctica.',
+ 'pr_candidate_note': 'Análisis redactado por la IA a partir de textos anonimizados: nombra con franqueza los sesgos que se repiten en la escritura y nunca juzga a quienes escriben. Compruébalo con el conocimiento del equipo y consulta sus límites al final.',
  'pr_overview_header': 'Visión general',
  'pr_patterns_header': 'Patrones identificados',
  'pr_no_patterns': 'Ningún patrón apareció en suficientes textos como para incluirlo.',
@@ -640,7 +624,7 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'pr_print_title': 'Informe de Revisión de patrones',
  'pr_print_confidential': 'Documento confidencial para el equipo de gestión',
  'pr_print_prepared': 'Impreso el {date}',
- 'pr_print_footer': 'Confidencial · Posibles patrones para la reflexión, no conclusiones · {date}',
+ 'pr_print_footer': 'Confidencial · Análisis de patrones en la escritura, nunca de las personas · {date}',
  'demo_banner': 'DEMOSTRACIÓN — Esta es la aplicación de demostración. Todos los textos y datos son ficticios; no hay datos reales del piloto.',
  'demo_banner_wrong_database': 'ATENCIÓN — Esta aplicación de demostración está conectada a una base de datos que no es la de demostración. No se pueden cargar datos de demostración. Revisa DATABASE_URL en los secretos de la aplicación de demostración.',
  'demo_banner_real_app_on_demo': 'ATENCIÓN — Esta aplicación está conectada a la base de datos de DEMOSTRACIÓN. Revisa DATABASE_URL en los secretos de la aplicación real.',
@@ -656,4 +640,41 @@ LANG_ES = {'title': '🧠 Espacio de Reflexión',
  'admin_demo_remove_button': 'Quitar datos de demostración',
  'admin_demo_removed': 'Quitados {texts} textos, {ratings} valoraciones y {reports} informes de demostración.',
  'pr_rating_line': '⭐ Valoración media de utilidad de las reflexiones: {average} / 5 · valoraciones: {count}',
- 'pr_rating_none': '⭐ Todavía no hay valoraciones de utilidad de las reflexiones.'}
+ 'pr_rating_none': '⭐ Todavía no hay valoraciones de utilidad de las reflexiones.',
+ 'anon_placeholders': {'PERSON': 'PERSONA', 'LOCATION': 'LUGAR', 'ADDRESS': 'DIRECCIÓN',
+                       'ORGANISATION': 'ORGANIZACIÓN', 'ID': 'IDENTIFICADOR', 'PHONE': 'TELÉFONO',
+                       'EMAIL': 'CORREO', 'DATE': 'FECHA',
+                       'SEXUAL_ORIENTATION': 'ORIENTACIÓN SEXUAL', 'GENDER_IDENTITY': 'IDENTIDAD DE GÉNERO',
+                       'HEALTH': 'SALUD', 'RELIGION_BELIEF': 'RELIGIÓN O CREENCIAS',
+                       'ETHNIC_ORIGIN': 'ORIGEN ÉTNICO', 'POLITICAL_OPINION': 'OPINIÓN POLÍTICA',
+                       'TRADE_UNION': 'AFILIACIÓN SINDICAL', 'NATIONALITY': 'NACIONALIDAD',
+                       'AGE_INFANT': 'EDAD BEBÉ', 'AGE_CHILD': 'EDAD INFANCIA',
+                       'AGE_ADOLESCENT': 'EDAD ADOLESCENCIA', 'AGE_YOUNG_ADULT': 'EDAD JOVEN ADULTA',
+                       'AGE_ADULT': 'EDAD ADULTA', 'AGE_OLDER_ADULT': 'EDAD MAYOR'},
+ 'workspace_analysis_header': 'Análisis',
+ 'ar_header': 'Informe de análisis',
+ 'ar_summary_header': 'Resumen',
+ 'ar_items_header': 'Lo que se ha detectado',
+ 'ar_questions_header': 'Preguntas para reflexionar',
+ 'ar_failed_notice': 'El informe de análisis no se ha podido generar esta vez. El análisis de las ocho tarjetas sigue disponible.',
+ 'ar_retry_button': 'Reintentar el informe',
+ 'ar_missing_quote': 'Se refiere a algo que no aparece o no se nombra en el texto.',
+ 'ar_unverified_notice': '{count} pasaje(s) propuestos por la IA no coincidían exactamente con el texto y no se muestran.',
+ 'ar_area_names': {'1': '1 · Ejes de opresión y contexto social',
+                   '2': '2 · Sistema de valores implícito',
+                   '3': '3 · Estructuras y dinámicas institucionales',
+                   '4': '4 · Conceptos clave de la intervención',
+                   '5': '5 · Lenguaje, categorías y construcción de la realidad'},
+ 'evidence_type_labels': {'bias': 'Sesgo', 'stereotype': 'Estereotipo', 'prejudice': 'Prejuicio',
+                          'loaded_label': 'Etiqueta cargada'},
+ 'hl_header': 'Texto con señales destacadas',
+ 'hl_legend_title': 'Leyenda:',
+ 'hl_intro': 'Tu texto anonimizado, con cada pasaje citado por la IA destacado según su tipo. Solo se destacan los pasajes que aparecen exactamente en el texto.',
+ 'hl_none_found': 'No hay pasajes con tipo para destacar en esta reflexión.',
+ 'rr_download_button': 'Descargar informe (opcional)',
+ 'rr_download_help': 'Descarga una página para imprimir o guardar como PDF con el informe de análisis, las ocho tarjetas y el texto destacado. Solo contiene el texto anonimizado, nunca el original. La aplicación no la guarda.',
+ 'rr_print_title': 'Informe de análisis de la reflexión',
+ 'rr_print_confidential': 'Documento confidencial para uso profesional. Contiene solo texto anonimizado.',
+ 'rr_print_meta': 'Reflexión {code} · impreso el {date}',
+ 'rr_print_footer': 'Confidencial · Análisis de la documentación, nunca de las personas · {date}',
+ 'rr_lenses_header': 'Las ocho miradas'}
