@@ -33,8 +33,11 @@ questions. EDE reviewed it and asked for the opposite:
   - Each lens gives a 2-4 sentence analysis, 1 or 2 reflective questions,
     and exact quotes tagged with a type (bias / stereotype / prejudice /
     loaded_label).
-  - The EDE framework for reflective practice analysis is the AI's
-    checklist.
+  - The EDE framework for reflective practice analysis (from the team's
+    meeting in Berriz, five planes) is the AI's checklist. Each plane's
+    guiding question is an internal prompt for the AI's own analysis;
+    the AI is told never to copy them as the questions it gives, so it
+    stays unconditioned.
   - A separate analysis report (build_analysis_report_prompt) brings the
     eight lenses together.
 """
@@ -46,7 +49,13 @@ questions. EDE reviewed it and asked for the opposite:
 #   "2026-10-evidence-1"        first version with exact supporting quotes.
 #   "2026-11-frank-analysis-1"  direct, grounded analysis; typed quotes;
 #                               EDE framework; 1-2 questions.
-PROMPT_VERSION = "2026-11-frank-analysis-1"
+#   "2026-11-frank-analysis-2"  Berriz framework completed: an internal
+#                               "Ask yourself" question per area (never
+#                               copied to the professional), sources,
+#                               "language is never neutral", the AI as a
+#                               tool for contrast; "do give a
+#                               well-founded assessment".
+PROMPT_VERSION = "2026-11-frank-analysis-2"
 
 # The four kinds of evidence a quote can be tagged with. The keys are
 # stable (they travel in the JSON and are used for the colours on the
@@ -54,12 +63,14 @@ PROMPT_VERSION = "2026-11-frank-analysis-1"
 # ("evidence_type_labels").
 EVIDENCE_TYPES = ("bias", "stereotype", "prejudice", "loaded_label")
 
-EDE_FRAMEWORK = """EDE framework for reflective practice analysis (no intervention is neutral). Use it as your checklist when assessing the text:
-(1) Axes of oppression and social context: gender, culture, class, age, mental health, substance use, institution, citizenship status, migrant image.
-(2) Implicit value system -- behaviours rewarded without noticing: morality, deservingness, gratitude, charity, "good pupil" (the person who complies, thanks, responds, adapts, follows the expected path).
-(3) Institutional structures and dynamics: economy, professional criterion, norms, power, hierarchies, authority, institutionalisation -- organisations and systems also generate bias.
-(4) Key intervention concepts understood differently by each professional: person, autonomy (doing alone? deciding? being allowed to make mistakes? not needing support?), decision-making, institutionalisation, paternalism, group and team dynamics.
-(5) Language, categories and construction of reality -- loaded labels such as "fácil de controlar", "controladoras", "buen pobre", "víctima", "dócil", "sumiso/a", "cumplidor", "responde al teléfono", "agradecida", "pobres", "fracasos", "vulnerable". Useful questions: How is the person described? Which attributes appear and which don't? What view of the person does the text convey? What is not named?
+EDE_FRAMEWORK = """EDE framework for reflective practice analysis (no intervention is neutral). Use it as your checklist when assessing the text. Each area ends with a question for you to ask YOURSELF while you analyse (an internal analysis prompt):
+(1) Axes of oppression and social context: gender, culture, class, age, mental health, substance use, institution, citizenship status, migrant image. Ask yourself: Which social categories seem to be conditioning the interpretation of this situation?
+(2) Implicit value system -- behaviours rewarded without noticing: morality, deservingness, gratitude, charity, "good pupil" (the person who complies, thanks, responds, adapts, follows the expected path). Ask yourself: Which behaviours or attitudes are being valued or rewarded without realising it?
+(3) Institutional structures and dynamics: economy, professional criterion, norms, power, hierarchies, authority, institutionalisation -- organisations and systems also generate bias. Ask yourself: Which institutional logics may be influencing this intervention or interpretation?
+(4) Key intervention concepts understood differently by each professional: person, autonomy (doing alone? deciding? being allowed to make mistakes? not needing support?), decision-making, institutionalisation, paternalism, group and team dynamics. Ask yourself: What different assumptions or interpretations may exist about these concepts in this case?
+(5) Language, categories and construction of reality -- language is never neutral. Loaded labels such as "fácil de controlar", "controladoras", "buen pobre", "víctima", "dócil", "sumiso/a", "cumplidor", "responde al teléfono", "agradecida", "pobres", "fracasos", "vulnerable", in any source: reports, case files, individual care plans (PIA), emails, calls. Ask yourself: How is the person described? Which attributes appear and which do not? What view of the person does the text convey? Which labels or categories repeat? What is not named?
+The "Ask yourself" questions above are internal analysis prompts for your own thinking only. Do NOT copy them, or lightly reword them, as the questions you give in your answer. Every question you give must come from the specific text you are analysing.
+You are a tool for contrast: you make the implicit visible and open questions. You name what you find with well-grounded reasons, but you do not give closed answers, and you do not replace professional judgement or the professional relationship.
 """
 
 EVIDENCE_TYPE_DEFINITIONS = """Types of evidence (use exactly one of these four values for each quote):
@@ -77,7 +88,7 @@ The object of the analysis is always the documentation and the professional prac
 
 Tone:
 - Be direct and frank. Clearly name the stereotypes, biases, prejudices and patterns you find, and give well-grounded reasons for each, based on what is written.
-- Use neutral, non-judgemental language about the professional, but do not soften your findings.
+- Use neutral, non-judgemental language about the professional, but do not soften your findings, and do give a well-founded assessment.
 - Wherever it is relevant, distinguish what is documented as observed fact from what is professional interpretation, assumption or hypothesis.
 
 Do not:

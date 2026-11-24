@@ -54,6 +54,27 @@ FRAMEWORK_LINES = (
     "Use it as your checklist when assessing the text",
 )
 
+# 24 November 2026 (Berriz framework): one guiding question per plane, for
+# the AI to ask ITSELF -- never to copy as the questions it gives.
+BERRIZ_QUESTIONS = (
+    "Ask yourself: Which social categories seem to be conditioning the interpretation of this situation?",
+    "Ask yourself: Which behaviours or attitudes are being valued or rewarded without realising it?",
+    "Ask yourself: Which institutional logics may be influencing this intervention or interpretation?",
+    "Ask yourself: What different assumptions or interpretations may exist about these concepts in this case?",
+    "Ask yourself: How is the person described? Which attributes appear and which do not? "
+    "What view of the person does the text convey? Which labels or categories repeat? What is not named?",
+)
+BERRIZ_RULES = (
+    "Each area ends with a question for you to ask YOURSELF while you analyse (an internal analysis prompt)",
+    'The "Ask yourself" questions above are internal analysis prompts for your own thinking only.',
+    "Do NOT copy them, or lightly reword them, as the questions you give in your answer.",
+    "Every question you give must come from the specific text you are analysing.",
+    "language is never neutral",
+    "reports, case files, individual care plans (PIA), emails, calls",
+    "You are a tool for contrast: you make the implicit visible and open questions.",
+    "you do not give closed answers, and you do not replace professional judgement or the professional relationship",
+)
+
 
 def _all_live_prompts():
     prompts = {}
@@ -73,7 +94,8 @@ class RoleAndToneTests(unittest.TestCase):
     def test_frank_tone_and_limits_kept(self):
         for name, prompt in _all_live_prompts().items():
             self.assertIn("Be direct and frank", prompt, name)
-            self.assertIn("do not soften your findings", prompt, name)
+            self.assertIn("do not soften your findings, and do give a well-founded assessment.",
+                          prompt, name)
             self.assertIn("never the person receiving support", prompt, name)
             self.assertIn("action plan", prompt, name)
             self.assertIn("suggested wording", prompt, name)
@@ -105,6 +127,26 @@ class RoleAndToneTests(unittest.TestCase):
             for line in FRAMEWORK_LINES:
                 self.assertIn(line, prompt, f"{line!r} missing from {name}")
 
+    def test_berriz_questions_are_internal_and_never_copied(self):
+        """The five guiding questions are for the AI's own analysis; the AI
+        is told not to copy them as its questions, so the team's rule (no
+        example questions that condition the answer) still holds."""
+        prompts = _all_live_prompts()
+        prompts["pattern step 1"] = pta.BATCH_SYSTEM_PROMPT
+        prompts["pattern step 2"] = pta.REPORT_SYSTEM_PROMPT
+        for name, prompt in prompts.items():
+            for line in BERRIZ_QUESTIONS + BERRIZ_RULES:
+                self.assertIn(line, prompt, f"{line!r} missing from {name}")
+            # The "do not copy" rule comes right after the questions it covers.
+            self.assertLess(prompt.index(BERRIZ_QUESTIONS[-1]), prompt.index(BERRIZ_RULES[2]), name)
+        # Every question mark in the framework belongs to an internal
+        # "Ask yourself" prompt or to the plane 4 autonomy list -- there are
+        # no sample questions for the professional.
+        for line in pb.EDE_FRAMEWORK.splitlines():
+            if "?" in line:
+                self.assertTrue(line.startswith("("), line)
+                self.assertIn("Ask yourself:", line)
+
 
 class LensOutputTests(unittest.TestCase):
     def test_each_lens_focuses_mainly_and_may_stay_empty(self):
@@ -131,8 +173,8 @@ class LensOutputTests(unittest.TestCase):
             self.assertIn(key, prompt)
 
     def test_version_was_bumped(self):
-        self.assertEqual(pb.PROMPT_VERSION, "2026-11-frank-analysis-1")
-        self.assertEqual(pta.PROMPT_VERSION, "2026-11-text-patterns-3")
+        self.assertEqual(pb.PROMPT_VERSION, "2026-11-frank-analysis-2")
+        self.assertEqual(pta.PROMPT_VERSION, "2026-11-text-patterns-4")
 
 
 class ChatTests(unittest.TestCase):
@@ -182,6 +224,11 @@ class RollbackPromptTests(unittest.TestCase):
             self.assertNotIn(phrase, legacy)
         for line in FRAMEWORK_LINES[:6]:
             self.assertIn(line, legacy)
+        for line in BERRIZ_QUESTIONS + BERRIZ_RULES:
+            self.assertIn(line, legacy)
+        self.assertIn("do give a well-founded assessment", legacy)
+        # Deleted by the team (red, struck through in their Word document).
+        self.assertNotIn("You didn't mention their strengths", legacy)
 
 
 class ReplyRoomTests(unittest.TestCase):

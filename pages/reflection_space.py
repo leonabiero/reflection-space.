@@ -3,7 +3,7 @@ from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
 from datetime import date
 from services.findings_ui import render_evidence, render_notes_form, md_escape
-from services.highlight import highlight_html, legend_html, plain_text_html, type_badge_html
+from services.highlight import highlight_html, legend_html, plain_text_html, quote_html, type_badge_html
 from services.analysis_report import all_quotes as all_typed_quotes
 from services.reflection_report_html import build_reflection_report_html
 from services.ai_text import as_text, as_text_items, as_text_list
@@ -545,7 +545,14 @@ with error_boundary(
                     )
                     quote = as_text(item.get("quote"))
                     if quote:
-                        st.markdown("> " + md_escape(quote))
+                        # The quote in its type's colour, like the badge above
+                        # (services/highlight.py; same as the download).
+                        st.markdown(
+                            '<div style="margin:0.3rem 0 0.6rem 0.6rem;padding-left:0.6rem;'
+                            'border-left:3px solid #999;line-height:1.9;">'
+                            + quote_html(quote, item.get("type")) + "</div>",
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.caption(T["ar_missing_quote"])
                     st.write(as_text(item.get("why")))

@@ -249,3 +249,12 @@ Texts are anonymised with placeholders in the language the manager chose
 for the report; each text numbers its own people. The screen and printout
 texts were updated to match (`pr_intro`, `pr_candidate_note`,
 `pr_print_footer`, Help).
+
+24 November 2026 (prompt version `2026-11-text-patterns-4`): the shared EDE
+framework now has the Berriz guiding question for each of its five planes,
+as questions the AI asks itself while analysing; it is told never to copy
+them as the questions it gives the team. It also names the sources (reports,
+case files, PIAs, emails, calls), says that language is never neutral, and
+that the AI is a tool for contrast that does not give closed answers. The
+sentence "When the same bias is repeated, it creates a pattern." was already
+in both steps and is unchanged.

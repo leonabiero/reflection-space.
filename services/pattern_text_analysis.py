@@ -73,7 +73,12 @@ logger = get_logger(__name__)
 # -3 (November 2026, EDE): direct, grounded naming of repeated biases ("When
 # the same bias is repeated, it creates a pattern."), the EDE framework as
 # checklist, placeholders in the report's language; limitations kept.
-PROMPT_VERSION = "2026-11-text-patterns-3"
+# -4 (24 November 2026): the shared EDE framework was completed with the
+# Berriz guiding questions (internal "Ask yourself" prompts, never copied as
+# the questions given), sources and "language is never neutral". The
+# sentence "When the same bias is repeated, it creates a pattern." was
+# already in both steps and is unchanged.
+PROMPT_VERSION = "2026-11-text-patterns-4"
 BATCH_OPERATION = "pattern_text_batch"
 REPORT_OPERATION = "pattern_text_report"
 

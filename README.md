@@ -127,7 +127,11 @@ Requested by the EDE project team and approved by the project leads:
 - **AI instructions** (`rdi/companions/prompt_builder.py`): "Your role is NOT
   to judge or criticise, but it IS to assess and analyse." Direct and frank,
   no softening, no suggested question openings; the EDE framework for
-  reflective practice analysis (5 areas) is the AI's checklist. Each lens
+  reflective practice analysis (5 areas, from the team's Berriz meeting) is
+  the AI's checklist. Since 24 November 2026 each area has its Berriz
+  guiding question as a question the AI asks itself while analysing; it is
+  told never to copy them as the questions it gives, which must come from
+  the text itself. Each lens
   gives a 2–4 sentence analysis, 1–2 questions and exact quotes tagged as
   bias, stereotype, prejudice or loaded label. The chat ("Explore with the
   companion") follows the same tone.
@@ -144,7 +148,9 @@ Requested by the EDE project team and approved by the project leads:
   Etiqueta cargada purple), so they look the same on the dark screen, a
   light screen and paper, and both downloadable reports keep their colours
   when printed. The "View anonymised text" preview shows the text as
-  written (paragraphs and accents kept), like the highlighted text.
+  written (paragraphs and accents kept), like the highlighted text. The
+  quote under each finding of the analysis report is also shown in its
+  type's colour, on screen and in the download.
 - **Chat replies** ("Explore with the companion") can be up to 1,000 tokens
   (was 400, which cut replies mid-word); see `SERVICE_USAGE_MONITORING.md`.
 - **Pattern Review** names repeated biases frankly ("When the same bias is

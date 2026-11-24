@@ -25,7 +25,7 @@ from html import escape
 from services.ai_text import as_text, as_text_items
 from services.evidence import clean_type
 from services.highlight import (
-    PRINT_EXACT_COLOURS_CSS, highlight_html, legend_html, type_badge_html,
+    PRINT_EXACT_COLOURS_CSS, highlight_html, legend_html, quote_html, type_badge_html,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,8 +103,10 @@ def _item_block(T, item):
     out = ['<div class="block">']
     if head:
         out.append(f"<p>{' · '.join(head)}</p>")
-    quote = _quote(T, {"quote": item.get("quote")})
-    out.append(quote or _p(T["ar_missing_quote"], "muted"))
+    # The quote in the colour of its type (the badge above names the type).
+    quote = as_text(item.get("quote"))
+    out.append(f"<blockquote>{quote_html(quote, kind)}</blockquote>" if quote
+               else _p(T["ar_missing_quote"], "muted"))
     out.append(_p(item.get("why")))
     out.append("</div>")
     return "".join(out)

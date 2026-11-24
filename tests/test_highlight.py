@@ -6,7 +6,8 @@ exact quote highlighted, one colour per type, the type also in words.
 import unittest
 
 from services.highlight import (
-    find_spans, highlight_html, legend_html, plain_text_html, TEXT_ON_COLOUR, TYPE_STYLES,
+    find_spans, highlight_html, legend_html, plain_text_html, quote_html, TEXT_ON_COLOUR,
+    TYPE_STYLES,
 )
 
 LABELS = {"bias": "Sesgo", "stereotype": "Estereotipo", "prejudice": "Prejuicio",
@@ -165,6 +166,39 @@ class ColourTests(unittest.TestCase):
         self.assertEqual(LANG_ES["evidence_type_labels"]["prejudice"], "Prejuicio")
         for texts in (LANG_ES, LANG_EU, LANG_EN):
             self.assertEqual(set(texts["evidence_type_labels"]), set(TYPE_STYLES))
+
+
+class ReportQuoteColourTests(unittest.TestCase):
+    """24 November 2026 (product owner): the quote under each finding of
+    the analysis report is coloured like its type badge, on screen and in
+    the download."""
+
+    def test_quote_in_its_type_colour(self):
+        for kind, (background, underline, colour) in TYPE_STYLES.items():
+            html = quote_html("dócil", kind)
+            self.assertIn(f"background:{background}", html)
+            self.assertIn(f"border-bottom:3px {underline} {colour}", html)
+            self.assertIn("«<mark", html)
+            self.assertIn("dócil</mark>»", html)
+
+    def test_unknown_type_is_not_coloured_and_text_is_escaped(self):
+        self.assertEqual(quote_html("<b>x</b>", None), "«&lt;b&gt;x&lt;/b&gt;»")
+        self.assertNotIn("<b>", quote_html("<b>x</b>", "bias"))
+
+    def test_download_colours_the_report_quote(self):
+        from services.locales.es import LANG_ES
+        from services.reflection_report_html import build_reflection_report_html
+        report = {"summary": "Resumen", "items": [
+            {"type": "prejudice", "area": 5, "quote": "dócil", "why": "Porque."}],
+            "questions": ["¿Pregunta?"]}
+        page = build_reflection_report_html(LANG_ES, "Español", "RS-TEST", "24/11/2026",
+                                            report, [], TEXT, [])
+        self.assertIn("<blockquote>" + quote_html("dócil", "prejudice") + "</blockquote>", page)
+
+    def test_screen_uses_the_same_coloured_quote(self):
+        from pathlib import Path
+        page = (Path(__file__).resolve().parents[1] / "pages" / "reflection_space.py").read_text(encoding="utf-8")
+        self.assertIn('quote_html(quote, item.get("type"))', page)
 
 
 class PlainTextPreviewTests(unittest.TestCase):

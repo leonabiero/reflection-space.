@@ -173,6 +173,18 @@ Pattern Review 12,000 (unchanged). Ceilings are not costs: only tokens
 actually used are billed. The report call is recorded as `analysis_report`
 and is included in "Average Claude cost per reflection".
 
+## 24 November 2026 — Berriz framework completed in the instructions
+
+The shared instructions grew by about 1,200 characters (≈ 300 input tokens
+per call): the Berriz guiding question for each of the five framework areas,
+the sources, "language is never neutral", the AI as a tool for contrast and
+"do give a well-founded assessment". Each reflection makes
+9 calls (8 lenses + analysis report), so ≈ 2,700 more input tokens ≈
+**$0.005 more per reflection** (≈ $0.072 → ≈ $0.077). At 70–100
+reflections a month: **≈ $0.40–0.55 more a month**. Chat: the instructions
+are cached, so well under a tenth of a cent per conversation. Pattern
+Review: under $0.01 more per report. Reply length is not expected to change.
+
 ## 24 November 2026 — chat reply ceiling 400 → 1,000 tokens
 
 Replies in "Explore with the companion" sometimes stopped mid-word ("Ahí se

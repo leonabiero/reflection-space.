@@ -75,7 +75,7 @@ Requested in the brief but **not present** on this branch (no AI prompt exists):
 - **Orchestrator** (`rdi/orchestrator.py`): runs the 8 companion calls; has no prompt of its own.
 - **Conversation Builder** (`rdi/conversation_builder.py`): only reorders the results; no Claude call.
 - **Tone pass**: does not exist (tone is handled inside 1 and 10).
-- **Summary generation**: does not exist (the per-reflection AI summary was removed on 15 November 2026; prompts forbid summaries).
+- **Summary generation**: the per-reflection AI summary was removed on 15 November 2026. (Superseded: since the November 2026 update below, the analysis report, instruction 19, includes a short summary at EDE's request.)
 - **Corpus analysis / lens reading**: does not exist on `main`; the only corpus-level reading is Pattern Review (17–18).
 
 
@@ -94,3 +94,19 @@ Pattern Review `"2026-11-text-patterns-3"`. `reflection_prompt.txt` was kept
 in step. The updated Spanish document is
 `Reflection_Space_Instrucciones_IA_2026-11-24.docx`; the 23 November one is
 kept as a record.
+
+## Update — 24 November 2026 (check against the team's requests)
+
+A check of every request found everything in place except: the Berriz
+guiding questions, sources and key ideas were missing from `EDE_FRAMEWORK`,
+and the exact words "do give a well-founded assessment" were not there. Both
+were added. The example "You didn't mention their strengths" stays deleted:
+it is red and struck through in the team's Word document (checked by the
+product owner), and a test checks it is not present. The Berriz questions are written as "Ask yourself:" internal analysis
+prompts, followed by a rule that the AI must not copy them as the questions
+it gives (they must come from the text). The Pattern Review sentence "When
+the same bias is repeated, it creates a pattern." was already present in
+both steps. Versions: `PROMPT_VERSION = "2026-11-frank-analysis-2"`, Pattern
+Review `"2026-11-text-patterns-4"`. `reflection_prompt.txt` kept in step.
+Note: the Spanish Word document of 24 November does not yet show these
+additions.

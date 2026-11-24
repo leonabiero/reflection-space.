@@ -77,6 +77,23 @@ def type_badge_html(kind, label):
     )
 
 
+def quote_html(quote, kind):
+    """One quote of the analysis report, between « », in its type's colour
+    and underline (24 November 2026, product owner: the quote under each
+    finding is now coloured like its badge, on screen and in the
+    download). The type in words is the badge shown just above it.
+    Unknown or missing type: the quote with no colour. Escaped."""
+    quote = quote or ""
+    if kind not in TYPE_STYLES:
+        return f"«{escape(quote)}»"
+    background, underline, colour = TYPE_STYLES[kind]
+    return (
+        f'«<mark style="background:{background};color:{TEXT_ON_COLOUR};padding:0 2px;'
+        f'border-bottom:3px {underline} {colour};border-radius:2px;">'
+        f'{escape(quote)}</mark>»'
+    )
+
+
 def find_spans(text, quotes):
     """[(start, end, type)] for every quote found exactly in `text`,
     without overlaps (longer quotes first), in text order."""
