@@ -133,7 +133,7 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                         created_by, created_by_role="",
                         reflection_code=None, case_tags=None,
                         note_type="", previous_code="", anonymised_text=None,
-                        original_text=None):
+                        original_text=None, text_fingerprint=None):
     """
     Save one generated reflection: the run, the documents it used, and
     every finding -- all in ONE transaction, so either everything is
@@ -162,8 +162,19 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
     the reflection screen no longer passes it. Optional; NULL when not
     given.
 
-    Returns {"run_id": int, "finding_ids": {module: finding_id}}.
-    Raises on database failure (callers decide how to degrade).
+    `text_fingerprint` (24 November 2026, product owner's decision): the
+    coded fingerprint of `original_text` (services/text_fingerprint.py).
+    If a saved, not deleted, not expired reflection -- by ANY user, in
+    ANY language -- already has the same fingerprint, NOTHING is saved
+    and {"run_id": None, "finding_ids": {}, "duplicate": True} is
+    returned, so the same text is never kept (or counted by Pattern
+    Review) twice. A short database lock on the fingerprint makes two
+    people saving the same text at the same moment wait for each other,
+    so only one copy is kept. Only used together with `original_text`.
+
+    Returns {"run_id": int, "finding_ids": {module: finding_id},
+    "duplicate": False}. Raises on database failure (callers decide how
+    to degrade).
     """
     if not created_by:
         raise ValueError("created_by is required")
@@ -180,18 +191,44 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
         json.dumps(sorted({str(t) for t in case_tags}), ensure_ascii=False)
         if case_tags else None
     )
+    # The fingerprint only ever travels with the text it describes.
+    fingerprint = text_fingerprint if (original_text and text_fingerprint) else None
 
     conn = _get_conn()
     try:
         with conn.cursor() as c:
+            if fingerprint:
+                # Wait for anyone saving the same text right now, then
+                # look for a copy already kept (same rules as Pattern
+                # Review: not deleted, within the retention time).
+                c.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (fingerprint,))
+                c.execute(
+                    f"""
+                    SELECT 1 FROM reflection_runs r
+                    WHERE r.text_fingerprint = %s
+                      AND r.original_text IS NOT NULL
+                      AND r.created_at >= now() - make_interval(months => %s)
+                      AND {NOT_IN_DELETION_WINDOW}
+                    LIMIT 1
+                    """,
+                    (fingerprint, _original_retention_months()),
+                )
+                if c.fetchone() is not None:
+                    conn.rollback()
+                    logger.info(
+                        "save_reflection_run: identical text already saved -- no second copy kept "
+                        "(created_by=%r)", created_by,
+                    )
+                    return {"run_id": None, "finding_ids": {}, "duplicate": True}
+
             c.execute(
                 """
                 INSERT INTO reflection_runs
                     (case_ref, language, prompt_version, model, module_status,
                      created_by, created_by_role, created_at,
                      reflection_code, case_tags, note_type, previous_code,
-                     anonymised_text, original_text)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     anonymised_text, original_text, text_fingerprint)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (case_ref, language, prompt_version, model,
@@ -199,7 +236,8 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
                  created_by, created_by_role, now_utc(),
                  reflection_code or None, tags_json,
                  note_type or None, previous_code or None,
-                 anonymised_text or None, original_text or None),
+                 anonymised_text or None, original_text or None,
+                 fingerprint),
             )
             run_id = c.fetchone()[0]
 
@@ -240,7 +278,12 @@ def save_reflection_run(case_ref, source_draft_ids, language, prompt_version,
     finally:
         conn.close()
 
-    return {"run_id": run_id, "finding_ids": finding_ids}
+    return {"run_id": run_id, "finding_ids": finding_ids, "duplicate": False}
+
+
+def _original_retention_months():
+    from config import ORIGINAL_TEXT_RETENTION_MONTHS
+    return int(ORIGINAL_TEXT_RETENTION_MONTHS)
 
 
 def add_finding_to_run(run_id, finding, acting_user):

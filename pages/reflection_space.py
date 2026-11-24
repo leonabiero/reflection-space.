@@ -18,6 +18,7 @@ from services.rate_limiter import check_and_record, DEFAULT_MAX_PER_HOUR
 from services import request_dedup
 from services import document_import
 from services import reflection_records
+from services.text_fingerprint import text_fingerprint
 from config import (
     REQUEST_DEDUP_TTL_MINUTES, SAVE_ORIGINAL_TEXT, ORIGINAL_TEXT_RETENTION_MONTHS,
     SAVE_OBSERVATIONS,
@@ -683,6 +684,12 @@ with error_boundary(
         if session.findings_save_failed:
             st.info(T["findings_not_saved_notice"])
 
+        # 24 November 2026: the same text was already saved, so no second
+        # copy was kept. Never says who saved it, or when.
+        duplicate_not_saved = getattr(session, "duplicate_not_saved", False)
+        if duplicate_not_saved:
+            st.caption(T["rs_duplicate_not_saved_note"])
+
         # Optional feedback (November 2026, product owner's decision): a
         # small "Rate" button in the top-right corner. It opens a pop-up
         # with the rating and an optional comment. It is never required
@@ -721,6 +728,8 @@ with error_boundary(
             if st.toggle(T["workspace_document_header"], value=False, key="rs_info_show_case_text"):
                 if SAVE_ORIGINAL_TEXT and session.run_id:
                     st.caption(T["rs_original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
+                elif duplicate_not_saved:
+                    st.caption(T["rs_duplicate_not_saved_note"])
                 else:
                     st.caption(T["rs_case_text_not_saved_note"])
                 st.markdown(plain_text_html(session.case_text), unsafe_allow_html=True)
@@ -840,6 +849,8 @@ with error_boundary(
         st.subheader(T["rs_finish_header"])
         if session.run_id:
             st.caption(T["rs_finish_caption"].format(code=session.case_ref))
+        elif duplicate_not_saved:
+            st.caption(T["rs_finish_caption_duplicate"])
         else:
             st.caption(T["rs_finish_caption_unsaved"])
         if st.button(T["rs_finish_button"], type="primary", key="rs_finish_btn"):
@@ -1129,10 +1140,20 @@ with error_boundary(
                                 original_text=(
                                     material if SAVE_ORIGINAL_TEXT else None
                                 ),
+                                # 24 November 2026: a coded fingerprint of
+                                # the text (no copy). If an identical text
+                                # is already saved -- by anyone, in any
+                                # language -- nothing is saved again.
+                                text_fingerprint=(
+                                    text_fingerprint(material) if SAVE_ORIGINAL_TEXT else None
+                                ),
                             )
-                            session.attach_saved_findings(
-                                saved["run_id"], saved["finding_ids"], user_name,
-                            )
+                            if saved.get("duplicate"):
+                                session.duplicate_not_saved = True
+                            else:
+                                session.attach_saved_findings(
+                                    saved["run_id"], saved["finding_ids"], user_name,
+                                )
                         except Exception:
                             session.findings_save_failed = True
 

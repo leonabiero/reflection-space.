@@ -1,5 +1,48 @@
 # Reflection-only design (October 2026, simplified November 2026)
 
+## 24 November 2026 update — one saved copy per text
+
+Product owner's decision. During testing the same practice text was
+reflected several times and every copy was saved, so Pattern Review counted
+it several times. Duplicates can also happen in the pilot (a worker re-running
+a text, two workers pasting the same shared report).
+
+- **A text identical to one already saved is not saved again.** "Identical"
+  means the same words in the same order; only extra spaces, line breaks,
+  capital letters (and the way an accented letter is encoded) are ignored.
+  One different word, or a changed comma, makes it a new text, saved as
+  normal. The check is across **all users** and the **language of the
+  reflection does not matter**.
+- **The person still gets their full reflection and analysis report.** Only
+  the saving is skipped: no reflection record is kept for the duplicate (so it
+  does not appear in "Your saved reflections" either). A small note says
+  *"This text was already saved, so no second copy was kept."*
+  (`rs_duplicate_not_saved_note`, `rs_finish_caption_duplicate`, all three
+  languages). It never says who saved it first, or when.
+- **Still recorded for a duplicate:** the AI cost and usage records (the AI
+  calls still happen), the activity count of reflections generated
+  (`reflections` table, Service Costs) and the optional usefulness rating.
+  The Anthropic cost of a reflection is unchanged.
+- **How it is detected:** a coded one-way fingerprint (SHA-256) of the tidied
+  text (`services/text_fingerprint.py`), stored in
+  `reflection_runs.text_fingerprint` — never an extra copy of the text. The
+  save step (`findings_store.save_reflection_run`) briefly locks on the
+  fingerprint so two people saving the same text at the same moment keep only
+  one copy. Texts in the 48-hour deletion bin and texts past the 15-month limit
+  do not block a new save.
+- **The fingerprint goes with its text:** the 15-month clean-up
+  (`purge_expired_original_text`) clears both; deleting a reflection (after the
+  48-hour bin) and **Erase all data** remove the whole row. After that the same
+  text can be saved again.
+- **Pattern Review counts each fingerprint once** (`pattern_text_store`), which
+  also covers copies saved before this change. Nothing already saved was
+  deleted. Fingerprints for texts saved earlier are filled in when the app
+  starts (`backfill_fingerprints`, called from `services/db_schema.py`).
+- Help → Privacy explains this in one line, in all three languages.
+- Tests: `tests/test_duplicate_texts.py`,
+  `tests/test_duplicate_texts_postgres.py` (real database, skipped unless
+  `TEST_DATABASE_URL` is set).
+
 ## 15 November 2026 update — what is kept, and Pattern Review
 
 Product owner's decision (see `PATTERNS.md` for the full detail):

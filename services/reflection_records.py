@@ -649,17 +649,20 @@ def get_original_text(run_id, actor_name):
 
 
 def purge_expired_original_text():
-    """Clear saved original text older than the retention period. The
-    reflection itself (code, observations, notes) is kept. Returns how
-    many reflections were cleared."""
+    """Clear saved original text older than the retention period,
+    together with its fingerprint (24 November 2026: the fingerprint goes
+    with its text, so the same text can be saved again later -- see
+    services/text_fingerprint.py). The reflection itself (code,
+    observations, notes) is kept. Returns how many reflections were
+    cleared."""
     conn = _get_conn()
     try:
         with conn.cursor() as c:
             c.execute(
                 """
                 UPDATE reflection_runs
-                SET original_text = NULL
-                WHERE original_text IS NOT NULL
+                SET original_text = NULL, text_fingerprint = NULL
+                WHERE (original_text IS NOT NULL OR text_fingerprint IS NOT NULL)
                   AND created_at < now() - make_interval(months => %s)
                 """,
                 (_original_retention_months(),),

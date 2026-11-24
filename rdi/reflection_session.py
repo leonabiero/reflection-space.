@@ -262,6 +262,11 @@ class ReflectionSession:
         self.run_id = None
         self.run_owner = ""
         self.findings_save_failed = False
+        # 24 November 2026: True when the same text (ignoring spacing and
+        # capitals) was already saved, by anyone, so no second copy was
+        # kept (services/text_fingerprint.py). The reflection itself is
+        # complete as usual; only the saving was skipped.
+        self.duplicate_not_saved = False
 
     def has_error(self):
         return self.error is not None

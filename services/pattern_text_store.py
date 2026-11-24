@@ -21,6 +21,8 @@ Reading texts for an analysis
 - Texts past ORIGINAL_TEXT_RETENTION_MONTHS, and reflections waiting in
   their 48-hour bin or erased, are never used (the same rules as the rest
   of the app; services/reflection_records.py).
+- The same text is read and counted only once (24 November 2026): texts
+  with the same fingerprint (services/text_fingerprint.py) count as one.
 - Never logged: only counts and ids are.
 
 pattern_reports -- the reports managers asked for
@@ -100,6 +102,16 @@ _USABLE = f"""
     AND {NOT_IN_DELETION_WINDOW}
 """
 
+# 24 November 2026 (product owner's decision): the same text is never
+# counted twice. Texts with the same fingerprint (services/
+# text_fingerprint.py: same words in the same order, ignoring spacing,
+# line breaks and capitals) count once -- the earliest one is read. A
+# text without a fingerprint counts on its own. New identical texts are
+# no longer saved at all; this also covers copies saved before the change
+# and a reflection restored from the bin after the same text was saved
+# again.
+_ONE_PER_TEXT = "COALESCE(r.text_fingerprint, 'run:' || r.id::text)"
+
 
 # ---------------------------------------------------------------------
 # Reading texts for an analysis (management roles only)
@@ -114,7 +126,7 @@ def count_texts_for_period(actor_role, months):
     try:
         with conn.cursor() as c:
             c.execute(
-                f"SELECT COUNT(*) FROM reflection_runs r WHERE {_USABLE}",
+                f"SELECT COUNT(DISTINCT {_ONE_PER_TEXT}) FROM reflection_runs r WHERE {_USABLE}",
                 (months, _retention_months()),
             )
             return c.fetchone()[0] or 0
@@ -135,16 +147,18 @@ def texts_for_period(actor_role, months):
         with conn.cursor() as c:
             c.execute(
                 f"""
-                SELECT r.language, r.original_text
+                SELECT DISTINCT ON ({_ONE_PER_TEXT}) r.language, r.original_text, r.id
                 FROM reflection_runs r
                 WHERE {_USABLE}
-                ORDER BY r.id
+                ORDER BY {_ONE_PER_TEXT}, r.id
                 """,
                 (months, _retention_months()),
             )
             rows = c.fetchall()
     finally:
         conn.close()
+    # Back into saving order (the id is only used for sorting, never returned).
+    rows = sorted(rows, key=lambda r: r[2] if len(r) > 2 else 0)
     return [{"language": r[0] or "", "text": r[1] or ""} for r in rows if (r[1] or "").strip()]
 
 

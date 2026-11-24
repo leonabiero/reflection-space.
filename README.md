@@ -59,7 +59,11 @@ with a neutral, automatically created code and the **original** text (since
 10 November 2026, agreed with EDE — stored in the EU database, readable only
 by its author). Since 15 November 2026 Pattern Review has the AI read these
 original texts, each anonymised again first, and shows managers only the
-report (see `PATTERNS.md`). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
+report (see `PATTERNS.md`). Since 24 November 2026 a text identical to
+one already saved (ignoring only spaces, line breaks and capitals; any
+user, any language) is not saved again, so Pattern Review never counts the
+same text twice; the person still gets their full reflection (see
+`REFLECTIONS.md`, "One saved copy per text"). The AI's observations and questions are **not** saved. Messages typed into follow-up conversations
 go through the same anonymisation before they
 reach Claude, with the same "if it fails, nothing is sent" rule. Since
 November 2026 (approved by EDE) the anonymiser hides direct identifiers
@@ -236,6 +240,10 @@ Tests are organised by what they guard:
   24 November 2026 fixes: service names, Bilbao neighbourhoods and floor/door
   in addresses (with checks that real names stay hidden), and accents and
   paragraph breaks surviving from a Word document to the preview
+- `test_duplicate_texts.py` (and `test_duplicate_texts_postgres.py`) — one
+  saved copy per text: the fingerprint rules, the note in three languages,
+  the fingerprint going with its text, and Pattern Review counting each
+  text once
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call

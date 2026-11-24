@@ -717,6 +717,18 @@ def ensure_schema():
                 # purge_expired_reflection_deletions).
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
                 c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS deleted_by TEXT")
+                # 24 November 2026: one saved copy per case text. A coded
+                # fingerprint of the tidied original text (no copy of the
+                # text), used to spot an identical text already saved --
+                # see services/text_fingerprint.py. It lives in the same
+                # row as the text, so it goes whenever the text goes. NULL
+                # when no original text is saved.
+                c.execute("ALTER TABLE reflection_runs ADD COLUMN IF NOT EXISTS text_fingerprint TEXT")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_runs_text_fingerprint
+                    ON reflection_runs (text_fingerprint)
+                    WHERE text_fingerprint IS NOT NULL
+                """)
                 c.execute("""
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_reflection_runs_reflection_code
                     ON reflection_runs (reflection_code)
@@ -930,6 +942,17 @@ def ensure_schema():
             ensure_timestamptz_columns(conn, "audit_log", ["occurred_at"])
             ensure_timestamptz_columns(conn, "reflections", ["created_at"])
             ensure_timestamptz_columns(conn, "reflection_explorations", ["explored_at"])
+
+            # 24 November 2026: fingerprints for texts saved before the
+            # "one saved copy per text" change. Best effort -- a failure
+            # here must never stop the app from starting; it is simply
+            # tried again at the next start.
+            try:
+                from services.text_fingerprint import backfill_fingerprints
+                backfill_fingerprints(conn)
+            except Exception:
+                conn.rollback()
+                logger.exception("ensure_schema: text fingerprint backfill failed (non-fatal)")
         except Exception:
             conn.rollback()
             logger.exception("ensure_schema FAILED")

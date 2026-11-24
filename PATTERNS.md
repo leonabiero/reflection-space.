@@ -29,6 +29,16 @@ not in what the AI says back to them. So:
    can be downloaded to print. Since 18 November 2026 a manager who has the
    downloaded file can delete the report (see "Deleting reports" below).
 
+**Each text is counted once (24 November 2026, product owner's decision).**
+During testing the same practice text was reflected several times and every
+copy was saved, which inflated the "seen in X texts" counts. Now a text
+identical to one already saved (same words in the same order; only spaces,
+line breaks and capital letters are ignored; any user, any language) is not
+saved again. As a safety net, Pattern Review also counts texts with the same
+coded fingerprint only once (`services/pattern_text_store.py`), which covers
+copies saved before this change. See `REFLECTIONS.md`, "One saved copy per
+text".
+
 Social workers are told in **Help** (Privacy and "Your case" sections), in
 all three languages, that their original text is used this way. The notices
 that were on the writing screen were removed on 15 November 2026 at the

@@ -42,6 +42,7 @@ from services.db_pool import get_conn as _acquire_pooled_conn
 from services.db_time import now_utc, get_logger
 from services.audit_log import log_action
 from services.reflection_records import generate_code
+from services.text_fingerprint import text_fingerprint
 
 logger = get_logger(__name__)
 
@@ -227,11 +228,13 @@ def load_demo_data(actor_name, actor_role):
                     INSERT INTO reflection_runs
                         (case_ref, language, prompt_version, model, module_status,
                          created_by, created_by_role, created_at,
-                         reflection_code, original_text)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         reflection_code, original_text, text_fingerprint)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (code, row["language"], DEMO_PROMPT_VERSION, None, json.dumps({}),
-                     row["author"], DEMO_AUTHOR_ROLE, row["created_at"], code, row["text"]),
+                     row["author"], DEMO_AUTHOR_ROLE, row["created_at"], code, row["text"],
+                     # Same coded fingerprint as a real reflection (24 Nov 2026).
+                     text_fingerprint(row["text"])),
                 )
             for row in ratings:
                 c.execute(
