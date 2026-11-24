@@ -3,7 +3,7 @@ from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
 from datetime import date
 from services.findings_ui import render_evidence, render_notes_form, md_escape
-from services.highlight import highlight_html, legend_html, type_badge_html
+from services.highlight import highlight_html, legend_html, plain_text_html, type_badge_html
 from services.analysis_report import all_quotes as all_typed_quotes
 from services.reflection_report_html import build_reflection_report_html
 from services.feedback_store import save_feedback
@@ -628,7 +628,9 @@ with error_boundary(
             if session.safe_text:
                 if st.toggle(T["rs_anonymised_preview_label"], value=False, key="rs_info_show_anonymised"):
                     st.caption(T["rs_anonymised_preview_help"])
-                    st.write(session.safe_text)
+                    # 24 Nov 2026: shown as plain text (not Markdown), so
+                    # paragraphs, headings and accents stay as written.
+                    st.markdown(plain_text_html(session.safe_text), unsafe_allow_html=True)
                     # What the sensitive-detail labels mean (18 November 2026).
                     st.caption(T["anon_sensitive_labels_help"])
 
@@ -640,7 +642,7 @@ with error_boundary(
                     st.caption(T["rs_original_saved_note"].format(months=ORIGINAL_TEXT_RETENTION_MONTHS))
                 else:
                     st.caption(T["rs_case_text_not_saved_note"])
-                st.write(session.case_text)
+                st.markdown(plain_text_html(session.case_text), unsafe_allow_html=True)
 
             if session.context_summary:
                 st.caption(f"{T['workspace_context_header']}: {session.context_summary}")

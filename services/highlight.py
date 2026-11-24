@@ -15,8 +15,8 @@ Rules:
     inside it.
   - Never colour alone: each highlight also shows its type as text (a
     small label after it) and uses a different underline style per type.
-  - Colours are semi-transparent, so the text keeps the theme's own text
-    colour and stays readable in light and dark mode.
+  - Colours are solid, with dark text on them, so they look the same and
+    stay readable in light mode, dark mode and on paper.
   - Every piece of text is HTML-escaped; nothing else is inserted.
 
 Pure functions (text in, HTML out): no database, no AI, no Streamlit.
@@ -40,16 +40,27 @@ from services.evidence import locate_quote, EVIDENCE_TYPES
 #   prejudice    -> clear red
 #   stereotype   -> blue (unchanged)
 #   loaded_label -> purple (was pink, which sat too close to the new red)
-# The text keeps the theme's own colour ("color:inherit"); the background
-# strengths are chosen so that text stays easily readable on both the
-# light and the dark Streamlit theme (contrast of at least 4.5:1, checked
-# in tests/test_highlight.py).
+#
+# 24 November 2026 (later, product owner): on the app's dark indigo
+# background the see-through yellow mixed into a dull mustard that looked
+# orange next to the red. The backgrounds are now SOLID colours with dark
+# text (TEXT_ON_COLOUR), so every type looks exactly the same on the dark
+# screen, a light screen and paper. Contrast between the dark text and
+# each background is at least 4.5:1 (checked in tests/test_highlight.py).
+TEXT_ON_COLOUR = "#111111"
 TYPE_STYLES = {
-    "bias": ("rgba(255, 214, 0, 0.45)", "solid", "#E6B800"),
-    "stereotype": ("rgba(86, 180, 233, 0.30)", "dashed", "#3A9AD9"),
-    "prejudice": ("rgba(220, 38, 38, 0.30)", "double", "#D62828"),
-    "loaded_label": ("rgba(124, 58, 237, 0.28)", "dotted", "#7C3AED"),
+    "bias": ("#FFD60A", "solid", "#C9A200"),
+    "stereotype": ("#7CC4F2", "dashed", "#1D72B8"),
+    "prejudice": ("#EF4444", "double", "#B91C1C"),
+    "loaded_label": ("#B794F6", "dotted", "#6D28D9"),
 }
+
+# Asks the browser to print the colours exactly as shown (browsers leave
+# background colours out of printouts unless told otherwise). Used in the
+# style of every downloadable printable page.
+PRINT_EXACT_COLOURS_CSS = (
+    "* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
+)
 
 
 def type_badge_html(kind, label):
@@ -60,7 +71,7 @@ def type_badge_html(kind, label):
         return f"[{escape(label or '')}]" if label else ""
     background, _underline, colour = TYPE_STYLES[kind]
     return (
-        f'<span style="background:{background};color:inherit;border:1px solid {colour};'
+        f'<span style="background:{background};color:{TEXT_ON_COLOUR};border:1px solid {colour};'
         f'border-radius:3px;padding:0 4px;font-size:0.85em;font-weight:600;white-space:nowrap;">'
         f'{escape(label or kind)}</span>'
     )
@@ -87,10 +98,11 @@ def find_spans(text, quotes):
 def _mark(fragment, kind, label):
     background, underline, colour = TYPE_STYLES[kind]
     return (
-        f'<mark style="background:{background};color:inherit;padding:0 2px;'
+        f'<mark style="background:{background};color:{TEXT_ON_COLOUR};padding:0 2px;'
         f'border-bottom:3px {underline} {colour};border-radius:2px;">'
         f'{escape(fragment)}</mark>'
-        f'<span style="font-size:0.72em;font-weight:600;border:1px solid {colour};'
+        f'<span style="font-size:0.72em;font-weight:600;background:{background};'
+        f'color:{TEXT_ON_COLOUR};border:1px solid {colour};'
         f'border-radius:3px;padding:0 3px;margin-left:2px;white-space:nowrap;">'
         f'{escape(label)}</span>'
     )
@@ -110,6 +122,15 @@ def highlight_html(text, quotes, type_labels):
     pieces.append(escape(text[last:]))
     body = "".join(pieces).replace("\n", "<br>")
     return f'<div style="line-height:1.9;white-space:normal;">{body}</div>'
+
+
+def plain_text_html(text):
+    """The text as HTML exactly as written: escaped (so symbols such as
+    #, * or | in a document are never read as formatting), line breaks
+    and accents kept. Used for the first "view anonymised text" preview,
+    so it shows paragraphs the same way as the highlighted text."""
+    body = escape(text or "").replace("\n", "<br>")
+    return f'<div style="line-height:1.7;white-space:normal;">{body}</div>'
 
 
 def legend_html(type_labels, title):

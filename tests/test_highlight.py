@@ -5,7 +5,9 @@ exact quote highlighted, one colour per type, the type also in words.
 
 import unittest
 
-from services.highlight import find_spans, highlight_html, legend_html, TYPE_STYLES
+from services.highlight import (
+    find_spans, highlight_html, legend_html, plain_text_html, TEXT_ON_COLOUR, TYPE_STYLES,
+)
 
 LABELS = {"bias": "Sesgo", "stereotype": "Estereotipo", "prejudice": "Prejuicio",
           "loaded_label": "Etiqueta cargada"}
@@ -43,8 +45,10 @@ class HighlightTests(unittest.TestCase):
         self.assertIn("[Etiqueta cargada]", html)
         self.assertIn("<br>", html)
         self.assertIn(TYPE_STYLES["loaded_label"][2], html)
-        # Text keeps the theme's colour (readable in light and dark mode).
-        self.assertIn("color:inherit", html)
+        # 24 Nov 2026: solid colours with dark text (same in light mode,
+        # dark mode and on paper) instead of the theme's own text colour.
+        self.assertIn(f"color:{TEXT_ON_COLOUR}", html)
+        self.assertNotIn("color:inherit", html)
 
     def test_every_type_has_its_own_colour_and_underline(self):
         self.assertEqual(len({s[0] for s in TYPE_STYLES.values()}), 4)
@@ -59,11 +63,6 @@ class HighlightTests(unittest.TestCase):
 def _rgb(hex_colour):
     h = hex_colour.lstrip("#")
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-
-
-def _rgba(css):
-    parts = css[css.index("(") + 1:css.index(")")].split(",")
-    return tuple(float(p) for p in parts[:3]), float(parts[3])
 
 
 def _luminance(rgb):
@@ -87,31 +86,54 @@ def _hue(rgb):
 class ColourTests(unittest.TestCase):
     """24 November 2026: "Sesgo" and "Prejuicio" looked too alike."""
 
-    # Streamlit's light and dark themes: (page background, text colour).
-    THEMES = {"light": ("#FFFFFF", "#31333F"), "dark": ("#0E1117", "#FAFAFA")}
+    # The app's own dark theme (.streamlit/config.toml) and a white page
+    # (light mode and the printed report): page background only, because
+    # the text on a coloured background is always TEXT_ON_COLOUR.
+    PAGES = {"dark": "#0f1223", "light": "#FFFFFF"}
 
     def test_bias_is_yellow_and_prejudice_is_red(self):
-        self.assertTrue(40 <= _hue(_rgb(TYPE_STYLES["bias"][2])) <= 60, "bias must be yellow")
-        red_hue = _hue(_rgb(TYPE_STYLES["prejudice"][2]))
-        self.assertTrue(red_hue <= 10 or red_hue >= 350, "prejudice must be red")
+        for part in (0, 2):     # the background and the underline/border colour
+            self.assertTrue(40 <= _hue(_rgb(TYPE_STYLES["bias"][part])) <= 60, "bias must be yellow")
+            red_hue = _hue(_rgb(TYPE_STYLES["prejudice"][part]))
+            self.assertTrue(red_hue <= 10 or red_hue >= 350, "prejudice must be red")
         self.assertNotEqual(TYPE_STYLES["bias"], TYPE_STYLES["prejudice"])
 
+    def test_bias_background_is_a_bright_yellow_not_mustard(self):
+        # 24 Nov 2026: on the dark screen the old see-through yellow looked
+        # mustard/orange. A solid, bright, saturated yellow cannot.
+        import colorsys
+        r, g, b = (c / 255 for c in _rgb(TYPE_STYLES["bias"][0]))
+        _h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        self.assertGreaterEqual(v, 0.9, "bias yellow must be bright")
+        self.assertGreaterEqual(s, 0.8, "bias yellow must be saturated")
+
     def test_no_two_types_look_alike(self):
-        hues = {k: _hue(_rgb(v[2])) for k, v in TYPE_STYLES.items()}
-        kinds = list(hues)
-        for i, a in enumerate(kinds):
-            for b in kinds[i + 1:]:
-                gap = abs(hues[a] - hues[b])
-                gap = min(gap, 360 - gap)
-                self.assertGreaterEqual(gap, 40, f"{a} and {b} are too close in colour")
+        for part in (0, 2):
+            hues = {k: _hue(_rgb(v[part])) for k, v in TYPE_STYLES.items()}
+            kinds = list(hues)
+            for i, a in enumerate(kinds):
+                for b in kinds[i + 1:]:
+                    gap = abs(hues[a] - hues[b])
+                    gap = min(gap, 360 - gap)
+                    self.assertGreaterEqual(gap, 40, f"{a} and {b} are too close in colour")
+
+    def test_backgrounds_are_solid(self):
+        # Solid (not see-through) so the colour never mixes with the page.
+        for kind, (background, _u, _c) in TYPE_STYLES.items():
+            self.assertRegex(background, r"^#[0-9A-Fa-f]{6}$", kind)
 
     def test_text_stays_readable_in_light_and_dark_mode(self):
         for kind, (background, _u, _c) in TYPE_STYLES.items():
-            colour, alpha = _rgba(background)
-            for theme, (page, text) in self.THEMES.items():
-                page_rgb = _rgb(page)
-                blended = tuple(alpha * c + (1 - alpha) * p for c, p in zip(colour, page_rgb))
-                self.assertGreaterEqual(_contrast(blended, _rgb(text)), 4.5, f"{kind} in {theme} mode")
+            self.assertGreaterEqual(_contrast(_rgb(background), _rgb(TEXT_ON_COLOUR)), 4.5, kind)
+        # And every colour stands out from the app's dark background.
+        for kind, (background, _u, _c) in TYPE_STYLES.items():
+            self.assertGreaterEqual(_contrast(_rgb(background), _rgb(self.PAGES["dark"])), 4.5,
+                                    f"{kind} on the dark screen")
+
+    def test_label_after_a_highlight_has_its_colour_too(self):
+        html = highlight_html(TEXT, [{"quote": "dócil", "type": "bias"}], LABELS)
+        label_span = html[html.index("</mark>"):]
+        self.assertIn(f"background:{TYPE_STYLES['bias'][0]}", label_span)
 
     def test_legend_and_badges_use_the_one_colour_list(self):
         from services.highlight import type_badge_html
@@ -143,6 +165,27 @@ class ColourTests(unittest.TestCase):
         self.assertEqual(LANG_ES["evidence_type_labels"]["prejudice"], "Prejuicio")
         for texts in (LANG_ES, LANG_EU, LANG_EN):
             self.assertEqual(set(texts["evidence_type_labels"]), set(TYPE_STYLES))
+
+
+class PlainTextPreviewTests(unittest.TestCase):
+    """24 November 2026: the first "view anonymised text" preview ran
+    paragraphs together (it was shown as Markdown)."""
+
+    def test_line_breaks_and_accents_are_kept_and_nothing_is_formatting(self):
+        text = "CASO SINTÉTICO\nVisita domiciliaria\n\n# no es título\n* ni lista | ni tabla\nAñorga, ESKERRIK ASKO"
+        html = plain_text_html(text)
+        self.assertIn("CASO SINTÉTICO<br>Visita domiciliaria<br><br>", html)
+        self.assertIn("# no es título<br>* ni lista | ni tabla", html)
+        self.assertIn("Añorga, ESKERRIK ASKO", html)
+
+    def test_text_is_escaped(self):
+        html = plain_text_html("<script>x</script> & [PERSONA 1]")
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertIn("[PERSONA 1]", html)
+
+    def test_empty_text(self):
+        self.assertIn("<div", plain_text_html(None))
 
 
 if __name__ == "__main__":

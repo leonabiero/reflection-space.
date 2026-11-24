@@ -139,7 +139,14 @@ Requested by the EDE project team and approved by the project leads:
   one Retry button. Nothing is saved.
 - **Highlighted text** (`services/highlight.py`): the anonymised text with
   every exact quote highlighted, one colour and underline style per type,
-  the type also in words, with a legend.
+  the type also in words, with a legend. Since 24 November 2026 the colours
+  are solid with dark text (Sesgo yellow, Prejuicio red, Estereotipo blue,
+  Etiqueta cargada purple), so they look the same on the dark screen, a
+  light screen and paper, and both downloadable reports keep their colours
+  when printed. The "View anonymised text" preview shows the text as
+  written (paragraphs and accents kept), like the highlighted text.
+- **Chat replies** ("Explore with the companion") can be up to 1,000 tokens
+  (was 400, which cut replies mid-word); see `SERVICE_USAGE_MONITORING.md`.
 - **Pattern Review** names repeated biases frankly ("When the same bias is
   repeated, it creates a pattern."), never the writers, and always keeps
   its limitations section.
@@ -219,6 +226,10 @@ Tests are organised by what they guard:
   November 2026 changes: the AI's wording, the analysis report and typed
   quotes, the highlighted text, and the anonymiser's numbered,
   language-specific placeholders and visible context
+- `test_anonymizer_home_visit_fixes.py`, `test_accents_preserved.py` — the
+  24 November 2026 fixes: service names, Bilbao neighbourhoods and floor/door
+  in addresses (with checks that real names stay hidden), and accents and
+  paragraph breaks surviving from a Word document to the preview
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call

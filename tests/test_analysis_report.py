@@ -193,6 +193,17 @@ class PrintablePageTests(unittest.TestCase):
                                             None, [], SAFE, [])
         self.assertIn(self._T()["ar_failed_notice"], page)
 
+    def test_colours_are_kept_when_printed(self):
+        # 24 Nov 2026: browsers drop background colours when printing
+        # unless the page asks them to keep them.
+        from services.reflection_report_html import build_reflection_report_html
+        from services import pattern_report_html
+        page = build_reflection_report_html(self._T(), "Español", "RS-TEST", "23/11/2026",
+                                            None, [], SAFE, [])
+        for style in (page, pattern_report_html._STYLE):
+            self.assertIn("print-color-adjust: exact", style)
+            self.assertIn("-webkit-print-color-adjust: exact", style)
+
 
 class TranslationTests(unittest.TestCase):
     KEYS = ("workspace_analysis_header", "ar_header", "ar_summary_header", "ar_items_header",

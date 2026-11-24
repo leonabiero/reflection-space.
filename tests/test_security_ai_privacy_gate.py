@@ -113,6 +113,67 @@ class CompanionConversationPrivacyTests(unittest.TestCase):
         self.assertTrue(result.get("privacy_blocked"))
 
 
+class ChatUsesTheReflectionsPersonNumbersTests(unittest.TestCase):
+    """24 November 2026 (product owner): a name typed in the chat must be
+    sent with the SAME [PERSONA n] number it has in the reflection, and
+    must never reach Claude as written."""
+
+    DOCUMENT = ("Visita domiciliaria. Está presente su tío, Mikel Etxeberria. "
+                "La madre, Lucía Ferreira, explica la situación. "
+                "Profesional de referencia: Ane Goikoetxea.")
+
+    def _numbers_and_safe_text(self):
+        from services.anonymizer import anonymize, PersonNumbers
+        people = PersonNumbers()
+        safe_text = anonymize(self.DOCUMENT, "Español", people)
+        return people, safe_text
+
+    def _chat(self, rs, people, safe_text, message, history=None):
+        with patch.object(rs.client.messages, "create", return_value=_fake_message("Respuesta.")) as create, \
+                patch.object(rs, "_record_claude_usage"):
+            rs.continue_companion_conversation(
+                companion=COMPANION, safe_text=safe_text,
+                initial_observation="Observación.", initial_questions=["¿Pregunta?"],
+                conversation_history=history or [], professional_message=message,
+                lang="Español", people=people,
+            )
+        return create.call_args.kwargs["messages"]
+
+    def test_a_name_from_the_reflection_keeps_its_number_in_the_chat(self):
+        from services import reflection_service as rs
+        people, safe_text = self._numbers_and_safe_text()
+        lucia_number = safe_text.split("La madre, ")[1].split(",")[0]
+        self.assertRegex(lucia_number, r"^\[PERSONA \d+\]$")
+
+        messages = self._chat(rs, people, safe_text, "Creo que Lucía no pudo hablar con calma.")
+        self.assertIn(f"Creo que {lucia_number} no pudo", messages[-1]["content"])
+        self.assertNotIn("Lucía", repr(messages))
+
+    def test_a_new_name_in_the_chat_gets_the_next_free_number(self):
+        from services import reflection_service as rs
+        people, safe_text = self._numbers_and_safe_text()
+        used = people.last
+        messages = self._chat(rs, people, safe_text, "También vino Iratxe Larrañaga al final.")
+        last = messages[-1]["content"]
+        self.assertNotIn("Iratxe", last)
+        self.assertNotIn("Larrañaga", last)
+        self.assertIn(f"[PERSONA {used + 1}]", last)
+
+    def test_earlier_chat_turns_keep_the_same_numbers(self):
+        from services import reflection_service as rs
+        people, safe_text = self._numbers_and_safe_text()
+        mikel_number = safe_text.split("su tío, ")[1].split(".")[0]
+        self.assertRegex(mikel_number, r"^\[PERSONA \d+\]$")
+        history = [{"role": "professional", "content": "Mikel Etxeberria parecía tenso."},
+                   {"role": "ai", "content": "¿Qué te hace pensarlo?"}]
+        messages = self._chat(rs, people, safe_text, "Mikel no habló.", history)
+        sent = repr(messages)
+        self.assertNotIn("Mikel", sent)
+        self.assertNotIn("Etxeberria", sent)
+        self.assertIn(f"{mikel_number} parecía tenso", sent)
+        self.assertIn(f"{mikel_number} no habló", sent)
+
+
 class SavedNotesPrivacyTests(unittest.TestCase):
     """November 2026: a professional's own notes on an observation are
     anonymised before they are stored (they never go to the AI, but they

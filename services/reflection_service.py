@@ -1,5 +1,6 @@
 import anthropic
 import json
+import re
 import time
 import traceback
 from config import (
@@ -476,7 +477,7 @@ Your original reflective question(s) were:
         _started = time.monotonic()
         message = client.messages.create(
             model="claude-sonnet-5-5",
-            max_tokens=400,
+            max_tokens=CHAT_REPLY_MAX_TOKENS,
             system=system_param,
             messages=messages,
         )
@@ -521,7 +522,36 @@ Your original reflective question(s) were:
     if request_id:
         request_dedup.complete(request_id)
 
+    # Safety net (24 November 2026): if a reply ever still reaches the
+    # ceiling, show it only up to its last complete sentence instead of
+    # stopping mid-word. No extra AI call.
+    if getattr(message, "stop_reason", None) == "max_tokens":
+        raw = trim_to_complete_sentence(raw)
+
     return {"reply": raw.strip()}
+
+
+# 24 November 2026 (product owner): chat replies stopped mid-word ("Ahí se
+# ve cóm") because the ceiling was 400 tokens. The instructions still ask
+# for 1-4 sentences; the ceiling is now comfortably above that, so a reply
+# always ends complete. A ceiling is not a cost: only the words Claude
+# actually writes are billed (see SERVICE_USAGE_MONITORING.md).
+CHAT_REPLY_MAX_TOKENS = 1000
+
+_SENTENCE_END = re.compile(r"[.!?…](?:[\"'”’»)\]]*)(?=\s|$)")
+
+
+def trim_to_complete_sentence(text):
+    """The text up to and including its last complete sentence. If it has
+    no complete sentence at all, cut at the last whole word and add "…"
+    so a word is never shown half-written."""
+    text = (text or "").rstrip()
+    ends = list(_SENTENCE_END.finditer(text))
+    if ends:
+        return text[:ends[-1].end()]
+    if " " in text:
+        return text[:text.rindex(" ")].rstrip(" ,;:") + "…"
+    return text
 
 
 # ---------------------------------------------------------------------

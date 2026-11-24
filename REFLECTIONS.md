@@ -109,6 +109,26 @@ reflection.**
   Barakaldo" is a place. Floor and door after an address ("2º izquierda",
   "3ºB", "bajo", "2. ezkerra") are removed with it. In text written in
   capitals, "VIVE EN BILBAO CON SU MADRE" no longer loses "CON SU MADRE".
+- **Home-visit note fixes (24 November 2026).** Three mistakes seen in a
+  synthetic Spanish home-visit note. None of them makes a person's name
+  visible; each only changes a label or keeps a generic service name.
+  - *Service names:* "Servicio de Atención Familiar" was turned into
+    "Servicio de [PERSONA 1]". A service name made only of generic words
+    (Atención, Familiar, Comunitaria, Día, Inserción…) now stays visible: it
+    identifies nobody and is useful context. A service name that also
+    contains a name ("Centro de Día Arrupe") becomes `[ORGANISATION]`.
+  - *Bilbao neighbourhoods* (Santutxu, Deusto, Uribarri, Txurdinaga,
+    Otxarkoaga, Rekalde, Indautxu, Zorrotza, Miribilla…) are `[LOCATION]`,
+    and so is the word after "colegio / escuela / ikastola / instituto de".
+    A known first name there ("el colegio de Ane") stays a person, and so
+    does a word recognised as a person's name elsewhere in the text.
+    "Begoña" is left treated as a person (it is also a first name).
+  - *Floor and door* in the official spelling with a dot ("3.º izquierda",
+    "3.ª", "3.º B", "3.º dcha.") are removed with the address.
+  - Known remaining limit (unchanged): an ordinary capitalised word at the
+    start of the line right after a heading written in capitals
+    ("VISITA DOMICILIARIA" / "Derivada desde…") is still hidden as a
+    person. That hides too much, never too little.
 - **Sensitive personal details — GDPR "special categories" (18 November
   2026).** EDE's test showed that words such as "gay" reached the AI. Words
   that state a sensitive detail are now replaced by a neutral label, in

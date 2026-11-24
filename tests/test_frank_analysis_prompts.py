@@ -190,9 +190,35 @@ class ReplyRoomTests(unittest.TestCase):
         from services import reflection_service as rs
         self.assertIn("max_tokens=2000", inspect.getsource(rs._call_companion_model))
         self.assertEqual(rs.ANALYSIS_REPORT_MAX_TOKENS, 6000)
-        self.assertIn("max_tokens=400", inspect.getsource(rs.continue_companion_conversation))
+        # 24 Nov 2026: was 400, which cut replies mid-word ("Ahí se ve cóm").
+        self.assertEqual(rs.CHAT_REPLY_MAX_TOKENS, 1000)
+        self.assertIn("max_tokens=CHAT_REPLY_MAX_TOKENS",
+                      inspect.getsource(rs.continue_companion_conversation))
         self.assertTrue(re.search(r"max_tokens=ANALYSIS_REPORT_MAX_TOKENS",
                                   inspect.getsource(rs.generate_analysis_report)))
+
+    def test_a_cut_chat_reply_ends_on_a_complete_sentence(self):
+        from services.reflection_service import trim_to_complete_sentence as trim
+        self.assertEqual(trim("Hay una pregunta. Ahí se ve cóm"), "Hay una pregunta.")
+        self.assertEqual(trim("¿Qué opina ella? Lo que «dice»."), "¿Qué opina ella? Lo que «dice».")
+        self.assertEqual(trim("¿Qué opina ella? Ahí"), "¿Qué opina ella?")
+        self.assertEqual(trim("Ahí se ve cóm"), "Ahí se ve…")
+        self.assertEqual(trim("[PERSONA 1] dijo: «no.» Y lueg"), "[PERSONA 1] dijo: «no.»")
+
+    def test_only_a_reply_that_hit_the_ceiling_is_trimmed(self):
+        from unittest import mock
+        from services import reflection_service as rs
+        for stop, expected in (("max_tokens", "Primera frase."),
+                               ("end_turn", "Primera frase. Segunda sin punto")):
+            reply = mock.MagicMock()
+            reply.content = [mock.MagicMock(type="text", text="Primera frase. Segunda sin punto")]
+            reply.stop_reason = stop
+            with mock.patch.object(rs.client.messages, "create", return_value=reply), \
+                 mock.patch.object(rs, "_record_claude_usage"):
+                result = rs.continue_companion_conversation(
+                    {"key": "possible_bias", "label": "Posibles sesgos", "focus": ""},
+                    "Texto.", "obs", ["q"], [], "Hola", lang="Español")
+            self.assertEqual(result["reply"], expected)
 
 
 if __name__ == "__main__":

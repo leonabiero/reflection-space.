@@ -189,9 +189,16 @@ class PagePrivacyFlowTests(unittest.TestCase):
         # band and opens with a switch that starts OFF.
         self.assertIn('st.toggle(T["rs_anonymised_preview_label"], value=False', self.page)
         start = self.page.index('st.toggle(T["rs_anonymised_preview_label"]')
-        block = self.page[start:self.page.index("st.write(session.safe_text)", start) + 40]
-        self.assertIn("st.write(session.safe_text)", block)
+        shown = "st.markdown(plain_text_html(session.safe_text), unsafe_allow_html=True)"
+        block = self.page[start:self.page.index(shown, start) + len(shown)]
+        self.assertIn(shown, block)
         self.assertNotIn("case_text", block)
+
+    def test_texts_are_shown_as_plain_text_not_markdown(self):
+        # 24 Nov 2026: shown as Markdown, the first preview ran the Word
+        # document's paragraphs together. Never st.write() a text again.
+        self.assertNotIn("st.write(session.safe_text)", self.page)
+        self.assertNotIn("st.write(session.case_text)", self.page)
 
     def test_chosen_language_is_used_everywhere(self):
         self.assertIn("run_reflection(safe_text, reflect_lang", self.page)
@@ -447,8 +454,8 @@ class SimplerResultsScreenTests(unittest.TestCase):
         self.assertIn("expanded=False", band)
         self.assertIn("_render_identity_caption(session.case_ref)", band)
         self.assertIn('st.toggle(T["workspace_document_header"], value=False', band)
-        self.assertIn("st.write(session.safe_text)", band)
-        self.assertIn("st.write(session.case_text)", band)
+        self.assertIn("plain_text_html(session.safe_text)", band)
+        self.assertIn("plain_text_html(session.case_text)", band)
 
     def test_the_analysis_is_shown_open_before_the_questions(self):
         # November 2026 (EDE): direct, grounded analysis. The analysis is no

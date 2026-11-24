@@ -21,6 +21,8 @@ Pure function (text in, text out): no database or AI work.
 
 from html import escape
 
+from services.highlight import PRINT_EXACT_COLOURS_CSS
+
 _CSP = "default-src 'none'; style-src 'unsafe-inline'"
 
 HTML_LANG = {"Español": "es", "Euskera": "eu", "English": "en"}
@@ -44,7 +46,7 @@ ul { margin: 0 0 2mm 5mm; padding: 0; }
   .footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
             font-size: 8.5pt; color: #444; }
 }
-"""
+""" + PRINT_EXACT_COLOURS_CSS + "\n"   # keep shaded boxes when printed (24 Nov 2026)
 
 
 def _p(text, css=""):

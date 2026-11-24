@@ -119,7 +119,38 @@ _SAFE_CAPITALISED_WORDS = {
     "txostena", "jarraipena", "etxebizitza", "harrera", "erreferentzia",
     "profesionala", "egoera", "helburuak",
     "follow-up", "housing", "referral", "assessment", "summary", "background",
+    # (24 November 2026, product owner) Generic words of public-service
+    # names: "Servicio de Atención Familiar" became "Servicio de [PERSONA 1]"
+    # because "Familiar" was not known, and every later "Familiar" was then
+    # hidden too. A service name made ONLY of these words identifies nobody
+    # and stays visible; one that also contains a name becomes
+    # [ORGANISATION] (see _SERVICE_NAME_RE).
+    "familiar", "familiares", "comunitario", "comunitaria", "comunitarios",
+    "primaria", "básica", "basica", "básicos", "basicos", "base", "urgencias",
+    "urgencia", "emergencia", "emergencias", "protección", "proteccion",
+    "mujer", "mujeres", "igualdad", "adicciones", "drogodependencias",
+    "prevención", "prevencion", "inserción", "insercion", "dependencia",
+    "discapacidad", "mayores", "juventud", "adolescencia", "integral",
+    "especializado", "especializada", "especializados", "psicosocial",
+    "socioeducativo", "socioeducativa", "educativo", "educativa",
+    "terapéutico", "terapeutico", "terapéutica", "terapeutica", "día", "dia",
+    "unidad", "departamento", "oficina", "instituto", "punto", "encuentro",
+    "acción", "accion", "bienestar", "servicio", "personas", "hogar",
+    "zerbitzua", "zerbitzuak", "arreta", "arretarako",
 }
+
+# (24 November 2026) Public-service names: a kind of service, "de", then
+# capitalised words ("Servicio de Atención Familiar", "Centro de Día
+# Arrupe"). Only used to spot a NAME glued to the generic words, which
+# turns the whole service name into [ORGANISATION]; see _service_names.
+_SERVICE_HEADS = (r"(?:Servicios?|Centro|Unidad|Programa|Equipo|Área|Area|Oficina|"
+                  r"Departamento|Instituto|Punto|Plan|Comisión|Sección|Red)")
+_SERVICE_CONNECTORS = {"de", "del", "la", "las", "los", "y", "e", "a", "al", "para"}
+_SERVICE_NAME_RE = re.compile(
+    rf"\b{_SERVICE_HEADS}\s+(?:de|del|para)\s+"
+    rf"(?:la\s+|las\s+|los\s+)?{_NAME_TOKEN}"
+    rf"(?:\s+(?:(?:de|del|la|las|los|y|e|a|al|para)\s+)*{_NAME_TOKEN})*"
+)
 
 # (November 2026, EDE) Origin, nationality and religion are deliberately
 # LEFT VISIBLE, because they are where bias tends to hide. In English
@@ -211,6 +242,11 @@ _PLACE_NOUNS = {
     # mental de Uribarri", "CSM de Deusto"): the place is tagged
     # [LOCATION] instead of [PERSON].
     "mental", "csm", "hospital", "clínica", "clinica", "ambulatorio",
+    # 24 November 2026: "colegio de Santutxu" -- the school's neighbourhood
+    # is a place, not a person. A known first name after it ("el colegio de
+    # Ane", i.e. Ane's school) is still a person (_COMMON_FIRST_NAMES).
+    "colegio", "escuela", "ikastola", "instituto", "guardería", "guarderia",
+    "residencia",
 }
 
 # Common Spanish and Basque first names. A lone first name at the very start
@@ -262,8 +298,18 @@ berango lemoa bedia amurrio llodio laudio
 donostia gasteiz vitoria iruña iruñea pamplona eibar irun hondarribia zarautz
 tolosa errenteria arrasate mondragón mondragon bergara azpeitia beasain
 santander logroño burgos madrid barcelona zaragoza valencia sevilla
+santutxu deusto uribarri txurdinaga otxarkoaga rekalde errekalde errekaldeberri
+abando indautxu basurto zorrotza zorroza bolueta atxuri miribilla zurbaran
+zurbaranbarri iralabarri masustegi altamira ibaiondo abusu solokoetxe
+zorrotzaurre elorrieta arangoiti matiko castaño zabala amezola larraskitu
+uretamendi peñascal sarriko ibarrekolanda
 """.split())
-_KNOWN_PLACE_PHRASES = {"san sebastián", "san sebastian", "vitoria-gasteiz", "castro urdiales"}
+# (24 November 2026) Bilbao neighbourhoods were added above ("colegio de
+# Santutxu" became [PERSON]). "Begoña" is left out on purpose: it is also a
+# common first name, so it stays treated as a person (the safer choice).
+_KNOWN_PLACE_PHRASES = {"san sebastián", "san sebastian", "vitoria-gasteiz", "castro urdiales",
+                        "bilbao la vieja", "san ignacio", "ciudad jardín", "ciudad jardin",
+                        "san adrián", "san adrian", "la peña", "otxarkoaga-txurdinaga"}
 _BASQUE_PLACE_SUFFIXES = ("ko", "koa", "koak", "n", "an", "en", "ra", "ara", "era",
                           "rako", "tik", "etik", "raino", "rantz", "ean")
 
@@ -330,9 +376,14 @@ _CONTEXTUAL_IDENTIFIER_PATTERNS = [
 # of it: "[ADDRESS], 2º izquierda", "[ADDRESS] 3ºB", "[ADDRESS], bajo",
 # "[ADDRESS], 2. ezkerra", "[ADDRESS], flat 4". Applied after every address
 # rule above.
+# (24 November 2026) Also the official spelling with a dot before the
+# ordinal sign: "3.º izquierda", "3.ª", "3.º B", "3.º-izda.". A full stop
+# that ends the sentence is left in place ("..., 3.º dcha. Sin cambios").
+_ABBR_DOT = r"(?:\.(?!\s+[A-ZÀ-Þ]))?"
 _ADDRESS_UNIT_RE = re.compile(
-        r"\[ADDRESS\](?:\s*,?\s*(?:\d+\s*[ºª°]\.?\s*(?:[A-Za-z](?!\w)|(?i:izquierda|izda\.?|izq\.?|derecha|dcha\.?|centro|ezkerra|eskuina|ezk\.?|esk\.?))?"
-        r"|\d+\.\s*(?i:ezkerra|eskuina|ezk\.?|esk\.?)"
+        r"\[ADDRESS\](?:\s*,?\s*(?:(?:\d+\s*)?\.?\s*[ºª°](?:\.(?=\s*-?\s*(?:[a-z]|[A-Z](?!\w))))?\s*-?\s*(?:[A-Za-z](?!\w)"
+        rf"|(?i:izquierda|izqda{_ABBR_DOT}|izda{_ABBR_DOT}|izq{_ABBR_DOT}|derecha|dcha{_ABBR_DOT}|drcha{_ABBR_DOT}|centro|ezkerra|eskuina|ezk{_ABBR_DOT}|esk{_ABBR_DOT}))?"
+        rf"|\d+\.\s*(?i:ezkerra|eskuina|ezk{_ABBR_DOT}|esk{_ABBR_DOT})"
         r"|(?i:bajo|entresuelo|ático|atico)(?!\w)"
         r"|(?i:piso|puerta|escalera|esc\.|portal|solairua|atea|flat|apartment|apt\.?)\s+[\wºª]+))+"
     )
@@ -525,6 +576,41 @@ def _replace_proper_names(text: str, known_names: set, people=None) -> str:
     return _SINGLE_COMPLEX_NAME_RE.sub(complex_repl, text)
 
 
+def _service_names(text: str) -> str:
+    """(24 November 2026) A public-service name whose generic words are
+    directly followed by a name ("Centro de Día Arrupe") is hidden whole as
+    [ORGANISATION]. A name made only of generic words ("Servicio de
+    Atención Familiar") is left as it is (its words are safe words), and a
+    name joined by "de" ("Centro de Salud Mental de Uribarri") is left to
+    the place rules. Never makes anything visible that was hidden before."""
+    def repl(m):
+        phrase = m.group(0)
+        words = list(re.finditer(r"\S+", phrase))
+        # words[0] is the kind of service, words[1] "de"/"del"/"para".
+        seen_generic = False
+        after_connector = False
+        for i in range(2, len(words)):
+            tok = words[i].group(0)
+            if tok.lower() in _SERVICE_CONNECTORS:
+                after_connector = True
+                continue
+            if _is_safe_word(tok):
+                seen_generic = True
+                after_connector = False
+                continue
+            if not (seen_generic and not after_connector):
+                return phrase
+            # A name glued to the generic words: the whole service name
+            # (up to the next small word) is an organisation.
+            end = i
+            while end + 1 < len(words) and words[end + 1].group(0).lower() not in _SERVICE_CONNECTORS:
+                end += 1
+            return "[ORGANISATION]" + phrase[words[end].end():]
+        return phrase
+
+    return _SERVICE_NAME_RE.sub(repl, text)
+
+
 def _is_sentence_start(text: str, start: int) -> bool:
     before = text[:start].rstrip(_LEADING_PUNCT)
     if not before or before[-1] in _SENTENCE_END_CHARS:
@@ -569,7 +655,9 @@ def _replace_single_names(text: str, known_names: set, people=None) -> str:
             found[word] = "[PERSON]"
 
     for name in known_names:
-        if name not in found and not _is_safe_word(name) and not _is_known_place(name):
+        # (24 November 2026) A word recognised as a person's name elsewhere
+        # in the text stays a person even after "colegio de" etc.
+        if not _is_safe_word(name) and not _is_known_place(name):
             found[name] = "[PERSON]"
 
     # Known towns and cities: a place wherever they are, even at the start
@@ -1359,6 +1447,7 @@ def _anonymize_core(text: str, people: "PersonNumbers" = None) -> str:
     safe = _DNI_NIE_RE.sub("[ID]", safe)
     safe = _PHONE_RE.sub("[PHONE]", safe)
     safe = _LONG_NUMERIC_ID_RE.sub("[ID]", safe)
+    safe = _service_names(safe)
 
     for pattern, replacement in _CONTEXTUAL_IDENTIFIER_PATTERNS:
         def ctx_repl(m, r=replacement):

@@ -172,3 +172,18 @@ About **$0.033 more per reflection** (range $0.06–$0.09 in total). At about
 Pattern Review 12,000 (unchanged). Ceilings are not costs: only tokens
 actually used are billed. The report call is recorded as `analysis_report`
 and is included in "Average Claude cost per reflection".
+
+## 24 November 2026 — chat reply ceiling 400 → 1,000 tokens
+
+Replies in "Explore with the companion" sometimes stopped mid-word ("Ahí se
+ve cóm") because they reached the 400-token ceiling. The ceiling is now
+1,000 tokens (`CHAT_REPLY_MAX_TOKENS` in `services/reflection_service.py`);
+the instructions still ask for 1–4 sentences and were not changed. If a
+reply ever still reaches the ceiling, it is shown up to its last complete
+sentence (no extra AI call).
+
+Cost: a normal short reply costs exactly the same as before (about $0.01
+per chat message, mostly re-reading the case). Only a reply that would
+have been cut costs more: at most about $0.006 extra (600 more output
+tokens at $10 per million), typically $0.001–$0.002. At pilot volumes this
+is well under $1 a month.
