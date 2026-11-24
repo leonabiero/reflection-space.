@@ -205,13 +205,105 @@ class PrintablePageTests(unittest.TestCase):
             self.assertIn("-webkit-print-color-adjust: exact", style)
 
 
+class ObjectStyleItemsTests(unittest.TestCase):
+    """24 Nov 2026: the AI sometimes sends a question (or another text) as
+    a small object, e.g. {"question": "...", "type": "bias"}. That crashed
+    the report ('dict' object has no attribute 'replace'). The report must
+    build with plain text, with objects, and with a mix of both."""
+
+    def _T(self):
+        from services.locales.es import LANG_ES
+        return LANG_ES
+
+    def _build(self, questions, lens_questions, analysis="Análisis.", summary="Resumen.",
+               on_problem=None):
+        from services.reflection_report_html import build_reflection_report_html
+        report = {"summary": summary, "items": [
+            {"type": "loaded_label", "area": 5, "quote": "dócil", "why": "Porque sí."}],
+            "questions": questions}
+        lenses = [{"label": "Posibles sesgos", "analysis": analysis,
+                   "evidence": [{"quote": "dócil", "type": "loaded_label"}],
+                   "questions": lens_questions}]
+        return build_reflection_report_html(
+            self._T(), "Español", "RS-TEST", "24/11/2026", report, lenses, SAFE,
+            [{"quote": "dócil", "type": "loaded_label"}], on_problem=on_problem,
+        )
+
+    def test_plain_text(self):
+        page = self._build(["¿Pregunta del informe?"], ["¿Pregunta de la lente?"])
+        self.assertIn("<li>¿Pregunta del informe?</li>", page)
+        self.assertIn("<li>¿Pregunta de la lente?</li>", page)
+
+    def test_object_style_items(self):
+        page = self._build(
+            [{"question": "¿Pregunta del informe?", "type": "bias"}],
+            [{"text": "¿Pregunta de la lente?", "bias": "stereotype", "colour": "#123456"}],
+            analysis={"analysis": "Análisis en objeto."},
+            summary={"text": "Resumen en objeto."},
+        )
+        self.assertIn("¿Pregunta del informe?", page)
+        self.assertIn("¿Pregunta de la lente?", page)
+        self.assertIn("Análisis en objeto.", page)
+        self.assertIn("Resumen en objeto.", page)
+        from html import escape
+        self.assertIn(escape(self._T()["evidence_type_labels"]["bias"]), page)  # app's own badge
+        self.assertNotIn("{'", page)                        # never a raw object dump
+        self.assertNotIn("#123456", page)                   # AI colours are ignored
+        self.assertNotIn(self._T()["rr_part_unreadable"], page)
+
+    def test_mix_and_junk(self):
+        problems = []
+        page = self._build(
+            ["¿Texto?", {"pregunta": "¿Objeto?"}, None, 7, {"x": {"y": "¿Anidada?"}}, ""],
+            [{"question": "¿Uno?"}, "¿Dos?", ["¿Tres?"], {}],
+            on_problem=problems.append,
+        )
+        for text in ("¿Texto?", "¿Objeto?", "¿Anidada?", "¿Uno?", "¿Dos?", "¿Tres?"):
+            self.assertIn(text, page)
+        self.assertIn("<mark", page)                        # highlighted text still there
+        self.assertEqual(problems, [])
+
+    def test_a_broken_part_is_skipped_and_the_rest_is_shown(self):
+        from services import reflection_report_html as rr
+        problems = []
+        with patch.object(rr, "_lens_block", side_effect=RuntimeError("boom")):
+            page = self._build(["¿Pregunta?"], ["¿Q?"], on_problem=problems.append)
+        self.assertIn(self._T()["rr_part_unreadable"], page)
+        self.assertIn("¿Pregunta?", page)                   # the rest of the report
+        self.assertIn("<mark", page)
+        self.assertEqual(len(problems), 1)
+        self.assertNotIn("dócil", problems[0])              # never case text in the log
+
+    def test_report_checker_reads_object_style_questions(self):
+        report = ar.validate_report(
+            {"summary": "S", "items": [],
+             "questions": [{"question": "¿Uno?", "type": "bias"}, "¿Dos?", {"text": "¿Tres?"}]},
+            SAFE,
+        )
+        self.assertEqual(report["questions"], ["¿Uno?", "¿Dos?"])   # still at most two
+
+    def test_lens_answers_become_plain_text(self):
+        from rdi import orchestrator
+        from rdi.companions import COMPANIONS
+        key = COMPANIONS[0]["key"]
+        _, opportunities, findings, _ = orchestrator._merge_results(
+            {key: {"observation": {"text": "Obs."},
+                   "questions": [{"question": "¿Uno?", "type": "bias"}, "¿Dos?"],
+                   "evidence": []}},
+            SAFE, "",
+        )
+        self.assertEqual(findings[0]["observation"], "Obs.")
+        self.assertEqual(findings[0]["questions"], ["¿Uno?", "¿Dos?"])
+        self.assertEqual(opportunities[0].invitation, ["¿Uno?", "¿Dos?"])
+
+
 class TranslationTests(unittest.TestCase):
     KEYS = ("workspace_analysis_header", "ar_header", "ar_summary_header", "ar_items_header",
             "ar_questions_header", "ar_failed_notice", "ar_retry_button", "ar_missing_quote",
             "ar_unverified_notice", "ar_area_names", "evidence_type_labels", "hl_header",
             "hl_legend_title", "hl_intro", "hl_none_found", "rr_download_button", "rr_download_help",
             "rr_print_title", "rr_print_confidential", "rr_print_meta", "rr_print_footer",
-            "rr_lenses_header", "anon_placeholders")
+            "rr_lenses_header", "anon_placeholders", "rr_part_unreadable")
 
     def test_every_new_key_exists_in_three_languages(self):
         from services.locales.es import LANG_ES

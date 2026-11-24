@@ -27,6 +27,7 @@ from rdi.companions import COMPANIONS
 from rdi.reflection_objects import ReflectiveOpportunity
 from rdi.companion_retry import retry_companion_once
 from services.evidence import verify_quotes
+from services.ai_text import as_text, as_text_list
 from services.findings_store import add_finding_to_run
 from config import SAVE_OBSERVATIONS
 from services.db_time import get_logger
@@ -88,8 +89,9 @@ class _RetryInvitation:
             if result.get("success"):
                 generated = result["result"]
                 companion = next(c for c in COMPANIONS if c["key"] == self.trigger)
-                observation = generated.get("observation", "")
-                questions = generated.get("questions", [])
+                # Plain text even if the AI sent objects (services/ai_text.py).
+                observation = as_text(generated.get("observation"))
+                questions = as_text_list(generated.get("questions"))
                 if observation or questions:
                     # Saved-findings Stage 1: verify the proposed passages
                     # against the anonymized text, and save this finding to

@@ -454,3 +454,18 @@ real number follows ("Profesional de referencia: Ane Etxeberria" →
 quotes, then 1–2 questions; under the cards, the analysis report, an
 optional "Download report" button (anonymised text only), and the text with
 the quotes highlighted by type. None of it is saved.
+
+**AI texts as plain text or "objects" (24 November 2026):** the AI
+sometimes sends a question or an analysis as a small object (for example
+the question plus the kind of bias) instead of a plain sentence. One such
+question crashed the analysis report. Now every AI text is read with
+`services/ai_text.py`, which accepts both shapes: the lens answers are
+turned into plain text as soon as they arrive (`rdi/orchestrator.py`, the
+card Retry in `rdi/reflection_session.py`), and the report checker
+(`services/analysis_report.py`) reads object-style questions instead of
+dropping them. If a question carries one of the four known types, it is
+shown with the app's own coloured badge; colours suggested by the AI are
+ignored. The on-screen report and the download build each part on its own:
+a part that still cannot be read is left out with a short note
+(`rr_part_unreadable`), the rest is shown, and a warning is logged once
+(section names only, never case text). The AI instructions did not change.

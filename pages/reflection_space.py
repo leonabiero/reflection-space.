@@ -6,6 +6,7 @@ from services.findings_ui import render_evidence, render_notes_form, md_escape
 from services.highlight import highlight_html, legend_html, plain_text_html, type_badge_html
 from services.analysis_report import all_quotes as all_typed_quotes
 from services.reflection_report_html import build_reflection_report_html
+from services.ai_text import as_text, as_text_items, as_text_list
 from services.feedback_store import save_feedback
 from services.reflection_service import continue_companion_conversation
 from services.exploration_log import log_exploration
@@ -275,6 +276,20 @@ with error_boundary(
                 )[opportunity.finding_id] = updated
 
 
+    def _render_questions(questions):
+        """Questions as a bulleted list. Each may be plain text or a small
+        object from the AI ({"question": ..., "type": ...}); its text is
+        shown, and a known type gets the app's own coloured badge. Same
+        rule as the downloadable report (services/reflection_report_html.py)."""
+        types = T["evidence_type_labels"]
+        for item in as_text_items(questions):
+            label = types.get(item["type"], "") if item["type"] else ""
+            if label:
+                st.markdown("- " + type_badge_html(item["type"], label) + " " + md_escape(item["text"]),
+                            unsafe_allow_html=True)
+            else:
+                st.markdown(f"- {item['text']}")
+
     def _render_opportunity_tab_body(session, opportunity):
         """
         UX Priority 2 & 4 -- Reflection Dashboard + Navigator.
@@ -313,8 +328,12 @@ with error_boundary(
         # draws the Retry button when iterated (rdi/reflection_session.py).
         # It is iterated exactly once either way.
         questions = opportunity.invitation
-        if isinstance(questions, (list, tuple)) and questions:
-            st.markdown(f"**{T['workspace_questions_header']}**")
+        if isinstance(questions, (list, tuple)):
+            # Plain text even if the AI sent object-style questions
+            # (services/ai_text.py) -- never a raw "{...}" on screen.
+            questions = as_text_list(questions)
+            if questions:
+                st.markdown(f"**{T['workspace_questions_header']}**")
         for q in questions:
             st.markdown(f"- {q}")
 
@@ -463,6 +482,40 @@ with error_boundary(
         lens = [{"evidence": getattr(o, "evidence", None) or []} for o in session.opportunities]
         return all_typed_quotes(lens, getattr(session, "analysis_report", None))
 
+    def _report_problem(detail):
+        """Log, quietly and once per reflection, that part of the analysis
+        report could not be shown. `detail` holds only section names and
+        error kinds -- never any case text."""
+        try:
+            flag = f"_report_problem_logged_{getattr(ReflectionSession.get_active(), 'case_ref', '')}"
+            if st.session_state.get(flag):
+                return
+            st.session_state[flag] = True
+            log_error(
+                page="reflection_space (analysis report)",
+                error_type="ReportPartUnreadable",
+                message=("Part of the analysis report could not be shown; the rest "
+                         f"was shown. Parts: {detail}"),
+                traceback_text=None,
+                traceback_unavailable_reason=(
+                    "Handled inside the report: the part was skipped and the page "
+                    "kept working. No case content is logged."
+                ),
+                context={"parts": detail},
+                severity="warning",
+            )
+        except Exception:
+            pass
+
+    def _safe_part(section, render, *args):
+        """Show one part of the on-screen report; if it cannot be read,
+        show a short note instead and log it quietly."""
+        try:
+            render(*args)
+        except Exception as exc:
+            st.caption(T["rr_part_unreadable"])
+            _report_problem(f"{section}: {type(exc).__name__}")
+
     def _render_analysis_report(session):
         """The analysis report on screen (shown first), then -- separate and
         optional, underneath it -- the "Download report" button. Shown,
@@ -473,30 +526,44 @@ with error_boundary(
         types = T["evidence_type_labels"]
         areas = T["ar_area_names"]
         if report:
-            if report.get("summary"):
-                st.markdown(f"**{T['ar_summary_header']}**")
-                st.write(report["summary"])
-            if report.get("items"):
+            # Each part is shown on its own: if one part cannot be read,
+            # the rest of the report is still shown, with a short note,
+            # and the problem is logged quietly (see _report_problem).
+            def _summary():
+                if as_text(report.get("summary")):
+                    st.markdown(f"**{T['ar_summary_header']}**")
+                    st.write(as_text(report["summary"]))
+
+            def _item(item):
+                with st.container(border=True):
+                    # The type in words, in its colour (services/highlight.py).
+                    area = as_text(item.get("area"))
+                    st.markdown(
+                        type_badge_html(item["type"], types.get(item["type"], item["type"])) + " · "
+                        + md_escape(areas.get(area, area)),
+                        unsafe_allow_html=True,
+                    )
+                    quote = as_text(item.get("quote"))
+                    if quote:
+                        st.markdown("> " + md_escape(quote))
+                    else:
+                        st.caption(T["ar_missing_quote"])
+                    st.write(as_text(item.get("why")))
+
+            def _questions():
+                if as_text_items(report.get("questions")):
+                    st.markdown(f"**{T['ar_questions_header']}**")
+                    _render_questions(report.get("questions"))
+
+            _safe_part("summary", _summary)
+            items = report.get("items")
+            if isinstance(items, (list, tuple)) and items:
                 st.markdown(f"**{T['ar_items_header']}**")
-                for item in report["items"]:
-                    with st.container(border=True):
-                        # The type in words, in its colour (services/highlight.py).
-                        st.markdown(
-                            type_badge_html(item["type"], types.get(item["type"], item["type"])) + " · "
-                            + md_escape(areas.get(str(item["area"]), str(item["area"]))),
-                            unsafe_allow_html=True,
-                        )
-                        if item.get("quote"):
-                            st.markdown("> " + md_escape(item["quote"]))
-                        else:
-                            st.caption(T["ar_missing_quote"])
-                        st.write(item.get("why", ""))
+                for item in items:
+                    _safe_part("report item", _item, item)
             if report.get("unverified_quote_count"):
                 st.caption(T["ar_unverified_notice"].format(count=report["unverified_quote_count"]))
-            if report.get("questions"):
-                st.markdown(f"**{T['ar_questions_header']}**")
-                for q in report["questions"]:
-                    st.markdown(f"- {q}")
+            _safe_part("report questions", _questions)
             st.caption(T["workspace_reminder"])
         elif getattr(session, "analysis_report_failed", False):
             st.info(T["ar_failed_notice"])
@@ -518,13 +585,20 @@ with error_boundary(
                 "label": T["section_labels"].get(opportunity.trigger, opportunity.trigger),
                 "analysis": opportunity.focus,
                 "evidence": opportunity.evidence,
-                "questions": list(opportunity.invitation) if isinstance(opportunity.invitation, (list, tuple)) else [],
+                "questions": as_text_list(opportunity.invitation) if isinstance(opportunity.invitation, (list, tuple)) else [],
             })
-        page = build_reflection_report_html(
-            T, getattr(session, "reflection_lang", st.session_state.lang), session.case_ref,
-            date.today().strftime("%d/%m/%Y"), report, lenses, session.safe_text,
-            _typed_quotes(session),
-        )
+        try:
+            page = build_reflection_report_html(
+                T, getattr(session, "reflection_lang", st.session_state.lang), session.case_ref,
+                date.today().strftime("%d/%m/%Y"), report, lenses, session.safe_text,
+                _typed_quotes(session), on_problem=_report_problem,
+            )
+        except Exception as exc:
+            # Last safety net: the on-screen report stays; only the
+            # download is left out, with a short note.
+            _report_problem(f"download page: {type(exc).__name__}")
+            st.caption(T["rr_part_unreadable"])
+            return
         st.download_button(
             T["rr_download_button"], data=page.encode("utf-8"),
             file_name=f"{session.case_ref}.html", mime="text/html", key="rs_rr_download",

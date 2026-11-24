@@ -185,6 +185,7 @@ from config import CLAUDE_MAX_CONCURRENT_REFLECTIONS, CLAUDE_REFLECTION_QUEUE_TI
 from services.anonymizer import anonymize
 from services.reflection_service import generate_companion_reflection, COMPANION_MODEL
 from services.evidence import verify_quotes
+from services.ai_text import as_text, as_text_list
 from services import analysis_report
 from rdi.companions.prompt_builder import PROMPT_VERSION
 from services.error_log import log_error
@@ -318,8 +319,12 @@ def _merge_results(results, safe_text, context_description):
             module_status[key] = "failed"
             continue
 
-        observation = result.get("observation", "")
-        questions = result.get("questions", [])
+        # The AI sometimes sends a question (or the analysis) as a small
+        # object instead of plain text -- e.g. {"question": ..., "type":
+        # "bias"}. Turn both into plain text here, once, so every screen,
+        # the report and the download get plain text (services/ai_text.py).
+        observation = as_text(result.get("observation"))
+        questions = as_text_list(result.get("questions"))
         raw_result[key] = {"observation": observation, "questions": questions}
 
         # Keep only passages that really appear, word for word, in the

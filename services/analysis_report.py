@@ -28,6 +28,7 @@ never saved.
 import traceback
 
 from services.evidence import verify_quotes, clean_type, EVIDENCE_TYPES
+from services.ai_text import as_text, as_text_list
 
 MAX_ITEMS = 10
 MAX_QUESTIONS = 2
@@ -40,9 +41,9 @@ _QUESTION_MAX = 400
 
 
 def _clean_str(value, limit):
-    if not isinstance(value, str):
-        return ""
-    return " ".join(value.split())[:limit]
+    # Plain text or a small object such as {"question": ..., "type": ...}
+    # (the AI sometimes sends those): its text is read, never dropped.
+    return as_text(value)[:limit]
 
 
 def build_lens_results_text(findings, labels=None):
@@ -53,12 +54,15 @@ def build_lens_results_text(findings, labels=None):
     parts = []
     for f in findings or []:
         lines = [f"## {labels.get(f.get('module'), f.get('module'))}"]
-        if f.get("observation"):
-            lines.append(f"Analysis: {f['observation']}")
+        observation = as_text(f.get("observation"))
+        if observation:
+            lines.append(f"Analysis: {observation}")
         for e in f.get("evidence") or []:
+            if not isinstance(e, dict):
+                continue
             kind = e.get("type") or "unclassified"
-            lines.append(f'Quote ({kind}): "{e.get("quote", "")}"')
-        for q in f.get("questions") or []:
+            lines.append(f'Quote ({kind}): "{as_text(e.get("quote"))}"')
+        for q in as_text_list(f.get("questions")):
             lines.append(f"Question: {q}")
         parts.append("\n".join(lines))
     return "\n\n".join(parts) if parts else "(No lens found anything notable.)"
@@ -100,13 +104,7 @@ def validate_report(obj, safe_text):
         if len(items) >= MAX_ITEMS:
             break
 
-    questions = []
-    for q in obj.get("questions") or []:
-        q = _clean_str(q, _QUESTION_MAX)
-        if q:
-            questions.append(q)
-        if len(questions) >= MAX_QUESTIONS:
-            break
+    questions = [q[:_QUESTION_MAX] for q in as_text_list(obj.get("questions"))][:MAX_QUESTIONS]
 
     summary = _clean_str(obj.get("summary"), _SUMMARY_MAX)
     if not summary and not items and not questions:
