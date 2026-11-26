@@ -373,11 +373,30 @@ class ReflectionSession:
 
     def all_typed_quotes(self):
         """Every typed, verified quote shown in this reflection (lens cards
-        and report), for the highlighted text."""
+        and report), for the highlighted text, each passage with its one
+        agreed type (services/quote_types.py)."""
         from services.analysis_report import all_quotes
-        lens = [{"evidence": o.evidence} for o in self.opportunities
-                if isinstance(getattr(o, "evidence", None), list)]
-        return all_quotes(lens, getattr(self, "analysis_report", None))
+        from rdi.conversation_builder import build_conversation
+        lens = [{"evidence": getattr(o, "evidence", None) or []}
+                for o in build_conversation(self.opportunities)]
+        return all_quotes(lens, getattr(self, "analysis_report", None),
+                          text=getattr(self, "safe_text", "") or "")
+
+    def agreed_evidence(self):
+        """({trigger: evidence}, analysis report) in which every quote of
+        the same passage has the same type -- what the cards, the report,
+        the highlighted text and the download show (26 November 2026,
+        services/quote_types.py). Works for a reflection opened before
+        this version too."""
+        from services.quote_types import agree_types
+        from rdi.conversation_builder import build_conversation
+        ordered = build_conversation(self.opportunities)
+        lenses, report = agree_types(
+            getattr(self, "safe_text", "") or "",
+            [getattr(o, "evidence", None) or [] for o in ordered],
+            getattr(self, "analysis_report", None),
+        )
+        return {o.trigger: ev for o, ev in zip(ordered, lenses)}, report
 
     def explored_count(self):
         return sum(1 for o in self.opportunities if o.explored)

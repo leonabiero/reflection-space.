@@ -40,6 +40,23 @@ adds, without removing any earlier rule:
   "Lanbide", ...) are no longer mistaken for people: they are not personal
   identifiers and the reflection needs that context.
 
+26 November 2026 -- EDE testers' reports
+----------------------------------------
+* Identity-document numbers (NIE, DNI/NIF, passport) are hidden in every
+  written form -- spaces, dots, dashes, slashes, small letters, glued to
+  the next word as in PDFs -- and after Spanish, Basque and English labels
+  ("Nº de Identificación", "Número de documento", "NAN zenbakia", "ID
+  number" ...). Dates written year first ("1989/11/19") are hidden too.
+* People are numbered by first name AND surname, compared without accents
+  or capitals: two people who share a surname are never merged, and one
+  person keeps one number however she is written (see PersonNumbers). A
+  word that could belong to two people becomes [PERSON] with no number.
+* A name split over a line break is one placeholder (not one per line).
+* Headings and field labels of forms ("Datos Personales", "Apellidos",
+  "Doc.", "Fdo.") are no longer counted as people; the names after them
+  are still hidden, including names typed in small letters after a
+  "Nombre y apellidos:" label.
+
 The function is idempotent: anonymizing already-anonymized text changes
 nothing (callers rely on this, because it
 re-anonymizes excerpts that were already anonymized at index time).
@@ -137,6 +154,33 @@ _SAFE_CAPITALISED_WORDS = {
     "unidad", "departamento", "oficina", "instituto", "punto", "encuentro",
     "acción", "accion", "bienestar", "servicio", "personas", "hogar",
     "zerbitzua", "zerbitzuak", "arreta", "arretarako",
+    # (26 November 2026, EDE testers) Headings and field labels of forms
+    # and reports ("Datos Personales", "Nombre y Apellidos:", "Nº de
+    # Identificación:"). Each one was hidden as a separate new person, so
+    # a report about one woman showed dozens of "people" (worse with PDF
+    # uploads). They are ordinary words; the names and numbers written
+    # AFTER them are still hidden by every other rule.
+    "datos", "dato", "personales", "nombre", "nombres", "apellido", "apellidos",
+    "identificación", "identificacion", "identidad", "nacionalidad", "domicilio",
+    "teléfono", "telefono", "teléfonos", "telefonos", "móvil", "movil", "sexo",
+    "género", "genero", "civil", "observaciones", "documento", "nacimiento",
+    "lugar", "edad", "correo", "electrónico", "electronico", "firma", "expediente",
+    "número", "numero", "contacto", "dirección", "direccion", "municipio",
+    "provincia", "código", "codigo", "postal", "composición", "composicion",
+    "convivencia", "ingresos", "económica", "economica", "laboral", "sanitaria",
+    "personal", "pasaporte", "parentesco", "documentos", "documentación",
+    "documentacion", "responsable", "firmado", "económico", "economico",
+    "apoyo", "apoyos", "riesgo", "exclusión", "exclusion", "violencia",
+    "machista", "género", "consulado", "embajada", "grado", "apto", "apta",
+    "penales", "judicial", "jurídica", "juridica", "residencial", "convivencial",
+    "ámbito", "ambito", "metodología", "metodologia", "solicitud", "propuesta",
+    "izena", "abizena", "abizenak", "jaiotze", "jaioteguna", "helbidea",
+    "telefonoa", "nazionalitatea", "sexua", "oharrak", "datuak", "pertsonalak",
+    "nortasun", "agiria", "zenbakia", "zbkia", "identifikazio", "sinadura",
+    "kontaktua", "egilea", "eskaera", "proposamena",
+    "name", "surname", "surnames", "nationality", "phone", "telephone", "mobile",
+    "details", "gender", "observations", "date", "birth", "identity", "document",
+    "number", "address", "passport",
 }
 
 # (24 November 2026) Public-service names: a kind of service, "de", then
@@ -168,6 +212,7 @@ eritrea somalia sudán sudan egipto egypt libia libya kenia kenya congo angola
 rumanía rumania errumania romania bulgaria ukrania ucrania ukraine ukraina
 rusia errusia russia georgia moldavia moldova polonia polonia poland albania
 portugal francia frantzia france italia italy alemania germany
+españa espainia spain
 colombia kolonbia venezuela ecuador ekuador perú peru bolivia paraguay
 uruguay argentina chile txile brasil brazil honduras nicaragua guatemala
 cuba kuba méxico mexico mexiko dominicana república republica dominican
@@ -368,7 +413,9 @@ _CONTEXTUAL_IDENTIFIER_PATTERNS = [
     # Spanish / Basque street addresses. The street word must be followed by
     # a capitalised name or a number, so "duerme en la calle" (homelessness)
     # is left alone.
-    (re.compile(r"(?:\b(?i:calle|avenida|avda|plaza|paseo|pasaje|camino|carretera|barrio|travesía|ronda|kalea|etorbidea|plaza|pasealekua|auzoa)\.?|(?<!\w)(?i:c/|av\.|pza\.))\s*(?:(?i:de|del|de\s+la|de\s+los)\s+)?(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª]*)(?:\s+(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª\-]*|(?i:de|del|la|los|las|n[º°o]\.?|s/n|bis))(?=\s|$|[,.;:!?)]))*"), "[ADDRESS]"),
+    # (26 November 2026) Also the Basque "Kale" written before the name
+    # ("Kale Nagusia 12"), as on bilingual forms.
+    (re.compile(r"(?:\b(?i:calle|avenida|avda|plaza|paseo|pasaje|camino|carretera|barrio|travesía|ronda|kalea|kale|etorbidea|plaza|pasealekua|auzoa)\.?|(?<!\w)(?i:c/|av\.|pza\.))\s*(?:(?i:de|del|de\s+la|de\s+los)\s+)?(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª]*)(?:\s+(?:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’\-]*|\d+[\wºª\-]*|(?i:de|del|la|los|las|n[º°o]\.?|s/n|bis))(?=\s|$|[,.;:!?)]))*"), "[ADDRESS]"),
     (re.compile(r"\b(?:domicilio|dirección|direccion|helbidea)\s*(?::|\s+(?:en|es|:))\s*%s" % _ADDRESS_BODY_ES_EU, re.IGNORECASE), "[ADDRESS]"),
 ]
 
@@ -402,6 +449,103 @@ _IDENTIFIER_RE = re.compile(
 )
 # Spanish DNI (8 digits + letter) and NIE (X/Y/Z + 7 digits + letter).
 _DNI_NIE_RE = re.compile(r"(?<!\w)(?:\d{8}|[XYZxyz][\s\-]?\d{7})[\s\-]?[A-Za-z](?!\w)")
+
+# (26 November 2026, EDE testers) Identity-document numbers in every form
+# they reach us, whatever label is in front of them (or none):
+#   NIE      X/Y/Z + 7 digits + letter   "Y1235687X", "y-1235687-x"
+#   DNI/NIF  8 digits + letter           "12345678Z", "12.345.678-Z", "12 345 678 z"
+#   passport 3 capital letters + 6 digits "PAA123456", or 2 + 7 "AB1234567"
+# Spaces, dots, hyphens, dashes and slashes between the parts are allowed,
+# in capitals or not, and the check letter is never checked (made-up test
+# numbers are hidden too). Text copied from a PDF often glues the number
+# to the next label ("Y1235687XTeléfono"), so a number followed directly
+# by a capitalised word is still found. Phone numbers, postcodes, ages,
+# years and amounts have no letter in the right place and are not touched.
+_ID_SEP = "[ \t.\\-‐‑‒–—/]"
+_ID_END = r"(?=$|[^0-9A-Za-zÀ-ÿ]|[A-ZÀ-Þ][a-zß-ÿ])"
+_ID_DOCUMENT_RE = re.compile(
+    r"(?<![0-9A-Za-zÀ-ÿ])(?:"
+    rf"(?P<nie>(?P<nie_first>[XYZxyz])(?P<nie_gap>{_ID_SEP}?)\d(?:{_ID_SEP}?\d){{6}}(?P<nie_tail>{_ID_SEP}?)(?P<nie_last>[A-Za-z]))"
+    rf"|(?P<dni>\d{{2}}[ .]?\d{{3}}[ .]?\d{{3}}(?P<dni_tail>{_ID_SEP}?)(?P<dni_last>[A-Za-z]))"
+    rf"|(?P<passport>[A-Z]{{3}}{_ID_SEP}?\d{{6}}(?![0-9])|[A-Z]{{2}}{_ID_SEP}?\d{{7}}(?![0-9]))"
+    rf"){_ID_END}"
+)
+# One small letter after a space that is more likely an ordinary word
+# ("y", "a", "e", "o", "u": "12 345 678 y ...") than the check letter of
+# a number.
+_ID_WORD_LETTERS = set("yaeou")
+
+
+def _hide_id_documents(text: str) -> str:
+    def repl(m):
+        if m.group("nie"):
+            # "y 1234567 a ...": the Spanish word "y", not an NIE.
+            if m.group("nie_first") in _ID_WORD_LETTERS and m.group("nie_gap").isspace():
+                return m.group(0)
+            if m.group("nie_last") in _ID_WORD_LETTERS and m.group("nie_tail").isspace():
+                return m.group(0)
+        if m.group("dni") and m.group("dni_last") in _ID_WORD_LETTERS and m.group("dni_tail").isspace():
+            return m.group(0)
+        # Glued to the next word in the original ("...XTeléfono"): keep the
+        # two apart.
+        glued = m.end() < len(m.string) and m.string[m.end()].isalpha()
+        return "[ID] " if glued else "[ID]"
+    return _ID_DOCUMENT_RE.sub(repl, text)
+
+
+# Labels that name an identity document ("Nº de Identificación", "Número
+# de documento", "NAN zenbakia", "ID number" ...). After one of them, a
+# value with at least four digits is hidden; the label itself stays, so
+# the sentence still reads "Nº de Identificación: [ID]".
+_ID_LABEL_RE = re.compile(
+    r"(?P<label>\b(?:"
+    r"n\.?\s*[º°or]\.?\s*(?:de\s+)?identif(?:icaci[oó]n|\.)?"
+    r"|n[úu]mero\s+de\s+(?:documento|identidad|identificaci[oó]n|pasaporte)(?:\s+de\s+identidad)?"
+    r"|documento(?:\s+nacional)?(?:\s+de\s+identidad)?"
+    r"|identificaci[oó]n|(?-i:TIE)"
+    r"|pasaportea|pasaporte(?:aren)?\s+zenbakia"
+    r"|nan\s+zenbakia|nortasun[\s\-]+agiri(?:a|aren\s+zenbakia)?|identifikazio[\s\-]+zenbaki(?:a)?"
+    r"|(?-i:ID)\s*(?:number|no\.?|n[º°]|card)?|id\s+(?:number|no\.?|card)"
+    r"|identity\s+(?:card|document|number)(?:\s+number)?|document\s+(?:number|no\.?)"
+    # Short forms of "expediente" (case file) in forms: "Nr. de expdt.".
+    r"|expdte?|espdt|exp"
+    r")\.?(?![\wÀ-ÿ])\s*[:#|\-]?\s*(?:(?:es|n[º°o]\.?|número|numero|zenbakia|number)\s*[:\-]?\s*)?)"
+    # The value: digits and letters, possibly in parts ("Y-1235687-X",
+    # "2025- ABC-164-01", "12 345 678 Z"). A part without digits is only
+    # taken when joined by a dash, slash or dot, so the words after the
+    # number are never swallowed.
+    rf"(?P<value>(?:[A-Za-z]{{1,3}}{_ID_SEP}?)?\d[0-9A-Za-z]*"
+    "(?:(?:[ \t]?[\\-/‐-—][ \t]?|\\.)[0-9A-Za-z]+|[ \t]+[0-9A-Za-z]*\\d[0-9A-Za-z]*)*"
+    r"(?:[ \t][A-Za-z](?![0-9A-Za-zÀ-ÿ]))?)"
+    r"(?![0-9A-Za-zÀ-ÿ])",
+    re.IGNORECASE,
+)
+
+
+def _hide_labelled_ids(text: str) -> str:
+    def repl(m):
+        value = m.group("value")
+        if sum(c.isdigit() for c in value) < 4:
+            return m.group(0)
+        rest = ""
+        # "... 12 345 678 y su madre": "y" is the word "y", not a letter
+        # of the number.
+        if len(value) >= 2 and value[-2] in " \t" and value[-1] in _ID_WORD_LETTERS:
+            rest = value[-2:]
+        return m.group("label") + "[ID]" + rest
+    return _ID_LABEL_RE.sub(repl, text)
+
+
+# The check letter left after an [ID] ("NAN: 12345678 z" -> "[ID] z").
+_ID_LEFTOVER_LETTER_RE = re.compile(r"\[ID\](?:[\-.‐‑–/]|(?P<space>[ \t]))?(?P<letter>[A-Za-z])(?![0-9A-Za-zÀ-ÿ])")
+
+
+def _absorb_id_letters(text: str) -> str:
+    def repl(m):
+        if m.group("space") and m.group("letter") in _ID_WORD_LETTERS:
+            return m.group(0)
+        return "[ID]"
+    return _ID_LEFTOVER_LETTER_RE.sub(repl, text)
 # IBAN bank accounts (e.g. ES91 2100 0418 4502 0005 1332).
 _IBAN_RE = re.compile(r"(?<!\w)[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?(?!\w)")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b", re.UNICODE)
@@ -411,6 +555,9 @@ _DATE_RE = re.compile(
     r"|\d{4}(?:eko|ko)\s+(?:urtarrila|otsaila|martxoa|apirila|maiatza|ekaina|uztaila|abuztua|iraila|urria|azaroa|abendua)(?:ren|aren)?\s+\d{1,2}(?:ean|an|a)?)\b",
     re.IGNORECASE,
 )
+# (26 November 2026, EDE testers) Dates written year first, as forms and
+# exported files often do: "1989/11/19", "1966-02-02", "2024.05.03".
+_YEAR_FIRST_DATE_RE = re.compile(r"(?<![\w/.\-])(?:19|20)\d{2}([/.\-])(?:0?[1-9]|1[0-2])\1(?:0?[1-9]|[12]\d|3[01])(?![\w/\-]|\.\d)")
 _PHONE_RE = re.compile(
     r"(?<!\w)(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-])?\d{3,4}[\s.-]\d{3,4}(?:[\s.-]\d{2,4})?(?!\w)"
 )
@@ -436,11 +583,38 @@ def _record_name_tokens(phrase: str, known_names: set) -> None:
             known_names.add(token)
 
 
+# Accented letters and their plain letter, for COMPARING names only. An
+# explicit table (not a general accent remover): accents in the text that
+# is shown and sent are never touched (see tests/test_accents_preserved.py).
+_FOLD_TABLE = str.maketrans("áàâäãåéèêëíìîïóòôöõúùûüçñ", "aaaaaaeeeeiiiiooooouuuucn")
+
+
+def _fold(word: str) -> str:
+    """A name word for COMPARING only: lower case, no accents
+    ("María" / "MARIA" / "maria" -> "maria"). The text shown is never
+    changed by this."""
+    return str(word or "").lower().translate(_FOLD_TABLE)
+
+
+# (26 November 2026) Short forms of first names, for comparing only.
+_NAME_SHORT_FORMS = {"mª": "maria", "m.ª": "maria", "mª.": "maria", "m.ª.": "maria"}
+
+
 class PersonNumbers:
     """Which number each person has in one text (November 2026, EDE):
     different people become [PERSON 1], [PERSON 2], ...; the same person
-    always keeps the same number. "Ane Etxeberria" and a later "Ane" are
-    the same person, unless "Ane" could belong to two different people.
+    always keeps the same number.
+
+    (26 November 2026, EDE testers) Each person is remembered as first
+    name(s) plus surname(s), compared without accents or capitals:
+      - "Javier Ortiz" and "Laura Ortiz" are two people: different first
+        names are never merged, whatever surname they share.
+      - "María Goikoetxea", "María", "Maria", "MARÍA", "Sra. Goikoetxea"
+        and "Goikoetxea Ruiz" are one person.
+      - A word that could belong to two different people (a surname shared
+        by two people, or a first name two people have) is still hidden,
+        as [PERSON] with no number: the app does not guess which of them
+        is meant.
 
     It holds real names, so it lives only in memory (the browser session
     of one reflection) and is never saved or sent anywhere. Pass the same
@@ -448,75 +622,242 @@ class PersonNumbers:
     so the same name gets the same number as in the document."""
 
     def __init__(self):
-        self._by_name = {}      # normalised full name -> number
-        self._by_token = {}     # one name word -> number (None = ambiguous)
+        self._people = {}       # number -> {"given": set, "surnames": set, "loose": set}
+        self._surname_givens = {}   # surname -> first names seen with it (from a first look at the text)
         self.last = 0           # highest number given so far
+
+    def _state(self):
+        # An object kept from an older version of the app has no _people.
+        if not hasattr(self, "_people"):
+            self._people = {}
+        if not hasattr(self, "_surname_givens"):
+            self._surname_givens = {}
+        return self._people
 
     @staticmethod
     def _tokens(phrase):
         words = []
         for token in str(phrase or "").split():
-            token = token.strip(",.;:!?()\"'«»").lower()
-            if token and token not in _STOPWORDS and token.rstrip(".") not in _TITLE_WORDS_LOWER:
+            low = token.lower()
+            if low in _NAME_SHORT_FORMS:
+                words.append(_NAME_SHORT_FORMS[low])
+                continue
+            token = _fold(token.strip(",.;:!?()\"'«»"))
+            if (token and token not in _STOPWORDS_FOLDED
+                    and token.rstrip(".") not in _TITLE_WORDS_FOLDED):
                 words.append(token)
         return words
 
+    def look_ahead(self, text):
+        """A first look at the whole text, before anything is replaced:
+        which first names go with which surname ("Javier Ortiz", "Laura
+        Ortiz"). Used only so that a surname written alone ("la Sra.
+        Ortiz") is never given one person's number when the text has two
+        different people with that surname, wherever they appear."""
+        self._state()
+        for m in _NAME_SEQUENCE_RE.finditer(str(text or "")):
+            words = self._tokens(m.group(0))
+            given = [w for w in words if w in _FIRST_NAMES_FOLDED]
+            if not given:
+                continue
+            for w in words:
+                if w not in _FIRST_NAMES_FOLDED:
+                    self._surname_givens.setdefault(w, set()).update(given)
+
+    def _new(self, given, surnames, loose):
+        self.last += 1
+        self._people[self.last] = {"given": set(given), "surnames": set(surnames), "loose": set(loose)}
+        return self.last
+
+    @staticmethod
+    def _all_words(p):
+        return p["given"] | p["surnames"] | p["loose"]
+
     def number_for(self, phrase):
+        """The person's number, or None when the phrase could belong to
+        more than one person (shown as [PERSON] with no number)."""
+        people = self._state()
         words = self._tokens(phrase)
         if not words:
-            words = [str(phrase or "").strip().lower() or "?"]
-        full = " ".join(words)
-        number = self._by_name.get(full)
-        if number is None:
-            candidates = {self._by_token.get(w) for w in words if w in self._by_token}
-            candidates.discard(None)
-            if len(candidates) == 1:
-                number = candidates.pop()
-        if number is None:
-            self.last += 1
-            number = self.last
-        self._by_name[full] = number
-        for w in words:
-            if w in self._by_token and self._by_token[w] not in (None, number):
-                self._by_token[w] = None
-            elif w not in self._by_token:
-                self._by_token[w] = number
-        return number
+            words = [_fold(str(phrase or "").strip()) or "?"]
+        wordset = set(words)
+
+        # Same words as one known person (in any order, or fewer of them):
+        # "Goikoetxea Ruiz" after "María Goikoetxea Ruiz".
+        subset = [n for n, p in people.items() if wordset <= self._all_words(p)]
+        given = [w for w in words if w in _FIRST_NAMES_FOLDED]
+
+        if len(words) == 1 and not given:
+            # One word that is not a known first name: a surname or an
+            # unusual first name.
+            word = words[0]
+            if len(self._surname_givens.get(word, ())) >= 2 or len(subset) > 1:
+                return None         # e.g. "Ortiz" with Javier and Laura Ortiz
+            if len(subset) == 1:
+                return subset[0]
+            return self._new((), (), (word,))
+
+        if not given:
+            if len(subset) == 1:
+                return subset[0]
+            if len(subset) > 1:
+                return None
+            if all(w in self._surname_givens for w in words):
+                # Surnames only ("Goikoetxea Ruiz"): the person whose
+                # surnames they are, if there is exactly one.
+                owners = set.intersection(*(self._surname_givens[w] for w in words))
+                matches = [n for n, p in people.items() if p["given"] & owners
+                           and wordset & p["surnames"]]
+                if len(owners) >= 2 or len(matches) > 1:
+                    return None
+                if len(matches) == 1:
+                    people[matches[0]]["surnames"].update(wordset)
+                    return matches[0]
+                return self._new((), wordset, ())
+            # An unknown first name followed by surnames ("Oumar Diallo").
+            given = [words[0]]
+        given = set(given)
+        surnames = wordset - given
+
+        candidates = []
+        for n, p in people.items():
+            if p["given"] and not (p["given"] & given):
+                continue            # different first names: never the same person
+            if p["given"]:
+                if p["surnames"] and surnames and not (p["surnames"] & surnames):
+                    continue        # same first name, different surnames
+            elif not (self._all_words(p) & wordset):
+                continue
+            candidates.append(n)
+
+        if len(candidates) == 1:
+            p = people[candidates[0]]
+            # Learn the rest of the name, unless that would make it clash
+            # with someone else.
+            for w in given:
+                if w in p["loose"]:
+                    p["loose"].discard(w)
+                p["given"].add(w)
+            for w in surnames:
+                if w in p["loose"]:
+                    p["loose"].discard(w)
+                p["surnames"].add(w)
+            return candidates[0]
+        if len(candidates) > 1:
+            if not surnames:
+                return None         # "Ane" when two people are called Ane
+            exact = [n for n in candidates if surnames <= people[n]["surnames"]]
+            if len(exact) == 1:
+                return exact[0]
+            return None
+        return self._new(given, surnames, ())
 
     def tag(self, phrase):
-        return f"[PERSON {self.number_for(phrase)}]"
+        number = self.number_for(phrase)
+        return "[PERSON]" if number is None else f"[PERSON {number}]"
 
     def renumber(self, mapping):
         """Apply {old number: new number} to everything remembered."""
-        self._by_name = {k: mapping.get(v, v) for k, v in self._by_name.items()}
-        self._by_token = {k: (mapping.get(v, v) if v is not None else None)
-                          for k, v in self._by_token.items()}
+        people = self._state()
+        self._people = {mapping.get(n, n): p for n, p in people.items()}
 
 
 _TITLE_WORDS_LOWER = {"mr", "mrs", "ms", "miss", "dr", "dra", "sr", "sra", "srta",
                       "don", "doña", "dña", "d", "jn", "and", "andre", "jaun"}
+# Compared without accents (see _fold). "señor" / "señora" written in
+# full count as titles here too, so "la señora Goikoetxea" is the same
+# person as "Goikoetxea".
+_TITLE_WORDS_FOLDED = {_fold(w) for w in _TITLE_WORDS_LOWER} | {"senor", "senora", "senorita"}
+_STOPWORDS_FOLDED = {_fold(w) for w in _STOPWORDS}
+_FIRST_NAMES_FOLDED = {_fold(w) for w in _COMMON_FIRST_NAMES}
 
 _LINE_BREAK_RE = re.compile(r"(\s*\n\s*)")
 
 
-def _tag_lines(phrase, people):
-    """The placeholder for a person phrase. A phrase that runs across a line
-    break gets one placeholder per line and keeps the line break: "Ane
-    Etxeberria" / "Fatima Benali" on two lines are two people, and a
-    surname written alone on the next line ("LUCÍA" / "GARCÍA") is still
-    hidden. A line made only of ordinary words ("Informe") is kept."""
+def _first_names_in(words):
+    return {_fold(w.strip(",.;:!?()\"'«»")) for w in words} & _FIRST_NAMES_FOLDED
+
+
+def _join_name_lines(phrase, classify, people, known_names=None):
+    """(26 November 2026, EDE testers) A name phrase that runs across one
+    or more line breaks, as text copied from a PDF often does ("María" /
+    "Goikoetxea"), becomes ONE placeholder, and the line break is kept.
+    (Since 23 November each line got its own placeholder, so one person
+    looked like two -- or got two numbers.) The lines are only kept apart
+    when the next line starts with a DIFFERENT first name: "Ane
+    Etxeberria" / "Fatima Benali" on two lines are still two people. A
+    line made only of ordinary words ("Informe") is kept as it is.
+
+    `classify(line)` returns ("keep", text) for a line that is not a name,
+    ("text", replacement) for a finished replacement (e.g. a place), or
+    ("name", lead, core) for a name, where `lead` is kept in front."""
+    parts = _LINE_BREAK_RE.split(phrase)
+    lines, seps = parts[0::2], parts[1::2]
+    out = []                    # finished pieces
+    group = None                # {"lead": str, "cores": [..], "seps": [..]}
+
+    def flush():
+        nonlocal group
+        if group is None:
+            return
+        core = " ".join(group["cores"])
+        if known_names is not None:
+            _record_name_tokens(core, known_names)
+        tag = people.tag(core)
+        # The same person straight after on the previous line(s): one tag.
+        if (tag != "[PERSON]" and len(out) >= 2 and out[-2].endswith(tag)
+                and not out[-1].strip() and not group["lead"]):
+            out[-2] = out[-2][: -len(tag)]
+        out.append("".join(group["seps"]) + group["lead"] + tag)
+        group = None
+
+    for i, line in enumerate(lines):
+        sep = seps[i - 1] if i else ""
+        kind = classify(line) if line.strip() else ("keep", line)
+        if (kind[0] == "name" and group is None and i and not kind[1]
+                and len(kind[2].split()) == 1 and not _first_names_in(kind[2].split())):
+            # One capitalised word at the start of a line, after a line
+            # that is not a name (a heading such as "ÁMBITO PERSONAL" /
+            # "Mantiene ..."): the start of a sentence, treated like any
+            # other sentence start -- it is still hidden later if it is a
+            # known first name or is written as a name elsewhere in the
+            # text (_replace_single_names).
+            kind = ("keep", line)
+        if kind[0] == "name":
+            lead, core = kind[1], kind[2]
+            starts_other = False
+            if group is not None:
+                given_before = _first_names_in(" ".join(group["cores"]).split())
+                first = core.split()[0] if core.split() else ""
+                starts_other = (bool(given_before) and bool(_first_names_in([first]))
+                                and not (_first_names_in([first]) & given_before))
+            if group is not None and not lead and not starts_other:
+                group["cores"].append(core)
+                group["seps"].append(sep)
+                continue
+            flush()
+            out.append(sep)
+            group = {"lead": lead, "cores": [core], "seps": []}
+        else:
+            flush()
+            out.append(sep)
+            out.append(kind[1])
+    flush()
+    return "".join(out)
+
+
+def _tag_lines(phrase, people, known_names=None):
+    """The placeholder for a person phrase (see _join_name_lines for a
+    phrase that runs across a line break)."""
     if "\n" not in phrase:
         return people.tag(phrase)
-    parts = _LINE_BREAK_RE.split(phrase)
-    out = []
-    for i, part in enumerate(parts):
-        if i % 2 or not part.strip():
-            out.append(part)
-        elif all(_is_safe_word(t.strip(",.;:!?()\"'«»")) for t in part.split()):
-            out.append(part)
-        else:
-            out.append(people.tag(part))
-    return "".join(out)
+
+    def classify(line):
+        if all(_is_safe_word(t.strip(",.;:!?()\"'«»")) for t in line.split()):
+            return ("keep", line)
+        return ("name", "", line)
+
+    return _join_name_lines(phrase, classify, people, known_names)
 
 
 def _replace_proper_names(text: str, known_names: set, people=None) -> str:
@@ -524,41 +865,54 @@ def _replace_proper_names(text: str, known_names: set, people=None) -> str:
     people = people if people is not None else PersonNumbers()
     def repl(match):
         phrase = match.group(0)
-        if "\n" in phrase:
-            # One line at a time (see _tag_lines).
-            parts = _LINE_BREAK_RE.split(phrase)
-            return "".join(
-                part if (i % 2 or not part.strip()) else _one_line(part)
-                for i, part in enumerate(parts)
-            )
-        return _one_line(phrase)
+        # (26 November 2026) A form abbreviation on the next line ("Edurne
+        # Alonso" / "Fdo.: ____") is not part of the name above it.
+        if "\n" in phrase and _ABBREVIATION_AFTER_RE.match(match.string, match.end()):
+            cut = phrase.rfind("\n")
+            last = phrase[cut + 1:].strip()
+            if len(last.split()) == 1 and len(last) <= 6:
+                head_end = cut
+                while head_end > 0 and phrase[head_end - 1].isspace():
+                    head_end -= 1
+                return _process(phrase[:head_end]) + phrase[head_end:]
+        return _process(phrase)
 
-    def _one_line(phrase):
+    def _process(phrase):
+        if "\n" in phrase:
+            # A name across line breaks: see _join_name_lines.
+            return _join_name_lines(phrase, _classify, people, known_names)
+        kind = _classify(phrase)
+        if kind[0] == "name":
+            _record_name_tokens(kind[2], known_names)
+            return kind[1] + people.tag(kind[2])
+        return kind[1]
+
+    def _classify(phrase):
         if phrase in _PROTECTED_PROPER_PHRASES:
-            return phrase
+            return ("keep", phrase)
         tokens = phrase.split()
         if tokens[0].lower().rstrip(".") in {"mr", "mrs", "ms", "miss", "dr", "sr", "sra", "srta"}:
-            return phrase
+            return ("keep", phrase)
         # Acronym inside the phrase ("Su DNI", "EDE Fundazioa"): not a name.
         if any(len(t) >= 2 and t.isupper() for t in tokens):
-            return phrase
+            return ("keep", phrase)
         # Public bodies / safe words only ("Servicios Sociales",
         # "El Ayuntamiento", "Gobierno Vasco"): not a personal identifier.
         if all(_is_safe_word(t) for t in tokens):
-            return phrase
+            return ("keep", phrase)
         # Sentence-start function word glued to a name ("Hoy Pedro ...",
         # "La Usuaria ..."): keep the function word, redact the rest.
         lead = []
         while tokens and tokens[0].lower() in _STOPWORDS:
             lead.append(tokens.pop(0))
         if not tokens:
-            return phrase
+            return ("keep", phrase)
         if len(tokens) == 1 and _is_safe_word(tokens[0]):
-            return phrase
+            return ("keep", phrase)
+        lead_text = " ".join(lead) + " " if lead else ""
         if " ".join(tokens).lower() in _KNOWN_PLACE_PHRASES:
-            return (" ".join(lead) + " " if lead else "") + "[LOCATION]"
-        _record_name_tokens(" ".join(tokens), known_names)
-        return (" ".join(lead) + " " if lead else "") + people.tag(" ".join(tokens))
+            return ("text", lead_text + "[LOCATION]")
+        return ("name", lead_text, " ".join(tokens))
 
     text = _NAME_SEQUENCE_RE.sub(repl, text)
 
@@ -611,6 +965,44 @@ def _service_names(text: str) -> str:
     return _SERVICE_NAME_RE.sub(repl, text)
 
 
+# What follows a form abbreviation: a dot, then a small letter, a digit,
+# "/", ":", "_" or "(" ("Doc. de", "Nr. 12", "Fdo.:").
+_ABBREVIATION_AFTER_RE = re.compile(r"\.[ \t]?[a-zß-ÿ0-9/:_(º]")
+
+# (26 November 2026, EDE testers) The value of a name field in a form
+# ("NOMBRE Y APELLIDOS: Rosa gomez urrutia", "Izen-abizenak | ..."). The
+# surnames were sometimes typed in small letters and stayed visible,
+# because every other name rule looks for a capital letter. The whole
+# value is hidden as one person, whatever its capitals; the label stays.
+_NAME_FIELD_RE = re.compile(
+    r"(?P<label>\b(?:nombre\s+y\s+apellidos|apellidos\s+y\s+nombre|nombre\s+completo|"
+    r"nombre|apellidos?|izen[\s\-]*abizenak|abizen[\s\-]*izenak|izena|abizenak?|"
+    r"full\s+name|first\s+name|surname|last\s+name|name)"
+    r"[ \t]*(?:[:|][ \t]*|[ \t]{2,}))"
+    r"(?P<value>[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’\-]*(?:[ \t]+[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’\-]*){0,4})",
+    re.IGNORECASE,
+)
+
+
+def _hide_name_fields(text: str, known_names: set, people) -> str:
+    def repl(m):
+        words = list(re.finditer(r"\S+", m.group("value")))
+        keep = 0
+        for w in words:
+            token = w.group(0)
+            if token.lower() in _STOPWORDS or _is_safe_word(token):
+                break
+            keep += 1
+        if not keep:
+            return m.group(0)
+        value = m.group("value")
+        name = value[: words[keep - 1].end()]
+        rest = value[words[keep - 1].end():]
+        _record_name_tokens(" ".join(t for t in name.split() if t[:1].isupper()), known_names)
+        return m.group("label") + people.tag(name) + rest
+    return _NAME_FIELD_RE.sub(repl, text)
+
+
 def _is_sentence_start(text: str, start: int) -> bool:
     before = text[:start].rstrip(_LEADING_PUNCT)
     if not before or before[-1] in _SENTENCE_END_CHARS:
@@ -643,6 +1035,11 @@ def _replace_single_names(text: str, known_names: set, people=None) -> str:
     for match in _SINGLE_CAPITALISED_RE.finditer(text):
         word = match.group(0)
         if _is_safe_word(word) or _is_sentence_start(text, match.start()):
+            continue
+        # (26 November 2026) A short abbreviation in a form ("Doc. de
+        # identidad", "Prof. de referencia", "Nr. de expediente", "Fdo.:")
+        # is not a name.
+        if len(word) <= 6 and _ABBREVIATION_AFTER_RE.match(text, match.end()):
             continue
         tag = "[LOCATION]" if _looks_like_place(text, match.start()) else "[PERSON]"
         # A word seen as a person anywhere stays a person.
@@ -1421,6 +1818,7 @@ def anonymize(text: str, lang: str = "Español", people: "PersonNumbers" = None)
     people = people if people is not None else PersonNumbers()
     masked, found = _mask_placeholders(str(text))
     people.last = max(people.last, _highest_person_number(found))
+    people.look_ahead(masked)
     first_new = people.last + 1
     safe = _anonymize_capitals(_anonymize_core(masked, people), people)
     safe = _number_in_order(safe, people, first_new)
@@ -1439,15 +1837,23 @@ def _anonymize_core(text: str, people: "PersonNumbers" = None) -> str:
     safe = _EMAIL_RE.sub("[EMAIL]", safe)
     safe = _IBAN_RE.sub("[ID]", safe)
     safe = _DATE_RE.sub("[DATE]", safe)
+    safe = _YEAR_FIRST_DATE_RE.sub("[DATE]", safe)
     # (18 November 2026) Sensitive personal details, BEFORE names, so that
     # "Bildu" or a sentence-initial "Gay" gets its own label, not [PERSON].
     safe = _replace_special_categories(safe)
     safe = _generalise_ages(safe)
     safe = _IDENTIFIER_RE.sub("[ID]", safe)
+    # (26 November 2026) Identity documents after any label, and in every
+    # written form (see _ID_DOCUMENT_RE), BEFORE phone numbers, so that a
+    # DNI written in groups is never half taken for a phone number.
+    safe = _hide_labelled_ids(safe)
+    safe = _hide_id_documents(safe)
     safe = _DNI_NIE_RE.sub("[ID]", safe)
+    safe = _absorb_id_letters(safe)
     safe = _PHONE_RE.sub("[PHONE]", safe)
     safe = _LONG_NUMERIC_ID_RE.sub("[ID]", safe)
     safe = _service_names(safe)
+    safe = _hide_name_fields(safe, known_names, people)
 
     for pattern, replacement in _CONTEXTUAL_IDENTIFIER_PATTERNS:
         def ctx_repl(m, r=replacement):
@@ -1473,13 +1879,28 @@ def _anonymize_core(text: str, people: "PersonNumbers" = None) -> str:
             # "in English", "en Servicios Sociales": nothing personal there.
             if all(_is_safe_word(t) for t in captured.split()):
                 return m.group(0)
+            # (26 November 2026) Ordinary words at the start of what was
+            # captured stay ("NOMBRE Y APELLIDOS CARLOS VEGA": only the
+            # name is hidden, not "Y APELLIDOS").
+            lead_text = ""
+            if m.end(1) == m.end(0):
+                ws = list(re.finditer(r"\S+", captured))
+                k = 0
+                while k < len(ws) - 1:
+                    word = ws[k].group(0).strip(",.;:!?()\"'«»")
+                    if not (word.lower() in _STOPWORDS or _is_safe_word(word)):
+                        break
+                    k += 1
+                if k:
+                    lead_text = captured[: ws[k].start()]
+                    captured = captured[ws[k].start():]
             if r == "[PERSON]":
                 _record_name_tokens(captured, known_names)
                 r = _tag_lines(captured, people)
             if m.end(1) == m.end(0):
                 # Keep the cue words ("la madre, ...", "vive en ...") so the
                 # sentence still makes sense; only the name is replaced.
-                return m.group(0)[: m.start(1) - m.start(0)] + r + tail
+                return m.group(0)[: m.start(1) - m.start(0)] + lead_text + r + tail
             return r
         safe = pattern.sub(ctx_repl, safe)
     safe = _ADDRESS_UNIT_RE.sub("[ADDRESS]", safe)
@@ -1487,6 +1908,19 @@ def _anonymize_core(text: str, people: "PersonNumbers" = None) -> str:
     def title_repl(m):
         _record_name_tokens(m.group(1), known_names)
         return _tag_lines(m.group(1), people)
+
+    # (26 November 2026) "Mª Goikoetxea" / "M.ª José": the short form of
+    # María is part of the name and is hidden with it, as the same person
+    # as "María ...".
+    def short_maria_repl(m):
+        _record_name_tokens(m.group(1), known_names)
+        return people.tag("María " + m.group(1))
+
+    safe = re.sub(
+        rf"(?<![\w\[])M\.?\s?ª\.?\s+({_NAME_TOKEN}(?:[ \t]+{_NAME_TOKEN}){{0,3}})\b",
+        short_maria_repl,
+        safe,
+    )
 
     safe = re.sub(
         rf"\b{_TITLES}\.?\s+({_NAME_TOKEN}(?:\s+{_NAME_TOKEN}){{0,3}})\b",
@@ -1632,7 +2066,16 @@ def _restore_original_case(original, shadow, redacted):
             continue
         # A replacement starts here: copy the tag from the redacted text.
         if redacted[j] != "[":
-            return None
+            # (26 November 2026) A name that ran across a line break is now
+            # one tag with the line break kept in front of it, so the line
+            # break can come before the tag.
+            k = j
+            while k < n_redacted and redacted[k].isspace():
+                k += 1
+            if k == j or k >= n_redacted or redacted[k] != "[":
+                return None
+            pieces.extend(redacted[j:k])
+            j = k
         close = _find_tag_end(redacted, j)
         if close is None:
             return None

@@ -317,7 +317,9 @@ with error_boundary(
             # The exact passage(s) the analysis is based on, each with its
             # type in words. Only passages verified word for word against
             # the text the AI was given are ever shown (services/evidence.py).
-            render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count)
+            # Each passage with its one agreed type (see _agreed).
+            render_evidence(T, opportunity.evidence, opportunity.unverified_quote_count,
+                            agreed=_agreed(session)[0].get(opportunity.trigger))
             st.caption(T["workspace_reminder"])
         elif opportunity.focus:
             # "Nothing notable" / "not available": the short status text
@@ -477,11 +479,23 @@ with error_boundary(
     # ---------------------------------------------------------------------
     # Analysis report, download and highlighted text (November 2026, EDE)
     # ---------------------------------------------------------------------
+    def _agreed(session):
+        """({trigger: evidence}, report) with one type per passage, so the
+        cards, the report, the highlighted text and the download always
+        agree (26 November 2026; the rule is in services/quote_types.py).
+        Works for a reflection opened before this version too."""
+        try:
+            return session.agreed_evidence()
+        except Exception:
+            return ({o.trigger: getattr(o, "evidence", None) or [] for o in session.opportunities},
+                    getattr(session, "analysis_report", None))
+
     def _typed_quotes(session):
-        """Every typed quote of this reflection (cards and report). Works
-        for a reflection opened before this version too."""
-        lens = [{"evidence": getattr(o, "evidence", None) or []} for o in session.opportunities]
-        return all_typed_quotes(lens, getattr(session, "analysis_report", None))
+        """Every typed quote of this reflection (cards and report), with
+        the agreed types."""
+        by_trigger, report = _agreed(session)
+        lens = [{"evidence": evidence} for evidence in by_trigger.values()]
+        return all_typed_quotes(lens, report)
 
     def _report_problem(detail):
         """Log, quietly and once per reflection, that part of the analysis
@@ -524,6 +538,10 @@ with error_boundary(
         no report."""
         st.subheader(T["ar_header"])
         report = getattr(session, "analysis_report", None)
+        agreed_by_trigger, agreed_report = _agreed(session)
+        if report:
+            # The same types as the cards and the highlighted text.
+            report = agreed_report or report
         types = T["evidence_type_labels"]
         areas = T["ar_area_names"]
         if report:
@@ -592,7 +610,7 @@ with error_boundary(
             lenses.append({
                 "label": T["section_labels"].get(opportunity.trigger, opportunity.trigger),
                 "analysis": opportunity.focus,
-                "evidence": opportunity.evidence,
+                "evidence": agreed_by_trigger.get(opportunity.trigger, opportunity.evidence),
                 "questions": as_text_list(opportunity.invitation) if isinstance(opportunity.invitation, (list, tuple)) else [],
             })
         try:

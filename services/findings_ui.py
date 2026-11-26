@@ -33,10 +33,16 @@ def md_escape(text):
     return re.sub(r"([\\`*_\[\]<>#~|])", r"\\\1", flattened)
 
 
-def render_evidence(T, evidence, unverified_count=0):
+def render_evidence(T, evidence, unverified_count=0, agreed=None):
     """The exact passage(s) an observation is based on, as quotations,
     plus an honest note if some proposed passages could not be matched to
-    the text and were therefore not shown."""
+    the text and were therefore not shown.
+
+    `agreed` (26 November 2026): the same passages with the one type each
+    passage shows everywhere on the screen (services/quote_types.py);
+    used instead of `evidence` when given."""
+    if isinstance(agreed, list) and len(agreed) == len(evidence or []):
+        evidence = agreed
     if evidence:
         st.caption(T["findings_evidence_caption"])
         type_labels = T.get("evidence_type_labels", {}) or {}

@@ -162,9 +162,18 @@ def log_report_failure(failure, lang, manual=False):
         return None, None
 
 
-def all_quotes(findings, report):
+def all_quotes(findings, report, text=None):
     """Every typed, verified quote from the lenses and the report, as
-    [{"quote", "type"}] -- what the highlighted text shows."""
+    [{"quote", "type"}] -- what the highlighted text shows.
+
+    (26 November 2026) With `text` (the anonymised text), every quote of
+    the same passage gets the one agreed type (services/quote_types.py),
+    so the highlighted text shows the same type as the report and the
+    cards. `findings` must then be in card order."""
+    if text is not None:
+        from services.quote_types import agree_types
+        lenses, report = agree_types(text, [(f or {}).get("evidence") or [] for f in findings or []], report)
+        findings = [{"evidence": ev} for ev in lenses]
     quotes = []
     for f in findings or []:
         for e in f.get("evidence") or []:

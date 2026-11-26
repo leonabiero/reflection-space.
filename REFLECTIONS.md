@@ -493,6 +493,33 @@ longer hidden, and "referencia" is no longer taken for an ID label unless a
 real number follows ("Profesional de referencia: Ane Etxeberria" →
 "Profesional de referencia: [PERSONA 1]").
 
+**26 November 2026 — fixes after the EDE testers' reports:**
+
+- *ID numbers:* NIE, DNI/NIF and passport numbers are hidden however they
+  are written (spaces, dots, dashes, slashes, small letters, glued to the
+  next word as in PDFs) and after Spanish, Basque and English labels ("Nº
+  de Identificación", "Número de documento", "NAN zenbakia", "ID
+  number"…); for the new labels the label stays readable and only the
+  number becomes `[IDENTIFICADOR]`. Dates written year first
+  ("1989/11/19") become `[FECHA]`. Phone numbers, postcodes, ages, years
+  and amounts are not mistaken for IDs.
+- *Two people with the same surname* are never merged: people are told
+  apart by first name and surname. A word that could belong to two people
+  (a surname they share written alone, or a first name two people have)
+  is still hidden, as `[PERSONA]` with no number — the app does not guess.
+- *One person, one number:* the same person keeps her number whether
+  written in full, by first name, as "Sra." + surname, without accents, in
+  capitals, as "Mª", or split over a line break (one placeholder, line
+  break kept). Headings and labels of forms ("Datos Personales",
+  "Apellidos", "Doc.", "Fdo.", Basque/Spanish bilingual labels) are no
+  longer counted as people; names typed in small letters after a "Nombre
+  y apellidos:" label are now hidden.
+- *One type per passage:* when the lenses and the analysis report give the
+  same passage different types, the screen and the download show one type
+  everywhere: the report's type; if the report does not quote it, the type
+  most lenses gave; on a tie, the first lens in card order. The rule is in
+  one place, `services/quote_types.py`.
+
 **Results screen:** each card shows the analysis open, then the typed
 quotes, then 1–2 questions; under the cards, the analysis report, an
 optional "Download report" button (anonymised text only), and the text with

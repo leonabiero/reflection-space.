@@ -154,7 +154,9 @@ Requested by the EDE project team and approved by the project leads:
   when printed. The "View anonymised text" preview shows the text as
   written (paragraphs and accents kept), like the highlighted text. The
   quote under each finding of the analysis report is also shown in its
-  type's colour, on screen and in the download.
+  type's colour, on screen and in the download. Since 26 November 2026 a
+  passage shows the same type everywhere (report first, then the most
+  common lens type, then card order; `services/quote_types.py`).
 - **Chat replies** ("Explore with the companion") can be up to 1,000 tokens
   (was 400, which cut replies mid-word); see `SERVICE_USAGE_MONITORING.md`.
 - **Pattern Review** names repeated biases frankly ("When the same bias is
@@ -240,6 +242,12 @@ Tests are organised by what they guard:
   24 November 2026 fixes: service names, Bilbao neighbourhoods and floor/door
   in addresses (with checks that real names stay hidden), and accents and
   paragraph breaks surviving from a Word document to the preview
+- `test_anonymizer_ids_and_people.py`, `test_quote_type_consistency.py` —
+  the 26 November 2026 fixes: ID numbers in every written form (and
+  lookalikes that must stay visible), two people sharing a surname never
+  merged, one person keeping one number however written (including PDF
+  line breaks and form headings), and one type and colour per passage on
+  the whole screen and in the download (see `REFLECTIONS.md`)
 - `test_duplicate_texts.py` (and `test_duplicate_texts_postgres.py`) — one
   saved copy per text: the fingerprint rules, the note in three languages,
   the fingerprint going with its text, and Pattern Review counting each
