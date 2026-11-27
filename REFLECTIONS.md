@@ -1,5 +1,19 @@
 # Reflection-only design (October 2026, simplified November 2026)
 
+## 27 November 2026 update — Reflect step timings
+
+To find out why Reflect feels slow, each reflection now also saves **how
+long each step took** (table `reflection_timings`). That means the
+reflection code, a step name and milliseconds only, never any text, quote
+or name. These rows are:
+- erased together with their reflection;
+- erased by **Erase all data**;
+- deleted automatically after 30 days.
+
+They can be switched off with the `REFLECTION_TIMING_LOG` setting, and
+only the System Administrator can see them. See
+`SERVICE_USAGE_MONITORING.md`, "Reflection timing".
+
 ## 24 November 2026 update — one saved copy per text
 
 Product owner's decision. During testing the same practice text was

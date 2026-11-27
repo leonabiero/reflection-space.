@@ -11,7 +11,7 @@ app showing 0.
 transaction: reflections and their original texts, Pattern Review reports,
 observations and private notes, feedback, old stored documents, activity
 history, recorded problems and their case knowledge, cost and usage
-records, and rate-limit / login-attempt counters. Number sequences are
+records, Reflect step timings, and rate-limit / login-attempt counters. Number sequences are
 restarted, so the next reflection, problem or pattern starts again from
 number 1.
 
@@ -85,6 +85,8 @@ DATA_TABLES = (
     "case_investigations",
     # Cost and usage records
     "service_usage",
+    # Reflect step timings (27 November 2026, services/reflection_timing.py)
+    "reflection_timings",
     # Short-lived counters
     "reflection_rate_log",
     "login_failure_log",

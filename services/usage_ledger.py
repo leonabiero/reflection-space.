@@ -322,5 +322,71 @@ def get_operation_breakdown(service, window_days=30):
     ]
 
 
+def get_call_stats(service, operations, window_days=7):
+    """Read only (27 November 2026, Batch 1 -- Reflection timing): for
+    each named operation within the window, how many calls, how many
+    failed or timed out, how long they took (average, 90th percentile,
+    slowest) and how many tokens they used on average. Output tokens
+    include the AI's hidden thinking. Nothing here records anything:
+    record_usage() and the table are unchanged.
+
+    Returns a list of dicts (one per operation with data); an empty list
+    if there is nothing or the database fails. Never raises."""
+    ops = [str(o) for o in (operations or []) if o]
+    if not ops:
+        return []
+    since = now_utc() - timedelta(days=max(1, int(window_days)))
+    conn = None
+    try:
+        conn = _get_conn()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    """
+                    SELECT operation,
+                           COALESCE(SUM(request_count), 0),
+                           COALESCE(SUM(CASE WHEN NOT success THEN request_count ELSE 0 END), 0),
+                           COALESCE(SUM(CASE WHEN NOT success AND metadata LIKE %s
+                                             THEN request_count ELSE 0 END), 0),
+                           AVG(latency_ms),
+                           PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY latency_ms),
+                           MAX(latency_ms),
+                           AVG(input_tokens),
+                           AVG(output_tokens),
+                           COALESCE(SUM(estimated_cost_usd), 0)
+                    FROM service_usage
+                    WHERE service = %s AND operation = ANY(%s) AND occurred_at >= %s
+                    GROUP BY operation
+                    ORDER BY operation
+                    """,
+                    ("%Timeout%", service, ops, since),
+                )
+                rows = c.fetchall()
+        finally:
+            conn.close()
+    except Exception:
+        logger.warning("usage_ledger: get_call_stats FAILED", exc_info=True)
+        return []
+
+    def _num(value):
+        return float(value) if value is not None else None
+
+    return [
+        {
+            "operation": op,
+            "calls": int(calls or 0),
+            "failed": int(failed or 0),
+            "timed_out": int(timed_out or 0),
+            "avg_ms": _num(avg_ms),
+            "p90_ms": _num(p90_ms),
+            "max_ms": _num(max_ms),
+            "avg_input_tokens": _num(avg_in),
+            "avg_output_tokens": _num(avg_out),
+            "cost_usd": float(cost or 0),
+        }
+        for op, calls, failed, timed_out, avg_ms, p90_ms, max_ms, avg_in, avg_out, cost in rows
+    ]
+
+
 def get_smtp_summary(window_days=30):
     return get_window_summary("smtp", window_days)

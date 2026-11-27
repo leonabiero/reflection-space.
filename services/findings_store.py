@@ -762,6 +762,21 @@ def delete_runs_for_drafts(cursor, draft_ids):
     ids = [int(d) for d in (draft_ids or [])]
     if not ids:
         return 0
+    # Reflect step timings of these runs go with them
+    # (services/reflection_timing.py), in the same transaction.
+    cursor.execute(
+        """
+        SELECT COALESCE(reflection_code, case_ref) FROM reflection_runs
+        WHERE id IN (
+            SELECT run_id FROM reflection_run_sources WHERE draft_id = ANY(%s)
+        )
+        """,
+        (ids,),
+    )
+    codes = [r[0] for r in (cursor.fetchall() or []) if r and r[0]]
+    if codes:
+        from services.reflection_timing import erase_timings_for_codes
+        erase_timings_for_codes(cursor, codes)
     cursor.execute(
         """
         DELETE FROM reflection_runs

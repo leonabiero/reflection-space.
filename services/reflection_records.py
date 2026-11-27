@@ -744,6 +744,9 @@ def _erase_runs(cursor, run_ids):
         cursor.execute("SELECT to_regclass('reflection_explorations')")
         if cursor.fetchone()[0] is not None:
             cursor.execute("DELETE FROM reflection_explorations WHERE case_ref = ANY(%s)", (codes,))
+        # Its Reflect step timings go with it (services/reflection_timing.py).
+        from services.reflection_timing import erase_timings_for_codes
+        erase_timings_for_codes(cursor, codes)
     cursor.execute("DELETE FROM reflection_runs WHERE id = ANY(%s)", (ids,))
     # A pattern left with no observations at all loses its explanation
     # too (same rule as findings_store.delete_runs_for_drafts).

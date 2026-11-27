@@ -24,7 +24,7 @@ underlying data doesn't support -- see _status_for_pct() and every
 "Limit unavailable" branch below.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import calendar
 
 import config
@@ -211,7 +211,11 @@ def get_cost_per_reflection(window_days=30):
     companion_cost = (sum(r["estimated_cost_usd"] for r in companion_rows)
                       + sum(r["estimated_cost_usd"] for r in report_rows))
 
-    reflections_generated = get_total_reflection_count() or 0
+    # 27 November 2026: count reflections from the SAME window as the
+    # cost above (it used to count every reflection ever made, which made
+    # the average look lower and lower over time).
+    since_iso = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+    reflections_generated = get_total_reflection_count(since_iso=since_iso) or 0
 
     avg_cost = None
     if reflections_generated > 0:

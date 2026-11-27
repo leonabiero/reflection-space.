@@ -922,6 +922,34 @@ def ensure_schema():
                     ON pattern_reports (created_at DESC)
                 """)
 
+                # --- services/reflection_timing.py: Reflect step timings
+                # (27 November 2026, Batch 1 measurement) ---
+                #
+                # How long each step after pressing Reflect took. ONLY the
+                # neutral reflection code, a fixed step name and whole
+                # milliseconds -- never any case text, anonymised text,
+                # quote, AI answer, name, role or language. Erased with its
+                # reflection (services/reflection_records.py:_erase_runs),
+                # by "Erase all data", and automatically after
+                # config.REFLECTION_TIMING_RETENTION_DAYS.
+                c.execute("""
+                CREATE TABLE IF NOT EXISTS reflection_timings (
+                    id SERIAL PRIMARY KEY,
+                    reflection_code TEXT NOT NULL,
+                    step TEXT NOT NULL,
+                    duration_ms INTEGER NOT NULL,
+                    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_timings_recorded_at
+                    ON reflection_timings (recorded_at DESC)
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reflection_timings_code
+                    ON reflection_timings (reflection_code)
+                """)
+
                 # November 2026: the Text analysis (corpus) feature, the
                 # Knowledge Assistant and Team Presence were removed, so
                 # their tables (corpora, corpus_*, ka_rate_log,

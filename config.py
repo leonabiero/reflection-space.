@@ -557,6 +557,25 @@ DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in (
     "1", "true", "yes", "on",
 )
 
+# ---------------------------------------------------------------------
+# Reflect step timing (27 November 2026, Batch 1 -- see
+# SERVICE_USAGE_MONITORING.md, "Reflection timing")
+# ---------------------------------------------------------------------
+# Records how long each step after pressing Reflect takes: ONLY the
+# neutral reflection code, a fixed step name and milliseconds, never any
+# text (services/reflection_timing.py). Shown to the System Administrator
+# in System Administration -> "Reflection timing". Temporary diagnostics:
+# set REFLECTION_TIMING_LOG to "false" to stop recording (nothing is then
+# timed or saved, and no database call is made). Rows are deleted
+# automatically after REFLECTION_TIMING_RETENTION_DAYS.
+REFLECTION_TIMING_LOG = os.getenv("REFLECTION_TIMING_LOG", "true").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+try:
+    REFLECTION_TIMING_RETENTION_DAYS = max(1, int(os.getenv("REFLECTION_TIMING_RETENTION_DAYS", "30")))
+except ValueError:
+    REFLECTION_TIMING_RETENTION_DAYS = 30
+
 # The AI's observations and questions are not kept (decision above).
 # Switching this on brings back the earlier behaviour -- saved
 # observations, the professional's notes on them and the "Saved

@@ -1,4 +1,11 @@
+import time
+
 import streamlit as st
+
+# 27 November 2026 (Batch 1 measurement): when this run of the page
+# started, for the Reflect step timings (services/reflection_timing.py).
+_PAGE_STARTED = time.monotonic()
+
 from services.reflection_log import log_reflection
 from services.findings_store import save_reflection_run, get_feedback_for_findings
 from datetime import date
@@ -30,6 +37,7 @@ from rdi.conversation_builder import build_conversation
 from rdi.reflection_context import ReflectionContext
 from rdi.reflection_session import ReflectionSession
 from rdi.companions import COMPANIONS
+from services.reflection_timing import Stopwatch
 
 # =====================================================================
 # Reflection Space -- write, choose a language, press Reflect
@@ -124,6 +132,25 @@ with error_boundary(
     PREFILL_KEY = "rs_prefill"
     FLASH_KEY = "rs_flash"
     GENERATING_KEY = "_generating_reflection"
+    # Batch 1 measurement (27 November 2026): the Stopwatch of the
+    # reflection just made, kept until the results have been drawn.
+    TIMING_KEY = "_rs_reflection_timing"
+
+    def _finish_timing():
+        """Record the last two steps and save the timings, once. Times and
+        a reflection code only (services/reflection_timing.py). Never
+        breaks the page."""
+        try:
+            timer = st.session_state.pop(TIMING_KEY, None)
+            if timer is None:
+                return
+            timer.record_since("results_drawn", _PAGE_STARTED)
+            clicked = timer.marks.get("click")
+            if clicked is not None:
+                timer.record_since("total", clicked)
+            timer.save()
+        except Exception:
+            pass
 
     def _form_key(name):
         return f"rs_{name}_{st.session_state.get(FORM_NONCE_KEY, 0)}"
@@ -693,6 +720,7 @@ with error_boundary(
                 if st.button(T["rs_start_over_button"], key="rs_start_over_after_error"):
                     _start_fresh()
                     st.rerun()
+            _finish_timing()
             st.stop()
 
         # Warnings stay visible: they change what the practitioner sees.
@@ -875,6 +903,8 @@ with error_boundary(
             _start_fresh(flash=T["rs_finished_success"])
             st.rerun()
 
+        # The results have been drawn: record the last timing steps.
+        _finish_timing()
         st.stop()
 
 
@@ -1036,13 +1066,21 @@ with error_boundary(
                 # no text at all -- only the kind of failure.
                 # ---------------------------------------------------------
                 safe_text = None
+                # Batch 1 measurement (27 November 2026): step times for
+                # this reflection -- the code and milliseconds only, never
+                # any text (services/reflection_timing.py). Makes no
+                # database call until the results have been drawn.
+                timer = Stopwatch(reflection_code)
+                timer.record_since("page_start", _PAGE_STARTED)
+                timer.marks["click"] = time.monotonic()
                 # Which number each person has in this text (real names:
                 # kept in this browser session only, never saved or sent),
                 # so the chat later uses the same numbers.
                 people = PersonNumbers()
                 try:
                     # Placeholders in the language of the reflection.
-                    safe_text = anonymize(material, reflect_lang, people)
+                    with timer.step("anonymise"):
+                        safe_text = anonymize(material, reflect_lang, people)
                 except Exception as exc:
                     safe_text = None
                     log_error(
@@ -1065,7 +1103,8 @@ with error_boundary(
                 if not (safe_text or "").strip():
                     st.error(T["rs_anonymise_failed"])
                 else:
-                    allowed, _count = check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR)
+                    with timer.step("limit_check"):
+                        allowed, _count = check_and_record(user_name, max_per_hour=DEFAULT_MAX_PER_HOUR)
                     if not allowed:
                         st.session_state["_rate_limit_hit"] = True
                         st.rerun()
@@ -1076,12 +1115,13 @@ with error_boundary(
                     # Backend duplicate protection: this person, this
                     # reflection code, this exact (anonymised) text and
                     # language. Only a one-way fingerprint is stored.
-                    reflection_request_id = request_dedup.fingerprint(
-                        "reflection", user_name, reflection_code, safe_text, reflect_lang,
-                    )
-                    claim_status = request_dedup.claim(
-                        reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
-                    )
+                    with timer.step("request_guard"):
+                        reflection_request_id = request_dedup.fingerprint(
+                            "reflection", user_name, reflection_code, safe_text, reflect_lang,
+                        )
+                        claim_status = request_dedup.claim(
+                            reflection_request_id, "reflection", ttl_minutes=REQUEST_DEDUP_TTL_MINUTES,
+                        )
                     if claim_status != "claimed":
                         st.session_state[GENERATING_KEY] = False
                         st.session_state["_reflection_duplicate_hit"] = True
@@ -1100,19 +1140,22 @@ with error_boundary(
                             # orchestrator anonymises again; that is
                             # harmless because anonymize() is idempotent.)
                             result = run_reflection(safe_text, reflect_lang, context_description="",
-                                                    people=people)
+                                                    people=people, timer=timer)
                         reflection_succeeded = True
                     finally:
+                        save_started = time.monotonic()
                         # A failed/aborted attempt must not block a retry.
-                        if reflection_succeeded:
-                            request_dedup.complete(reflection_request_id)
-                        else:
-                            request_dedup.release(reflection_request_id)
+                        with timer.step("save_guard_release"):
+                            if reflection_succeeded:
+                                request_dedup.complete(reflection_request_id)
+                            else:
+                                request_dedup.release(reflection_request_id)
 
                     st.session_state[GENERATING_KEY] = False
 
                     if "error" not in result:
-                        log_reflection(reflection_code, result["raw"], user_name, user_role)
+                        with timer.step("save_reflection_log"):
+                            log_reflection(reflection_code, result["raw"], user_name, user_role)
 
                     session = ReflectionSession(
                         result,
@@ -1134,6 +1177,7 @@ with error_boundary(
                     # Best-effort: if saving fails the reflection still
                     # works and the practitioner is told.
                     if "error" not in result:
+                        save_reflection_started = time.monotonic()
                         try:
                             saved = save_reflection_run(
                                 case_ref=reflection_code,
@@ -1174,17 +1218,22 @@ with error_boundary(
                                 )
                         except Exception:
                             session.findings_save_failed = True
+                        timer.record_since("save_reflection", save_reflection_started)
 
                         # Retention: clear saved texts that have passed
                         # their time limit. Best effort -- never blocks the
                         # reflection.
                         try:
-                            reflection_records.purge_expired_original_text()
-                            reflection_records.purge_expired_anonymised_text()
+                            with timer.step("save_cleanup"):
+                                reflection_records.purge_expired_original_text()
+                                reflection_records.purge_expired_anonymised_text()
                         except Exception:
                             pass
 
+                    timer.record_since("save_steps", save_started)
                     session.save()
+                    # Kept until the results have been drawn (_finish_timing).
+                    st.session_state[TIMING_KEY] = timer
 
                     # A brand-new workspace always opens with every tab
                     # collapsed and no leftover input or error state.

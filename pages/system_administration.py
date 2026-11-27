@@ -11,6 +11,7 @@ from pages.admin_sections import (
     admin_tools,
     ai_diagnostic_centre,
     service_usage,
+    reflection_timing,
     data_reset,
     demo_data,
 )
@@ -41,6 +42,8 @@ from pages.admin_sections import (
 #   - Added: "Erase all data", to start the real pilot from zero.
 #   - 17 November 2026: "Demo data" (load / remove fictional texts), shown
 #     ONLY in the separate demo app (DEMO_MODE on) -- see DEMO.md.
+#   - 27 November 2026: "Reflection timing" (temporary measurement of the
+#     Reflect steps and the measured cost per reflection).
 
 T = init_language()
 init_identity(T)
@@ -78,6 +81,10 @@ with error_boundary(
 
     # 5. Service Usage & Costs
     service_usage.render(T)
+
+    # 5b. Reflection timing (27 November 2026, Batch 1 measurement):
+    #     step times and the measured cost per reflection.
+    reflection_timing.render(T)
 
     # 6. Erase all data (start from zero)
     data_reset.render(T)

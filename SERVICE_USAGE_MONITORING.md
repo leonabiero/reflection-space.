@@ -199,3 +199,68 @@ per chat message, mostly re-reading the case). Only a reply that would
 have been cut costs more: at most about $0.006 extra (600 more output
 tokens at $10 per million), typically $0.001–$0.002. At pilot volumes this
 is well under $1 a month.
+
+## 27 November 2026 — Reflection timing (Batch 1, measurement only)
+
+Practitioners said the wait after pressing **Reflect** feels long. The
+investigation estimated 35–70 seconds, mostly two AI rounds one after the
+other (the eight lenses, then the analysis report). Before anything is
+changed, the app now **measures** the real times and the real cost, so the
+speed improvements (Batch 2) are chosen on real numbers. Nothing changes
+for practitioners.
+
+- **What is measured** (`services/reflection_timing.py`): each step after
+  pressing Reflect, on our server. That covers:
+  - the page reload;
+  - anonymisation;
+  - the hourly limit check;
+  - the double-click guard;
+  - each of the eight lenses (with their retries), and the wait for all eight;
+  - the analysis report;
+  - each saving step (including the duplicate-text check and the
+    expired-text clean-up);
+  - drawing the results;
+  - the total.
+
+  The time the browser and the internet take is **not** included.
+- **What is stored:** a new table, `reflection_timings`. Each row holds
+  only the reflection code, a step name from a fixed list and whole
+  milliseconds. It **never** holds case text, anonymised text, quotes, AI
+  answers, names, roles or the language. Times are kept in memory while
+  the reflection runs and saved in one background write after the results
+  are shown, so the practitioner never waits for them. If saving fails, a
+  warning goes to the server log and the reflection is not affected. The
+  eight lenses record at the same time, so the stopwatch is protected by a
+  lock and nothing is lost or mixed up.
+- **When it is deleted:**
+  - automatically after `REFLECTION_TIMING_RETENTION_DAYS` (30);
+  - with its reflection (deleted by its author after the 48-hour bin, or
+    by the System Administrator);
+  - by **Erase all data**.
+- **On and off:** the `REFLECTION_TIMING_LOG` setting (in Streamlit secrets
+  or the environment). It is on by default. Set it to `false` and restart
+  the app to stop recording; nothing is then timed or saved.
+- **Where to see it:** System Administration → **Reflection timing**
+  (System Administrator only; checked on the screen and again in the
+  service layer). It shows, for the last 7 or 30 days:
+  - the **measured average Claude cost per reflection**, next to the
+    earlier $0.072 estimate;
+  - the lens and report AI calls: average, slowest 10 % and slowest time,
+    average input and output tokens (output includes the AI's hidden
+    "thinking"), failures and time-outs;
+  - one line per step.
+- **Measured cost per reflection:** the cost of all lens and report calls
+  in the period (retries, failed attempts and practitioner retries
+  included, because they are real cost), divided by the reflections
+  completed in the same period. The figures come from the existing usage
+  records. `usage_ledger.get_call_stats()` is a new read-only summary;
+  how usage is recorded is unchanged.
+- **Fix:** the older `get_cost_per_reflection()` (used by the forecast
+  calculation, not shown on screen) divided 30 days of cost by **all**
+  reflections ever made, which made the average look lower over time. It
+  now counts reflections from the same 30 days.
+- **Cost of the measurement itself:** no AI calls; one small database
+  write per reflection.
+- **Tests:** `tests/test_reflection_timing.py`, and
+  `tests/test_reflection_timing_postgres.py` (real database, skipped unless
+  `TEST_DATABASE_URL` is set).

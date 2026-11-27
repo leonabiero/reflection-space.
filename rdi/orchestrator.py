@@ -172,6 +172,13 @@ extra call writes the analysis report (services/analysis_report.py). It
 is returned as the additive key "analysis_report" (None if it failed;
 "analysis_report_failed" is then True). A failed report is logged once
 and never stops the lens cards from being shown. Nothing is saved.
+
+27 November 2026 -- step timing (Batch 1, measurement only)
+------------------------------------------------------------
+run_reflection() takes an optional `timer` (services/reflection_timing.
+Stopwatch). When given, it records how long each lens took (in its own
+thread), the wait for all eight, and the report -- times only, never any
+text. Without it (the default) everything runs exactly as before.
 """
 
 import random
@@ -354,7 +361,22 @@ def _merge_results(results, safe_text, context_description):
     return raw_result, opportunities, findings, module_status
 
 
-def run_reflection(text, lang="Español", context_description="", people=None):
+def _timed_companion(companion, safe_text, lang, timer):
+    """_generate_companion_with_retry() for one companion, timed into
+    `timer` (services/reflection_timing.Stopwatch) as "lens_<key>". Runs
+    in the companion's own thread; the Stopwatch is thread-safe. The
+    timing never changes the result."""
+    started = time.monotonic()
+    try:
+        return _generate_companion_with_retry(companion, safe_text, lang)
+    finally:
+        try:
+            timer.record_since("lens_" + companion["key"], started)
+        except Exception:
+            pass
+
+
+def run_reflection(text, lang="Español", context_description="", people=None, timer=None):
     """
     Generate a reflection by running all 8 companions in parallel and
     merging their results.
@@ -463,11 +485,21 @@ def run_reflection(text, lang="Español", context_description="", people=None):
         }
 
     try:
+        # 27 November 2026 (Batch 1 measurement): optional Stopwatch
+        # (services/reflection_timing.py). Without one, the calls are made
+        # exactly as before.
+        lenses_started = time.monotonic()
         with ThreadPoolExecutor(max_workers=len(COMPANIONS)) as executor:
-            future_to_companion = {
-                executor.submit(_generate_companion_with_retry, companion, safe_text, lang): companion
-                for companion in COMPANIONS
-            }
+            if timer is None:
+                future_to_companion = {
+                    executor.submit(_generate_companion_with_retry, companion, safe_text, lang): companion
+                    for companion in COMPANIONS
+                }
+            else:
+                future_to_companion = {
+                    executor.submit(_timed_companion, companion, safe_text, lang, timer): companion
+                    for companion in COMPANIONS
+                }
             for future in as_completed(future_to_companion):
                 companion = future_to_companion[future]
                 try:
@@ -499,11 +531,18 @@ def run_reflection(text, lang="Español", context_description="", people=None):
                 else:
                     results[companion["key"]] = result
 
+        if timer is not None:
+            try:
+                timer.record_since("lenses_total", lenses_started)
+            except Exception:
+                pass
+
         # November 2026: the analysis report, from the lenses that worked
         # (only if at least one did). Inside the same slot, so it counts
         # towards the same capacity limit.
         if len(failed_labels) < len(COMPANIONS):
             merged = _merge_results(results, safe_text, context_description)
+            report_started = time.monotonic()
             try:
                 report_outcome = analysis_report.generate_report(
                     safe_text, merged[2], lang,
@@ -512,6 +551,11 @@ def run_reflection(text, lang="Español", context_description="", people=None):
             except Exception as exc:   # never lose the lens cards over it
                 report_outcome = {"error": "Analysis report failed", "raw": str(exc),
                                   "traceback": traceback.format_exc()}
+            if timer is not None:
+                try:
+                    timer.record_since("analysis_report", report_started)
+                except Exception:
+                    pass
     finally:
         # Always release, success or failure -- see the module
         # docstring's "Concurrency control" section. Post-processing

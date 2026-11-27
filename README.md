@@ -32,8 +32,10 @@ Four roles, each with different screens available to them:
   after an "Are you sure?" step; reports are shared, so a deleted report is
   gone for the whole management team (see `PATTERNS.md`)
 - **System Administrator** — same as Social Worker, plus user list, system
-  health, the list of recorded problems, service costs, and the "Erase all
-  data" action. No Manager area (since 15 November 2026)
+  health, the list of recorded problems, service costs, Reflection timing
+  (since 27 November 2026: how long each step after pressing Reflect takes,
+  and the measured cost per reflection; see `SERVICE_USAGE_MONITORING.md`),
+  and the "Erase all data" action. No Manager area (since 15 November 2026)
 
 Access to each screen and each action is checked in two places: once in the
 screens themselves, and again inside the service layer underneath, so a
@@ -252,6 +254,11 @@ Tests are organised by what they guard:
   saved copy per text: the fingerprint rules, the note in three languages,
   the fingerprint going with its text, and Pattern Review counting each
   text once
+- `test_reflection_timing.py` (and `test_reflection_timing_postgres.py`) —
+  Reflect step timing: only code, step and milliseconds are saved, the
+  stopwatch is thread-safe, timing never breaks a reflection and can be
+  switched off, System Administrator only, erased with the reflection,
+  the measured cost per reflection, and the texts in three languages
 - `test_simple_reflection_screen.py` — the simplified screen: typed text vs
   uploaded document, the AI only ever receiving anonymised text, no fallback
   when anonymisation fails, the chosen language reaching every AI call
